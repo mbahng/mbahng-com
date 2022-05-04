@@ -1,0 +1,60 @@
+<html>
+<head>
+    <title>Muchang Bahng's HomePage</title>
+</head>
+<BODY VLINK=#00009C></BODY>
+
+<!------------------------------------------------------------------------>
+<font color=000000><!----------------------------------------------------->
+<!------------------------------------------------------------------------>
+<style>
+    table, th, td {
+      border:1px solid black;
+    }
+    </style>
+
+<H1>Muchang Bahng's Homepage</H1>
+<h4>Gaspar de Portola HGM '12-'14 <br> Korea International School '14-'19 <br> Duke University '19-'20</h4>
+<body>
+<p>
+Email: muchang.bahng@duke.edu 
+</p>
+<h2>Public Key Formats</h2>
+Note that K = k * G is a pair of 256-bit numbers, say (in 64-digit hexadecimal)
+<pre>
+  x = F028892BAD7ED57D2FB57BF33081D5CFCF6F9ED3D3D7F159C2E2FFF579DC341A
+  y = 07CF33DA18BD734C600B96A72BBC4749D5141C90EC8AC328AE52DDFE2E505BDB
+</pre>
+This pair is usually presented with the prefix '04' followed by the numbers x and y, so the same public key would be shown as a 520-bit (in 130 hex digits) number. This is the <b>uncompressed public key</b> format: 
+<pre>K = 04F028892BAD7ED57D2FB57BF33081D5CFCF6F9ED3D3D7F159C2E2FFF579DC341A07CF33DA18BD734C600B96A72BBC4749D5141C90EC8AC328AE52DDFE2E505BDB
+</pre>
+Compressed public keys were introduced to bitcoin to reduce the size of transactions and conserve disk space on nodes that store the bitcoin blockchain database. Most transactions include the public key, required to validate the owner’s credentials and spend the bitcoin. Each public key requires 520 bits, which when multiplied by several hundred transactions per block, or tens of thousands of transactions per day, adds a significant amount of data to the blockchain.
+<br>
+Note that a public key is really just a point (x, y) on the elliptic curve that satisfies 
+<p style="text-align:center">y<sup>2</sup> = (x<sup>3</sup> + 7)  over  𝔽<sub>p</sub> &times; 𝔽<sub>p</sub> </p> 
+so if we know the x-coordinate, we can simply just calculate the y-coordinate by solving the equation above. This allows us to store only the x-coordinate of the public key point, omitting the y-coordinate and reducing the size of the key and the space rquired to store it by 256-bits, a 50% reduction in size. While uncompressed public keys have a prefix of '04,' compressed public keys start with either a '02' or '03' prefix. This is because for every x-coordinate, there are two possible values of y (a positive and a negative value) that satisfy the equation (because of the y<sup>2</sup>). When calculating this over a finite field of prime order p, then one value turns out to be even and the other odd (e.g. 3≡3, -3≡4  mod 7). Therefore, 
+<ul>
+  <li>A prefix of '02' is stored if the y is even</li>
+  <li>A prefix of '03' is stored if the y is odd</li>
+</ul>
+This allows the software to unambiguously deduce the y-coordinate from the x-coordinate and uncompress the public key to the full coordinate of the point, and example of lossless compression. Therefore, the same public key above can be compressed into: 
+<pre>K = 03F028892BAD7ED57D2FB57BF33081D5CFCF6F9ED3D3D7F159C2E2FFF579DC341A
+</pre>
+This compressed public key corresponds to the same private key, meaning that it is generated from the same private key. However, it looks different from the uncompressed public key. More importantly, if we convert this compressed public key to a bitcoin address using the double-hash function (RIPEMD160(SHA256(K))) it will produce a <i>different</i> bitcoin address. This can be confusing, because it means that a single private key can produce a public key expressed in two different formats (compressed and uncompressed) that produce two different bitcoin addresses. This is especially problematic when a wallet application is importing private keys from another bitcoin wallet application, because the new wallet needs to scan the blockchain to find transactions corresponding to these imported keys. It is not clear at this point which address the new wallet should scan for. 
+<br><br>
+Actually, this is exactly why the uncompressed and compressed WIF formats were introduced into the private key. More specifically, 
+<ul>
+  <li>When the new wallet receives the private key in WIF-uncompressed format, this indicates that this private key has been used to produce <i>uncompressed</i> public keys and therefore <i>uncompressed</i> bitcoin addresses. </li>
+  <li>When the new wallet receives the private key in WIF-compressed format, this indicates that this private key has been used to produce <i>compressed</i> public keys and therefore <i>compressed</i> bitcoin addresses.</li>
+</ul>
+Note that the compressed WIF format for private keys are actually 1 byte <i>longer</i> than the uncompressed WIF because of the extra '01', which signifies that it comes from a newer wallet and should only be used to produce compressed public keys.  The term “compressed private key” really means “private key from which compressed public keys should be derived,” whereas “uncompressed private key” really means “private key from which uncompressed public keys should be derived.” You should only refer to the export format as “WIF-compressed” or “WIF” and not refer to the private key as “compressed” to avoid further confusion.
+<br><br>
+Remember, these formats are not used interchangeably. In a newer wallet that implements compressed public keys, the private keys will only ever be exported as WIF-compressed (with a K or L prefix). If the wallet is an older implementation and does not use compressed public keys, the private keys will only ever be exported as WIF (with a 5 prefix). The goal here is to signal to the wallet importing these private keys whether it must search the blockchain for compressed or uncompressed public keys and addresses. 
+
+<!------------------------------------------------------------------------>
+</font><!----------------------------------------------------------------->
+<!------------------------------------------------------------------------>
+</body>
+
+
+</html>
