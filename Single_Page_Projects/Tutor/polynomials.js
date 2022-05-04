@@ -473,8 +473,8 @@ function CubicS_F(level) {
 
     var solution; 
     
-    console.log(`${a[0]} ${b[0]} ${c[0]} ${d[0]} ${e[0]} ${f[0]}`);
-    console.log(allEqual([a[0], b[0], c[0]]) && allEqual([d[0], e[0], f[0]]))
+    // console.log(`${a[0]} ${b[0]} ${c[0]} ${d[0]} ${e[0]} ${f[0]}`);
+    // console.log(allEqual([a[0], b[0], c[0]]) && allEqual([d[0], e[0], f[0]]))
     
     if (allEqual([a[0], b[0], c[0]]) && allEqual([d[0], e[0], f[0]])) {solution = `$${clean(m, addsign=false)}(${clean(a, addsign=false)}x ${clean(d)})^3$`} 
     else if (a[0] == b[0] && d[0] == e[0]) {solution = `$${clean(m, addsign=false)}(${clean(a, addsign=false)}x ${clean(d)})^2 (${clean(c, addsign=false)}x ${clean(f)})$`}
@@ -624,7 +624,7 @@ function QuarticS_F(level) {
     
     var solution; 
 
-    console.log(`${a[0]} ${b[0]} ${c[0]} ${d[0]} ${e[0]} ${f[0]} ${g[0]} ${h[0]}`);
+    // console.log(`${a[0]} ${b[0]} ${c[0]} ${d[0]} ${e[0]} ${f[0]} ${g[0]} ${h[0]}`);
 
     if (allEqual([a[0], b[0], c[0], d[0]]) && allEqual([e[0], f[0], g[0], h[0]])) {solution = `$${clean(m, addsign=false)}(${clean(a, addsign=false)}x ${clean(d)})^3$`} 
     else if (allEqual([a[0], b[0], c[0]]) && allEqual([e[0], f[0], g[0]])) {solution = `$${clean(m, addsign=false)}(${clean(a, addsign=false)}x ${clean(e)})^3 (${clean(d, addsign=false)}x ${clean(h)})$`}
@@ -857,8 +857,8 @@ function GenerateConvertExercises(no_Q) {
                     return el != '';
                 }).sort().join(' '); 
 
-                console.log(actual_solution); 
-                console.log(input_information);
+                // console.log(actual_solution); 
+                // console.log(input_information);
             }
 
             if (function_name)
@@ -901,10 +901,3 @@ function GenerateConvertExercises(no_Q) {
     }
     section.appendChild(list); 
 }
-
-const box = document.getElementById("box")
-console.log(box);
-
-box.addEventListener("click", e => {
-    console.log("Box")
-}); 

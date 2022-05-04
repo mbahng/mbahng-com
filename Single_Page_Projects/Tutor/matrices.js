@@ -335,7 +335,6 @@ function GenerateMatrixExercises(no_Q) {
                 }
             }
             if (SameMatrix) {
-                console.log("EQUAL");
                 document.getElementById(`Solution${numberM}M`).style = "position: absolute; left: 80%; display: auto; color: rgb(11, 225, 0);"; 
             } 
             else {
