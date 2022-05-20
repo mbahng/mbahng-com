@@ -12,7 +12,14 @@
     MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});
   </script>
   <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-MML-AM_CHTML"></script>
+  <style>
+    pre {
+      background-color: rgb(213, 212, 212);
+      overflow-x: visible
+    }
+  </style>
 </head>
+
 
 
 <body>
@@ -313,8 +320,27 @@ We introduce further commands to navigate the hierarchy and structure of classes
   </li>
 </ul>
 
-<div class="subsection_title">Built-In Functions</div>
-The Python interpreter has a number of built-in functions and types built into it that are always available. All of them can be easily googled. Note that given a built-in function with an object input <code>function(Obj)</code>, this function is really just a shortcut that implements a specific object method of <code>Obj</code>. Here are some examples: 
+<div class="subsection_title">Built-In Functions/Operators and Dunder Methods</div>
+We first should clarify the distinction between functions and expression operators in Python. In general, they are both a map (in the mathematical sense) and are just represented differently. 
+<ul>
+  <li>A function is a map that is of form <code>function(args)</code>. There are built-in functions (e.g. <code>len()</code> or <code>abs()</code>) or we can explicitly define them. Either way, letting $\texttt{CLS}$ be the set of all objects of class $\texttt{CLS}$, we can say that the functions above are (by default) maps with the following domain and codomains:  
+  \begin{align*}
+    \texttt{len()}: & \texttt{STR} \cup \texttt{LIST} \cup \ldots \cup \texttt{DICTIONARY} \longrightarrow \texttt{INT} \\
+    \texttt{abs()}: & \texttt{INT} \cup \texttt{FLOAT} \longrightarrow \texttt{INT} \cup \texttt{FLOAT} 
+  \end{align*}
+  </li>
+  <li>
+    An operator is also considered a map, but the only difference is syntax. They are represented with <i>symbols</i>, such as <code>+</code> in <code>2 + 3</code>, <code>&lt;</code> in <code>1 &lt; 5</code>, and <code>[]</code> in <code>string.[i]</code>. Again, we can interpret them as mathematical maps with the following domain and codomains, where $\texttt{CLS}^2 = \texttt{CLS} \times \texttt{CLS}$: 
+    \begin{align*} 
+      \texttt{+} & : \texttt{INT}^2 \cup \texttt{STR}^2 \cup \texttt{LIST}^2 \longrightarrow \texttt{INT} \cup \texttt{STR} \cup \texttt{LIST} \\
+      \texttt{&lt;} & : \texttt{INT}^2 \cup \texttt{FLOAT}^2 \longrightarrow \texttt{BOOL} \\
+      \texttt{[]} & : ( \texttt{STR} \cup \texttt{LIST} ) \cup \texttt{INT} \longrightarrow \texttt{OBJECT} 
+    \end{align*}
+  </li>
+</ul>
+Another difference is that the set of all syntactic operators is fixed and new ones cannot be added by your Python code. You can't write your own code to define a new operator called <code>$</code> and then have <code>x $ y</code> work. On the other hand, you can define as many methods as you want. Fundamentally though, there really is no difference between functions and operators.
+<br><br>
+The Python interpreter has a number of built-in functions and operators that are always available (which can be easily googled). When we call these functions/operators, what really happens in the background is that they are just shortcuts that invokes a specific object method of whatever argument we are working with. Here are some examples: 
 <ul>
   <li>
     The <code>abs</code> function accepts an integer, a float, or any argument with an <code>__abs__()</code> method. It invokes the <code>__abs__()</code> method of its object argument, which, by default for int and float, returns the absolute value of a number. 
@@ -376,11 +402,166 @@ The Python interpreter has a number of built-in functions and types built into i
     </pre>
     For some reason, it throws an error when <code>__len__()</code> returns a non-integer type, so we can't just copy and paste the previous example code (which is why we replaced the string with the integer <code>34</code>). However, the logic is the same. 
   </li>
+  <li>
+    The <code>+</code> operator can accept 2 integers, 2 strings, 2 lists, or any first argument with a <code>__add__(other)</code> method followed by an arbitrary second argument that is compatible with the definition of the method. It invokes, the <code>__add__(other)</code> method of its object argument. 
+    <pre>
+    >>> x = 2
+    >>> y = 9
+    >>> x + y         
+    11 
+    >>> x.__add__(y)  #Object method of 'x' with argument 'y'
+    11 
+    >> y + x 
+    11 
+    >> y.__add__(x)   #Object method of 'y' with argument 'x'
+    11 
+    </pre>
+    Note that <code>x + y</code> calls <code>x.__add__(y)</code> and <code>y + x</code> calls <code>y.__add__(x)</code>. So, <code>x + y</code> is fundamentally different from <code>y + x</code> and equality is achieved due to commutativity of the <code>__add__()</code> operator. If we were to modify the <code>__add__()</code> method, then commutativity may not be achieved. 
+  </li>
+  <li>
+    The indexing expression operator <code>[]</code> accepts some sequence (or any object having the <code>__getitem__(i)</code> method), and it calls the <code>__getitem__(i)</code>, where <code>i</code> is an integer. Let us implement this into the <code>Student</code> class. We will add an (object) attribute called <code>courses</code> which will be a list, and add the <code>__getitem__(i)</code> so that we can index the object directly. 
+    <pre>
+    class Student(Person): 
+
+        in_college = True    
+
+        def __init__(self, first_name, last_name, school, major, intelligence, courses):    
+            self.school = school
+            self.major = major 
+            self.intelligence = intelligence
+            self.courses = courses
+            Person.__init__(self, first_name, last_name)
+
+        def study(self):                         
+            print(f"{self.full_name} is studying {self.major} at {self.school}...")
+            self.intelligence += 1
+        
+        def curfew(): 
+            print("Everyone returns to their dorms. ")
+
+        def __getitem__(i): 
+            return self.courses[i]
+
+    x = Student("Muchang", "Bahng", "Duke", "Math", 1, ["Lin Alg", "Multi"])
+    print(x.courses[1])     # Multi
+    print(x[1])             # Multi 
+    </pre>
+    Normally, we can return the elements of the courses list by indexing from the attribute <code>x.courses</code>, which is a list. But if we want to index <i>directly</i> from the object itself, we must include the <code>__getitem__(i)</code> method. <code>x[1]</code> calls <code>x.__getitem__(1)</code>.  
+  </li>
+  <li>
+    The operators <code>-, *, /, ==, &lt;, &gt;, &lt;=;, &gt;=</code> also call certain dunder methods
+    <pre>
+    >>> x - y     # Calls x.__sub__(y)
+    8
+    >>> x * y     # Calls x.__mul__(y)
+    20
+    >>> x / y     # Calls x.__truediv__(y)
+    5.0
+    >>> x == y    # Calls x.__eq__(y)
+    False
+    >>> x &lt;= y # Calls x.__lt__(y)
+    False
+    >>> x >= y    # Calls x.__gt__(y)
+    True
+    </pre>
+  </li>
+  <li>
+    If we create a new class, instantiate an object, and try to print that object, it returns the class of that object followed by its <code>id</code>. 
+    <pre>
+      class testClass(): 
+    
+          def __init__(self, name): 
+              self.name = name
+  
+      x = testClass("Muchang")
+      print(x)                    # &lt;__main__.testClass object at 0x000001F1B2D84FD0>
+    </pre> 
+    <code>print</code> is also a function, and when we call <code>print(object)</code>, in the background it really calls the <code>__str__()</code> method in the object. Therefore, adding the <code>__str__()</code> method allows us to apply the <code>print</code> function. 
+    <pre>
+    class testClass(): 
+  
+        def __init__(self, name): 
+            self.name = name
+  
+        def __str__(self): 
+            return f"Name: {self.name}"
+          
+
+    x = testClass("Muchang")
+    print(x)                    #Name: Muchang
+    </pre>
+    There is another very similar method called the <code>__repr__()</code> method that also converts to a string, but with some differences (irrelevant here). In JupyterNotebook or the command line, we don't have to call <code>print</code> in order to print. It does so automatically: 
+    <pre>
+    >>> x = 4 
+    >>> x 
+    4
+    </pre>
+    In this case, the <code>__repr__()</code> method is called when we just typed <code>x</code>, and without defining this method, the console would output the object id: 
+    <pre>
+    >>> class testClass():
+    ...     def __init__(self, name):
+    ...             self.name = name
+    ...
+    ...     def __str__(self):
+    ...             return f"Name: {self.name}"
+    ...
+    >>> x = testClass("Muchang")
+    >>> print(x)
+    Name: Muchang
+    >>>
+    >>> x
+    &lt;__main__.testClass object at 0x000001C874E6A140>
+    </pre>
+    To ensure that our class supports this, we should define <code>__repr__()</code>: 
+    <pre>
+    >>> class testClass():
+    ...
+    ...     def __init__(self, name):
+    ...             self.name = name
+    ... #
+    ...     def __str__(self):
+    ...             return f"Name: {self.name}"
+    ... #
+    ...     def __repr__(self):
+    ...             return f"Name: {self.name}"
+    ... 
+    >>> x = testClass("Muchang")
+    >>> print(x)
+    Name: Muchang
+    >>> x
+    Name: Muchang
+    </pre>
+  </li>
+  <li>
+    The operators <code>+=, -=, *=, /=</code> also calls dunder methods. 
+    <pre>
+    >>> x = 4 
+    >>> y = 2 
+    >>> x += y      # x.__iadd__(y)
+    >>> x -= y      # x.__isub__(y)
+    >>> x *= y      # x.__imul__(y)
+    >>> x /= y      # x.__itruediv__(y)
+    </pre>
+  </li>
 </ul>
-The examples above show how we are able built custom classes and customize existing classes. However, it is not recommended to change any of the built-in functions and its associated methods. 
-
-
-<div class="subsection_title">Dunder/Magic Methods</div>
+The examples above show how we are able to build custom classes and customize existing classes. However, it is not recommended to change any of the built-in functions and its associated methods. 
+<br><br>
+Now we can introduce <b>dunder/magic methods</b>, which are methods having two prefix and suffix underscores in the method name. The "dunder" is shorthand for "double underscore." These methods are used for operator overloading, which means to give a certain method an extended meaning beyond their predefined operational meaning. For example, the <code>__add__()</code> operator is used to add two integers as well as join two strings and merge two lists. This is because the <code>__add__()</code> operator is overloaded by the <code>int</code>, <code>str</code>, and <code>list</code> classes. 
+<pre>
+>>> int1 = 2
+>>> int2 = 5
+>>> str1 = "Hello "
+>>> str2 = "World"
+>>> list1 = [1, 2, 3]
+>>> list2 = [4, 5, 6]
+>>> int1.__add__(int2)
+7
+>>> str1.__add__(str2)
+'Hello World'
+>>> list1.__add__(list2)
+[1, 2, 3, 4, 5, 6]
+</pre>
+There are many other overloaded operators, the most common being the <code>__init__()</code> method which is called whenever an object is instantiated. All of the operators mentioned above are also overloaded, since they are implemented in multiple classes. 
 
 </div>
 
