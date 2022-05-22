@@ -873,40 +873,138 @@ We go into the command line/terminal and type julia (or click on the execuatble)
 </ul>
 </div>
 
-<div class="subsection_title">Import, Using, and Export Packages</div>
+<div class="subsection_title">Modules: Import, Using, and Export</div>
 <div>
-A module in Julia are delimited inside the <code>module ... end</code>.  
+A module in Julia are delimited inside the <code>module ... end</code>, containing <b>names</b> which refer to functions, types, global variables, and constants. The information is based off of the Modules sections in the Julia documentation. Let us have a module called <code>NiceStuff</code> with the following information: 
 <pre>
-module ModuleName
+module NiceStuff
 
-... 
-...
+export nice, DOG
+
+struct Dog end      # singleton type, not exported
+
+const DOG = Dog()   # named instance, exported
+
+nice(x) = "nice $x" # function, exported
 
 end
 </pre>
-The name <code>ModuleName</code> represents the lines of code within the delimiters and is therefore used for importing and exporting modules. Now, let us have a module <code>Mod</code> with whatever functions and data stored inside it. 
 <ul>
-  <li><code>Import Mod</code> loads the module <code>Mod</code>. Names from the module can be accessed with <code>Mod.name</code> syntax. </li>
-  <li><code>Using Mod</code> loads the module and makes the exported names available for direct use. </li> 
-  <li><code>Export</code>: Functions and structs that are exported are available for direct use when "using" a module. </li>
+  <li><code>Import NiceStuff</code> loads the module <code>NiceStuff</code>. Names from the module can be accessed with <code>NiceStuff.name</code> syntax, and in this case, <code>NiceStuff.Dog</code>, <code>NiceStuff.DOG</code>, and <code>NiceStuff.nice</code> can be used. </li>
+  <li><code>Using NiceStuff</code> loads the module and makes the exported names available for direct use. In this case, after we have written <code>Using NiceStuff</code>, we can write <code>nice</code> and <code>DOG</code> without the module name, but we can still refer to the struct as <code>NiceStuff.Dog</code>. </li> 
+  <li><code>Export</code>: Name that are exported are available for direct use when calling the <code>Using NiceStuff</code>. That is, the only use for the <code>export</code> keyword is if we are going to write <code>using NiceStuff</code> later. </li>
 </ul>
-Say that we have the module <code>Mod</code> with functions and structs, some exported. 
+We can also import specific functions of a module using a colon. For example, 
 <pre>
-module Module 
-
-
-
-end
+using NiceStuff: nice, DOG 
 </pre>
 </div>
 
 </div>
 
 <div class="title_and_hide">
-<p id="Section6" class="section_title">Julia</p>
+<p id="Section6" class="section_title">Julia Coding</p>
 <a id="show_hide_6" class="show_hide" onclick="show_hide_6()">[Hide]</a></div>
 <hr>
 <div id="section_content_6">
+
+<div class="subsection_title">Structs</div>
+The most commonly used kind of type is <code>struct</code>, specified as a name and a set of fields. We can think of this as analogous to a class in Python, with attributes. 
+<pre>
+struct Point 
+    x
+    y
+end
+</pre>
+Fields may have type restrictions and a struct can also declare an abstract super type via the <code>&lt;:</code> syntax: 
+<pre>
+struct Point &lt;: AbstractPoint      # A subtype of type AbstractPoint
+    x::Integer                        # Field must be of type Integer
+    y::Float64                        # Field must be of type Float64
+end
+</pre>
+Structs are immutable by default, so an instance of one of these types cannot be modified after constructiof. For mutable structs we can use the <code>mutable struct</code> keyword. 
+
+<div class="subsection_title">Types</div>
+<div>
+We describe some commands to navigate the type hierarchy of of Julia. We can think of it as analogous to the class hierarchy in Python. To determine all supertypes (parent types), use the <code>supertype()</code> function. 
+<pre>
+julia> supertype(Number)
+Any
+</pre>
+To determine the direct children, use the <code>subtypes()</code> function. 
+<pre>
+julia> subtypes(Number)
+2-element Vector{Any}:
+ Complex
+ Real
+</pre>
+We describe the hierarchy: 
+<ol>
+  <li>At the top of the hierarchy is the <code>Any</code> type. Every object is an instance of <code>Any</code>. As of May 2022, it has 531 subtypes. </li> 
+  <li>The <code>Number</code> type is an abstract type. Let us examine its hierarchy: 
+  <pre>
+  julia> subtypes(Number)
+  2-element Vector{Any}:
+    Complex
+    Real
+  julia> subtypes(Real)
+  4-element Vector{Any}:
+    AbstractFloat
+    AbstractIrrational
+    Integer
+    Rational
+  subtypes(AbstractFloat)
+  4-element Vector{Any}:
+    BigFloat
+    Float16
+    Float32
+    Float64
+  </pre>
+  and so on. A nice visual. 
+  <img src="/CSS/Pictures/Julia-number-type-hierarchy.svg.png" width="90%"> 
+</li>
+  <li>At the bottom of the hierarchy is the abstract "bottom" type, which is written as <code>Union{}</code>. No object is an instance of <code>Union{}</code>, and all types are supertypes of <code>Union{}</code>. </li>
+</ol>
+
+Abstract types are declared using the <code>abstract type</code> keyword, with the general syntax being: 
+<pre>
+abstract type «name» end
+abstract type «name» &lt;: «supertype» end
+</pre>
+This introduces a new abstract type whose name is given by <code>«name»</code>. This name can be optionally followed by <code>&lt;:</code> and an already existing type, indicating that the newly declared abstract type is a subtype of this parent type. The <code>&lt;:</code> operator generally means "is a subtype of." 
+<br><br>
+A <b>primitive type</b> is a type whose data consists only of a series of bits, and for now we can interpret them as just "simple" types. A <b>composite type</b> are referred to as structs or objects, introduced with the <code>struct</code> keyword. An instance of composite types can be created by applying the type object like a function to values for its fields, which will create an object of that type. 
+<pre>
+julia> struct Foo
+           bar
+           baz::Int
+           qux::Float64
+       end
+
+julia> fooObj = Foo("Hello World", 23, 1.5)
+Foo("Hello World", 23, 1.5)
+
+julia> typeof(fooObj)
+Foo
+</pre>
+The field names of the type can be found using the <code>fieldnames</code> function (similar to class method), and we can access the field values using dot syntax (similar to object attributes). 
+<pre>
+julia> fieldnames(Foo)
+(:bar, :baz, :qux)
+
+julia> fooObj.bar
+"Hello World"
+
+julia> fooObj.baz
+23
+
+julia> fooObj.qux
+1.5
+</pre>
+
+
+</div>
 
 </div>
 
