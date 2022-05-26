@@ -196,7 +196,7 @@ using NiceStuff: nice, DOG
 <div id="section_content_2">
 
 <div class="subsection_title">Data Structures: Constants, Arrays, Tuples, </div>
-
+<div>
 A <b>constant</b> is simply a variable that is immutable. We can think of it as the same thing as a constant from JavaScript. Once we declare it, we can't change it, and it is used for when we would like to use a more accurate or relevant value of something already defined for a model (or something like that). 
 <pre>
 julia> const myIQ = 115     # myIQ won't be changing in this model
@@ -314,8 +314,10 @@ julia> dict["B"] = 4.5
 julia> dict["B"]
 4.5
 </pre>
+</div>
 
 <div class="subsection_title">Functions</div>
+<div>
 Functions are declared with the <code>function</code> keyword. 
 <pre>
 function funcName()         # Declare function
@@ -385,9 +387,10 @@ julia> add(4, 5)              # Works with single variable of 'y'
 julia> add(4, 5, 6, 1, 2)     # Works with multiple variables of 'y'
 18
 </pre>
-
+</div>
 
 <div class="subsection_title">Structs</div>
+<div>
 The most commonly used kind of type is <code>struct</code>, specified as a name and a set of fields, and a type which is <b>immutable</b>. We can think of this as analogous to a class in Python, with attributes. 
 <pre>
 julia> struct Point         # Define struct Point
@@ -435,6 +438,15 @@ struct Prism
         new(1, 1, 1)                              # Creates new Prism object with l=1, w=1, h=1
     end 
 
+    function Prism(l)                             # If we call Prism(l), this constructor is called
+        if l &lt; 0 
+            error("Can't have negative values for lengths. ")
+        else 
+            new(l, l, l)                          # Creates new Prism object with all side lengths=l
+        end 
+    end 
+    
+
     function Prism(l::Real, w::Real, h::Real)     # If we call Prism(l, w, h), this is called 
 
         if l &lt; 0 || w &lt; 0 || h &lt; 0       # Side lengths can't be negative
@@ -447,7 +459,7 @@ struct Prism
     end 
 end           
 </pre>
-We can technically create constructor functions that is not named <code>Prism()</code>, but this just creates extra confusion. Why do through all the trouble? Usually, structs are immutable, and to create a mutable struct, we use the <code>mutable struct</code> keyword. 
+In summary, the constructors allow us to customize how we can instantiate objects. Instantiating <code>obj = Prism()</code> calls the <code>Prism()</code> constructor, which in turn calls the <code>new(1, 1, 1)</code> function that generates an object of length 1, width 1, and height 1. Instantiating <code>obj = Prism(l)</code> calls the <code>Prism(l)</code> constructor, which in turn calls the <code>new(l, l, l)</code> function that generates an object of length $l$, width $l$, and height $l$. We can technically create constructor functions that is not named <code>Prism()</code>, but this just creates extra confusion. Additionally, unlike Python, you do not define functions (methods) within structs, nor are functions necessarily associated with specific structs when you call them. Usually, structs are immutable, and to create a mutable struct, we use the <code>mutable struct</code> keyword. 
 <pre>
 mutable struct Circle   # Create mutable struct Circle 
     radius              # fieldname/attribute radius 
@@ -457,7 +469,7 @@ function Circle_const(r::Real)    # This function instantiates a Circle
     Circle(r)                     # object by calling the Circle(r) constructor
 end 
 </pre>
-
+</div>
 
 <div class="subsection_title">Types</div>
 <div>
@@ -573,9 +585,101 @@ Vector{T} where Int&lt;:T&lt;:Real
 </pre>
 </div>
 
+<div class="subsection_title">Modules</div>
+<div>
+Now we explain how modules work in Julia. Modules are separate from files: multiple modules may be in one file and multiple files may be in one module. They are declared with the <code>module... end</code> keyword, with names (structs, functions, variables, constants, etc.) included. We first distinguish between the following: 
+<ul>
+  <li>Import: Loads module/file when calling <code>import Module</code>. Names from module/file can be accessed with <code>Module.name</code> syntax. </li>
+  <li>Using: Loads module/file (<code>using Module</code>) and makes the exported names available for direct use. </li>
+  <li>Export: Names that are exported (<code>export Name</code>) are available for direct use when calling <code>using Module</code>. </li>
+  <li>Include: Loads <i>file</i> (<code>include("Path/To/File")</code>) that is in some directory within your project. <code>include</code> has the same effect as <code>using</code> in terms of namespaces, so you can call exported names directly as <code>name</code> without the dot syntax. </li>
+</ul>
+When importing packages, we use <code>using</code> and <code>import</code>, and when connecting between your own modules within your project, we use <code>include</code>, along with possibly <code>using</code> and <code>import</code>. Let us look at a Julia file <code>file1.jl</code> containing module <code>Module1</code> which has the mutable struct <code>Particle</code> and function <code>Shoot!</code> and containing module <code>Module2</code> which has the constant <code>pi</code> and function <code>norm</code>. We export the <code>Particle</code> struct and constant <code>pi</code>. 
+<pre>
+# file1.jl 
+module Module1          # Start Module1 
 
-<div class="subsection_title">Methods</div>
+export Particle
 
+mutable struct Particle 
+    x::Real
+    y::Real
+end 
+
+# Conventional to use '!' in func name when modifying input
+function Shoot!(p::Particle) 
+    p.x = 2p.x 
+    p.y = 2p.y
+    return p 
+end 
+
+pnt = Particle(1, 2)        
+println(pnt)            # Particle(1, 2)
+Shoot!(pnt)       
+println(pnt)            # Particle(2, 4)
+
+end     # End of module 
+
+module Module2          # Start Module2 
+
+export pi
+
+const pi = 3.14 
+
+norm(x, y) = sqrt(x^2 + y^2) 
+
+end     # End of module 
+</pre>
+Let us have another file <code>file2.jl</code> with constant <code>Euler</code> and struct <code>Person </code>, but <i>without</i> any module. 
+<pre>
+# file2.jl 
+
+export Euler 
+
+const Euler = 2.7 
+
+struct Person 
+    name 
+end 
+</pre>
+Finally, let us have Julia file <code>file3.jl</code>, where we wish to import the contents of <code>file1.jl</code> and <code>file2.jl</code>f. Trying to do <code>using</code> or <code>import</code> runs an error. 
+<pre>
+# file3.jl
+using file1     # Error: Package file1 not found in current path
+import file1    # Error: Package file1 not found in current path
+using file2     # Error: Package file2 not found in current path
+import file2    # Error: Package file2 not found in current path
+</pre>
+Therefore, we must use <code>including</code>. Since <code>file1.jl</code> has modules, we must include the file and specify which module to import after. Not doing this will give an error. 
+<pre>
+# file3.jl
+include("file1.jl")
+
+using .Module1, .Module2 
+
+# From Module1 
+obj = Particle(3, 4)        # Particle(3, 4) 
+println(obj.x)              # 3
+Shoot!(obj)                 # Error since 'Shoot!'' is not exported
+Module1.Shoot!(obj)         # Particle(6, 8) 
+
+# From Module2 
+println(pie)                # 3.14
+println(norm(3, 4))         # Error since 'norm' is not exported
+println(Module2.norm(2, 3)) # 3.605551275463989
+</pre>
+Note that there is a dot <code>.</code> before the module name. Since <code>file2.jl</code> doesn't have any modules, we can simply include it without specifying any modules. For some reason, we can directly call nonexported names without the dot syntax. 
+<pre>
+# file3.jl
+include("file2.jl")
+
+println(Euler)              # 2.7
+
+# Can still call struct 'Person' without dot syntax
+char = Person("Chris")      # Person("Chris")
+println(char.name)          # Chris
+</pre>
+</div>
 
 </div>
 <script src="/JS/html_notes.js"></script>
