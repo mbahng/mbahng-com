@@ -242,8 +242,7 @@ Stacktrace:
  [1] top-level scope
    @ REPL[18]:1
 </pre>
-
-A <b>named tuple</b> is a tuple but we attach key-value pairs, allowing for more flexibility.  
+Arrays with random values can be made by calling <code>randn(n)</code>, <code>randn(n, m)</code>, etc. A <b>named tuple</b> is a tuple but we attach key-value pairs, allowing for more flexibility.  
 <pre>
 julia> nTup = (a=1, b=3.4, c="hello")
 (a = 1, b = 3.4, c = "hello")
@@ -539,6 +538,35 @@ println(x)                # Particle(4, 6)
 </pre>
 </div>
 
+<div class="subsection_title">Vectorization</div>
+<div>
+Vectorization refers to writing more compact code that gets rid of loops. It generally speeds up your code significantly. For example, we can turn this: 
+<pre>
+a = [1, 2, 3] 
+
+for i in 1:length(a) 
+    a[i] += 1
+end 
+</pre>
+into this: 
+<pre>
+a = [1, 2, 3] 
+a .+= 1
+</pre>
+We can think of the dot prefix <code>.</code> as an element-wise operation. We can use vectorization to get functions to perform on lists element-wise: 
+<pre>
+julia> f(x) = x^2 + 1
+f (generic function with 1 method)
+
+julia> f.([1, 2, 3, 4])
+4-element Vector{Int64}:
+  2
+  5
+ 10
+ 17
+</pre>
+</div>
+
 </div>
 
 
@@ -548,7 +576,7 @@ println(x)                # Particle(4, 6)
 <hr>
 <div id="section_content_3">
 
-<div class="subsection_title">Types</div>
+<div class="subsection_title">Types: Hierarchy, Abstract, Primitive, Composite, Unions, Parametrics</div>
 <div>
 We describe some commands to navigate the type hierarchy of of Julia. We can think of it as analogous to the class hierarchy in Python. To determine all supertypes (parent types), use the <code>supertype()</code> function. 
 <pre>
@@ -650,11 +678,12 @@ julia> "Hello!" :: IntOrString
 "Hello!"
 
 julia> 1.0 :: IntOrString
-ERROR: TypeError: in typeassert, expected Union{Int64, AbstractString}, got a value of type Float64
+ERROR: TypeError: in typeassert, expected Union{Int64, AbstractString}, got 
+a value of type Float64
 </pre>
 A useful case is <code>Union{T, Nothing}</code>, where <code>T</code> can be of any type and <code>Nothing</code> is the singleton type whose only instance is the object <code>nothing</code>. 
 <br><br>
-A <b>parametric type</b> is a type with parameters introduced immediately after the type name, surrounded by curly braces. For example, 
+A <b>parametric type</b> is a type with parameters introduced immediately after the type name, surrounded by curly braces. Parametric types allow the <i>user</i> to define what type the fieldnames should be, rather than them being fixed such as <code>field1::int</code>. This is useful for when one would like more functionality in their code. For example, 
 <pre>
 julia> struct Point{T}
            x::T
@@ -662,6 +691,50 @@ julia> struct Point{T}
        end
 </pre>
 defines a new parametric type, <code>Point{T}</code>, holding two "coordinates" <code>x</code>, <code>y</code> of type <code>T</code>. The point here is that <code>T</code> can be any type at all, and so <code>Point{T}</code> really describes objects that are two-tuples of the same type. <code>Point{T}</code> declares an unlimited number of types: <code>Point{Float64}</code>, <code>Point{AbstractString}</code>, <code>Point{Int64}</code>, all subtypes of the <code>Point</code> type (which is also a valid type object). 
+<br>
+We define some parametric types below as shapes. 
+<pre>
+# declare abstract type 
+abstract type Shape{T} end 
+
+struct Ellipse{T}             # Parametric type where user can define T
+    a::T                      # attribute 'a' must be of type T
+    b::T                      # attribute 'b' must be of type T
+end 
+
+struct Rectangle{T1, T2} &lt; Shape{T1} 
+    len::T1 
+    wid::T2 
+end 
+
+struct Square{T} &lt; Shape{T} 
+    side::T
+end 
+
+# Define function with input type 'Shape' allowing Rectangle and Square objects 
+to be viable inputs. 
+function area(s::Shape) 
+
+    if isa(s, Rectangle)        # Returns true if 's' is of type 'Rectangle'
+        return s.len * s.wid 
+    elseif isa(s, Ellipse) 
+        return pi * a * b
+    else 
+        return s.side^2 
+    end 
+
+end 
+
+e1 = Ellipse{Int64}(2, 3)       # Ellipse with fieldnames type Int64
+e2 = Ellipse{Float64}(1.5, 2.0) # Ellipse with fieldnames type Float64 
+
+r1 = Rectangle{Int64, Float64}(2, 3.0) 
+s = Square{Real}(pi)            # Square with fieldnames type Real 
+
+println(area(r1))               # 6.0 
+println(area(e2))               # 9.42477796076938
+</pre>
+
 <br><br>
 The <code>where</code> keyword creates a type that is an iterated union of other types, over all values of some variable. For example, <code>Vector{T} where T&lt;:Real</code> includes all <code>Vector</code>s where the element type is some kind of Real number. 
 <pre>
@@ -670,6 +743,40 @@ Vector{T} where T>:Int        # Variables can have lower bounds
 Vector{T} where Int&lt;:T&lt;:Real
 </pre>
 </div>
+
+<div class="subsection_title">Benchmarking</div>
+<div>
+To find the speed of running a function, we can use the macro <code>@benchmark</code>, which is found within the <code>BenchmarkTools</code> package. By putting whatever you need into the <code>main()</code> function, we can measure the performance of initializing variables, running functions, instantiating objects, and much more. 
+<pre>
+using BenchmarkTools 
+
+struct Triangle
+    s1::Float64 
+    s2::Float64
+    s3::Float64
+end 
+
+function main()      # Define main() function 
+    a::Float64 = 5.0 
+    t = Triangle(a, a, a) 
+end 
+
+@benchmark main() 
+--------------------------------------------------------------------------
+BenchmarkTools.Trial: 10000 samples with 1000 evaluations.
+ Range (min … max):  0.001 ns … 0.100 ns  ┊ GC (min … max): 0.00% … 0.00%
+ Time  (median):     0.001 ns             ┊ GC (median):    0.00%
+ Time  (mean ± σ):   0.025 ns ± 0.043 ns  ┊ GC (mean ± σ):  0.00% ± 0.00%
+
+  █ 
+  █▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▆ ▂
+  0.001 ns       Histogram: frequency by time        0.1 ns &lt;
+
+ Memory estimate: 0 bytes, allocs estimate: 0.
+</pre>
+</div>
+
+
 
 </div>
 
