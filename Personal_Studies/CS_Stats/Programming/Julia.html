@@ -431,6 +431,26 @@ function Circle_const(r::Real)    # This function instantiates a Circle
     Circle(r)                     # object by calling the Circle(r) constructor
 end 
 </pre>
+The fields of a <i>class</i> can be found using the <code>fieldnames()</code> function, and if we would like to find the values of the fieldnames of an <i>object</i>, we can use the <code>dump()</code> function. 
+<pre>
+julia> struct Human
+           name
+           age
+           gender
+       end
+
+julia> char = Human("Muchang", 21, "Male")
+Human("Muchang", 21, "Male")
+
+julia> fieldnames(Human)
+(:name, :age, :gender)
+
+julia> dump(char)
+Human
+  name: String "Muchang"
+  age: Int64 21
+  gender: String "Male"
+</pre>
 </div>
 
 <div class="subsection_title">Modules: Import/Using, vs Files</div>
@@ -776,6 +796,115 @@ BenchmarkTools.Trial: 10000 samples with 1000 evaluations.
 </pre>
 </div>
 
+<div class="subsection_title">Metaprogramming: Expressions and Macros</div>
+<div>
+<b>Metaprogramming</b> refers to the process of writing a program that modifies <i>another program</i> instead of modifying data. That is, we can write programs that modify lines of code in our own files. These programs that do that are called <b>macros</b>. Say that we have a certain piece of code, which we denote <code>myCode</code> and call a macros, denoted <code>@macros</code>, on it. Then, this macros modifies the original <code>myCode</code> into a new piece of code, which we will denote <code>macros(myCode)</code>. That is, calling the short and convenient <code>@macros myCode</code> is the same as calling what may be a long string of code <code>macros(myCode)</code>. As an example, let us take the built-in Julia function <code>peakflops()</code>, which produces the number of floating point arithmetic your computer can do in one second. For example, my computer can do approximately 164 billion calculations per second. 
+<pre>
+julia> peakflops()
+1.6402349636585443e11
+</pre>
+We can use the <code>@elapsed</code> macro, which outputs the time it took to run the function. Notice that this is very similar to the <code>@benchmark</code> macro. 
+<pre>
+julia> @elapsed peakflops()
+0.1384434
+</pre>
+To actually see what the actual code the macros converts the input into (i.e. what <code>elapsed(peakflops())</code> is), we just have to call the <code>@macroexpand</code> macro. Doing this gives you the resulting code <i>plus</i> the line numbers in which the code is being run in. We can remove them with the <code>Base.remove_linenums!()</code> function, resulting in a cleaner output. 
+<pre>
+julia> @macroexpand @elapsed peakflops()
+quote
+    #= timing.jl:297 =#
+    while false
+        #= timing.jl:297 =#
+    end
+    #= timing.jl:298 =#
+    local var"#2#t0" = Base.time_ns()
+    #= timing.jl:299 =#
+    peakflops()
+    #= timing.jl:300 =#
+    (Base.time_ns() - var"#2#t0") / 1.0e9
+end
+
+julia> Base.remove_linenums!(@macroexpand @elapsed peakflops())
+quote
+    while false
+    end
+    local var"#3#t0" = Base.time_ns()       # Take current time and store in local variable
+    peakflops()                             # Run function
+    (Base.time_ns() - var"#3#t0") / 1.0e9   # Take current time and subtract previous time
+end
+</pre>
+You can see that Julia has taken the original function <code>peakflops()</code> and added extra code around it, taking the current time in nanoseconds right before it is run, and subtracting it from the current time after the function is run. In summary, Julia <i>replaces</i> the original code by the new code, and this new code is what will actually be used (compiled). Some common macros: 
+<ol>
+  <li>
+    The <code>@info</code> macro provides general information to the user.Think of it as an alternative to using <code>println</code> directly. 
+    <pre>
+    julia> @info "This is a test function"
+    [ Info: This is a test function
+    </pre>
+  </li>
+  <li>
+    The <code>@warn</code> macro means something is wrong and action is likely required by that for now the program is still working. 
+  </li>
+</ol>
+Now we move onto Julia <b>expressions</b>. If we assign a variable <code>x = 1 + 2</code>, Julia automatically evaluates <code>1 + 2</code> and just sets <code>x = 3</code>. Notice that <code>x</code> now becomes an <code>Int64</code> object with value <code>3</code>. However, if we would like to have the <i>unevaluated</i> expression, we can simply use the <code>:( )</code> key-symbols around whatever expression, which creates an <code>Expr</code> type. We can also create an <code>Expr</code> type using the <code>quote... end</code> delimiters, which gives additional information about location and line number of the expression. 
+<pre>
+julia> x = 1 + 2
+3
+
+julia> typeof(x)
+Int64
+
+julia> y = :(1 + 2)
+:(1 + 2)
+
+julia> typeof(y)
+Expr
+
+julia> z = quote
+           1 + 2
+       end
+quote
+    #= REPL[5]:2 =#
+    1 + 2
+end
+</pre>
+One practicality of expressions is when we assign something that is not already defined. 
+<pre>
+julia> a  = b + 1                   # Get an error since Julia tries to evaluate b + 1
+ERROR: UndefVarError: b not defined 
+
+julia> a = :(b + 1)                 # Now possible, since nothing is evaluated
+:(b + 1)
+</pre>
+Since <code>a</code> is simply an object of type <code>Expr</code>, it has the regular properties of types, and so we can inspect it. We see that it has two attributes: <code>head</code> being a <code>Symbol</code> type and <code>args</code> being a 3-element array consisting of a <code>Symbol</code> type <code>+</code>, a <code>Symbol</code> type <code>b</code>, and an <code>Int64</code> type <code>1</code>. 
+<pre>
+julia> dump(a)
+Expr
+  head: Symbol call
+  args: Array{Any}((3,))
+    1: Symbol +
+    2: Symbol b
+    3: Int64 1
+</pre>
+Since arrays are mutable, we can change the elements of <code>a.args</code> to get a new expression. Note that if we wanted to change <code>b</code> into a new variable <code>c</code>, then <code>c</code> would have to be of type <code>Symbol</code>, like <code>b</code>. 
+<pre>
+julia> a.args
+3-element Vector{Any}:
+  :+
+  :b
+ 1
+
+julia> a.args[2]
+:b
+
+julia> a.args[2] = 3
+3
+
+julia> a
+:(3 + 1)
+</pre>
+Now armed with the knowledge of expressions, we can think of macros as programs that modify these <i>unevalauted</i> expressions to generate new code for compilation. 
+</div>
 
 
 </div>
