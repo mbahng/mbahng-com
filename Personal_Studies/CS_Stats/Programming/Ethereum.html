@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Muchang Bahng | Duke Math</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/CSS/Pictures/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/CSS/Pictures/favicon.ico">
+  <link rel="icon" type="image/png" sizes="16x16" href="/CSS/Pictures/favicon.ico">
+  <link rel="stylesheet" href="/CSS/Header_Footer.css">
+  <link rel="stylesheet" href="/CSS/html_notes.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});
+  </script>
+  <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-MML-AM_CHTML"></script>
+  <style>
+    pre {
+      background-color: rgb(213, 212, 212);
+      overflow-x: visible
+    }
+  </style>
+</head>
+
+<body>
+<div class="header">
+  <div id="menu_button" onclick="myFunction(this)">
+      <div id="bar1"></div>
+      <div id="bar2"></div>
+      <div id="bar3"></div>
+  </div>
+  <a id="HeaderName" href="/index.html" style="text-decoration: none;">Muchang Bahng</a>
+</div>
+  
+  <div class="space" style="height:100px;"></div>
+  <div class="information">
+  
+  <p class="title">Ethereum</p>
+  <hr>
+  
+  <div class="toc">
+    <div class="toctitle">Contents</div>
+    <ol class="toclist">
+      <li><a href="#Section1">Solidity</a></li>
+      <li><a href="#Section2">Basic Topics</a></li>
+      <li><a href="#Section3">Intermediate Topics</a></li>
+    </ol>
+  </div>
+
+<div class="title_and_hide">
+<p id="Section1" class="section_title">Solidity</p>
+<a id="show_hide_1" class="show_hide" onclick="show_hide_1()">[Hide]</a></div>
+<hr>
+<div id="section_content_1">
+A prerequisite to this section is the <a href="../Blockchain.html">Blockchain</a> section. Recall that a wallet is really just some application that contains a hierarhical structure of private keys. These private keys in turn generate public keys, which generate addresses (at least in the Bitcoin protocol). Things may slightly differ in the Ethereum protocol, but this is the general relationship. An address is just some hash that identifies some entity owning whatever keys that are used to gain access to UTXOs in the blockchain. A <b>smart contract</b> is also represented by a hash, but the owner of it is a program, rather than an individual/party. Sending ether to this smart contract address allows you to run the program, which have several applications mentioned later. 
+<br><br> 
+We will use the web browser-based IDE <a href="https://remix.ethereum.org/">remix.ethereum.org</a>. We should always write down the version of solidity we are using at the top of each <code>.sol</code> file. The version is important for proper compilation. 
+<pre>
+pragma solidity 0.6.0     // Version 0.6.0 
+pragma solidity ^0.6.0    // Version 0.6.Anything 
+</pre>
+Furthermore, Solidity strongly recommends us to include the license of our program at the header. The following MIT license indicates that our code is open source. 
+<pre>
+// SPDX-License-Identifier: MIT
+</pre>
+
+<div class="subsection_title">Basic Types</div>
+<div>
+The basic types are booleans, integers (signed and unsigned), addresses, bytes, and strings. Since Solidity is a <i>statically-typed language</i>, so the type of each variable should be specified. For now, we can treat the <code>byteX</code> (where <code>X</code> is some integer between 1 and 32) type as just some value that can be stored in a sequence of <code>X</code> bytes. It is always best to specify the number <code>X</code> for efficiency and compatibility. 
+<pre>
+uint256 myInt = 32;            // 256-bit unsigned integer
+bool myBool = false; 
+string myStr = "Hello World"; 
+int256 myInt2 = -3;           // 256-bit signed integer 
+address myAddress = 0xA0362AD63a5ac9e630849f19709e46368b9610Ab 
+bytes32 myByte = "cat" 
+</pre>
+</div>
+
+<div class="subsection_title">Contracts & Functions</div>
+<div>
+Solidity contracts are like a class in any other object-oriented language, which contain data as state variables and functions which can modify these variables. They can be created with the <code>contract</code> keyword. 
+<pre>
+pragma solidity ^0.6.0; 
+
+contract SimpleStorage {
+    uint256 myInt = 0; 
+
+    ...
+}
+</pre>
+Within these contracts are certain properties: 
+<ul>
+  <li><b>Constructor</b>: Special method created using the constructor keyword, which is invoked only once immediately when the contract is created. 
+  <pre>
+    contract demonstrate {
+      constructor() {
+        ... // this part gets invoked as soon as contract is deployed
+      }
+    }
+  </pre></li>
+  <li><b>State Variables</b>: Variables that are used to store the state of the contract. They are called state variables since they are in the global/contract scope, unlike local variables which may only exist within a function. 
+  <pre>
+    contract demonstrate {
+      uint256 variable1 = 234;      // state variable 1 
+      bool hmm = false;             // state variable 2
+    }
+  </pre>
+  </li>
+  <li><b>Functions</b>: Functions are used to manipulate the state of the contracts by modifying the state variables. </li>
+</ul>
+These all sound familiar to the properties of other languages, but a new characteristic is the <b>visibility</b> of state variables and functions, which controls who has access to the functions and state variables in your contract and how they interact with them. For cohesiveness, we can just think of state variables as as function calls that looks at a variable and returns its value, making it also a function. More specifically, it becomes a view function. Functions have to be specified by any of the four visibilities, but for state variables <i>external</i> is not allowed: 
+<ul>
+  <li>
+    <b>External</b> functions can only be called from outside the contract in which they were declared. 
+  </li>
+  <li>
+    <b>Public</b> functions and variables can be accessed by all parties within and outside the contract. When the visibility is not specified, the default visibility of a function is public. 
+  </li>
+  <li>
+    <b>Internal</b> functions and variables are only accessible within the contract in which they were declared, although they can be accessed from derived contracts. When visibility is not specified, state variables have the default value of internal. 
+  </li>
+  <li>
+    <b>Private</b> functions are only accessible within the contract in which they were declared. Private functions are also the only functions that cannot be inherited by other functions. 
+  </li>
+</ul>
+The syntax of functions generally looks like this: 
+<pre>
+function function_name(parameter_list) scope returns(return_type) {
+    // block of code
+}
+</pre>
+Where the parameter types can be specified as <code>function_name(uint a, uint b)</code> and the return value(s) can be specified with the <code>returns</code> keyword. Furthermore, the type of each function can be specified by certain keywords: 
+<ul>
+  <li>
+    <b>View functions</b> do not modify the state variables but they do read them, which ensures that state variables cannot be modified after calling them. You do not have to make a transaction to call a view function, since we are not making a state change to the contract and therefore to the blockchain (in Remix, public view functions are represented with blue buttons). 
+  </li>
+  <li>
+    <b>Pure functions</b> do not read nor modify the state variables. It can only use local variables that are declared in the function and the arguments that are passed to the function. You do not have to make a transaction to call a pure function, since we are not making a state change to the contract and therefore to the blockchain. 
+  </li>
+  <li>
+    Functions that are not specified to be <code>view</code> or <code>pure</code> by default have access to both read and modify powers. You do have to make a transaction to call these functions. 
+  </li>
+</ul>
+
+Within these contracts we can define its functions (methods) using the <code>function</code> keyword. The syntax of functions looks like this: 
+<pre>
+function function_name(parameter_list) scope returns(return_type) {
+    // block of code
+}
+</pre>
+Now let's dive into building contracts a bit further. Let's build a simple contract that stores a number. Note that like in other languages, it is conventional to precede local variable names with an underscore. 
+<pre>
+pragma solidity ^0.6.0 
+
+contract SimpleStorage {
+    
+    // this will get initialized to 0 
+    uint256 favoriteNumber; 
+
+    function store(uint256 _favoriteNumber) public {
+        favoriteNumber = _favoriteNumber   
+    }
+}
+</pre>
+Note that the state variable of this contract is specified by <code>favoriteNumber</code>. Since the function <code>store</code> is public, we can interact with it from outside the contract, and calling the function with an <code>int256</code> parameter updates the state variable of it. When we deploy this contract, it becomes a part of the blockchain, and modifying the state variable of this contact means to modify the blockchain itself. Therefore, transactions, smart-contract interactions, and function calls can be used interchangeable (kinda), because whenever you call a function (or whenever you make some state change to the blockchain), you're also making a transaction, which will cost a bit of gas. That is why whenever we call some function, we must always pay a bit of gas fees. 
+<br><br>
+However, notice that even though we can call the <code>store</code> function and update the state variable, we can't actually look at what the value of <code>favoriteNumber</code> is. To do this, we can simply set the visibility of the state variable to <code>public</code>, changing the line to <code>uint256 public favoriteNumber;</code>. Furthermore, let us introduce a public view function <code>retrieve</code> that returns the value of <code>favoriteNumber</code> and a pure function <code>add</code> that simply adds the two together (but does not set it as the new state variable). Note that the pure function does <i>not</i> change the state variable of the contract. 
+<pre>
+pragma solidity ^0.6.0 
+
+contract SimpleStorage {
+    
+    // this will get initialized to 0 
+    uint256 public favoriteNumber; 
+
+    function store(uint256 _favoriteNumber) public {
+        favoriteNumber = _favoriteNumber   
+    }
+
+    // view, pure 
+    function retrieve() public view returns(uint256) {
+        return favoriteNumber; 
+    }
+
+    function add(uint256 favoriteNumber) public pure {
+      favoriteNumber + favoriteNumber; 
+  }
+}
+</pre>
+Now if we remove the public keyword from the state variable initialization, it gets set back to internal. But this is no problem, since we can call the public retrieve function to return the value. 
+</div>
+
+<div class="subsection_title">Structs and Arrays</div>
+<div>
+Three more often-used types are structs, arrays, and mappings. 
+<ul>
+  <li>
+    We can think of a struct as a custom type with certain attributes/fields, similar to structs in Julia. 
+    <pre>
+    contract test {
+        struct Book {
+            string title; 
+            string author; 
+            uint book_id; 
+        }
+    
+        // Initialize a public Book object called 'book'
+        Book public book = Book('Learn Java', 'TP', 1); 
+    }
+    </pre>
+  </li>
+  <li>
+    The syntax for arrays are quite different. To declare an array of fixed size in Solidity, you must specify the type of the elements and the number of elements required by an array as follows. Arrays can have a fixed size or be dynamically sized. 
+    <pre>
+    type[ arraySize ] arrayName       # fixed size 
+    type[] arrayName                  # dynamically sized 
+
+
+    </pre>
+  </li>
+  <li>
+    A mapping is similar to a Python dictionary, which have some key-value pair. 
+    <pre>
+    mapping(key => value) mapping_name;     // Initialization of mapping 
+    mapping_name[key] = value               // Adding key-value to mapping
+    </pre>
+    They can be implemented in contracts as such: 
+    <pre>
+    contract demonstrate {
+
+      uint256 number; 
+
+      mapping(string => uint256) public nameToFavoriteNumber; 
+
+      function addPerson(string memory _name, uint256 _favoriteNumber) public {
+        nameToFavoriteNumber[_name] = _favoriteNumber; 
+      }
+    }
+    </pre>
+    Let us demonstrate a slightly more complicated contract: 
+    <pre>
+    contract demonstrate {
+
+    // define struct 
+    struct student {
+        string name; 
+        string subject; 
+        uint8 marks; 
+    }
+
+    mapping (address => student) result; // create mapping 
+
+    // function adding values to the mapping 
+    function adding_values() public {
+        student memory Stud = student("Muchang", "Math", 90); 
+        result[0xA0362AD63a5ac9e630849f19709e46368b9610Ab] = Stud; 
+        }
+    } 
+    </pre>
+  </li>
+</ul>
+
+Combining these two, we can create a contract that first initializes an array called <code>people</code> of elements of type <code>People</code>, and <code>addPerson</code> will push a <code>People</code> object. 
+<pre>
+pragma solidity ^0.6.0; 
+
+contract SimpleStorage {
+    // this will get initialized to 0 
+    uint256 favoriteNumber; 
+
+    struct People {
+        uint256 favoriteNumber; 
+        string name; 
+    }    
+
+    People[] public people; // initialize dynamically sized array of People type 
+
+    function store(uint256 _favoriteNumber) public {
+        favoriteNumber = _favoriteNumber;
+    }
+
+    function retrieve() public view returns(uint256) {
+        return favoriteNumber; 
+    }
+
+    function addPerson(string memory _name, uint256 _favoriteNumber) public{
+        people.push(People(_favoriteNumber,_name)); 
+    }
+}
+</pre>
+There are also two types of memory storage keywords: the <code>memory</code> and <code>storage</code> keywords. For now, know that <code>memory</code> refers to short-term (like RAM) storage that gets deleted after execution of the function, while <code>storage</code> persists after execution (like drives). Therefore, we can use the <code>addPerson</code> function to push <code>People</code> objects into the array <code>people</code> and have it return its values with indices. 
+</div>
+
+<div class="subsection_title">For, While, Do-While Loops</div>
+<div>
+A while loop has the syntax 
+<pre>
+while (condition) {
+  ...
+}
+</pre>
+Implementing it in a contract looks like this, which, upon calling the <code>loop()</code> function, pushes 5 elements into the <code>data</code> array. 
+<pre>
+contract demonstrate {
+    uint[] public data; 
+
+    uint8 j = 0; 
+
+    function loop() public returns (uint[] memory) {
+      while (j &lt; 5) { 
+        j++; 
+        data.push(j); 
+      }
+      return data; 
+    }
+}
+</pre>
+The do-while loop is very similar to the while loop, but it checks the condition at the end of the loop. So, the loop will execute at least one time even if the condition is false. 
+<pre>
+do {
+  ...
+} while (condition) 
+</pre>
+We can implement it in a contract as such: 
+<pre>
+contract demonstrate {
+  uint[] public data; 
+
+  uint8 j = 0; 
+
+  function loop() public returns (uint[] memory) {
+    do { 
+      j++; 
+      data.push(j); 
+    } while (j &lt; 5); 
+    return data; 
+  }
+  
+}
+</pre>
+A for loop has syntax similar to that of JavaScript. 
+<pre>
+for (initialization; test condition; iteration statement) {
+  ... 
+}
+</pre>
+It is implemented in a contract as such: 
+<pre>
+contract test {
+  uint[] public data; 
+
+  uint8 j = 0; 
+
+  function loop() public returns (uint[] memory) {
+    for (uint i = 0; i &lt; 5; i++) { 
+      j++; 
+      data.push(j); 
+    } 
+    return data; 
+  }
+}
+</pre>
+</div>
+
+
+<div class="subsection_title">Using Contracts to Deploy Other Contracts</div>
+<div>
+
+</div>
+
+
+<div class="subsection_title">Making Contracts for Funding and Withdrawing</div>
+The first thing to know is that we can find the address of whoever is making the transaction with the <code>msg.sender</code> keyword. 
+</div>
+
+<div class="title_and_hide">
+<p id="Section2" class="section_title">Basic Topics</p>
+<a id="show_hide_2" class="show_hide" onclick="show_hide_2()">[Hide]</a></div>
+<hr>
+<div id="section_content_2">
+</div>
+
+
+<div class="title_and_hide">
+<p id="Section3" class="section_title">Intermediate Topics</p>
+<a id="show_hide_3" class="show_hide" onclick="show_hide_3()">[Hide]</a></div>
+<hr>
+<div id="section_content_3">
+</div>
+
+
+<script src="/JS/html_notes.js"></script>
+</body>
+</html>
