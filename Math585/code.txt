@@ -1,0 +1,247 @@
+# region imports
+from AlgorithmImports import *
+# endregion
+
+class QC3(QCAlgorithm):
+    
+    def Initialize(self):
+        
+        self.SetStartDate(2018, 1, 1) 
+        self.SetEndDate(2018, 3, 1)  
+        self.SetCash(1_000_000)  
+        self.SetWarmUp(100)
+
+        self.ticker1 ='JNJ' # Do not change this to AMD 
+        self.sym1 = self.AddEquity(self.ticker1, Resolution.Daily)
+        self.ticker2 = 'AMD' # Do not change this to JNJ
+        self.sym2 = self.AddEquity(self.ticker2, Resolution.Daily)
+
+        # Parameters (lkb = lookback): Trend=true is following, trend=false is mean reverting
+        # RSI: lookback, high, low
+        self.rsi1_trend = True 
+        self.rsi1_lkb = 50 
+        self.rsi1_high = 70 
+        self.rsi1_low = 30
+
+        self.rsi2_trend = True 
+        self.rsi2_lkb = 50 
+        self.rsi2_high = 70 
+        self.rsi2_low = 30
+
+        # Bollinger Bands: lookback, standard dev 
+        self.bb1_trend = True 
+        self.bb1_lkb = 20 
+        self.bb1_std = 2 
+
+        self.bb2_trend = True 
+        self.bb2_lkb = 20 
+        self.bb2_std = 2 
+
+        # SMA: lookback 
+        self.sma1_trend = True 
+        self.sma1_lkb = 20 
+
+        self.sma2_trend = True
+        self.sma2_lkb = 20
+
+        # RSIs 
+        self.rsi1 = self.RSI(self.ticker1, self.rsi1_lkb, Resolution.Daily)
+        self.rsi2 = self.RSI(self.ticker2, self.rsi2_lkb, Resolution.Daily)
+        
+        # Bollinger Bands 
+        self.bb1 = self.BB(self.ticker1, self.bb1_lkb, self.bb1_std, Resolution.Daily)
+        self.bb2 = self.BB(self.ticker2, self.bb2_lkb, self.bb2_std, Resolution.Daily)
+        
+        # Simple Moving Averages
+        self.sma1 = self.SMA(self.ticker1, self.sma1_lkb, Resolution.Daily)
+        self.sma2 = self.SMA(self.ticker2, self.sma2_lkb, Resolution.Daily)
+
+        # (RSI, BB, SMA)    True=long, False=short
+        self.strategy = {
+                    'JNJ' : {'RSI' : 0, 'BB' : 0, 'SMA' : 0}, 
+                    'AMD' : {'RSI' : 0, 'BB' : 0, 'SMA' : 0}
+                    }
+
+    def rsiJNJ(self, px1, rsi1): 
+        # JNJ RSI strategy 
+        if self.rsi1_trend: 
+            if rsi1 > self.rsi1_high: 
+                # if rsi is greater than high, then long 
+                self.strategy['JNJ']['RSI'] = 1
+            elif px1 < self.rsi1_low: 
+                # if rsi is lower than low, then short 
+                self.strategy['JNJ']['RSI'] = -1 
+            else: 
+                # if rsi is between high and low, then nothing 
+                self.strategy['JNJ']['RSI'] = 0
+
+        elif not self.rsi1_trend: 
+            if rsi1 > self.rsi1_high: 
+                # if rsi is greater than high, then short 
+                self.strategy['JNJ']['RSI'] = -1
+            elif px1 < self.rsi1_low: 
+                # if rsi is lower than low, then long
+                self.strategy['JNJ']['RSI'] = 1
+            else: 
+                # if rsi is between high and low, then nothing 
+                self.strategy['JNJ']['RSI'] = 0
+
+        return self.strategy['JNJ']['RSI']
+
+    def rsiAMD(self, px2, rsi2): 
+        # JNJ RSI strategy 
+        if self.rsi2_trend: 
+            if rsi2 > self.rsi2_high: 
+                # if rsi is greater than high, then long 
+                self.strategy['AMD']['RSI'] = 1
+            elif px2 < self.rsi2_low: 
+                # if rsi is lower than low, then short 
+                self.strategy['AMD']['RSI'] = -1
+            else: 
+                # if rsi is between high and low, then nothing 
+                self.strategy['AMD']['RSI'] = 0
+
+        elif not self.rsi2_trend: 
+            if rsi2 > self.rsi2_high: 
+                # if rsi is greater than high, then short 
+                self.strategy['AMD']['RSI'] = -1
+            elif px2 < self.rsi2_low: 
+                # if rsi is lower than low, then long
+                self.strategy['AMD']['RSI'] = 1
+            else: 
+                # if rsi is between high and low, then nothing 
+                self.strategy['AMD']['RSI'] = 0
+
+        return self.strategy['AMD']['RSI']
+
+    def bbJNJ(self, px1, bbup1, bbdn1, bbmd1): 
+        # JNJ BB strategy 
+        if self.bb1_trend: 
+            if px1 > bbup1: 
+                # if price is greater than upper band, then long 
+                self.strategy['JNJ']['BB'] = 1 
+            elif px1 < bbdn1: 
+                # if price is lower than lower band, then short 
+                self.strategy['JNJ']['BB'] = -1
+            else: 
+                # if price is between upper and lower band, then neither 
+                self.strategy['JNJ']['BB'] = 0
+
+        elif not self.bb1_trend: 
+            if px1 > bbup1: 
+                # if price is greater than upper band, then short
+                self.strategy['JNJ']['BB'] = -1 
+            elif px1 < bbdn1: 
+                # if price is lower than lower band, then long 
+                self.strategy['JNJ']['BB'] = 1
+            else: 
+                # if price is between upper and lower band, then neither 
+                self.strategy['JNJ']['BB'] = 0
+
+        return self.strategy['JNJ']['BB']
+
+    def bbAMD(self, px2, bbup2, bbdn2, bbmd2): 
+        # JNJ BB strategy 
+        if self.bb2_trend: 
+            if px2 > bbup2: 
+                # if price is greater than upper band, then long 
+                self.strategy['AMD']['BB'] = 1 
+            elif px1 < bbdn1: 
+                # if price is lower than lower band, then short 
+                self.strategy['AMD']['BB'] = -1
+            else: 
+                # if price is between upper and lower band, then neither 
+                self.strategy['AMD']['BB'] = 0
+
+        elif not self.bb1_trend: 
+            if px1 > bbup1: 
+                # if price is greater than upper band, then short
+                self.strategy['AMD']['BB'] = -1 
+            elif px1 < bbdn1: 
+                # if price is lower than lower band, then long 
+                self.strategy['AMD']['BB'] = 1
+            else: 
+                # if price is between upper and lower band, then neither 
+                self.strategy['AMD']['BB'] = 0
+
+        return self.strategy['AMD']['BB']
+
+    def smaJNJ(self, px1, sma1): 
+        # JNJ SMA strategy 
+        if self.sma1_trend: 
+            if px1 > sma1: 
+                # if price is greater than sma, then long 
+                self.strategy['JNJ']['SMA'] = 1
+            elif px1 < sma1: 
+                # if price is lower than sma, then short
+                self.strategy['JNJ']['SMA'] = -1
+        elif not self.sma1_trend:
+            if px1 > sma1: 
+                # if price is greater than sma, then short 
+                self.strategy['JNJ']['SMA'] = -1
+            elif px1 < sma1: 
+                # if price is lower than sma, then long 
+                self.strategy['JNJ']['SMA'] = 1
+
+        return self.strategy['JNJ']['SMA']
+
+    def smaAMD(self, px2, sma2): 
+        # AMD SMA strategy 
+        if self.sma2_trend: 
+            if px2 > sma2: 
+                # if price is greater than sma, then long 
+                self.strategy['AMD']['SMA'] = 1
+            elif px2 < sma2: 
+                # if price is lower than sma, then short
+                self.strategy['AMD']['SMA'] = -1
+        elif not self.sma2_trend:
+            if px2 > sma2: 
+                # if price is greater than s1ma, then short 
+                self.strategy['AMD']['SMA'] = -1
+            elif px2 < sma2: 
+                # if price is lower than sma, then long 
+                self.strategy['AMD']['SMA'] = 1
+
+        return self.strategy['AMD']['SMA']
+
+    def OnData(self, data):
+        
+        # self.Debug ("Time " + str(self.Time))
+
+        if self.IsWarmingUp: return
+            
+        # Compute RSIs of each stock 
+        rsi1 = self.rsi1.Current.Value
+        rsi2 = self.rsi2.Current.Value
+        
+        # Compute upper, bottom, middlsmaAMD()e Bollinger bands for each stock 
+        bbup1 = self.bb1.UpperBand.Current.Value
+        bbdn1 = self.bb1.LowerBand.Current.Value
+        bbmd1 = self.bb1.MiddleBand.Current.Value
+        
+        bbup2 = self.bb2.UpperBand.Current.Value
+        bbdn2 = self.bb2.LowerBand.Current.Value
+        bbmd2 = self.bb2.MiddleBand.Current.Value
+        
+        # Compute Simple Moving Averages for each stock 
+        sma1 = self.sma1.Current.Value 
+        sma2 = self.sma2.Current.Value 
+
+        px1 = self.Securities[self.ticker1].Price # JNJ price 
+        px2 = self.Securities[self.ticker2].Price # AMD price
+
+        # Determine RSI long/short/neither strategies
+        jnj_rsi_strat = self.rsiJNJ(px1, rsi1) 
+        amd_rsi_strat = self.rsiAMD(px2, rsi2)
+
+        # Determine BB long/short/neither strategies
+        jnj_bb_strat = self.bbJNJ(px1, bbup1, bbdn1, bbmd1) 
+        amd_bb_strat = self.bbAMD(px1, bbup2, bbdn2, bbmd2) 
+        
+        # Determine SMA long/short strategies
+        jnj_sma_strat = self.smaJNJ(px1, sma1)
+        amd_sma_strat = self.smaAMD(px2, sma2)
+
+        self.Debug(f"JNJ: RSI ({jnj_rsi_strat}) BB ({jnj_bb_strat}) SMA ({jnj_sma_strat})")
+        self.Debug(f"AMD: RSI ({amd_rsi_strat}) BB ({amd_bb_strat}) SMA ({amd_sma_strat})")
+        
