@@ -7,7 +7,7 @@
 \usepackage{tikz-cd, extarrows, esvect, esint, pgfplots, lipsum, bm, dcolumn}
 \usetikzlibrary{arrows}
 \usepackage{amsmath, amssymb, amsthm, mathrsfs, mathtools, centernot, hyperref, fancyhdr, lastpage}
-
+\usepackage{tikz}
 
 \renewcommand{\thispagestyle}[1]{}
 
@@ -53,27 +53,36 @@ When we want to optimize these programs, we therefore want to look at their data
 
 Note that Java has the following \textbf{primitive types}: \texttt{int}, \texttt{long}, \texttt{float}, \texttt{double}, \texttt{boolean}, \texttt{char}. Everything else is a \textbf{reference type}. 
 
-\subsection{Time Complexity and Memory Allocation}
+\subsection{References and Memory Allocation}
 
 We can think of our RAM as storing our memory. Whenever we call the  $\texttt{new}$ keyword, we allocate new memory for whatever object we are storing. Say that an $\texttt{int}$ stores $4$ bytes each, and we create an array of ten integers. 
 \begin{verbatim}
 int[] numbers = new int[10]; 
 \end{verbatim}
+\begin{center}
+    \includegraphics[scale=0.3]{reference1.jpg}
+\end{center}
 This array would take up 40 bytes of memory, and to access this part of the memory, we create a variable $\texttt{numbers}$ that really just stores the location of the object in memory. Since variables are just references to memory locations, we can have multiple variables referencing the same object. Note that we did not use the $\texttt{new}$ keyword here. 
 \begin{verbatim}
 int[] stuff = numbers; 
 \end{verbatim}
+\begin{center}
+    \includegraphics[scale=0.3]{reference2.jpg}
+\end{center}
 Therefore, both $\texttt{numbers}$ and $\texttt{stuff}$ points to the same array, and whatever we do with one is done to the other. If we wanted to create two distinct arrays in memory, we can do this: 
 \begin{verbatim}
 int[] numbers = new int[10]; 
 int[] stuff = new int[10]; 
 \end{verbatim}
+\begin{center}
+    \includegraphics[scale=0.3]{reference3.jpg}
+\end{center}
 which would take up 80 bytes of memory. Therefore, we must distinguish the \textit{actual object in memory} and the \textit{variable that references the object}. Say that the variable is $\texttt{myList}$ and the object that it references to is $\texttt{ArrayList<String> Object}$. Then, we will denote it shorthand as 
 \[\texttt{myList} \mapsto \texttt{ArrayList<String> Object}\]
 
 This is all simple enough, but it gets a bit more confusing when we talk about how functions act. When we have some function $\texttt{func}$ and input variable, say $\texttt{myList} \mapsto \texttt{ArrayList<String> Object}$, the function create a \textit{copy of the reference} in the backend, also named $\texttt{myList}$ (confusingly) and acts on this copy. Note now that we are working with two references. 
 \begin{center}
-    \includegraphics[scale=0.3]{}
+    \includegraphics[scale=0.3]{functions_on_references.jpg}
 \end{center}
 Therefore, the function is allowed to modify $\texttt{ArrayList<String> Object}$ through the copied reference variable. 
 
@@ -91,7 +100,7 @@ System.out.println(words); // prints [] (empty)
 \end{verbatim}
 if $\texttt{words}$ references an array of 1 million elements, then $\texttt{removeFront}$ will not copy the entire array and allocate new memory, but it will just act on the original array. 
 \begin{center}
-    \includegraphics[scale=0.3]{}
+    \includegraphics[scale=0.3]{func_ref_example1.jpg}
 \end{center}
 \end{example}
 
@@ -111,7 +120,7 @@ System.out.println(words); // Still prints ["CS"]
 \end{verbatim}
 This does not affect the object that the original $\texttt{words}$ is referencing to since the function takes only the \textit{copied reference variable} and changes its reference to the new LinkedList. 
 \begin{center}
-    \includegraphics[scale=0.3]{}
+    \includegraphics[scale=0.3]{func_ref_example2.jpg}
 \end{center}
 \end{example}
 
@@ -133,17 +142,17 @@ public static void main(String[] args) {
     printList(list);    // prints 2, 0 
 }
 \end{verbatim}
-Let us examine the behavior of it. Note that we allocate memory for $\texttt{list}$, which we will denote $\texttt{list}_m$ and when we input it into $\texttt{foo}$, we get a copy of the reference, denoted $\texttt{list}_c$. 
+Let us examine the behavior of it. Note that we allocate memory for $\texttt{list}$, which we will denote by the reference $\texttt{list}_m$ and when we input it into $\texttt{foo}$, we get a copy of the reference, denoted $\texttt{list}_c$. 
 \begin{center}
-    \includegraphics[scale=0.3]{}
+    \includegraphics[scale=0.3]{step1.jpg}
 \end{center}
 $\texttt{foo}$ takes $\texttt{list}_c$ and has it reference the next value, which is $0$. Therefore, $\texttt{list}_m$ is $2, 0, 1$ and $\texttt{list}_c$ is $0, 1$. 
 \begin{center}
-    \includegraphics[scale=0.3]{}
+    \includegraphics[scale=0.3]{step2.jpg}
 \end{center}
 Now, we set the next value of $\texttt{list}_c$ to null, and since this modifies the LinkedList object, we have both $\texttt{list}_m$ is $2, 0$ and $\texttt{list}_c$ is $0$. 
 \begin{center}
-    \includegraphics[scale=0.3]{}
+    \includegraphics[scale=0.3]{step3.jpg}
 \end{center}
 \end{example}
 
@@ -925,5 +934,685 @@ public static <T> int binarySearch(List<T> list, T target, Comparator<T> comp) {
 }
 \end{verbatim}
 \end{definition}
+
+\section{Trees}
+
+\subsection{Stacks, Queues, and Priority Queues}
+
+\begin{definition}[Stacks]
+A \textbf{stack} is an abstract data structure represented as a \textbf{Last-In-First-Out (LIFO) list}, which implements the following methods given stack $\texttt{st}$, which we can initialize with 
+\begin{verbatim}
+    Stack<String> st = new Stack<>(); 
+    for (String s : strs) { st.push(s); }
+    while (! st.isEmpty()){ System.out.println(st.pop()); }
+\end{verbatim}
+\begin{enumerate}
+    \item $\texttt{st.add(Object element)}$ adds to the top of the stack, which is $O(1)$ 
+    \item $\texttt{st.pop()}$ removes the element that is at the top of the stack, which is $O(1)$, and returns whatever is popped out. 
+\end{enumerate}
+Remember that this is just a list and so anything we can do with a stack we can do with a list. What makes the stack so useful is the way the list is implemented. We can literally imagine the elements of this list as "stack." If you want to remove something from the stack, of course you have to remove the top element. 
+\end{definition}
+
+\begin{definition}[Queue]
+A \textbf{queue} is an abstract data structure represented as a \textbf{First-In-First-Out (FIFO) list}, which implements the following methods given queue $\texttt{q}$, which we can initialize with 
+\begin{verbatim}
+    Queue<String> q = new LinkedList<>(); 
+    for (String s : strs) { q.add(s); }
+    while (! q.isEmpty()) { System.out.println(q.remove()); }
+\end{verbatim}
+Note that LinkedList implements the Queue interface. 
+\begin{enumerate}
+    \item $\texttt{q.add(Object element)}$ adds to the top of the queue, referred to as \textbf{enqueue}. 
+    \item $\texttt{q.remove()}$ removes the first element in the queue, referred to as \textbf{dequeue}. 
+\end{enumerate}
+This is just like how a queue works. Whatever has been waiting in the queue the longest is the one that is removed first. 
+\end{definition}
+
+For now, we will abstractly think that a priority queue acts as a sorted list (though it is actually implemented as a binary heap). 
+
+\begin{definition}[Priority Queues]
+A priority queue simply adds things according to their priority. Every time we add an element, it looks at where the element should go to keep the list sorted. If we want to dequeue, then we just remove the first element of the list. 
+\begin{verbatim}
+    PriorityQueue<String> pq = new PriorityQueue<>();
+    pq.add("ac"); 
+    pq.add("c"); 
+    pq.add("bdf"); 
+    while(! pq.isEmpty()) { System.out.println(pq.remove()); }
+    // ac   bdf  c
+\end{verbatim}
+But depending on the comparator what we use, the priority queue sorts it in a different manner. 
+\begin{verbatim}
+    PriorityQueue<String> pq = new PriorityQueue<>(Comparator.comparing(String::length)); 
+    pq.add("ac"); 
+    pq.add("c"); 
+    pq.add("bdf"); 
+    while(! pq.isEmpty()) { System.out.println(pq.remove()); }
+    // c   ac   bdf
+\end{verbatim}
+\begin{enumerate}
+    \item $\texttt{pq.add(Object element)}$ is $O(\log(N))$
+    \item $\texttt{pq.remove()}$ is $O(\log(N))$ 
+    \item $\texttt{pq.peek()}$ returns the minimal element and is $O(1)$
+    \item $\texttt{pq.size()}$ returns number of elements and is $O(1)$
+\end{enumerate}
+\end{definition}
+
+\subsection{Binary Trees}
+
+Let us compare the HashSet/Map and the TreeSet/Map. The purpose of Hashing is to "find" and add elements quickly. 
+\begin{enumerate}
+    \item This means that add, contains, put, and get are all amortized $O(1)$ (under Simple Uniform Hashing Assumption). The TreeSet/Map have all operations add, contains, put, get are $O(\log(N))$, which is slower, but is not amortized. 
+    \item Trees are sorted, while Hashes are not, and so we can get a range of Tree values in sorted order efficiently, but not for Hashes. 
+\end{enumerate}
+
+A Node for trees is represented with the following class. 
+\begin{verbatim}
+public class TreeNode {
+    TreeNode left; 
+    TreeNode right; 
+    String info; 
+    
+    TreeNode (String s) {
+        info = s; 
+    }
+    
+    TreeNode(String s, TreeNode llink, TreeNode rlink) {
+        info = s; 
+        left = llink; 
+        right = rlink; 
+    }
+}
+\end{verbatim}
+
+A tree looks pictorially like this: 
+\begin{center}
+\begin{tikzpicture}[  every node/.style={    circle,    minimum size=0.75cm,    draw,    text centered,    anchor=center  }]
+  \node (4) at (0,0) {4};
+  \node (2) at (-1,-1) {2};
+  \node (6) at (1,-1) {6};
+  \node (1) at (-1.5,-2) {1};
+  \node (3) at (-0.5,-2) {3};
+  \node (5) at (0.5,-2) {5};
+  \node (7) at (1.5,-2) {7};
+  \node (9) at (0, -3) {9}; 
+  \draw (4) -- (2);
+  \draw (4) -- (6);
+  \draw (2) -- (1);
+  \draw (2) -- (3);
+  \draw (6) -- (5);
+  \draw (6) -- (7); 
+  \draw (5) -- (9); 
+\end{tikzpicture}
+\end{center}
+Some terms: 
+\begin{enumerate}
+    \item The root of the tree is the top node, which is $4$
+    \item The leaf of the tree are nodes that do not have a left nor right subchild. 
+    \item A path is any path from one node to another node. A simple path is a path that doesn't cross the same edge twice 
+    \item The height of a node is the length of the longest downward path to a leaf from that node. 
+    \item The depth of a node is the number of edges from the root to the node. 
+\end{enumerate}
+
+\subsubsection{Algorithms for Binary Tree}
+
+\begin{theorem}[Print All Nodes in A Binary Tree]
+Here are three ways to recursively traverse a tree. The difference is in where the nonrecursive part is. Let us have a binary tree from above. 
+\begin{enumerate}
+    \item This tells us to print everything on the left of the node, then print the node, and then print everything on the right. 
+    \begin{verbatim}
+    void inOrder(TreeNode t) {
+        if (t != null) {
+            inOrder(t.left);
+            System.out.println(t.info); 
+            inOrder(t.right); 
+        }
+    }
+    // 1, 2, 3, 4, 9, 5, 6, 7
+    \end{verbatim}
+    
+    \item This tells us to print the node itself first, then print all the ones on the left, and then print all the ones on the right. 
+    \begin{verbatim}
+    void preOrder(TreeNode t) {
+        if (t != null) {
+            System.out.println(t.info); 
+            preOrder(t.left); 
+            preOrder(t.right); 
+        }
+    }
+    // 4, 2, 1, 3, 6, 5, 9, 7
+    \end{verbatim}
+    
+    \item This tells us to print all the nodes on the left, then all ones on the right, and then the node itself. 
+    \begin{verbatim}
+    void postOrder(TreeNode t) {
+        if (t != null) {
+            postOrder(t.left); 
+            postOrder(t.right); 
+            System.out.println(t.info); 
+        }
+    }
+    // 1, 3, 2, 9, 5, 7, 6
+    \end{verbatim}
+\end{enumerate}
+\end{theorem}
+
+\begin{theorem}[Storing All Nodes in a List]
+Now if we want to store them all in a list, then this recursive strategy will not work, since if we create a list inside the function body, then we will have a bunch of lists floating around in memory. Therefore, we want to initialize a list outside of the entire function, and store that entire thing within a wrapper function. The $\texttt{inOrder}$ takes in also a reference to a list that it will be adding to. 
+\begin{verbatim}
+public ArrayList<String> visit(TreeNode root) {
+    ArrayList<String> list = new ArrayList<>(); 
+    inOrder(root, list); 
+    return list; 
+}
+
+private void inOrder(TreeNode root, ArrayList<String> list) {
+    if (root != null) {
+        inOrder(root.left, list); 
+        list.add(root.info); 
+        inOrder(root.right, list); 
+    }
+}
+\end{verbatim}
+\end{theorem}
+
+\begin{definition}[Finding Height of Node]
+The height of a node is the longest downward path to a leaf from that node, so its height would be the maximum of the two heights of its children. A null node would have height $-1$, which is our base case. 
+\begin{verbatim}
+public int getHeight(TreeNode root) {
+    if (root == null) { return -1; }
+    return 1 + Math.max(getHeight(root.left), getHeight(root.right)); 
+}
+\end{verbatim}
+\end{definition}
+
+\begin{definition}[Finding Depth of Node]
+The depth is quite hard to find recursively, but if we have a reference to the parent, then we can write 
+\begin{verbatim}
+int depth(TreeNode node) {
+    if (node == null) {
+        return -1;
+    } else {
+        return 1 + depth(node.parent);
+    }
+}
+\end{verbatim}
+\end{definition}
+
+
+
+\subsubsection{Binary Search Tree}
+
+\begin{definition}[Binary Search Tree]
+A binary tree is a \textbf{binary search tree} if for every node, the left subtree values are all less than the node's value, and the right subtree values are all greater than the node's value. That is, the nodes are in order, and if we called $\texttt{inOrder(root)}$ on the tree, then we would get a sorted list, which allows for efficient search. 
+\end{definition}
+
+We could then search recursively with the following: 
+\begin{verbatim}
+public boolean contains(TreeNode tree, String target) {
+    if (tree == null) return false; 
+    int result = target.compareTo(tree.info); 
+    if (result == 0) return true; 
+    if (result < 0) return contains(tree.left, target); 
+    return contains(tree.right, target); 
+}
+\end{verbatim}
+
+or iteratively with
+\begin{verbatim}
+public static boolean contains(TreeNode node, String target) {
+    while (node != null) {
+        int comp = node.info.compareTo(target); 
+        if(comp == 0) return true; 
+        else if (comp > 0) node = node.left; 
+        else node = node.right; 
+    }
+    return false; 
+}
+\end{verbatim}
+
+Adding elements to a binary search tree is also very similar. But note that the order in which we add elements to the binary search tree will matter, since it can either make the tree \textbf{balanced} or \textbf{unbalanced}. 
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[ integer/.style={    draw,    circle,    minimum size=0.75cm,    inner sep=0pt,    text centered,    anchor=center  }]
+  % Balanced tree
+  \node[integer] (4) at (0,0) {4};
+  \node[integer] (2) at (-1,-1) {2};
+  \node[integer] (6) at (1,-1) {6};
+  \node[integer] (1) at (-1.5,-2) {1};
+  \node[integer] (3) at (-0.5,-2) {3};
+  \node[integer] (5) at (0.5,-2) {5};
+  \node[integer] (7) at (1.5,-2) {7};
+  \draw (4) -- (2);
+  \draw (4) -- (6);
+  \draw (2) -- (1);
+  \draw (2) -- (3);
+  \draw (6) -- (5);
+  \draw (6) -- (7);
+
+  % Caption for balanced tree
+  \node at (0,1) {Balanced};
+  \node at (0,-3) {Order: 4, 2, 6, 1, 3, 5, 7};
+
+  % Unbalanced tree
+  \node[integer] (1') at (3,0) {1};
+  \node[integer] (2') at (4,-1) {2};
+  \node[integer] (3') at (5,-2) {3};
+  \draw (1') -- (2');
+  \draw (2') -- (3');
+
+  % Caption for unbalanced tree
+  \node at (4,1) {Unbalanced};
+  \node at (4,-3) {Order: 1, 2, 3};
+\end{tikzpicture}
+\caption{Comparison of balanced and unbalanced binary trees}
+\label{fig:trees}
+\end{figure}
+In a balanced case, contains/add will be $O(\log(N))$, while in an unbalanced case, we will have $O(N)$. 
+
+
+\subsection{Greedy Algorithms, Huffman}
+
+A \textbf{greedy algorithm} is an approach for solving a problem by selecting the best option available at the moment. They are useful because they may be optimal, they may not be optimal but work very well in practice, and they are easier to implement for starting out. It turns out that many large-scale machine learning models, like neural nets, are optimized using greedy algorithms (e.g. gradient descent). 
+
+\begin{example}
+In the Knapsack problem, we have \$10 and want to buy things at a market that maximizes our value. Say that we have an \$1 apple with value 2, a \$1 banana with value 1, and a \$10 pizza with value 10. Then, a greedy algorithm will make sure to first buy all things with the highest value-to-cost ratio. 
+\end{example}
+
+Now, let's talk about \textbf{Huffman encoding}. We already know about the ASCII encoding that encodes characters in $7$ bits, for a total of $2^7$ possibilities. The extended ASCII uses $8$ bits, but all of these things use something called \textbf{fixed-length encoding} which uses a constant number of bits to encode any character. To compress something, we want to use \textbf{variable-length encoding}. 
+
+To decode something, the mapping from the characters to the bits must be injective, so we can define an inverse over its image. It turns out that if we an encoding for 3 characters, say 
+\[a \mapsto 1, b \mapsto 10, c \mapsto 11\]
+then decoding $1011$ is ambiguous since $1$ is a prefix of the encoding for $c$. Therefore, we do not want one encoding to be the prefix of another. It turns out that we can avoid this conflict by encoding everything as a binary tree and setting all encodings as leaf nodes. 
+\begin{center}
+    \includegraphics[scale=0.5]{Tree_Encoding.png}
+\end{center}
+This makes sense since an encoding will be a prefix of another if and only if it is a parent of another. Furthermore, a greater depth of a character in the tree corresponds to a longer encoding. So, Huffman encoding tries to convert shorter characters to longer leaves and less recurrent characters into longer encodings. To decode a string of bits using a tree, we read the bit at a time to traverse left or right edge. When we reach a leaf, we decode the character and restart at root. 
+
+Now, we describe the greedy algorithm for building an optimal variable length encoding tree. 
+\begin{enumerate}
+    \item We take the document and compute the frequencies of all characters that we want to encode. We want to less frequent characters to be lower on the tree, and so we will build the tree up from the leaves. 
+    \item We iteratively choose the lowest weight nodes to connect up to a new node with weight = sum of children. 
+\end{enumerate}
+We implement this using a priority queue. 
+
+\begin{example}
+Let us go do an example of where we have the characters and frequencies 
+\[a \mapsto 30, \; b \mapsto 20, \; c \mapsto 10, \; d \mapsto 15, \; e \mapsto 40\]
+Then, we have the following steps: 
+\begin{enumerate}
+    \item We write out them as leaf nodes with the values $30, 20, 10, 15, 40$. We take the smallest of the frequencies and sum them up: $10 + 15 = 25$. 
+    \begin{center}
+        \includegraphics[scale=0.3]{step_1.jpg}
+    \end{center}
+    \item We have the values $30, 20, 25, 40$. We sum the smallest two frequencies: $20 + 25 = 45$. 
+    \begin{center}
+        \includegraphics[scale=0.3]{step_2.jpg}
+    \end{center}
+    \item We have the values $30, 45, 40$. We sum the smallest two frequencies: $30 + 40 = 70$. 
+    \begin{center}
+        \includegraphics[scale=0.3]{step_3.jpg}
+    \end{center}
+    \item We have the values $70, 45$. We sum them up to get the complete tree. 
+    \begin{center}
+        \includegraphics[scale=0.3]{step_4.jpg}
+    \end{center}
+\end{enumerate}
+\end{example}
+
+\begin{theorem}
+If we have a document of $N$ total characters and $M$ unique characters, the number of nodes in the Huffman tree, in complexity notation, is 
+\[O(M)\]
+Clearly, this has nothing to do with $N$. Note that we have $M$ leaf nodes, and in each iteration, we connect 2 nodes up to a parent. Therefore, the number of nodes to connect up decreases by 1 per iteration, and we create a new node per iteration. Since there are $M - 1$ iterations, we add one node, so there will be $M + M - 1 = O(n)$ nodes in the binary tree. 
+\end{theorem}
+
+\subsection{Binary Heaps}
+
+\begin{definition}[Binary Heap]
+A \textbf{binary heap} is a binary tree satisfying the following structural invariants: 
+\begin{enumerate}
+    \item Maintain the \textbf{heap property} that every node is less than or equal to its successors, and 
+    \item The \textbf{shape property} that the tree is complete (full except perhaps last level, in which case it should be filled from left to right. 
+\end{enumerate}
+We should conceptually think of a binary heap as an underlying binary heap, but it is actually usually implemented with an array, and we can create a map from the heap to the array with the following indices. 
+\begin{center}
+    \includegraphics[scale=0.5]{binary_heap.png}
+\end{center}
+When 1-indexing, for node with index $k$, the left child is index $2k$, the right child is index $2k + 1$, and the parent is index $k/2$ (where this is integer division). 
+\end{definition}
+
+Implementing peek is easy, since we just return the first index, but it can be quite tricky to maintain this invariant after an arbitrary sequence of add/remove operations. 
+\begin{enumerate}
+    \item To add values to a heap, we add to the first open position in the last level of the tree (to maintain the shape property), and then swap with the parent is the heap property is violated. If we are swapping with the parent at most $\log(N)$ times, then the add property has $O(\log(N))$ complexity. 
+    \begin{center}
+        \includegraphics[scale=0.5]{heap_add_implementation.png}
+    \end{center}
+    
+    \item We remove the first (minimal) value, we first replace the root with the last node in the heap, and while the heap property is violated, we swap with the smaller child. There are two choices, the left or right child, in which we can swap. But we must always swap with the \textbf{smaller child}, since we swapped with the bigger child, then this bigger child would be larger than the smaller one, violating the heap property. Since a complete binary tree always has height $O(\log(N))$, remove also "traverses" one root-leaf path, and so its runtime complexity is $O(\log(N))$, too. 
+    \begin{center}
+        \includegraphics[scale=0.5]{}
+    \end{center}
+    
+    \item The decreaseKey operation just takes an arbitrary node and decreases its value to some other integer. In this case, it wouldn't violate the shape property, and to restore the heap property, we just put swap it with its parent if the new value is smaller than its parent, making this operation $O(\log(N))$. 
+\end{enumerate}
+
+\subsection{Red-Black Trees}
+
+Now, we have learned how we can implement a priority queue using a binary heap. This is also possible to use a binary search tree, since it's easy to get the minimal element for adding and removing, but there are three things that make it difficult: 
+\begin{enumerate}
+    \item all elements must be unique 
+    \item it is not array-based, and so uses more memory and higher constant factors on runtime 
+    \item it is much harder to implement with guarantees that the tree will be balanced. This makes it difficult since if we want to search through a balanced BST, it is $O(\log(N))$, but if it turns out to be unbalanced, then it is $O(N)$. 
+\end{enumerate}
+Therefore, while a balanced tree may be efficient on average, in the worst case the linear complexity is not tolerable. Therefore, we must implement a binary search tree that will do extra work to ensure that they are approximately balanced. 
+
+\begin{definition}[Red-Black Tree]
+\textbf{Red-Black Trees} are binary search trees that satisfy the following properties: 
+\begin{enumerate}
+    \item Every node is red or black 
+    \item The root is black 
+    \item A red node cannot have red children 
+    \item From a given node, all paths to null descendants must have the same number of black nodes. (Null is considered to be a black node)
+    \item remember that it must be a binary search tree! 
+\end{enumerate}
+\begin{center}
+    \includegraphics[scale=0.4]{red_black_trees.png}
+\end{center}
+\end{definition}
+
+Note that there are binary search trees that cannot be turned into a red-black tree. 
+\begin{center}
+    \includegraphics[scale=0.3]{impossible_red_black.png}
+\end{center}
+This is intentional because red-black tree properties guarantee approximate balance. If we can turn a binary search tree into a red-black tree, then it logically follows that the original BST was approximately balanced. Note that a red black tree does not make searching asymptotically faster in any way; it just takes care of the worst-case. 
+
+Remember that red black trees are also just binary search trees: 
+\begin{enumerate}
+    \item contains (search) method is the exact same thing as BST 
+    \item The add method needs to be slightly modified, since after we add, we need to make sure that the resulting tree is a red-black tree. This is done in three steps: 
+    \begin{enumerate}
+        \item Run the regular BST add 
+        \item Color the new node red 
+        \item Fix the tree to reestablish red-black tree properties. This is extremely complicated with different cases, but it all essentially uses some sort of recoloring and a (right or left) rotation of the tree. 
+    \end{enumerate}
+\end{enumerate}
+
+
+\section{Graphs}
+
+\begin{definition}[Graph]
+A \textbf{graph} is a data structure for representing connections among items an dconsists of vertices connected by edges. It consists of a \textbf{vertex} (or node) and an \textbf{edge}. It can be directed or undirected. A \textbf{simple graph} there is at most one undirected edge between nodes (or 2 directed). Therefore, given that $N$ is the number of vertices and $M$ the number of edges, we have 
+\[M \leq N^2\]
+for a simple graph. A \textbf{simple path} is a sequence of unique vertices where subsequent nodes are connected by edges, and the path doesn't repeat itself. 
+\end{definition}
+
+\begin{definition}[Adjacency List/Matrix]
+Given a graph, we can completely represent it with a list of adjacent vertices for each vertex or an adjacency matrix. 
+\begin{center}
+\begin{tikzpicture}
+  \node[circle, draw] (C) at (0,0) {C};
+  \node[circle, draw] (D) at (2,0) {D};
+  \node[circle, draw] (B) at (2,2) {B};
+  \node[circle, draw] (A) at (0,2) {A};
+
+  \draw (A) -- (B);
+  \draw (B) -- (C);
+  \draw (A) -- (C);
+  \draw (B) -- (D);
+\end{tikzpicture}
+\end{center}
+An adjacency list would look something like this 
+\[
+\begin{aligned}
+A &: B, C \\
+B &: A, C, D \\
+C &: A, B \\
+D &: B
+\end{aligned}
+\]
+and the adjacency matrix looks like this: 
+\begin{center}
+\begin{tikzpicture}
+  \matrix[matrix of math nodes, nodes in empty cells,          column sep=-\pgflinewidth, row sep=-\pgflinewidth,          nodes={minimum size=7mm, anchor=center, outer sep=0pt}] (adjacency) {
+    & |(a)| A & |(b)| B & |(c)| C & |(d)| D \\
+    |(A)| A & 0 & 1 & 1 & 0 \\
+    |(B)| B & 1 & 0 & 1 & 1 \\
+    |(C)| C & 1 & 1 & 0 & 0 \\
+    |(D)| D & 0 & 1 & 0 & 0 \\
+  };
+\end{tikzpicture}
+\end{center}
+Adjacency matrices can be memory wasteful if the graph is sparse, and for fast lookup of information in adjacency lists, we can implement a double hashing mechanism ($\texttt{hashMap<Vertex, HashSet<Vertex>>}$). 
+\end{definition}
+
+\subsection{Depth First Search (DFS)}
+
+DFS basically traverses 
+
+
+\begin{theorem}[Recursive DFS]
+Now, in order to traverse this graph, we basically want to make an algorithm that starts at a node, prints it value, and then goes to all of its neighbors (which we can access through the adjacency list) to print them out. Thus, this is by nature recursive. We don't want the algorithm to loop around printing nodes infinitely often, so we must create a base case that tells the algorithm to not print out a node. It makes sense to create a set of visited nodes, which we can add to whenever we reach a new node. So, if we ever come onto a node that we have visited, we can just tell the function to do nothing. 
+
+Now if we want to print out all the nodes of a general graph, we can do the following:
+\begin{verbatim}
+    public static void dfs(char start) {
+        if (!visited.contains(start)) {                // if already visited, backtrack
+            visited.add(start);                         // else, visit this node 
+            System.out.println(start);                  // print it out
+            for (char neighbor : aList.get(start)) {
+                dfs(neighbor);                          // and explore its neighbors 
+            }
+        }
+    }   
+\end{verbatim}
+\end{theorem}
+
+\begin{theorem}[Iterative DFS]
+Though recursion really makes this simple, we can construct an iterative approach that uses stacks. Note that in recursion, we are really making a call stack of different functions. We can be explicit about this by actually implementing a stack, which would store all the nodes that we have discovered, but not yet explored from )i.e. all the current nodes). At each iteration, we would pick a node to continue exploring, and since this is a DFS, we would want to implement a LIFO stack so that the last element we input in is the first thing that we should explore from, i.e. we always explore from the last node discovered. 
+\begin{verbatim}
+    public static void dfs(char start) {
+        Stack<Character> toExplore = new Stack<>(); 
+        char current = start; 
+        toExplore.add(current); 
+        visited.add(current); 
+        
+        while (!toExplore.isEmpty()) {
+            current = toExplore.pop();                  // explore from most recently discovered node
+            for (char neighbor : aList.get(current)) {  // look at all neighbors of current node 
+                if (!visited.contains(neighbor)) {      // if we haven't seen them before...
+                    previous.put(neighbor, current);    // note how we got here 
+                    visited.add(neighbor);              // note that we have seen
+                    toExplore.push(neighbor);           // mark to explore later
+                }
+            }
+        }
+    }
+\end{verbatim}
+The runtime complexity of this search is $O(N + M)$ because first, the while loop loops at most over the $N$ nodes. The for loop may loop over $M$ edges, but this is a bit pessemistic in bound. Rather, we can view it as looping over neighbors of each node at most exactly once, and so it considers every edge twice, meaning that the for loop will get called $2M$ times in the entire algorithm. So $N + 2M = O(N + M)$. 
+\end{theorem}
+
+
+\begin{example}[DFS in a Maze]
+We can represent a grid graph, like a maze, with a two dimensional array that stores whether it is connected north, east, south, and west, where boolean of true represents that there is a wall, and false means there isn't a wall (so connected). 
+\begin{center}
+    \includegraphics[scale=0.4]{grid_graph.png}
+\end{center}
+But remember that in a tree traversal, we recursively searched down and down until we hit a null node, in which case we backtrack up to look in another branch. For graphs, this is a bit more complicated, since we could go in loops. Therefore, we want to keep track of all the visited nodes to avoid infinite recursion. We have three base cases: 
+\begin{enumerate}
+    \item If we search off the grid, then this is not a valid path 
+    \item If we already explored here, then we don't want to repeat it 
+    \item If we reached the goal of the maze, then we output the length of the path. 
+\end{enumerate}
+The recursive case would take each node and recurse on its 4 adjacent neighbors, if they are connected. So, the entire function, which takes in a location $(x, y)$ in the grid and the depth that it took to traverse to this point, would look like this: 
+\begin{verbatim}
+
+private boolean[][] visited; 
+
+private int solveDFS(int x, int y, int depth) {
+    if (x == 0 || y == 0 || x == mySize + 1 || y == mySize + 1) {
+        return 0; 
+    }
+    if (visited[x][y]) return 0; 
+    
+    visited[x][y] = true; 
+    
+    if (x == mySize/2 && y == mySize/2) {
+        return depth; 
+    }
+    
+    if (!north[x][y]) { // if there is no wall above
+        int d = solveDFS(x, y + 1, depth + 1); 
+        if (d > 0) return d; 
+    }
+    if (!east[x][y]) {
+        int d = solveDFS(x + 1, y, depth + 1); 
+        if (d > 0) return d; 
+    }
+    if (!south[x][y]) {
+        int d = solveDFS(x, y - 1, depth + 1); 
+        if (d > 0) return d; 
+    }
+    if (!west[x][y]) {
+        int d = solveDFS(x - 1, y, depth + 1); 
+        if (d > 0) return d; 
+    }
+}
+\end{verbatim}
+Note that this algorithm recurses on each of the $N$ nodes $4$ times (for each direction, and each recursive call is $O(1)$), so the complexity is $O(N)$. 
+\end{example}
+
+
+\subsection{Breadth First Search (BFS)}
+
+Note that the main idea of DFS is to always explore a new adjacent vertex if possible, and if not, then backtrack to the most recent vertex adjacent to an unvisited vertex and continue. On the contrary, the main idea of BFS is to explore \textit{all} your neighbors before you visit any of your neighbors' neighbors. It exhaustively searches for the closest regions of your search space before you look any further. Unlike DFS, which finds the some arbitrary path to a node, BFS finds the shortest (perhaps nonunique) path to a node. 
+
+\begin{definition}[Iterative BFS]
+This can be done simply by using a queue. Note that a queue is an interface, so we must use the Linked List implementation. 
+\begin{verbatim}
+    public static void dfs(char start) {
+        Queue<Character> toExplore = new LinkedList<>(); 
+        char current = start; 
+        toExplore.add(current); 
+        visited.add(current); 
+        
+        while (!toExplore.isEmpty()) {
+            current = toExplore.pop();                  // explore from most recently discovered node
+            for (char neighbor : aList.get(current)) {  // look at all neighbors of current node 
+                if (!visited.contains(neighbor)) {      // if we haven't seen them before...
+                    previous.put(neighbor, current);    // note how we got here 
+                    visited.add(neighbor);              // note that we have seen
+                    toExplore.push(neighbor);           // mark to explore later
+                }
+            }
+        }
+    }
+\end{verbatim}
+\end{definition}
+
+\begin{definition}[Search Trees]
+Once we have traversed a graph using BFS or DFS, we can label the directed path that this traversal algorithm takes into a \textbf{search tree}. If we look at the search trees generated by DFS and BFS, we can see that the path from A to C is always shorter for BFS than for DFS. 
+\begin{center}
+    \includegraphics[scale=0.4]{search_trees.png}
+\end{center}
+\end{definition}
+
+
+
+\subsection{Shortest Paths and Dijkstra's Algorithm}
+
+\begin{definition}[Weighted Graph]
+A \textbf{weighted graph} just has some weights to each of the edges, which can represent multiple things, like distance, cost, or probabilities. 
+\begin{center}
+    \includegraphics[scale=0.5]{weighted_graph.png}
+\end{center}
+\end{definition}
+
+Remember that BFS gives the shortest paths in \textit{unweighted graphs}. We can generalize BFS to account for weighted graphs, called Dijkstra's algorithm, which doesn't implement queues, but \textit{priority queues}. 
+
+\begin{theorem}[Dijkstra's Algorithm]
+The algorithm basically starts at a node, and explores \textit{first} the closest nodes to the start node, called $\texttt{start}$. It does this by recording the shortest distance that it took to travel to this node from the start node. This is implemented in a $\texttt{Map}<Character, Integer>$, which we will call $\texttt{dist}$ for example. Furthermore, we want a $\texttt{PriorityQueue}$ called $\texttt{exp}$ that tells us which nodes that we need to explore next. Let us have a minimal example: 
+\begin{center}
+\begin{tikzpicture}[auto,node distance=2cm, thick,main node/.style={circle,draw,font=\sffamily\Large\bfseries}]
+
+  \node[main node] (A) {A};
+  \node[main node] (B) [right of=A] {B};
+  \node[main node] (C) [below of=B] {C};
+  \node[main node] (D) [right of=C] {D};
+
+  \path[every node/.style={font=\sffamily\small}]
+    (A) edge node [above] {1} (B)
+    (B) edge node [right] {1} (C)
+    (A) edge [bend right] node [below] {3} (C)
+    (C) edge node [above] {2} (D);
+\end{tikzpicture}
+\end{center}
+\begin{enumerate}
+    \item We start at a node $A$, which has distance $0$ (since the distance from $A$ to $A$ is $0$). So, $A$ is $\texttt{current}$, and we have 
+    \begin{verbatim}
+        dist        exp 
+        A -> 0      A 
+    \end{verbatim}
+    \item We explore from $A$ since that is the first in our Priority Queue. We want to look at all neighbors of the node ($B, C$) and compute their distances from $\texttt{start}$ by adding the distances from $\texttt{start}$ to $\texttt{current}$ and $\texttt{current}$ to the neighbor. So, we have 
+    \begin{verbatim}
+        dist        exp 
+        A -> 0      B
+        B -> 1      C 
+        C -> 3      
+    \end{verbatim}
+    
+    \item We explore from $B$, since that is first in our Priority Queue. We look at all neighbors of the node ($A, C$). The new distance to $A$ is $d(A, B) + d(B, A) = 2$, so we do not update it. The new distance to $C$ is $d(A, B) + d(B, C) = 2$ and is shorter than the current distance of $3$, so we update it. 
+    \begin{verbatim}
+        dist        exp 
+        A -> 0      C
+        B -> 1      
+        C -> 2      
+    \end{verbatim}
+    
+    \item We explore from $C$, since that is first in our priority queue. We look at all neighbors of the node ($A, B, D$). The new distance to $A$ is $d(A, C) + d(C, A) = 2 + 3 = 5$, so no update. The new distance to $B$ is $d(A, C) + d(C, B) = 2 + 1 = 3$, so no update. $D$ has not been explored before, so we we add its distance of $d(A, C) + d(C, D) = 2 + 2 = 4$ to the map and priority queue regardless. 
+    \begin{verbatim}
+        dist        exp 
+        A -> 0      D 
+        B -> 1       
+        C -> 2     
+        D -> 4
+    \end{verbatim}
+    
+    \item We explore from $D$, since that is first in our priority queue. We look at all neighbors of the node ($C$). The new distance to $C$ is $d(A, D) + d(D, C) = 4 + 2 = 6$, so no update. The priority queue is empty and we are done, with the shortest path to $D$ being $\texttt{dist.get(D) = 4}$. 
+    \begin{verbatim}
+        dist        exp 
+        A -> 0  
+        B -> 1       
+        C -> 2     
+        D -> 4
+    \end{verbatim}
+    
+\end{enumerate}
+\end{theorem}
+
+The complete code would look like this, where $\texttt{weight}$ correctly returns the weight of an edge. 
+\begin{verbatim}
+    public int Dijkstra(String start, String end, Map<String, List<String>> neighbors) {
+        Map<String, Integer> dist = new HashMap<>(); 
+        Comparator<String> c = (a, b) -> dist.get(a) - dist.get(b); 
+        PriorityQueue<String> exp = new PriorityQueue<>(c); 
+        
+        dist.put(start, 0); 
+        exp.add(start); 
+        
+        while (!exp.size() > 0) {
+            String node = exp.remove(); 
+            for (String adj : neighbors.get(node)) {
+                int newDist = dist.get(node) + weight(node, adj); 
+                if (!dist.containsKey(adj) || newDist < dist.get(adj)) {
+                    dist.put(adj, newDist); 
+                    exp.add(adj); 
+                }
+            }
+        }
+        
+        return dist.get(end); 
+    }
+\end{verbatim}
+
+
 
 \end{document}
