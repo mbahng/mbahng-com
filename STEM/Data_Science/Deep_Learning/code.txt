@@ -74,7 +74,7 @@
 
 There are two mainstream packages that impelement deep learning: Tensorflow and PyTorch. We will use PyTorch in here. 
 
-\section{Multi-Layered Perceptron}
+\section{Multi-Layered Perceptrons}
 
 First, we transform the inputs into the relevant features $\mathbf{x}_n \mapsto \boldsymbol{\phi} (\mathbf{x}_n) = \boldsymbol{\phi}_n$ and then, when we construct a generalized linear model, we assume that the conditional distribution $Y \mid X = x$ is in the canonical exponential family, with some natural parameter $\eta(x)$ and expected mean $\mu(x) = \mathbb{E}[Y \mid X = x]$. Then, to choose the link function $g$ that related $g(\mu(x)) = x^T \beta$, we can set it to be the canonical link $g$ that maps $\mu$ to $\eta$. That is, 
 \[g(\mu(x)) = x^T \beta = \eta (x)\]
@@ -178,60 +178,6 @@ Conventionally, we account for every layer except for the final layer when talki
 
 Note that each layer corresponds to how close a neuron is to the output. But really any neuron can be a function of any other neuron. For example, we can connect a neuron from layer $4$ back to a neuron of layer $1$. For now, we will consider networks that are restricted to a \textbf{feed-forward} architecture, in other words having no closed directed cycles. 
 
-\subsection{Activation Functions}
-
-The choice of the activation function can have a significant impact on your training, and we will describe a few examples below. 
-
-\begin{example}[Sigmoid]
-Sigmoid activations are historically popular since they have a nice interpretation as a saturating ``fire rate" of a neuron. However, there are 3 problems: 
-\begin{enumerate}
-    \item The saturated neurons ``kill" the gradients, since if the input at any one point in the layers is too positive or negative, the gradient will vanish, making very small updates. This is known as the \textbf{vanishing gradient problem}. Therefore, the more layers a neural network has, the more likely we are to see this vanishing gradient problem. 
-    \item Sigmoid functions are not zero centered (i.e. its graph doesn't cross the point $(0, 0)$ ). Consider what happens when the input $x$ to a neuron is always positive. Then, the sigmoid $f$ will have a gradient of 
-    \[f \bigg( \sum_i w_i x_i + b \bigg) \implies \frac{\partial f}{\partial w_i} = f^\prime \bigg( \sum_i w_i x_i + b \bigg) 
-    \, x_i\]
-    which means that the gradients $\nabla_\mathbf{w} f$ will always have all positive elements or all negative elements, meaning that we will be restricted to moving in certain nonoptimal directions when updating our parameters. 
-\end{enumerate}
-\end{example}
-
-\begin{example}[Hyperbolic Tangent]
-The hyperbolic tangent is zero centered, which is nice, but it still squashes numbers to range $[-1, 1]$ and therefore kills the gradients when saturated. 
-\end{example}
-
-\begin{example}[Rectified Linear Unit]
-The ReLU function has the following properties: 
-\begin{enumerate}
-    \item It does not saturate in the positive region. 
-    \item It is very computationally efficient (and the fact that it is nondifferentiable at one point doesn't really affect computations). 
-    \item It converges much faster than sigmoid/tanh in practice. 
-    \item However, note that if the input is less than $0$, then the gradient of the ReLU is $0$. Therefore, if we input a vector that happens to have all negative values, then the gradient would vanish and we wouldn't make any updates. These ReLU ``dead zones" can be a problem since it will never activate and never update, which can happen if we have bad initialization. A more common case is when your learning rate is too high, and the weights will jump off the data manifold. 
-\end{enumerate}
-\end{example}
-
-\begin{example}[Leaky ReLU]
-The leaky ReLU 
-\[\sigma(x) = \max\{0.01 x, x\}\]
-does not saturate (i.e. gradient will not die), is computationally efficient, and converges much faster than sigmoid/tanh in practice. We can also parameterize it with $\alpha$ and have the neural net optimize $\alpha$ along with the weights. 
-\[\sigma(x) = \max\{\alpha x, x\}\]
-\end{example}
-
-\begin{example}[Exponential Linear Unit]
-The exponential linear unit has all the benefits of ReLU, with closer to mean outputs. It has a negative saturation regime compared with leaky ReLU, but it adds some robustness to noise. 
-\[\sigma(x) = \begin{cases} x & \text{ if } x > 0 \\ \alpha \big(\exp{x} - 1 \big) & \text{ if } x \leq 0 \end{cases}\]
-\end{example}
-
-\begin{example}[Max-Out Neuron]
-The maxout neuron has the following form 
-\[\sigma(\mathbf{x}) = \max\{ \mathbf{w}_1^T \mathbf{x} + b_1 , \mathbf{w}_2^T \mathbf{x} + b_2 \}\]
-This generalizes the ReLU and leaky ReLU. It is linear, which is nice, and it does not saturate, meaning that the gradient will never die. However, this doubles the number of parameters in the neuron, making it more computationally expensive. 
-\end{example}
-
-In practice, we should do the following: 
-\begin{enumerate}
-    \item Use ReLU and be careful with your learning rates. 
-    \item Try out leaky ReLU, maxout, and ELU 
-    \item Try out tanh but don't expect much 
-    \item Do not use sigmoid, since it is obsolete
-\end{enumerate}
 
 \subsection{Data Preprocessing}
 
@@ -250,7 +196,7 @@ Therefore, we can use something called \textbf{Xavier initialization} or \textbf
 \subsection{Weight Space Symmetries}
 
 
-\section{Network Training}
+\subsection{Backpropagation}
 
 Now we can essentially do the same regression analysis with neural nets. Assume that we have some neural net $h_{\boldsymbol{\theta}}$, and denote the set of all functions of this form to be $\mathcal{F} = \{h_{\boldsymbol{\theta}} \;:\; \boldsymbol{\theta} \in \mathbb{R}^M\}$, where $M$ is the number of parameters in this model. Then, we will assume that $h_{\boldsymbol{\theta}}(X)$ approximates $\mathbb{E}[Y \mid X]$ in such a way that 
 \[Y = h_{\boldsymbol{\theta}}(X) + \epsilon, \;\; \epsilon \sim N(0, \sigma^2)\]
@@ -263,8 +209,6 @@ which clearly shows that we must minimize our sum of squares error.
 Now remember that our neural net is really just a generalized linear model where we are learning the transformations in addition to the final parameter weights. Therefore, our outputs $y$ may not be in $\mathbb{R}$ (such as softmax activation), which will give different loss functions, and so we should generalize our loss to be 
 \[E(\boldsymbol{\theta}) = \sum_{n=1}^N E_n \big[ \mathbf{y}^{(n)}, h_{\boldsymbol{\theta}} (\mathbf{x}^{(n)}) \big] = \sum_{n=1}^N E_n (\boldsymbol{\theta})\]
 where $E_n$ is the loss corresponding to the $n$th input-output pair. 
-
-\subsection{Backpropagation}
 
 Backpropagation is not hard, but it is cumbersome notation-wise. What we really want to do is just compute a very long vector with all of its partials $\partial E / \partial \boldsymbol{\theta}$. 
 
@@ -318,6 +262,8 @@ which gives the matrix form
 and putting it all together, the partial derivative of the error function $E_n$ with respect to the weight in the hidden layers for $1 \leq l < L$ is 
 \[\frac{\partial E_n}{\partial w_{ji}^{[l]}} = a_i^{[l-1]} \sigma^\prime(z_j^{[l]}) \sum_{k=1}^{N^{[l+1]}} \delta_k^{[l+1]} \cdot w_{kj}^{[l+1]} \]
 
+A little fact is that the time complexity of both forward prop and back prop should be the same, so if you ever notice that the time to compute these two functions scales differently, you're probably making some repeated calculations somewhere. 
+
 \subsubsection{Summary}
 
 Therefore, let us summarize what a MLP does: 
@@ -349,7 +295,7 @@ Therefore, let us summarize what a MLP does:
 \end{enumerate}
 
 
-\subsection{Implementation of Neural Net in Python}
+\subsection{Neural Net from Scratch}
 
 Now let us implement a neural network with batch gradient descent in Python from scratch, using only Numpy. We will train on the MNIST dataset where the train and test sets can be gotten using the following commands. 
 \begin{cverbatim}
@@ -707,6 +653,44 @@ for name, param in model.named_parameters():
     print(f"Layer: {name} | Size: {param.size()} | Values : {param[:2]} \n")
 \end{cverbatim}
 
+\subsubsection{Automatic Differentiation}
+
+The forward and backward API for a computational gate multiplying its inputs 
+\begin{center}
+\begin{tikzpicture}[scale=1.5, every node/.style={draw, circle, minimum size=1cm}]
+
+  % Input nodes
+  \node (x) at (0, 1) {$x$};
+  \node (y) at (0, -1) {$y$};
+
+  % Multiply gate node
+  \node[shape=rectangle] (multiply) at (1.5, 0) {$\times$};
+
+  % Output node
+  \node (z) at (3.5, 0) {$z$};
+
+  % Connections
+  \draw[->] (x) -- (multiply);
+  \draw[->] (y) -- (multiply);
+  \draw[->] (multiply) -- (z);
+
+\end{tikzpicture}
+\end{center}
+is represented with the code below. 
+\begin{cverbatim}
+class MultiplyGate(object): 
+    def forward(x, y): 
+        z = x * y 
+        self.x = x      # must keep these around! 
+        self.y = y 
+        return z 
+
+    def backward(dz): 
+        dx = self.y * dz  
+        dy = self.x * dz 
+        return [dx, dy] 
+\end{cverbatim}
+
 
 \subsubsection{Optimizing Model Parameters}
 
@@ -772,10 +756,133 @@ for t in range(epochs):
 print("Done!")
 \end{cverbatim}
 
+\section{Training Stability}
 
-\section{Regularization and Stability}
+Training stability refers to helping the training process, which does not improve the theoretical upper bound on the accuracy of the neural net, but are extremely important for practical applications. It is related to regularization, which prevents the neural net from overfitting to the data. They are both related as they improve the performance of training and the neural network itself, but it good to distinguish them. Given some loss landscape, regularization ensures that we don't ``fall" into some deep hole that looks great on our training error, but does terribly on our testing error. On the other hand, training stability ensures that we update our parameters efficiently to traverse the landscape. 
+
+\subsection{Optimizers}
+
+\subsection{Gradient Problems}
+
+Exploding/Vanishing gradient problem. 
+
+
+\subsection{Activation Functions}
+
+The choice of the activation function can have a significant impact on your training, and we will describe a few examples below. 
+
+\begin{example}[Sigmoid]
+Sigmoid activations are historically popular since they have a nice interpretation as a saturating ``fire rate" of a neuron. However, there are 3 problems: 
+\begin{enumerate}
+    \item The saturated neurons ``kill" the gradients, since if the input at any one point in the layers is too positive or negative, the gradient will vanish, making very small updates. This is known as the \textbf{vanishing gradient problem}. Therefore, the more layers a neural network has, the more likely we are to see this vanishing gradient problem. 
+    \item Sigmoid functions are not zero centered (i.e. its graph doesn't cross the point $(0, 0)$ ). Consider what happens when the input $x$ to a neuron is always positive. Then, the sigmoid $f$ will have a gradient of 
+    \[f \bigg( \sum_i w_i x_i + b \bigg) \implies \frac{\partial f}{\partial w_i} = f^\prime \bigg( \sum_i w_i x_i + b \bigg) 
+    \, x_i\]
+    which means that the gradients $\nabla_\mathbf{w} f$ will always have all positive elements or all negative elements, meaning that we will be restricted to moving in certain nonoptimal directions when updating our parameters. 
+\end{enumerate}
+\end{example}
+
+\begin{example}[Hyperbolic Tangent]
+The hyperbolic tangent is zero centered, which is nice, but it still squashes numbers to range $[-1, 1]$ and therefore kills the gradients when saturated. 
+\end{example}
+
+\begin{example}[Rectified Linear Unit]
+The ReLU function has the following properties: 
+\begin{enumerate}
+    \item It does not saturate in the positive region. 
+    \item It is very computationally efficient (and the fact that it is nondifferentiable at one point doesn't really affect computations). 
+    \item It converges much faster than sigmoid/tanh in practice. 
+    \item However, note that if the input is less than $0$, then the gradient of the ReLU is $0$. Therefore, if we input a vector that happens to have all negative values, then the gradient would vanish and we wouldn't make any updates. These ReLU ``dead zones" can be a problem since it will never activate and never update, which can happen if we have bad initialization. A more common case is when your learning rate is too high, and the weights will jump off the data manifold. 
+\end{enumerate}
+\end{example}
+
+\begin{example}[Leaky ReLU]
+The leaky ReLU 
+\[\sigma(x) = \max\{0.01 x, x\}\]
+does not saturate (i.e. gradient will not die), is computationally efficient, and converges much faster than sigmoid/tanh in practice. We can also parameterize it with $\alpha$ and have the neural net optimize $\alpha$ along with the weights. 
+\[\sigma(x) = \max\{\alpha x, x\}\]
+\end{example}
+
+\begin{example}[Exponential Linear Unit]
+The exponential linear unit has all the benefits of ReLU, with closer to mean outputs. It has a negative saturation regime compared with leaky ReLU, but it adds some robustness to noise. 
+\[\sigma(x) = \begin{cases} x & \text{ if } x > 0 \\ \alpha \big(\exp{x} - 1 \big) & \text{ if } x \leq 0 \end{cases}\]
+\end{example}
+
+\begin{example}[Max-Out Neuron]
+The maxout neuron has the following form 
+\[\sigma(\mathbf{x}) = \max\{ \mathbf{w}_1^T \mathbf{x} + b_1 , \mathbf{w}_2^T \mathbf{x} + b_2 \}\]
+This generalizes the ReLU and leaky ReLU. It is linear, which is nice, and it does not saturate, meaning that the gradient will never die. However, this doubles the number of parameters in the neuron, making it more computationally expensive. 
+\end{example}
+
+In practice, we should do the following: 
+\begin{enumerate}
+    \item Use ReLU and be careful with your learning rates. 
+    \item Try out leaky ReLU, maxout, and ELU 
+    \item Try out tanh but don't expect much 
+    \item Do not use sigmoid, since it is obsolete
+\end{enumerate}
+
+\subsection{Residual Connections}
+
+
+\begin{center}
+    \includegraphics[scale=0.3]{resnet_loss.png}
+\end{center}
+
+
+Some residual architecture solutions include feedforward/convolutional architectures that add more direct connections from the lower layers, thus allowing the gradient to flow. 
+\begin{enumerate}
+    \item The \textbf{ResNet} (\textbf{Residual Connections}) includes an additional path from layer $i$ to layer $j$ that skips the intermediate layers and simply goes through an identity connection, which is then summed with the original path during forward prop. 
+    \begin{center}
+        \includegraphics[scale=0.3]{resnet-arch.png}
+    \end{center}
+    
+    \item The \textbf{DenseNet} directly connects each layer to all future layers, which allows for maximal flow but a lot of computational cost. 
+    \begin{center}
+        \includegraphics[scale=0.5]{densenet.png}
+    \end{center}
+
+    \item The \textbf{HighwayNet} (\textbf{Highway Connections}) is similar to residual connections, but the identity connection vs the transformation layer is controlled by a dynamic gate. These are inspired by LSTMs, but are applied to deep feedforward/convolutional networks. 
+\end{enumerate}
+
+
+\subsection{Normalization Layers}
+
+Note that given the distribution of the covariates $X$ in $\mathcal{X} \subset \mathbb{R}^D$, our neural network transforms them into different distributions in $\mathbb{R}^{[l]}$. For example, in the first layer, where both the affine and the activation functions are usually measurable, the random variable 
+\[\boldsymbol{\sigma} \big( \mathbf{W}^{[1]} X + \mathbf{b}^{[1]} \big)\]
+will induce a probability measure over $\mathbb{R}^{[1]}$. This phenomenon where the distribution of each layer's inputs change is called \textbf{internal covariate shift}. 
+
+It has long been known that standardization of the inputs (i.e. transforming them to have $0$ mean and unit variance) results in better convergence of the neural net, and extending this to hidden layers, it would be advantageous to achieve the same standardization of each layer. In one case, if our inputs to a saturated activation (like tanh, which are saturated for very positive or very negative inputs) are too big, then the gradient will die off, which is why we want to constrain them to a small interval around $0$. This is called a \textbf{normalization layer}, which works like this: 
+\begin{enumerate}
+    \item We select a minibatch of training examples $\mathcal{B} = \{\mathbf{x}^{(1)}, \ldots, \mathbf{x}^{(B)}\}$. Ideally, we would get the mean and variance over the whole batch, but in SGD, the minibatch is a good approximation of the distribution, so we take it with respec to $\mathcal{B}$. 
+    
+    \item We standardize the $\mathbf{x}^{(b)}$'s element-wise. That is, for a given feature dimension $d$, 
+    \[\mu_d = \frac{1}{B} \sum_b x^{(b)}_d, \;\; \sigma^2_d = \frac{1}{B} \sum_{b} \big(x^{(b)}_d - \mu_d \big)^2\]
+    and we set 
+    \[\hat{x}_d^{(b)} = \frac{x_d^{(b)} - \mu_d}{\sqrt{\sigma^2_d + \epsilon}}, \;\; \text{ i.e. } \hat{\mathbf{x}}^{(b)} = (\mathbf{x}^{(b)} - \boldsymbol{\mu}) \odot (\boldsymbol{\sigma}^2 + \boldsymbol{\epsilon})^{-1/2}\]
+    where $\epsilon$ is a small float needed for numerical stability. 
+    This element-wise normalization is not optimal if the covariates are correlated, but in practicality this is not too big of a problem. 
+
+    \item However, constraining our normalization to the unit Gaussian in many cases constrains us to the linear regime of the nonlinearity of our activation functions (e.g. sigmoid or tanh). We would like a little bit of control over how much saturation we would like to have, so we allow some rescaling and reshifting (element-wise, again) parameters for flexibility. 
+    \[\mathbf{y} = \boldsymbol{\gamma} \odot \hat{\mathbf{x}} + \boldsymbol{\beta} = \mathrm{BN}_{\boldsymbol{\gamma}, \boldsymbol{\beta}} (\mathbf{x})\]
+    If the network learns that $\gamma_d = \sqrt{\Var(x_d)}$ and $\beta_d = \mathbb{E}[x_d]$, then it is as if there was no normalization at all, just the identity mapping. If $\mathbf{x} \in \mathbb{R}^n$, then this one normalization layer gives us $2n$ more parameters to learn in our network. 
+\end{enumerate}
+Therefore, rather than our steps being simply 
+\[\mathbf{z}^{[l]} \mapsto \boldsymbol{\sigma}(\mathbf{z}^{[l]}) = \mathbf{a}^{[l]}\]
+we now have the normalization later 
+\[\mathbf{z}^{[l]} \mapsto \boldsymbol{\sigma}\big( \mathrm{BN}_{\boldsymbol{\gamma}, \boldsymbol{\beta}})(\mathbf{z}^{[l]}) \big) = \mathbf{a}^{[l]}\]
+In test time, we have the trained parameters, along with the $\boldsymbol{\gamma}$'s and $\boldsymbol{\beta}$'s, but we now recompute the normalization constants with respect to the entire training set, not a minibatch. 
+
+\subsubsection{Max Norm Regularization}
+
+Though large momentum and learning rate speed up learning, they sometimes cause the network weights to grow very large. To prevent this, we can use max-norm regularization. This constraints the norm of the vector of incoming weights at each hidden unit to be bound by a constant $c$. Typical values of $c$ range from $3$ to $4$. 
+
+
+\section{Regularization}
 
 \subsection{Early Stopping}
+
+\subsection{L1 and L2 Regularization}
 
 \subsection{Dropout}
 
@@ -831,47 +938,14 @@ class NeuralNetwork(nn.Module):
 
 When you call $\texttt{model.eval()}$, PyTorch automatically turns off Dropout (as well as other functionalities such as BatchNorm). Similarly, when you call $\texttt{model.train()}$, Dropout is turned on and will be used during training. It is expected that a dropout network with $M$ hidden units in each layer will have $pM$ units after dropout. Therefore, if an $M$-sized layer is optimal for a standard neural net on any given task, then a good dropout net should have at least $M/p$ units. 
 
-\subsection{L1 and L2 Regularization}
-
-\subsection{Normalization Layers}
-
-Note that given the distribution of the covariates $X$ in $\mathcal{X} \subset \mathbb{R}^D$, our neural network transforms them into different distributions in $\mathbb{R}^{[l]}$. For example, in the first layer, where both the affine and the activation functions are usually measurable, the random variable 
-\[\boldsymbol{\sigma} \big( \mathbf{W}^{[1]} X + \mathbf{b}^{[1]} \big)\]
-will induce a probability measure over $\mathbb{R}^{[1]}$. This phenomenon where the distribution of each layer's inputs change is called \textbf{internal covariate shift}. 
-
-It has long been known that standardization of the inputs (i.e. transforming them to have $0$ mean and unit variance) results in better convergence of the neural net, and extending this to hidden layers, it would be advantageous to achieve the same standardization of each layer. In one case, if our inputs to a saturated activation (like tanh, which are saturated for very positive or very negative inputs) are too big, then the gradient will die off, which is why we want to constrain them to a small interval around $0$. This is called a \textbf{normalization layer}, which works like this: 
-\begin{enumerate}
-    \item We select a minibatch of training examples $\mathcal{B} = \{\mathbf{x}^{(1)}, \ldots, \mathbf{x}^{(B)}\}$. Ideally, we would get the mean and variance over the whole batch, but in SGD, the minibatch is a good approximation of the distribution, so we take it with respec to $\mathcal{B}$. 
-    
-    \item We standardize the $\mathbf{x}^{(b)}$'s element-wise. That is, for a given feature dimension $d$, 
-    \[\mu_d = \frac{1}{B} \sum_b x^{(b)}_d, \;\; \sigma^2_d = \frac{1}{B} \sum_{b} \big(x^{(b)}_d - \mu_d \big)^2\]
-    and we set 
-    \[\hat{x}_d^{(b)} = \frac{x_d^{(b)} - \mu_d}{\sqrt{\sigma^2_d + \epsilon}}, \;\; \text{ i.e. } \hat{\mathbf{x}}^{(b)} = (\mathbf{x}^{(b)} - \boldsymbol{\mu}) \odot (\boldsymbol{\sigma}^2 + \boldsymbol{\epsilon})^{-1/2}\]
-    where $\epsilon$ is a small float needed for numerical stability. 
-    This element-wise normalization is not optimal if the covariates are correlated, but in practicality this is not too big of a problem. 
-
-    \item However, constraining our normalization to the unit Gaussian in many cases constrains us to the linear regime of the nonlinearity of our activation functions (e.g. sigmoid or tanh). We would like a little bit of control over how much saturation we would like to have, so we allow some rescaling and reshifting (element-wise, again) parameters for flexibility. 
-    \[\mathbf{y} = \boldsymbol{\gamma} \odot \hat{\mathbf{x}} + \boldsymbol{\beta} = \mathrm{BN}_{\boldsymbol{\gamma}, \boldsymbol{\beta}} (\mathbf{x})\]
-    If the network learns that $\gamma_d = \sqrt{\Var(x_d)}$ and $\beta_d = \mathbb{E}[x_d]$, then it is as if there was no normalization at all, just the identity mapping. If $\mathbf{x} \in \mathbb{R}^n$, then this one normalization layer gives us $2n$ more parameters to learn in our network. 
-\end{enumerate}
-Therefore, rather than our steps being simply 
-\[\mathbf{z}^{[l]} \mapsto \boldsymbol{\sigma}(\mathbf{z}^{[l]}) = \mathbf{a}^{[l]}\]
-we now have the normalization later 
-\[\mathbf{z}^{[l]} \mapsto \boldsymbol{\sigma}\big( \mathrm{BN}_{\boldsymbol{\gamma}, \boldsymbol{\beta}})(\mathbf{z}^{[l]}) \big) = \mathbf{a}^{[l]}\]
-In test time, we have the trained parameters, along with the $\boldsymbol{\gamma}$'s and $\boldsymbol{\beta}$'s, but we now recompute the normalization constants with respect to the entire training set, not a minibatch. 
-
-\subsubsection{Max Norm Regularization}
-
-Though large momentum and learning rate speed up learning, they sometimes cause the network weights to grow very large. To prevent this, we can use max-norm regularization. This constraints the norm of the vector of incoming weights at each hidden unit to be bound by a constant $c$. Typical values of $c$ range from $3$ to $4$. 
+\subsection{Network Pruning}
 
 \subsection{Data Augmentation}
 
 It is well known that having more training data helps with overfitting, and so we may be able to perform basic transformations to our current data to artificially generate more training data. For example, if we have images, then we can flip, crop, translate, rotate, stretch, shear, and lens-distort these images with the same label. 
 
-\subsection{Network Pruning}
 
-
-\subsection{Procedural Summary}
+\subsection{Summary}
 
 Here is a few steps you can take as a guide to training a neural network. 
 \begin{enumerate}
@@ -893,6 +967,7 @@ Here is a few steps you can take as a guide to training a neural network.
     \item We also want to track the ratio of weight updates and weight magnitudes. That is, we can take the norm of the weights $\boldsymbol{\theta}$ and the gradient updates $\nabla \boldsymbol{\theta}$, and a rule of thumb is that the ratio should be about 
     \[\frac{||\nabla \boldsymbol{\theta}||}{||\boldsymbol{\theta}||} \approx 0.001 \text{ or } 0.01\]
 \end{enumerate}
+
 
 
 \section{Convolutional Neural Networks}
@@ -1152,12 +1227,27 @@ As we can see, the hidden node from the previous time step provides a form of me
 
 \subsubsection{Loss Functions}
 
-The form of the loss for a RNN will have to be slightly modified, since we can have multiple outputs. If we have a given input-output pair $\mathbf{x}^{(n)}, \mathbf{y}^{(n)}$, and we are interested producing a single output, then this is similar to what we already do with regular NNs. If we are interested in producing a sequence of outputs, then we can sum the loss functions individually so that equal weight is placed on the prediction at each relevant timestep. 
-\[L = \sum_{t \in T} L^{[t]} \]
+The form of the loss for a RNN will have to be slightly modified, since we can have multiple outputs. If we have a given input-output pair $\mathbf{x}^{(n)}, \mathbf{y}^{(n)}$, and we are interested producing a single output, then this is similar to what we already do with regular NNs. If we are interested in producing a sequence of outputs, then we can average the loss functions individually so that equal weight is placed on the prediction at each relevant timestep. This is called 
+\[L = \frac{1}{|T|} \sum_{t \in T} L_t \]
 Sometimes, even with single inputs it may be good to include other intermediate terms in the loss so that we can direct the neural net to converge faster to what the correct answer should be. 
 \begin{center}
     \includegraphics[scale=0.3]{RNNs/Loss.png}
 \end{center}
+Note that one problem is that the errors can build up as the RNN predicts outcomes. For example, if we predicted $\mathbf{x}_1 \mapsto \hat{\mathbf{y}}_1$ we can compute the loss as $L_1 (\mathbf{y}_1, \hat{\mathbf{y}}_1)$. However, there are two ways to compute the second loss: with inputs $L_2 (\mathbf{x}_1, \mathbf{x}_2)$ or with $L_2 (\mathbf{x}_1, \hat{\mathbf{y}}_1)$. One just uses the ground truth while the other uses the previous prediction for the next prediction, which can accumulate error. Both ways are feasible for loss computation, but it is generally done in the former way, called \textbf{teacher forcing}. This is analogous to a human student taking a multi-part exam where the answer to each part depends on the answer to the preceding part. Rather than grading every answer in the end, with the risk that the student fails every single part even though they only made a mistake in the first one, a teacher records the score for each individual part and then tells the student the correct answer, to be used in the next part. 
+
+\subsubsection{Backpropagation Through Time}
+
+Now if we wanted to backpropagate through this RNN, we can compute 
+\[\frac{\partial L_t}{\partial \mathbf{W}} = \frac{\partial L_t}{\partial \hat{\mathbf{y}}_t} \, \frac{\partial \hat{\mathbf{y}}_t}{\partial \mathbf{h}_t} \, \frac{\partial \mathbf{h}_t}{\partial \mathbf{W}}\]
+where the first term depends on the specific form of the loss and the second is simply the matrix $\mathbf{V}$. This all looks the same as backpropagation for a MLP, but since $\mathbf{W}_{hh}$ is used at multiple layers, we can reduce the third term in the equation to 
+\[\frac{\partial L_t}{\partial \mathbf{W}} = \frac{\partial L_t}{\partial \hat{\mathbf{y}}_t} \, \frac{\partial \hat{\mathbf{y}}_t}{\partial \mathbf{h}_t} \, \bigg(\sum_{k=1}^t \frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_k} \, \frac{\partial \mathbf{h}_k}{\partial \mathbf{W}} \bigg)\]
+where 
+\[\frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_k}  = \prod_{i=k+1}^{t} \frac{\partial \mathbf{h}_i}{\partial \mathbf{h}_{i-1}}\]
+is computed as a multiplication of adjacent time steps. Now this can be very problematic, since if we have a lot of multiplications, then depending on the randomness of these matrices the gradient may be highly unstable, causing the vanishing or exploding gradient problem. We can elaborate on this a little further. Note that the hidden linear maps are known to be square matrices. We can expand out the derivative without the constant terms on the left as such: 
+\[\sum_{k=1}^t \frac{\partial \mathbf{h}_t}{\partial \mathbf{h}_k} \, \frac{\partial \mathbf{h}_k}{\partial \mathbf{W}} = \sum_{k=1}^t \prod_{k < i \leq t} \frac{\partial \mathbf{h}_i}{\partial \mathbf{h}_{i-1}} \; \frac{\partial \mathbf{h}_k}{\partial \mathbf{W}}\]
+and we can see if at some point one of the $\frac{\partial \mathbf{h}_j}{\partial \mathbf{h}_{j-1}}$ tend to be small just from randomness, then their product for all coefficients where $k \leq j$ will be small too. This means that all the information, or memory, from the $j$th hidden state and before will vanish. In fact, if the spectrum (the set of eigenvalues and eigenvectors) is less than $1$, then the multiplication of these derivatives will converge to a $0$ matrix, and so we have an exponential memory loss throughout the network. 
+
+Furthermore, we can compute these gradients in batches by splitting up the corpus into several sentences, and sampling the sentences for gradient computation. Therefore, a forward or backward pass has a runtime complexity of $O(\tau)$ and cannot be reduced by parallelization because the forward propagation graph is inherently sequential. Each time step may only be computed after the previous one. States computed in the forward pass must be stored until they are reused during the backward pass, so the memory cost is also $O(\tau)$. 
 
 \subsubsection{Stacked Unidirectional RNNs}
 
@@ -1172,19 +1262,6 @@ Now in this case, there are more layers of hidden nodes that an input must go th
     \mathbf{y}_t & = \boldsymbol{\sigma}_y \big( \mathbf{V} \mathbf{h}_t^{[L]} + \mathbf{b}_y^{[L]} \big) 
 \end{align*}
 or we could get rid of the first equation all together if we set $\mathbf{x}_t = \mathbf{h}_t^{[0]}$. Note that the hidden nodes $\mathbf{h}^{[l]}_t$ for all $t$ and all $l \neq 0$ are all in $\mathbb{R}^h$, i.e. all hidden nodes will be $h$-dimensional. Therefore, most of the parameter matrices that we work with are square: $\mathbf{W}^{[l]} \in \mathbb{R}^{h \times h}$ and $\mathbf{U}^{[l]} \in \mathbb{R}^{h \times h}$ except for $\mathbf{U}^{[1]} \in \mathbb{R}^{h \times d}$. 
-
-
-\subsubsection{Backpropagation Through Time}
-
-Now if we wanted to backpropagate through this RNN, we can compute 
-\[\frac{\partial L^{[t]}}{\partial \mathbf{W}_{hh}} = \frac{\partial L^{[t]}}{\partial \mathbf{y}^{[t]}} \, \frac{\partial \mathbf{y}^{[t]}}{\partial \mathbf{h}^{[t]}} \, \frac{\partial \mathbf{h}^{[t]}}{\partial \mathbf{W}_{hh}}\]
-This all looks the same as backpropagation for a MLP, but since $\mathbf{W}_{hh}$ is used at multiple layers, we can reduce the third term in the equation to 
-\[\frac{\partial L^{[t]}}{\partial \mathbf{W}_{hh}} = \frac{\partial L^{[t]}}{\partial \mathbf{y}^{[t]}} \, \frac{\partial \mathbf{y}^{[t]}}{\partial \mathbf{h}^{[t]}} \, \bigg(\sum_{k=1}^t \frac{\partial \mathbf{h}^{[t]}}{\partial \mathbf{h}^{[k]}} \, \frac{\partial \mathbf{h}^{[k]}}{\partial \mathbf{W}_{hh}} \bigg)\]
-where 
-\[\frac{\partial \mathbf{h}^{[t]}}{\partial \mathbf{h}^{[k]}} = \prod_{i=k+1}^{t} \frac{\partial \mathbf{h}^{(i)}}{\partial \mathbf{h}^{(i-1)}}\]
-is computed as a multiplication of adjacent time steps. Now this can be very problematic, since if we have a lot of multiplications, then depending on the randomness of these matrices the gradient may be highly unstable, causing the vanishing or exploding gradient problem. 
-
-Therefore, a forward or backward pass has a runtime complexity of $O(\tau)$ and cannot be reduced by parallelization because the forward propagation graph is inherently sequential. Each time step may only be computed after the previous one. States computed in the forward pass must be stored until they are reused during the backward pass, so the memory cost is also $O(\tau)$. 
 
 
 \subsection{Bidirectional RNNs}
@@ -1231,6 +1308,8 @@ In theory, RNNs are very beautiful and can be applied in all cases, but in pract
     \item The \textbf{truncated backpropagation through time} (TBPTT) simply limits the number of times steps the signal can backpropagate after each forward pass, e.g. even if the sequence has 100 time steps, we may only backpropagate through 20 or so. 
     \item The \textbf{LSTM} model uses a memory cell for modeling long-range dependencies and avoids the vanishing gradient problems. 
 \end{enumerate}
+Historically LSTMs were used in achieving state-of-the-art results in 2013 through 2015, in taks susch as handwriting recognition, speech recognition, machine translation, parsing, and image captioning, as well as language models. They became to dominant approach for most NLP tasks, but in 2021, they have been overshadowed by transformer models, which we will talk about next. 
+
 LSTMs have a much more complicated unit to work with, so let's go through it slowly. Note that so far, a one-layer RNN consisted of recursive mappings of the form 
 \[(\mathbf{x}_t, \mathbf{h}_{t-1}) \mapsto ( \mathbf{h}_t, \hat{\mathbf{y}}_t)\]
 We can interpret the vector $\mathbf{h}_{t-1}$ as the \textbf{short term memory}, or \textbf{hidden state}, that contains information used to predict the next output value. However, this can be corrupted (e.g. forgetting information from many steps ago), so we add an additional \textbf{long term memory}, or \textbf{cell state}, vector $\mathbf{c}_t$ that should be preserved. Therefore, we have two arrows coming out of each hidden layer, as shown below in the one-layer LSTM. 
@@ -1268,6 +1347,13 @@ The mechanisms of the cell is quite complex, but the three basic steps are: (1) 
         \includegraphics[scale=0.25]{RNNs/LSTM_node_3.png}
     \end{center}
 \end{enumerate}
+That is it! Now focusing on the cell state in the diagram above. Note that in order to go from cell state $\mathbf{c}_{t-1}$ to $\mathbf{c}_t$, there was not a whole lot done to it. We really just multiply it once, which potentially deletes some content, and add it once, which adds new content, and we are done. The magic is this addition, since unlike multiplication, which can result in an exponential decay of knowledge, you are just constantly adding new numbers to update the storage, allowing the cell state to behave much more like RAM of a computer. 
+
+The LSTM architecture also makes it easier for the RNN to preserve information over many timesteps. For example, if the forget gate $\mathbf{f}_t$ is set to $\mathbf{1}$ and the input gate set to $\mathbf{0}$, then the information of that cell is preserved indefinitely. In contrast, it's harder for a vanilla RNN to learn a recurrent weight matrix $\mathbf{W}$ that preserves information in the hidden state. In practice, a vanilla RNN would preserve memory up to maybe 7 timesteps (and increasing this is extremely difficult) while a LSTM would get about 100 timesteps, so in practice you should almost always just use a LSTM. 
+
+Unfortunately, LSTM doesn't \textit{guarantee} that there is no vanishing or exploding gradients, but it does provide an easier way for the model to learn long-distance dependencies. Note that the gradient problem is not just a problem for RNNs; any neural architecture (including a feed-forward or convolutional) with very deep layers with multiple compositions of functions may suffer. Due to the chain rule and choice of nonlinearity function, these gradients can become vanishingly small and lower layers are learned very slowly. However, we can still implement residual connections to allow for more gradient flow such as ResNet, DenseNet, and HighwayNet. 
+
+
 
 \subsubsection{Multilayer LSTMs}
 
@@ -1301,14 +1387,182 @@ for $l = 1, \ldots, L$. The fact that a LSTM uses the long term memory, in addit
 \subsection{Gated Recurrent Units}
 
 
-\section{Autoencoders}
+\section{Encoder-Decoder Models}
+
+Encoder decoder models refer to a model consisting of two neural nets: the encoder that takes in the input and maps it to some lower-dimensional vector. Then, the decoder takes in this encoded vector and attempts to use it to decode what we're trying to get. The type of neural network can be any: MLP, CNN, or RNN, depending on what problem you're trying to achieve. 
+
+Now, why would we want to do something like encode the input into some lower dimensional setting, and then have the decoder neural net extract what we want? It seems like we're making the problem harder. There are two reasons: 
+\begin{enumerate}
+    \item The input vector may not be in the correct form that we want. This is the motivation for the \textit{seq2seq} model, where we are working with sequences of vectors that suffer from the problem of \textit{locality} in RNNs. Therefore, it is necessary to encode this entire sequence into one vector, at the loss of dimension. 
+
+    \item The input vector may be noisy or too high-dimensional itself. In CNNs, we saw that convolutional layers or pooling layers allow us to reduce the dimension to extract meaningful features from it. Likewise, we can train the encoder to extract useful features into a lower dimensional space, and then the decoder can efficiently work with this representation. This motivates the use of \textbf{autoencoders}, which can be done with MLPs, CNNs, or even RNNs. 
+\end{enumerate}
+
+Note that while these two algorithms fall in the paradigm of encoder-decoder networks, the seq2seq model is supervised while the autoencoder is unsupervised. In the seq2seq model, which deals with things like machine translation, we have a labeled dataset of sentences in language A corresponding with sentences in language B. However, in autoencoders, what we do is take a sample $x$ from our dataset and use it both as the input and output to train our network. Since there is no additional labeling required, this is an unsupervised learning technique. 
+
+\subsection{Sequence to Sequence}
+
+We have mentioned that RNNs and LSTMs have the advantage of mapping from variable length inputs to variable length outputs. This can be done for any length input and any length output. 
+\begin{center}
+    \includegraphics[scale=0.25]{RNNs/NNs_vs_RNN.png}
+\end{center}
+However, the RNN has the problem of \textit{locality}, that the words next to the current word have a greater effect, and we are trying to generate sequences on the fly by reading in each word. Even for bidirectional RNNs, where we go through the whole sentence first, the effects of adjacent words have a greater effect when generating outputs. It would be wiser to read the \textit{whole} sentence and then start to generate a sequence. This is the motivation for the \textbf{encoder-decoder model}. It is conventionally divided into a two-stage network. 
+\begin{enumerate}
+    \item The encoder neural net would convert a sequence into a single latent space representation $z = f(x)$. This latent representation $z$ essentially refers to a feature (vector) representation, which is able to capture the underlying semantic information of the input that is useful for predicting the output. 
+    \item The decoder neural net would decode this feature vector, called the \textbf{context vector}, into a sequence of the desired output $y = g(z)$ by using it as the initial hidden state. It uses the previous output as the next input for decoding. 
+\end{enumerate}
+Note that the encoder and decoder are two completely separate neural networks with their own parameters. This is important, since the fact that these are two completely separate networks allows us to work in different ``paradigms" within either the feature or target space. For example, if we want to perform machine translation from English to Spanish, our encoder RNN parameters have been tuned to the English syntax and language, while the decoder RNN parameters are tuned to the Spanish language. Since we are modeling different languages, it makes sense to have different sequence models for each one. 
+
+We will talk about a specific type of encoder-decoder model called \textbf{seq2seq}, which maps sequences to sequences using RNN encoders and decoders. Conventionally, the hidden nodes of the encoder are denoted with $\mathbf{h}$, and those of the decoder are denoted with $\mathbf{s}$. 
+\begin{enumerate}
+    \item For the encoder, we take in the inputs $\mathbf{x}_t$ and generate the hidden states as 
+    \[\mathbf{h}_t = f(\mathbf{x}_t, \mathbf{h}_{t-1}) = \mathbf{W}_e \mathbf{h}_{t-1} + \mathbf{U}_e \mathbf{x}_t + \mathbf{b}_e\]
+    In general, the encoder transforms the hidden states at all time steps into a context variable through the composition of functions $q$ 
+    \[\mathbf{C} = q(\mathbf{h}_1, \mathbf{h}_2, \ldots, \mathbf{h}_T)\]
+    In the figure below, the context variable is just $\mathbf{C} = \mathbf{h}_T$. 
+
+    \item Now, given the target output sequence $\hat{\mathbf{y}}_1, \ldots, \hat{\mathbf{y}}_{t^\prime + 1}$ for each timestep $t^\prime$ (we use $t^\prime$ to differentiate from the input sequence time steps), the decoder assigns a predicted probability to each possible token occurring at step $\hat{\mathbf{y}}_{t^\prime + 1}$ conditioned on both the previous tokens $\hat{\mathbf{y}}_1, \ldots, \hat{\mathbf{y}}_{t^\prime + 1}$ and the context variable $\mathbf{C}$, i.e. 
+    \[\mathbb{P}(\hat{\mathbf{y}}_{t^\prime + 1} \mid \hat{\mathbf{y}}_1, \ldots, \hat{\mathbf{y}}_{t^\prime + 1}, \mathbf{C})\]
+    Therefore, to decode the subsequent token $\hat{\mathbf{y}}_{t^\prime + 1}$, we calculate the hidden state $\mathbf{s}_{t^\prime + 1}$ as a gated hidden unit computed by 
+    \[\mathbf{s}_{t^\prime + 1} = g(\mathbf{s}_{t^\prime}, \hat{\mathbf{y}}_{t^\prime}, \mathbf{C})\]
+    with the math mentioned \href{https://arxiv.org/pdf/1409.0473.pdf#page=12}{here}. 
+\end{enumerate}
+\begin{center}
+    \includegraphics[scale=0.3]{encoder_decoder_RNN.png}
+\end{center}
+Again, note that this encoder-decoder model is comprised of two completely separate deep models with their own parameters, and so it is \textit{not} simply just one long RNN that starts generating outputs only after it takes in all the inputs. Sometimes, the inputs to the decoder may not be shown in diagrams since it is assumed that they are always the previous node's outputs. Furthermore, we can also see that there is no clear-defined first input for the decoder model, since this is the beginning of the sequence. We usually just put some special ``start" element in here to denote the beginning of the output. 
+
+Here is a diagram for a encoder-decoder model for a 2-layer LSTM which is the standard for practical use, which encodes the sentence meaning in the vectors $\mathbf{c}_t^{[2]}, \mathbf{h}_t ^{[2]}, \mathbf{c}_t^{[1]}, \mathbf{h}_t^{[1]}$. In practice, high performing RNNs are usually multilayer (almost alway greater than 1, but diminishing performance returns as number of layers increases), but are not as deep as convolutional or feed forward networks. 
+\begin{center}
+    \includegraphics[scale=0.3]{encoder_decoder_LSTM.png}
+\end{center}
+Again, to train this model, we do the same backpropagation algorithm on a normalized loss function with teacher forcing over a parallel dataset. What is nice about the encoder-decoder seq2seq is that it can be completely implemented end-to-end, so we can backpropagate through the entire decoder and encoder to train the both models simultaneously. 
+
+\subsubsection{Decoding Schemes}
+
+Note that every sequential output of the decoder takes the output of the final layer hidden cell, multiplies it by some matrix, and finally invokes some activation function on it. Consider a classification problem where we have $V$ classes, with a linear map mapping to $\mathbb{R}^{V}$, followed by a softmax activation. It seems most natural to choose the class that has the maximum probability from the softmax, but this greedy algorithmic approach may not be ideal since we may be giving up long term benefits for short term ones. What we really want to do find the sequence $y$ that maximizes 
+\[\mathbb{P}(y \mid x) = \prod_{t=1}^T \mathbb{P}( y_t \mid y_{1}, \ldots, y_{t-1}, x)\]
+Clearly, computing the joint probability distribution over all sequences is too expensive, so we can do \textbf{beam search decoding}. The main idea is that on each step of the decoder, we keep track of the $k$ (in practice around 5 to 10) most probable partial outputs. For example in the case of machine translation, given a beam size of $k = 2$, we can keep track of the (log) probabilities of the sequences and only keep track of the top $2$. 
+\begin{enumerate}
+    \item Given the START token, say that the $k$ most probable next words were ``he" ($-0.7$) and ``I" ($-0.9$). 
+    \begin{center}
+        \includegraphics[scale=0.3]{beam1.png}
+    \end{center}
+
+    \item Now we look at the two most likely next words for each of ``he" and ``I" and out of the four possibilities, we compute the two most likely ones, which is ``he hit" ($-1.7$) and ``I was" ($-1.6$). 
+    \begin{center}
+        \includegraphics[scale=0.3]{beam2.png}
+    \end{center}
+
+    \item We keep track of ``he hit" and ``I was" and find the two most likely next words for each, leading us to another four possibilities. We compute the two most likely ones, which is ``he hit me" ($-2.5$) and ``he hit a" ($-2.8$). 
+    \begin{center}
+        \includegraphics[scale=0.3]{beam3.png}
+    \end{center}
+
+    \item We keep repeating this.  
+    \begin{center}
+        \includegraphics[scale=0.3]{beam4.png}
+    \end{center}
+\end{enumerate}
+One more condition to mention is when to stop generating words. In greedy decoding, we usually decode until the model produces an END token. In beam search decoding, different hypotheses may produce END tokens on different timestamps, and so every time we have a complete hypothesis, we can place it aside and continue exploring other hypotheses via beam search. We can continue beam searching until we reach some predetermined cutoff timestep $T$ or we have at least $n$ completed hypotheses (where $n$ is also some predetermined cutoff). We have a slight problem that longer hypotheses will have lower log probabilities, so we can choose the best output sequence by taking the average log probabilities (which corresponds to the geometric mean of the probabilities). 
+\[\mathrm{score}(y_{t+1}, \ldots, y_T) = \frac{1}{T-t} \log \mathbb{P}_{LM} (y_1, \ldots, y_t \mid x) = \frac{1}{T-t} \sum_{k=t+1}^T \log \mathbb{P}_{LM} ( y_k \mid y_{t+1}, \ldots, y_{k-1}, x) \]
+
+\subsection{Autoencoders}
+
+We can start with MLPs for autoencoders, as they naturally extend to other neural nets. As the name suggests, autoencoders literally means encoding itself. What we want to do is use a MLP encoder $\mathbf{f}$ to map our input $\mathbf{x}$ into a lower dimensional vector representation $\mathbf{z}$, which represents the meaningful features of our input. Now, we want to train our decoder $\mathbf{g}$ so that the features can be used to reconstruct the original data, which essentially performs some dimensionality reduction on the original input to produce $\hat{\mathbf{x}}$. To train this, we want to look at the difference between $\mathbf{x}$ and $\hat{\mathbf{x}}$, so we can train on, say the L2 loss function 
+\[L(\boldsymbol{\theta}) = ||\mathbf{x} - \hat{\mathbf{x}}||^2 = ||\mathbf{x} - \mathbf{g}_{\boldsymbol{\theta}} ( \mathbf{f}_{\boldsymbol{\theta}} (\mathbf{x}))||^2 \]
+\begin{center}
+    \includegraphics[scale=0.3]{autoencoder.png}
+\end{center}
+When autoencoders were first developed, researchers have originally worked with setting $\mathbf{f}$ and $\mathbf{g}$ as a simple linear plus activation function, but later on, the autoencoder architecture transitioned to using deep, fully-connected neural networks and CNNs. 
+
+Once we have trained our autoencoder, this becomes useful in transfer learning. After training the entire double network, we can throw away the decoder model. The encoder itself is now optimized to extract all relevant features, so we can simply attach on a classification layer to the end of the encoder network to initialize a supervised model. Then we can fine tune the entire model jointly with the classifier for effective training. 
+\begin{center}
+    \includegraphics[scale=0.33]{transfer_autoencoder.png}
+\end{center}
+
+\subsection{Image Captioning}
+
+In image captioning, we want our model to look at an image and generate some text relating to that image. This sounds like we can use an encoder CNN to extract features from the data and then use a decoder RNN to generate text based on this latent vector! 
+\begin{center}
+    \includegraphics[scale=0.3]{image_captioning.png}
+\end{center}
+For higher performance gains, we use an \textit{attention mechanism} to focus on different parts of the image while generating each word of the caption. 
 
 
-\section{Generative Adversarial Networks (GANs)}
+\section{Attention Models}
 
+In general, feed forward networks treat features as independent, convolutional networks focus on relative location and proximity, and RNNs have tend to read in one direction. This may not be the most flexible way to process data, and we have some other problems. 
+\begin{enumerate}
+    \item When processing images, we may want our CNN to focus on a specific part of the image. For example, when we see a cat in the corner, other parts of the image does not matter, and we can have our CNN focus on the specific portion of the image containing the cat. 
+    \item When reading sentences, different words may be interdependent, even if they are not next to each other, and so we may want to focus on different portions of a sentence (e.g. words 1~3, plus 10~15 which describes an object). 
+\end{enumerate}
+\textbf{Attention} is, to some extent, motivated by how we pay visual attention to different regions of an image or correlate words in one sentence. Human attention allows us to focus on certain regions or portions of our data with ``high resolution" while perceiving the surrounding data in ``low resolution." In a nutshell, attention in deep learning can be broadly interpreted as a vector of importance weights. 
+
+Given a set of input vector \textbf{values} and a vector \textbf{query}, attention is a technique to compute a weighted sum of the values, dependent on the query. This weighted sum is a selective summary of the information contained in the values, where the query determines which values to focus on. Attention is a way to obtain a fixed size representation of an arbitrary set of representations (the values), dependent on some other representation (the query). 
+
+
+\begin{enumerate}
+    \item The query is looking for information somewhere
+    \item The key is interacting with the query 
+    \item The value is the thing that you're actually going to weigh in your average and output, i.e. the embedding vector. 
+\end{enumerate}
+
+
+\subsection{Seq2Seq with Attention}
+
+A huge issue with the sequence-to-sequence model is the \textbf{bottleneck problem}. The encoder encodes the input sentence into a single latent vector at the end, and this one vector needs to capture \textit{all information} about the source sentence. Clearly, if this vector is not large enough, we have too little bandwidth to capture this information, resulting in an information bottleneck. 
+
+The idea of \textbf{attention} provides a solution to this bottleneck problem. Basically, we want to establish connections from the decoder to not just the last hidden state of the encoder, but to all of its nodes. Each encoder node represents some information about each word, and by taking some weighted sum of these nodes, we can choose which one to put this attention on. Let's assume we have some seq2seq model with encoder hidden states $\mathbf{h}_1, \ldots, \mathbf{h}_T \in \mathbb{R}^h$. On decoder timestep $t^\prime$, we have the decoder hidden state $\mathbf{s}_{t^\prime} \in \mathbb{R}^s$, where $s$ does not necessarily equal $h$ since they can be completely different RNNs. We then compute the \textbf{attention scores} that determine which encoder hidden state we should pay attention to. 
+\[\mathbf{e}^{t^\prime} = \big[ \mathrm{score}(\mathbf{s}_{t^\prime}, \mathbf{h}_1 ), \ldots, \mathrm{score}(\mathbf{s}_{t^\prime}, \mathbf{h}_T) \big] \in \mathbb{R}^T\]
+where the simplest case is when $s = h$ and we can simply compute the dot product 
+\[\mathrm{score} (\mathbf{s}_{t^\prime}, \mathbf{h}_t) = \mathbf{s}_{t^\prime} \cdot \mathbf{h}_t\]
+We take its softmax to get the \textbf{attention distribution} $\boldsymbol{\alpha}^{t^\prime}$ for this step (a discrete probability distribution) 
+\[\boldsymbol{\alpha}^{t^\prime} = \mathrm{softmax} (\mathbf{e}^{t^\prime}) \in \mathbb{R}^T\]
+We use $\boldsymbol{\alpha}^{t^\prime}$ to take a weighted sum of the encoder hidden states to get the attention output $\mathbf{a}_t$ 
+\[\mathbf{a}_{t^\prime} = \sum_{t=1}^T \alpha_{t}^{t^\prime} \mathbf{h}_t \in \mathbb{R}^h\]
+which acts as our context vector $\mathbf{C}_{t^\prime}$ that we can now use in our vanilla seq2seq model. Note that this context vector is different for every $\mathbf{s}_{t^\prime}$, so at every step we can choose which encoder states/words to focus on.  
+\begin{center}
+    \includegraphics[scale=0.4]{seq2seq_attention.png}
+\end{center}
+There are many score functions that we can choose from, with some listed: 
+\begin{enumerate}
+    \item The general attention model allows us to train a shared-weight matrix, allowing for $s \neq h$. 
+    \[e^{t^\prime}_t = \mathrm{score}(\mathbf{s}_{t^\prime}, \mathbf{h}_t) = \mathbf{s}_{t^\prime}^T \mathbf{W}_a \mathbf{h}_t \in \mathbb{R}\]
+    However, it may seem like there are too many parameters in $\mathbf{W}_a$, having to learn $sh$ values. 
+
+    \item The reduced rank multiplicative attention uses low rank matrices, allowing us to learn only $ks + kh$ parameters for matrices $\mathbf{U}_a \in \mathbb{R}^{k \times s}, \mathbf{V}_a \in \mathbb{R}^{k \times h}$ where $k << s, h$. 
+    \[e^{t^\prime}_t = \mathrm{score}(\mathbf{s}_{t^\prime}, \mathbf{h}_t) = \mathbf{s}_{t^\prime}^T (\mathbf{U}_a^T \mathbf{V}_a) \mathbf{h}_t = (\mathbf{U}_a \mathbf{s}_{t^\prime})^T (\mathbf{V}_a \mathbf{h}_t) \in \mathbb{R}\]
+
+    \item Additive attention uses a neural net layer defined 
+    \[e^{t^\prime}_t = \mathbf{v}_a^T \mathrm{tanh}(\mathbf{W}_a \mathbf{h}_t + \mathbf{V}_a \mathbf{s}_{t^\prime}) \in \mathbb{R}\]
+    where $\mathbf{W}_a \in \mathbb{R}^{r \times h}, \mathbf{V}_a \in \mathbb{R}^{r \times s}$ are weight matrices, $\mathbf{v}_a \in \mathbb{R}^r$ is a weight vector, and $r$ (the attention dimensionality) is a hyperparameter. 
+\end{enumerate}
+
+Overall, attention is extremely useful in improving all performance, and it is intuitive with how humans analyze things, too. It significantly improves neural machine translation by allowing the decoder to focus on certain parts of the source. It also provides more ``human-like" model of the machine translation process (you can look back at the source sentence while translating, rather than needing to remember it all). It solves the bottleneck problem and helps with the vanishing gradient problem with these pseudo-residual connections through the context vector. Finally, it provides some interpretability, as we can inspect the attention distribution to see what the decoder was focusing on (which again, we've never set explicitly but was learned by the model). 
+\begin{center}
+    \includegraphics[scale=0.3]{attention_distribution.png}
+\end{center}
+
+\includegraphics[]{keys_queries_values}
+
+\subsection{Self-Attention}
+
+At first glance, this just sounds like a fully connected layer, but the main difference between the two is that in an attention model, the weights are dynamic w.r.t. the actually vector. Remember that in a fully connected layer, we have a bunch of weights that we're slowly learning over the training course. In attention, it's the actual interactions between the key and the query vectors which are dependent on the actual content, that are allowed to vary by time. And so the actual strengths of all these interactions, i.e. the attention weights (which are analogous to the weights of the fully connected layer), are allowed to change as a function of the input. So the attention weights are allowed to change as a function of the input. A separate difference is that the parameterizations are completely different. 
 
 \section{Transformers}
 
+
+
+\section{Generative Models}
+
+\subsection{Variational Autoencoders}
+
+\subsection{Generative Adversarial Networks (GANs)}
+
+
+
+\section{Deep Reinforcement Learning}
 
 % \section{Interpretable Deep Learning}
 
