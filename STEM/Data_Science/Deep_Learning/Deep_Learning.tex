@@ -11,8 +11,9 @@
 \usepackage{amsmath, amssymb, amsthm, mathrsfs, mathtools, centernot, hyperref, fancyhdr, lastpage}
 \usepackage{graphicx} 
 \usepackage{caption, subcaption}
-\usepackage{enumitem}
+\usepackage{enumitem, tikz}
 \usepackage{fancyvrb,newverbs,xcolor}
+\usetikzlibrary{positioning}
 \definecolor{cverbbg}{gray}{0.93}
 
 \newenvironment{cverbatim}
@@ -1287,6 +1288,14 @@ Maxpooling and average pooling gives us
 \[\mathrm{max}(Y) = \begin{bmatrix} 10 & 8 \\ 4 & 11 \end{bmatrix} \text{ and } \mathrm{avg}(Y) = \begin{bmatrix} 21/4 & 7/2 \\ 5/4 & 27/4 \end{bmatrix}\]
 \end{solution}
 
+\subsection{Architecture}
+
+\begin{definition}[Convolutional Layers]
+Given an image of dimension $W \times H \times D$ (where $D$ is the depth or number of color channels), we can take a convolution over this image by multiplying the tensor $\mathcal{K} \in \mathbb{R}^{K \times K \times D}$ (plus some bias term). This would give us a 2-tensor with each element of the tensor calculated as the dot product between two $K \times K \times D$ tensors between the kernel and the subsection of the image. This only outputs one channel, so if we want $R$ channels, then we want our convolutional layer to be 
+\[\mathcal{K} \in \mathbb{R}^{R \times K \times K \times D}\]
+which is a $4$-tensor. Therefore, this convolutional layer would have $R(DK^2 + 1)$ parameters. 
+\end{definition} 
+
 \subsection{Convolutional Layers}
 
 Given an image of dimension $W \times H \times D$ (where $D$ is the depth, or number of color channels), we can take a convolution over this image by multiplying the matrix $\mathcal{K} \in \mathbb{R}^{K \times K}$ over each depth channel. Before, we have said that $\mathcal{K}$ is applied to each color channel layer, so the total number of parameters that govern this convolution is $K^2$. For greater flexibility, we would like our kernel to be of form $\mathcal{K} = \mathbb{R}^{K \times K \times D}$, where the kernel applied in each color channel could be different. Furthermore, we would like a bias term $b \in \mathbb{R}$, giving us a total of $DK^2 + 1$ parameters to optimize over to get the ``best possible" convolution. 
@@ -1325,7 +1334,6 @@ We can think of this as decreasing the resolution of the image, and the most com
 
 \subsection{Backpropagation}
 
-\subsection{Implementation from Scratch}
 
 \subsection{Total Architecture with PyTorch}
 
@@ -1373,19 +1381,41 @@ Therefore, the major reason why you cannot proceed with this problem by building
 This workflow essentially just extracts the regions of interest and does vanilla classification on them. This is an intuitive extension of what we know, but there are a few problems with this approach: 
 \begin{enumerate}
     \item A small problem is that the ROIs in $\mathcal{R}$ may not be the same size, while our CNN feature extractor requires its inputs to be fixed. However, this isn't too bad since we can just resize the ROIs for preprocessing. We could also just have $\mathcal{R}$ contain all images of the same size, but this will really hamper the robustness of the model. Objects can be of different size, and so intuitively, we must have different sized ROIs. 
-    \item There is the bigger question of how we actually construct $\mathcal{R}$. We have a tradeoff. If $\mathcal{R}$ is too small, it may not capture the structure of the objects of interest. If it is too large, then we may have a combinatoral explosion of ROIs to look for. For example, if we simply have a sliding window with a stride of $1$ that adds each image into $\mathcal{R}$, for an $N \times N$ image we would have $O(N^2)$ ROIs, and this is only for one resolution! This may have been feasible if we were working with linear models, but in the deep learning regime this is not. This second problem is what we will focus on when explaining R-CNNs. 
+    \item There is the bigger question of how we actually construct $\mathcal{R}$. We have a tradeoff. If $\mathcal{R}$ is too small, it may not capture the structure of the objects of interest. If it is too large, then we may have a combinatoral explosion of ROIs to look for. For example, if we simply have a sliding window with a stride of $1$ that adds each image into $\mathcal{R}$, for an $N \times N$ image we would have $O(N^2)$ ROIs, and this is only for one resolution! This may have been feasible if we were working with linear models, but in the deep learning regime this is not. This second problem is what we will focus on when explaining R-CNNs. i
+    \begin{center}
+        \includegraphics[scale=0.3]{Images/sliding_window.png}
+    \end{center}
 \end{enumerate}
 
 \subsubsection{Region-Based CNN}
 
 The region-based CNN first bounds $|\mathcal{R}| \leq 2000$ and uses classical image processing techinques to reduce the number of ROIs to less than $2000$. 
 \begin{enumerate} 
-    \item We start off by using the \textbf{selective search algorithm}. It over-segments the image into seed regions, with each region generating a bounding box. This leads to a ton of regions to look for, and to reduce $|\mathcal{R}|$, we use a greedy algorithm to recursively combine similar regions into larger ones. The segmentation algorithm is the basis of the region proposals, since it matches similar pixels together for a good intialization, giving us the best balance between computational feasibility and quality of proposals. 
+    \item We start off by using the \textbf{selective search algorithm}. It over-segments the image into seed regions, with each region generating a bounding box. This leads to a ton of regions to look for, and to reduce $|\mathcal{R}|$, we use a greedy algorithm to recursively combine similar regions into larger ones. The segmentation algorithm is the basis of the region proposals, since it matches similar pixels together for a good intialization, giving us the best balance between computational feasibility and quality of proposals. It is specifically designed to have high recall, but low precision, which means that it returns many false positive regions, but are quite certain that they contain the objects of interest.  
+    \begin{center} 
+        \includegraphics[scale=0.3]{Images/selective_search.png} 
+    \end{center}
     \item This usually leads to about 2000 ROIs, and for each ROI, we warp them into a square and feed them into a CNN, which produces a $4096$-dimensional feature vector as output. 
     \item The CNN acts as a feature extractor and the output dense layer consists of the feature extracted from the image. This $4096$-vector is fed into a support vector machine to classify the presence of the object within that candidate region proposal. 
-    \item In addition to predicting the presence of an object within the regionproposals, the algorithm also predicts 4 values which are offset values to increase the precision of the bounding box. For example, given a region proposal, the algorithm would have predicted the presence of a person but the face of that person within that region proposal could have been cut in half. Therefore, these offset values can help in adjusting the bbox.  
-\end{enumerate} 
+\begin{center}
+    \includegraphics[scale=0.4]{Images/rcnn_diagram.png}
+\end{center}
 
+    \item In addition to predicting the presence of an object within the region proposals, the algorithm also predicts 4 values which are offset values to increase the precision of the bounding box. For example, given a region proposal, the algorithm would have predicted the presence of a person but the face of that person within that region proposal could have been cut in half. Therefore, these offset values can help in adjusting the bbox.  
+\begin{center}
+    \includegraphics[scale=0.5]{Images/rcnn_diagram2.png} 
+\end{center}
+\end{enumerate}
+
+
+
+However, there are still several problems: 
+\begin{enumerate}
+    \item While we have improved the computational cost by a lot, we still have to run the CNN feature extractor on \textit{each} of the $2000$ region proposals, which is still too slow for real time inference (takes about 47 seconds), and it takes too long to train. 
+    \item When we reshape each region proposal into a square, it may warp the image, causing it to lose its original features. 
+    \item The selective search algorithm is not a learning algorithm, so it may generate bad candidate region proposals for various types of images.  
+    \item Finally, the R-CNN model is not trained on an end-to-end fashion (the SVM) is trained separately, so this may reduce potential performance. 
+\end{enumerate} 
 
 \begin{definition}[IOU]
 To provide a measure of how good these boxes are, we use the \textbf{intersection over union (IOU)} metric. If $B$ is the true bounding box and $\Tilde{B}$ our estimate of it, then we have 
@@ -1396,44 +1426,803 @@ The closer it is to $1$, the better, and a ``good" match is defined to be $0.7$ 
 
 \subsubsection{Fast RCNN}
 
+Fast RCNN is basically just RCNN but with a few tweaks to make it fast. The computational bottleneck came from having to run a CNN on each of the 2000 region proposals, but now, to speed things up, we have a CNN extract features from the whole image first. We describe the steps below. 
+\begin{enumerate} 
+    \item We take the image $\mathbf{x} \in \mathbb{R}^{n \times m}$ and use the CNN $f$ to extract features from it, resulting in say $\boldsymbol{\phi} \in \mathcal{F}$.
+    \item At the same time, we run the selective search algorithm on $\mathbf{x}$ to get our region proposals $\mathcal{R}$. 
+    \item For each region of interest $\mathbf{r} \in \mathcal{R}$, we project the resulting regions coordinate into the feature map $\mathcal{F}$. Note that we are not running inference here, just projecting, so this is computationally cheap and allows us to reduce the computational cost of extracting features by an order of $2000$. Specifically, if there is a convolution on a ROI with stride 1 and the proper padding, the regions will have the same coordinates. Meanwhile, if we have a max pooling layer, then each coordinate $(x, y)$ will get mapped to $(\lceil x/2 \rceil, \lceil y/2 \rceil)$. 
+    \item After this projection, for every $\mathbf{r} \in \mathcal{R}$, we have its projections $p(\mathbf{r}) \in \mathcal{F}$. However, this projection is not the same le,gth for all region proposals, so we have a \textbf{RoI pooling layer} which takes each projected region, divides it into a fixed number of bins (independent of the input shape), and does max pooling over each bin to generate a fixed feature vector for each region proposal.
+    \begin{center}
+        \includegraphics[scale=0.3]{Images/roi_pooling.png} 
+    \end{center}
+    \item Then we take these fixed size feature vectors and feed them through a fully connected neural network to get a feature vector where we can do softmax classification on, along with regression of the bboxes dimensions. 
+\end{enumerate}
+
+\begin{center}
+    \includegraphics[scale=0.3]{Images/fast_rcnn.png}
+\end{center}
+
+Regarding the problems, this first improves the computational cost compared to R-CNN. By utilizing the IOU pooling layers, we have resized the images after the CNN feature extractor rather than distorting the original input itself. Moreover, we have replaced the SVM classifiers with neural nets. However, we still have the problem that the region proposal algorithm is an external algorithm that's not learned, and this selective search method still turns out to be quite slow for real-time inference.  
 
 \subsubsection{Faster RCNN}
 
+Therefore, Ren et al, came up with an object detection algorithm that eliminates the selective search algorithm and lets the network learn the region proposals. The Faster RCNN model essentially repalces the region proposal algorithm with a significantly faster neural network that can learn to propose better regions for the task at hand. 
+\begin{center}
+    \includegraphics[scale=0.4]{Images/faster_rcnn_diagram.png}
+\end{center}
 
-\section{Generative Models 1} 
+Let's walk through the steps of this algorithm: 
+\begin{enumerate}
+    \item We take the image $\mathbf{x}$ and run it through a backbone convolutional network (usually the first few layers of ResNet or VGG), generating a feature map $\phi \in \mathbb{R}^{K \times K}$. There are $K^2$ ``points" or ``pixels" in this feature representation of $\mathbf{x}$, and \textbf{anchor points} are generated on $\phi$ . If they are projected back into the original image, we would have $K^2$ equally spaced points over $\mathbf{x}$. 
+        \begin{center}
+            \includegraphics[scale=0.2]{Images/anchor_points.png}
+        \end{center}
+    \item For each anchor point, we have $k$ predefined boxes of different sizes and aspect ratios that are used to generate region proposals that may or may not contain objects of interest. For example, we can have $k = 4$ in the picture below. 
+    \begin{center}
+        \includegraphics[scale=0.2]{Images/anchor_boxes.png}
+    \end{center}
+    \item At this point, we have a total of $k K^2$ total anchor boxes on the feature space. We project all this back to the original image space, and we look for the samples that have a good IoU (calculated in the feature space with the projected ground truth boxes!) with the ground truth bbox. We generate (usually an equal amount) of positive and negative samples from the $k K^2$ total boxes. 
+    \begin{center}
+        \includegraphics[scale=0.2]{Images/gt_sampling.png}
+    \end{center}
+    
+    \item For each of the $k K^2$ boxes, we want to classify each as an object or background, along with predicting their offsets from the corresponding gt bboxes. To do this, we use $1 \times 1$ convolutional layers. We take the feature map, which is of shape $(C, K, K) = (2048, 8, 8)$ and use the kernel to give us an output of size $(k, K, K)$. This output basically labels each of the $k K^2$ anchor boxes with some scalar that represents whether we think it is an object or background. We take a second $1 \times 1$ kernel and have it output $(4k, K, K)$ representing the offsets of the bounding boxes. This is called the regression head, and we need $4k$ since there are 4 degrees of freedom in adjusting each bounding box. 
+    
+    \item Now we have the scores and offsets of all the anchor boxes. But during training we only select the positive and negative anchor boxes to compute classification loss, and only positive boxes to compute the L2 regression loss. 
 
-\subsection{Naive Bayes and LDA} 
+    \item In this second stage, we receive region proposals and predict the category of the object in the proposals. These region proposals (due to the anchor boxes being different sizes) are not the same size, so we use RoI pooling just like in Fast RCNN. After this, it's the same: we pass them through a fully connected MLP with some softmax and regressor link. 
+
+    \item During inference, we pass the image through the backbone network to generate anchor boxes. Then, we select only the top ~300 boxes that get a high classification score and qualify them for the next stage. We then predict the final categories and offsets, performing an extra post-processing step called non-max surpression to remove duplicate bounding boxes. 
+\end{enumerate}
+
+Note that since we are using convolutions, this makes the object detection algorithm translationally invariant, and rotational invariance can be achieved through data augmentation. 
+
+\subsubsection{Measuring Performance} 
+
+Recall that if we are just predicting the presence of 1 class, then we can talk about the recall or precision. A better way is to look at the mean precision, which is found by taking the integral of the precision recall curve. Other metrics include the $F_1$ score. 
+\[\text{Precision} = \frac{TP}{TP + FP}, \; \text{Recall} = \frac{TP}{TP + FN}, \; F_1 = 2 \frac{\text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}\]
+For multiple classes, we can use the \textbf{mean average precision}, which is basically the average precision for multiple classes.
+
+\section{Linear Factor Models}
+
+Throughout this course, neural networks have been used as feature extractors of some high-dimensional input. We have trained the network to pick good features, which live in some vector space that is directly relevant to what our prediction should be. Often, this vector space is not interpretable and can be seen as a \textbf{latent space} of \textbf{hidden/latent variables}. In unsupervised learning, constructing a good latent representation of our data can be extremely useful. 
+
+Say that we want to do density estimation for the probability distribution of the covariates $\mathbf{x}$. We can try to model it directly, but this may be infeasible. Rather, what we do is ``add" a latent distribution $\mathbf{z}$, creating the joint distribution $(\mathbf{x}, \mathbf{h})$. This may look more complicated, but what we hope to find is that 
+\[p(\mathbf{x}) = \mathbb{E}_{\mathbf{h}} [ p(\mathbf{x} \mid \mathbf{h})]\]
+That is, we hope that we can model the latent $\mathbf{h}$ in a simple form, and we can therefore decompose $p(\mathbf{x})$ into some random variable dependent on $\mathbf{h}$. Therefore, we've modeled $p(\mathbf{x} \mid \mathbf{h})$ by assumption, and with this we can compute $p(\mathbf{x}, \mathbf{h}) = p( \mathbf{x} \mid \mathbf{h}) \, p( \mathbf{h})$, allowing us to compute 
+\[p( \mathbf{x}) = \int p(\mathbf{x} \mid \mathbf{h}) \, p(\mathbf{h}) \, d\mathbf{h}\]
+Like we do with everything else in math, we take a look at the simplest example: linear functions. 
+
+In \text{linear factor models}, we start with the unknown covariate distribution $\mathbf{x} \in \mathbb{R}^d$, and we create a latent variable $\mathbf{h} \in \mathbb{R}^k$ ($k$ is to be chosen). We first assume that 
+\[\mathbf{h} \sim p(\mathbf{h})\] 
+comes from some predefined distribution, with the only constraint being that it is factorable (i.e. is the product of its marginal distributions: $p(\mathbf{h}) = \prod_i p(h_i)$) so that it is easy to sample from. Occasionally, the stronger assumption of the $h_i$'s being iid is made. Then, we assume that 
+\[\mathbf{x} = \mathbf{W} \mathbf{h} + \mathbf{b} + \epsilon\] 
+where the noise $\epsilon$ is typically Gaussian and diagonal (but not necessarily the same component-wise variances). Finally, we can use techniques like MLE to estimate $\mathbf{W}, \mathbf{b}$, and the parameters of $\epsilon$.  
+
+The entire reason we want to do this is that we are hoping that $\mathbf{h} \in \mathbb{R}^k$ and $\mathbf{x} \in \mathbb{R}^d$, and $d >> k$. Therefore, $\mathbf{W}$ is a $d \times k$ matrix, and the latent variables $\mathbf{h}$ give a more compact (parsimonious)  explanation of dependencies between the components of the observations $\mathbf{x}$. The following are all special cases of linear factor models: 
+\begin{enumerate}
+    \item Probabilistic PCA
+    \item Factor Analysis
+    \item Independent Component Analysis (ICA)
+\end{enumerate}
+
+\subsection{Factor Analysis and Probabilistic PCA}
+
+\begin{example}[Factor Analysis] 
+Factor analysis is a specific case of a linear factor model where 
+\[\mathbf{x} = W \mathbf{h} + b + \epsilon, \text{ where } \mathbf{h} \sim N(\mathbf{0}, \mathbf{I}), \; \epsilon \sim N(0, \sigma^2)\] 
+It should be clear to us that $\mathbf{x}$ should be Gaussian and that $\mathbb{E}[\mathbf{x}] = \mathbf{b}$, with 
+\begin{align*} 
+    \mathrm{Var}[\mathbf{x}] & = \mathbb{E}[ (\mathbf{x} - \mathbf{b})( \mathbf{x} - \mathbf{b})^T ] \\
+                             & = \mathbb{E}[ (W \mathbf{h} + \epsilon) (\mathbf{h}^T W^T + \epsilon^T)] \\
+                             & = \mathbb{E}[W h h^T W^T] + \mathbb{E}[ \epsilon \epsilon^T] \\
+                             & = W \mathbb{E}[ h h^T] W^T + \mathbb{E}[ \epsilon \epsilon^T] \\
+                             & = W W^T + \mathrm{diag}(\sigma_1^2, \ldots, \sigma_d^2) 
+\end{align*} 
+The $\mathbf{W}, \mathbf{b}$, and $\boldsymbol{\sigma}$ can be estimated using MLE methods. Unfortunately, no closed form  exists, so iterative methods are commonly applied. 
+\end{example} 
+
+Note that in here, we do not assume that the variances of the $h_i$'s are the same, though they are independent. This means that the subspace generated by the MLE estimate of $\mathbf{W}$ will not necessarily correspond to the principal subspace of the data. But we can make this happen with one more assumption. Before we get into probabilistic PCA, let's review regular PCA. 
+
+\begin{example}[PCA] 
+    
+\end{example} 
+
+\begin{example}[Probabilistic PCA] 
+In PPCA, we assume everything we did for factor analysis, but now also that $\sigma_1 = \ldots = \sigma_k = \sigma$. In this case, 
+\[\mathbf{x} \sim N(\mathbf{b}, \mathbf{W}\mathbf{W}^T + \sigma^2 \mathbf{I})\]
+and the MLEs for $\mathbf{W}, \mathbf{b}, \sigma$ have a closed form, and model parameter estimation can be performed iteratively and efficiently. We define. It is pretty clear that 
+\[\hat{\mathbf{b}}_{MLE} = \frac{1}{N} \sum_{i=1}^N \mathbf{x}^{(i)}\]
+and setting 
+\[\widehat{\mathrm{Var}}_{MLE}(\mathbf{x}) = S = \frac{1}{N} \sum_{i=1}^N (\mathbf{x}^{(i)} - \mathbf{b}) (\mathbf{x}^{(i)} - \mathbf{b})^T\]
+which is the biased, but MLE estimator of the variance, let us derive the MLE of $\mathbf{W}$. Say that $\mathbf{W}^\ast$ is an MLE, then, for any unitary $\mathbf{U} \in \mathbb{R}^{k \times k}$, we have 
+\[\mathbf{W}^\ast \mathbf{W}^{\ast T} = (\mathbf{W}^\ast \mathbf{U}) (\mathbf{W}^\ast \mathbf{U})^T \]
+which means that the MLE is not unique. We can find the MLE estimate of $\sigma$ first by taking a look at $C = \mathrm{Var}[\mathbf{x}] = \mathbf{W} \mathbf{W}^T + \sigma^2 \mathbf{I}$. It is the sum of positive semidefinite patrices that are also symmetric, so by the spectral theorem it is diagonalizable and has full rank $d$. But $\mathbf{W} \mathbf{W}^T$ is rank $k$, so $d - k$ of the eigenvalues of $\mathbf{W} \mathbf{W}^T$ is $0$, indicating that the same $d-k$ smallest eigenvalues of $C$ is $\sigma^2$. Therefore, we can take the smallest $d-k$ eigenvalues of our MLE estimator of $C$, which is $S$, and average them to get our MLE for $\sigma$. 
+\[\hat{\sigma}^2_{MLE} = \frac{1}{d-k} \sum_{j=k+1}^d \lambda_j\]
+We can approximate $\mathbf{W} \mathbf{W}^T = C - \sigma^2 \mathbf{I} \approx S - \hat{\sigma}^2_{MLE} \mathbf{I}$, and by further taking the eigendecomposition $C = U \Sigma U^T \implies \mathbf{W} \mathbf{W}^T = U (\Sigma - \sigma^2 \mathbf{I}) U^T$ and cutting off the last $d-k$ smallest eigenvalues and their corresponding eigenvectors, we can get 
+\[\mathbf{W}_{ML} = \mathbf{U}_q (\Lambda_d - \hat{\sigma}_{MLE}^2 \mathbf{I}_d )^{1/2} R\] 
+where the $R$ just accounts for any unitary matrix. 
+\end{example}
+
+Now as $\sigma \rightarrow 0$, the density model defined by PPCA becomes very sharp around these $d$ dimensions spanned by the columns of $\mathbf{W}$. At $0$, our MLE of $W$ is simplified and we have 
+\[\mathbf{x} = \mathbf{W}_{MLE} \mathbf{h} + \mathbf{b}_{MLE} + \epsilon = \mathbf{U}_q \boldsymbol{\Lambda}_q^{1/2} \mathbf{h} + \mathbf{b}_{MLE} \]
+which essentially reduces to regular PCA. That is, the conditional expected value of $\mathbf{h}$ given $\mathbf{x}$ becomes an orthogonal projection of $\mathbf{x} - \mathbf{b}$ onto the subspace spanned by the columns of $\mathbf{W}$.  
+
+
+\subsection{Independent Component Analysis} 
+
+Another special case of linear factor model is ICA. In our setting, let us just assume that $\mathbf{b} = \mathbf{0}$ and $\epsilon = 0$. That is, we have the simple model 
+\[\mathbf{x} = \mathbf{W} \mathbf{h}\] 
+In here, $\mathbf{x} \in \mathbb{R}^d$ is a mixture vector and $\mathbf{W} \in \mathbb{R}^{d \times d}$ is a \textbf{mixing matrix}. Note that the hidden $\mathbf{h}$ has the same dimensions as $\mathbf{x}$, but this can be generalized to rectangular matrices. Both $\mathbf{W}$ and $\mathbf{h}$ are unknown, and we need to recover them given $\mathbf{x}$. In \textbf{linear ICA}, we have two strong assumptions: 
+\begin{enumerate} 
+    \item Each component of $\mathbf{h}$ is independent (not just uncorrelated). This is an easy enough assumption to intuit.  
+    \item Independent components of $\mathbf{h}$ must \textit{not} be Gaussian. This is needed for us to be able to ``unmix" the signals. To see why, just suppose $\mathbf{h}$ was Gaussian, and so the vector $\mathbf{R} \mathbf{h}$ is also Gaussian for any invertible $\mathbf{R}$. Therefore, we could find an infinite number of solutions of form 
+    \[\mathbf{x} = \mathbf{W} \mathbf{R}^{-1} \mathbf{R} \mathbf{h}\]
+    and I have no way to separate them. 
+\end{enumerate}
+
+There are further ambiguities with ICA. 
+\begin{enumerate}
+    \item Estimating the latent components up to a scaling factor. 
+        \[\mathbf{x} = (\alpha \mathbf{W}) (\frac{1}{\alpha} \mathbf{h}) \text{ for some } \alpha > 0\]
+        We can fix this by forcing $\mathbb{E}[h_i^2] = 1$. However, there is still an ambiguity for the sign of hidden components, but this is insignificant in most applications. 
+
+    \item Estimating the components up to permutation. We have 
+        \[\mathbf{x} = \mathbf{W} \mathbf{P}^{-1} \mathbf{P} \mathbf{h}\] 
+        for some permutation matrix $\mathbf{P}$. 
+\end{enumerate}
+
+Now let's see how linear ICA actually estimates $\mathbf{W}$ and $\mathbf{h}$. Once $\mathbf{W}$ is estimated, the latent components of a given test mixture vector, $\mathbf{x}^\ast$ is computed by $\mathbf{h}^\ast = \mathbf{W}^{-1} \mathbf{x}^\ast$. So now all there's left to do is to estimate $\mathbf{W}$, which we want to estimate so that $\mathbf{W}^{-1} \mathbf{x}$ is far from Gaussian. The reason for this is that given a bunch of independent non-Gaussian $h_i$'s, if we mix them with a matrix that is not $\pm \mathbf{I}$ , then by CLT, a linear combination of random variables will tend to be Gaussian, and so for an arbitrary $\mathbf{W}$ we would expect $\mathbf{x}$ to be Gaussian. Therefore, what we want to do is guess some matrix $\mathbf{A}$, and compute 
+\[\mathbf{A} \mathbf{x} = \mathbf{A} \mathbf{W} \mathbf{h}\]
+and if we get things right, $\mathbf{A} \approx \mathbf{W}^{-1}$, and the result of $\mathbf{A} \mathbf{x}$ would look pretty non-Gaussian. If it it not the case, then $\mathbf{A W}$ will still be some mixing matrix, and so $\mathbf{A} \mathbf{x}$ would look Gaussian. So now the question reduces to how do we choose this $\mathbf{A}$? There are multiple ways to measure non-Gaussianity: 
+\begin{enumerate} 
+    \item The absolute or squared kurtosis, which is $0$ for Gaussians. This is a differentiable function w.r.t. $\mathbf{W}$, so we can try maximizing it. This is done for the sample kurtosis, of course.  
+    \item Another measure is by maximizing the neg-entropy. 
+\end{enumerate}
+
+We can perform this on three mixed signals with additive noise, and ICA does very well, though again some recovered signals are scaled or permuted weirdly. 
+\begin{center}
+    \includegraphics[scale=0.4]{Images/ICA_example.png}
+\end{center}
+
+\subsection{Slow Feature Analysis} 
+
+Slow feature analysis also another special case of a linear factor model that uses information from time signals to learn invariant features. It is motivated by a general principle called the \textbf{slowness principle}. The idea is that the important characteristics of scenes change very slowly compared to the individual measurements that make up a description of a scene. For example, in computer vision, individual pixels can change very rapidly. If a zebra moves from left to right across the image, an individual pixel wil rapidly change from black to white. By comparison, the feature indicating whether a zebra is in the image will not change at all, and the feature describing the zebra's position will change slowly. Therefore, we want to regularize our model to learn features that change slowly over time.  
+
+We can apply the slowness principle to any differentiable model trained with gradient descent. That is, we can add the following term to the loss function: 
+\[\lambda \sum_i d\big( f(\mathbf{x}^{(t+1)}), f(\mathbf{x}^{(t)}) \big)\]
+where $\lambda$ is a hyperparameter determining the strength of the slowness regularization term, $t$ is the time index, $f$ is the feature extractor to be regularized, and $d$ is the distance between $f(\mathbf{x}^{(t)})$ and $f(\mathbf{x}^{(t+1)})$. A common choice for $d$ is the mean squared difference. 
+
+Essentially, given a set of time-varying input signals $\mathbf{x}^{(t)}$, SFA learns a nonlinear function $f$ that transforms $\mathbf{x}$ into slowly-varying output signals $\mathbf{y}$. Obviously, we can't just take some trivial function like $f = 0$, so we have the following constraints 
+\begin{align*}
+    \mathbb{E}_t [ f(\mathbf{x}^{(t)})_i]  & = 0 \\ 
+    \mathbb{E}_t [ f(\mathbf{x}^{(t)})_i^2] & = 1 
+\end{align*}
+\begin{center} 
+    \includegraphics[scale=0.4]{Images/slow_feature.png}
+\end{center}
+We can restrict the nonlinear $f$ to some subspace of functions, and this becomes a standard optimization problem where we solve 
+\[\min_\theta \mathbb{E}_t \big[ \big( f(\mathbf{x}^{(t+1)})_i - f(\mathbf{x}^{(t)})_i \big)^2 \big]\]
+
+
+
+\subsection{Sparse Coding}
+
+What we want to do in sparse coding is that for each input $\mathbf{x}^{(t)}$, we want to find a latent representation $\mathbf{h}^{(t)}$ s.t. 1) it is sparse (i.e. has many $0$s) and 2) we can reconstruct the original input $\mathbf{x}^{(t)}$ well. We have basically two things to optimize: the latent representations $\mathbf{h}$ and the decoding mechanism, which we can do with a \textbf{dictionary matrix} $\mathbf{D}$. Therefore, we want to perform the joint optimization
+\[\min_{\mathbf{D}} \frac{1}{T} \sum_{t=1}^T \min_{\mathbf{h}^{(t)}} \underbrace{\frac{1}{2} ||\mathbf{x}^{(t)} - \mathbf{D} \mathbf{h}^{(t)}||_2^2}_{\text{reconstruction error}} + \underbrace{\lambda ||\mathbf{h}^{(t)}||_1}_{\text{sparsity penalty}}\]
+To break this term down, let's just assume that we have a fixed dictionary $\mathbf{D}$. Then, we just need to minimize with respect to each $\mathbf{h}^{(t)}$. Now we can add the dictionary parameter back again. 
+
+Note that the reconstruction, or decoding, of $\mathbf{x}^\prime = \mathbf{D} \mathbf{h}$ is linear and explicit, but if we want to encode $\mathbf{x} \mapsto \mathbf{h}$, we need to substitute the $\mathbf{x}$ into the term above and minimize it w.r.t. $\mathbf{D}$ and $\mathbf{h}$ to solve it. Therefore, this encoder is an implicit and nonlinear function of $\mathbf{x}$. 
+
+For example, we can reconstruct an image of a seven as a linear combination of a set of images. Note that each of the images of strokes are columns of $\mathbf{W}$ and the coefficients make up the sparse vector $\mathbf{h}$. 
+\begin{center}
+    \includegraphics[scale=0.4]{Images/sparse_coding.png}
+\end{center}
+Let's think about how we can optimize the objective function w.r.t. $\mathbf{h}$, keeping $\mathbf{D}$ constant. We can do stochastic gradient descent, which gives us the steps
+\[\nabla_{\mathbf{h}^{(t)}} \mathcal{L}(\mathbf{x}^{(t)}) = \mathbf{D}^T (\mathbf{D} \mathbf{h}^{(t)} - \mathbf{x}^{(t)}) + \lambda \, \mathrm{sign}(\mathbf{h}^{(t)})\]
+but this wouldn't achieve sparsity since it overshoots the $0$ all the time. Therefore, we can clip it, or we can use proximal gradient descent/ISTA to take a step, and shrink the parameters according to the L1 norm. 
+\begin{align*} 
+    \mathbf{h}^{(t)} & = \mathbf{h}^{(t)} - \alpha \mathbf{D}^T (\mathbf{D} \mathbf{h}^{(t)} - \mathbf{x}^{(t)}) \\
+    \mathbf{h}^{(t)} & = \mathrm{shrink}(\mathbf{h}^{(t)}, \alpha \lambda)
+\end{align*}
+    where $\mathrm{shrink}(\mathbf{a}, \mathbf{b}) = [\ldots, \mathrm{sign}(a_i)\, \max(|a_i| - b_i, 0), \ldots]$. This is guaranteed to converge if $1/\alpha$ is bigger than the largest eigenvalue of $\mathbf{D^T} \mathbf{D}$.  
+
+\section{Autoencoders}
+
+Autoencoders are a type of unsupervised learning. We only use the inputs $\mathbf{x}_t$ for learning. We want to automatically extract meaningful features for the data and leverage the availability of unlabeled data. It can be used for visualization and compression. We can also build generative models with autoencoders. 
+
+\begin{definition}[Autoencoder]
+    An autoencoder is a feed-forward neural net whose job is to take an input $\mathbf{x}$ and output $\hat{\mathbf{x}}$. It consists of an encoder $E_\phi: \mathcal{X} \rightarrow \mathcal{Z}$ and decoder $D_\theta: \mathcal{Z} \rightarrow \mathcal{X}$, where $\mathcal{X}$ is the input/output space and $\mathcal{Z}$ is the latent feature space. 
+\begin{enumerate}
+    \item The encoder model transforms $\mathbf{x}$ to a latent feature representation $\mathbf{z}$. It is a feed-foward, buttom-up neural net. 
+    \item The decoder model maps $\mathbf{z}$ to a reconstruction $\hat{\mathbf{x}}$. It is generative, top-down. 
+\end{enumerate}
+I want to train the whole neural network such that the error between $\mathbf{x}$ and $\hat{\mathbf{x}}$ is minimized. We can consider a squared-error, for example. 
+\[\mathcal{L}(\mathbf{x}, \hat{\mathbf{x}}) = \frac{1}{2} ||\mathbf{x} - \hat{\mathbf{x}}||_2^2\]
+\end{definition}
+
+In the totally linear case, we have PCA. Some input $\mathbf{x} \in \mathcal{X} = \mathbb{R}^d$ is mapped to a smaller-dimensional $\mathcal{Z} = \mathbb{R}^k$. 
+\[\mathbf{x} \xlongrightarrow[]{V} \mathbf{z} \xlongrightarrow{U} \hat{\mathbf{x}}\]
+and so the ``network" essentially computes $\hat{\mathbf{x}} = U V \mathbf{x}$. Obviously the fact that $k < d$ is essential, since if $k \geq d$ then we can choose $U$ and $V$ such that $UV = I$, which is trivial. 
+
+This can be used for the following problem: Given $m$ points $\mathbf{x}_1, \ldots, \mathbf{x}_m \in \mathbb{R}^d$ and target dimension $k < d$, find the best $k$-dimensional subspade approximating the data. Formally, we want to find the matrices $U \in \mathbb{R}^{d \times k}$ and $V \in \mathbb{R}^{k \times d}$ that minimizes 
+\[f(U, V) = \sum_{i=1}^m ||\mathbf{x}_i - U V \mathbf{x}_i||_2^2 \] 
+where $V$ is the \textit{compressor} and $U$ is the \textit{decompressor}. Now unfortunately, this loss $f$ is not convex, though $f(U, \cdot)$ and $f(\cdot, V)$ are both convex. 
+
+\begin{theorem}
+We claim that the optimal solution is achieved when $U = V^T$ and $U^T U = I$. 
+\end{theorem}
+\begin{proof}
+    For any $U, V$, the linear map $\mathbf{x} \mapsto U V \mathbf{x}$ has a range $R$ that forms a subspace of dimension $k$. Let $w_1, \ldots,w_k$ be an orthonormal basis for $R$, which we arrange into columns of $W$. Hence, for each $x_i$ there is $z_i \in \mathbb{R}^k$ such that $UV x_i = W z_i$. Note that by construction,$W^T W = I$. Now we want to find out which $z$ minimizes $f(x_i, z) = ||x_i - W z||_2^2$. We know that for all $x \in \mathbb{R}^d, z \in \mathbb{R}^k$, 
+\[f(x, z) = ||x||_2^2 + z^T W^T W z - 2 z^T W^T x = ||x||_2^2 + ||z||_2^2 - 2 z^T W^T x\] 
+We want to minimize w.r.t. to $z$, so by taking the derivative and setting to $0$, we get $z = W^T x$. This means that 
+\[\sum_{i=1}^m ||x_i - U V x_i ||^2 \geq \sum_{i=1}^m ||x_i - UV x_i||^2 \geq \sum_{i=1}^m ||x_i - W W^T x_i||^2\] 
+and since $U, V$ are optimal, equality is achieved and so instead of $U, V$, we can take $W, W^T$, with $W W^T x$ being the orthogonal projection of $x$ onto $R$. 
+\end{proof}
+
+One application of PCA is eigenfaces, which assumes that the set of all faces (projected onto an image) approximately lies in a hyperplane. 
+
+Now let's go back to autoencoders, the nonlinear generalization of PCA. We can have several architectures, with none, one, or both the encoder/decoder having nonlinear activitation functions. Here is one architecture. 
+\begin{center} 
+    \includegraphics[scale=0.4]{Images/autoencoder_example.png}
+\end{center}
+where we have 
+\begin{align*} 
+    \mathrm{Encoder} & : \mathbf{h}(\mathbf{x}) = g(\mathbf{a}(x)) = \sigma (\mathbf{b} + \mathbf{W} \mathbf{x}) \\
+    \mathrm{Decoder} & : \hat{\mathbf{a}}(\mathbf{x}) = \sigma (\mathbf{c} + \mathbf{W}^\ast \mathbf{h}(\mathbf{x})) 
+\end{align*} 
+The parameter gradients are obtained by backpropagating the gradient $\nabla_{\theta} \mathcal{L}$ like a regular network, but if we force tied weights (i.e. $W^\ast = W^T$), then $\nabla_{\mathbf{W}} \mathcal{L}$ is the sum of two gradients. This is because $\mathbf{W}$ is present both in the encoder and decoder. 
+
+There are three things we can do to extract meaningful hidden features: 
+\begin{enumerate}
+    \item \textbf{Undercomplete Representation}: Make the latent dimension small. It compresses the input, but it may only be good for the training distribution and may not be robust to other types of input. If it is overcomplete, there is no guarantee that we will extract meaningful features. 
+\item \textbf{Denoising Autoencoder}: Injecting noise to the input. The idea is that the representation should be robust to the introduction of noise. We take the original input $\mathbf{x}$ and we randomly assign a subset of the inputs to $0$, with probability $\nu$, similar to dropout, to get our noisy input $\Tilde{\mathbf{x}}$. Then we train the autoencoder with the loss comparing the output $\hat{\mathbf{x}}$ to the original, un-noisy input $\mathbf{x}$. We can do this for Gaussian additive noise too. As the visual below suggests, we are essentially ``pushing" out inputs away from the manifold and training the autoencoder to denoise it, pulling it back. 
+    \begin{center}
+        \includegraphics[scale=0.3]{Images/denoising_autoencoder.png}
+    \end{center}
+ 
+    \item \textbf{Contractive Autoencoder}: If we have the latent dimension greater than the input, then we can just add an explict term in the loss that penalizes that solution (e.g. promoting sparsity). For example, we can have the loss be 
+    \[\mathcal{L}(f(\mathbf{x}^{(t)}) + \lambda || \nabla_{\mathbf{x}^{(t)}} \mathbf{h}(\mathbf{x}^{(t)})||^2_F\]
+    where 
+    \[||\nabla_{\mathbf{x}^{(t)}} \mathbf{h}(\mathbf{x}^{(t)})||_F^2 = \sum_{j, k} \bigg(\frac{\partial h(\mathbf{x}^{(t)})_j}{\partial x_k^{(t)}} \bigg)^2\]
+    which forces the encoder to throw away information. If one of the elements are $0$, then we know that the $k$th element of the input has no effect on the $j$th element of the encoded output. Therefore, it tries to throw away as many elements of $\mathbf{x}$ as possible since the identity matrix will have a large Frobenius norm, essentially contracting the input representation.  
+
+    We can also promote sparsity by adding a L1 penalty, forcing the feature space to be sparse. 
+\end{enumerate}
+
+The \textbf{predictive sparse decomposition} shows that the loss should be 
+\[\min_{W, W^\ast, \mathbf{z}} ||W^\ast \mathbf{z} - \mathbf{x}||^2_2 + \lambda | \mathbf{z}|_1 + ||\sigma(W \mathbf{x}) - \mathbf{z}||^2_2\]
+where the first term tells the decoder to reconstruct the original input well, the second tells the latent vector to be sparse, and the third tells us that we shouldn't lose too much information when we encode. 
+
+We could also have \textbf{stacked autoencoders}, with each layer of latent features having some desired sparsity. 
+
+
+
+\section{Boltzmann Machines} 
 
 \subsection{Graphical Models}
+ 
+Graphical models allow a nice way to represent complex probability distributions with some dependence relationship. 
 
-\subsection{Linear Factor Models and Factor Analysis} 
-
-\subsection{Principal Component Analysis} 
-
-
-\section{Generative Models 2} 
-
-\subsection{Restricted Boltzmann Machines} 
-
-\subsection{Deep Belief Networks} 
+\subsubsection{Directed Graphical Models}
 
 
-\section{Generative Models 3} 
+\begin{definition}[Directed Probability Graph]  
+A \textbf{probability graph} is a directed acyclic graph of $M$ nodes representing a joint probability distribution of $M$ scalar random variables. An edge pointing $A \rightarrow B$ means that the $B$ is conditionally dependent on $A$, and that there is a very clear casual relationship coming from $A$ to $B$. 
+\begin{center}
 
-\subsection{Autoencoders} 
-
-\subsection{Variational Autoencoders} 
-
-\subsection{Importance Weighted Autoencoders} 
-
-\subsection{Conditional VAEs} 
+\end{center}
+The \textbf{parents} of a node $x_i$ is denoted $\mathrm{pa}_i$, and the entire joint distribution can be broken up as such: 
+\[p(\mathbf{x}) = \prod_{m=1}^M p(x_m \mid x_{\mathrm{pa}_m})\]
+\end{definition}
 
 
-\section{Generative Models 4} 
+\begin{example}[Relay Race]
 
-\subsection{Generative Adversarial Networks} 
+\end{example} 
+
+
+Bayesian modelling with hierarchical priors. 
+
+\begin{definition}[Ancestral Sampling] 
+We can sample from the joint distribution by sequentially sampling starting from the parents to the final children, and discarding the ones (marginalizing) that we don't wish to sample. 
+\end{definition}
+
+
+\begin{example}
+We first provide some motivation from a computational complexity perspective. Given a joint distribution of 2 random variables $\mathbf{x}_1, \mathbf{x}_2$, say which are multinomial with $K$ classes, their joint distribution $p(\mathbf{x}_1, \mathbf{x}_2)$ is captured by $K^2 - 1$ parameters. For a general $M$ random variables, then we have to keep a total of $K^M - 1$ parameters, and this increases exponentially. 
+\begin{center}
+
+\end{center}
+By building a directed graph with say $r$ maximum number of variables appearing on either side of the conditioning bar in a single probability distribution, then the computational complexity scales as $O(K^r)$, which may save a lot of effort if $r << M$. 
+\end{example}
+
+Extending upon this example, we can see that we want to balance two things: 
+\begin{enumerate} 
+    \item Fully conncted graphs have completely general distributions and have $O(K^M -1)$ number of parameters (too complex). 
+    \item If there are no links, the joint distribution fully factorizes into the product of its marginals and has $M(K-1)$ parameters (too simple) . 
+\end{enumerate}
+Graphs that have an intermediate level of connectivity allow for more general distributions compared to the fully factorized one, while requiring fewer parameters than the general joint distribution. One model that balances this out is the hidden markov model. 
+
+\begin{example}[Chain Graph]
+    Consider an $M$-node Markov chain. The marginal distribution $p(\mathbf{x}_1)$ requires $K-1$ parameters, and the remaining conditional distributions $p(\mathbf{x}_i \mid \mathbf{x}_{i-1})$ requires $K(K-1)$ parameters. Therefore, the total number of parameters is 
+\[K-1 + (M-1) (K-1) K \in O(M K^2)\]
+which scales relatively well, and we have 
+\[p(\{\mathbf{x}_m\}) = p (\mathbf{x}_1) \prod_{m=2}^M p(\mathbf{x}_m \mid \mathbf{x}_{m-1})\]
+\begin{center}
+
+\end{center}
+We can turn this same graph into a Bayesian model by introducing priors for the paramters. Therefore, each node requires an additional parent representing the distribution over parameters (e.g. prior can be Dirichlet)  
+\[p(\{\mathbf{x}_m , \mu_m\}) = p(\mathbf{x}_1 \mid \mu_1) p(\mu_1) \prod_{m=2}^M p(\mathbf{x}_m \mid \mathbf{x}_{m-1}, \mu_m) p(\mu_m) \]
+with $p(\mu_m) = \mathrm{Dir}(\mu_m \mid \alpha_m)$ for some predetermined fixed hyperparameter $\alpha_m$. 
+\begin{center}
+    \includegraphics[scale=0.5]{Images/dir_prior.png}
+\end{center}
+We could also choose to share a common prior over the parameters, trading flexibility for computational feasibility. 
+\begin{center}
+    \includegraphics[scale=0.5]{Images/shared_dir_prior.png}
+\end{center}
+\end{example}
+
+Another way to make more compact representations is through parameterized models. For example, if we have to compute $p(y = 1 \mid \mathbf{x}_1, \ldots, \mathbf{x}_M)$, this in general has $O(K^M)$ parameters. However, we can obtain a more parsimonious form by using a logistic function acting on a linear combination of the parent variables 
+\[p(y = 1 \mid \mathbf{x}_1, \ldots, \mathbf{x}_m) = \sigma \bigg( w_0 + \sum_{i=1}^M w_i x_i \bigg) = \sigma(\mathbf{w}^T \mathbf{x}) \]
+We can look at an example how this is applied to sampling from high-dimensional Gaussian with \textbf{linear Gaussian models}.  
+
+
+\begin{example}[Multivariate Gaussian]
+Consider an arbitrary acyclic graph over $D$ random variables, in which eachnode represents a single continuous Gaussian distribution with its mean given by a linear function of its parents. 
+\[p(x_i \mid \mathbf{pa}_i) = N \bigg( x_i \bigg| w_{ij} x_j + b_j, v_i \bigg) \]
+Given a multivariate Gaussian, let us try to decompose it into a directed graph. The log of the joint distribution takes form 
+\[\ln p(\mathbf{x}) = \sum_{i=1}^D \ln p(x_i \mid \mathrm{pa}_i) = - \sum_{i=1}^D \frac{1}{2 v_i} \bigg( x_i - \sum_{j \in \mathrm{pa}_i} w_{ij} x_j - b_i \bigg)^2 + \mathrm{const}\]
+To compute the mean, we can see that by construction, every $x_i$ is dependent on its ancestors, so 
+\[x_i = \sum_{j \in \mathrm{pa}_i} w_{ij} x_j + b_i + \sqrt{v_i} \epsilon_i, \;\; \epsilon_i \sim N(0, 1)\]
+so by linearity of expectation, we have 
+\[\mathbb{E}[x_i] = \sum_{j \in \mathrm{pa}_i} w_{ij} \mathbb{E}[x_j] + b_i\]
+So again, we can start at the top of the graph and compute the expectation. To compute covariance, we can obtain the $i, j$th element of $\boldsymbol{\Sigma}$ with a recurrence relation: 
+\begin{align*} 
+    \Sigma_{ij} & = \mathbb{E}[ (x_i - \mathbb{E}[x_i]) (x_j - \mathbb{E}[x_j])] \\
+                & = \mathbb{E} \bigg[ (x_i - \mathbb{E}[x_i]) \bigg( \sum_{k \in \mathrm{pa}_j} w_{j k} (x_k - \mathbb{E}[x_k])  + \sqrt{v_i} \epsilon_j\bigg) \bigg] \\
+                & = \sum_{k \in \mathrm{pa}_j} w_{j k} \Sigma_{ik} + I_{ij} v_j
+\end{align*}
+If there were no links in the graphs, then the $w_{ij}$'s are $0$, and so $\mathbb{E}[\mathbf{x}] = [b_1, \ldots, b_D]$, making the covariance diagonal.If the graph is fully connected, then the total number of parameters is $D + D(D-1)/2$, which corresponds to a general symmetric covariance matrix.  
+\end{example}
+
+\begin{example}[Bilinear Gaussian Model]
+Consider the following model
+\begin{align*}
+    u & \sim N(0, 1) \\
+    v & \sim N(0, 1) \\
+    r & \sim N(u v, 1)
+\end{align*}
+where the mean of $r$ is a product of $2$ Gaussians. This is also a parameterized model. 
+\begin{center}
+    \includegraphics[scale=0.6]{Images/bilinear_gaussian.png}
+\end{center}
+\end{example}
+
+\begin{definition}[Conditional Independence in Directed Graphs]
+We say that $a$ is independent of $b$ given $c$ if 
+\[p(a \mid b, c) = p(a \mid c)\]
+or equivalently, 
+\[p(a, b \mid c) = p(a \mid b, c)\, p(b \mid c) = p(a \mid c) \, p(b \mid c)\]
+Conveniently, we can directly read conditional independence properties of the joint distribution from the graph without any analytical measurements. 
+\end{definition}
+
+\begin{example}
+    We can demonstrate conditional independence with iid data. Consider the problem of density estimation of some dataset $\mathcal{D} = \{x_i\}$ with some parameterized distribution of $\mu$. As shown below, if we condition on $\mu$ and considered the joint over the observed variables, the variables are independent, but if we integrate out $\mu$, the observations are no longer independent. 
+\begin{center}
+    \includegraphics[scale=0.6]{Images/iid_conditional_independence.png}
+\end{center}
+\end{example}
+
+The example above identifies a node (the parent $\mu$) where, if observed, causes the rest of the nodes to become independent. We can extend on this idea by taking an arbitrary $x_i$ and finding a set of nodes such that if they are observed, then $x_i$ is indepedent from every other node. 
+
+\begin{definition}[Markov Blanket]
+    The \textbf{Markov blanket} of a node is the minimal set of nodes that must be observed to make this node independent of all other nodes. It turns out that the parents, children, and coparents are all in the Markov blanket. 
+\begin{center}
+    \includegraphics[scale=0.6]{Images/markov_blanket.png} 
+\end{center}
+\end{definition} 
+
+One final interpretation is that we can view directed graphs as \textbf{distribution filters}. We take the joint probability distribution, will starts off as fully connected, and the directed graphs ``filters" away the edges that are not needed. Therefore, the joint probability distribution $p(\mathbf{x})$ is only allows through the filter if and only if it satisfies the factorization property. 
+
+\subsubsection{Undirected Graphical Models}
+
+As the name implies, undirected models use undirected graphs, which are used to model relationships that go both ways rather than just one. Unlike directed graphs, which are useful for expressing casual relationships between random variables, undirected graphs are useful for expressing soft constraints between random variables.  
+
+\begin{definition}[Conditional Independence in Undirected Graphs]
+Fortunately, conditional independence is easier compared to directed models. We can say $A$ is conditionally independent to $B$ given $C$ if $C$ blocks all paths between any node in $A$ and any node in $B$. 
+\begin{center}
+    \includegraphics[scale=0.4]{Images/conditional_independence_undirected.png}
+\end{center}
+\end{definition}
+
+\begin{definition}[Markov Blanket in Undirected Graphs]
+The Markov blanket of a node, which is the minimal set of nodes that must be observered to make this node independent of the rest of the nodes, is simply the nodes that are directly connected to that node. 
+\begin{center} 
+    \includegraphics[scale=0.4]{Images/markov_blanket_undirected.png}
+\end{center}
+Therefore, the conditional distribution of $x_i$ conditioned on all the variables in the graph is dependent only on the variables in the Markov blanket. 
+\end{definition}
+
+Now, let us talk about how we can actually define a probability distribution with this graph. 
+
+
+\begin{definition}[Clique] 
+    In an undirected graph, a \textbf{clique} is a set of nodes such that there exists a link between all pairs of nodes in that subset. A \textbf{maximal clique} is a clique such that it is not possible to include any other nodes in the set without it ceasing it to be a clique. 
+\end{definition}
+
+Given a joint random variable $\mathbf{x}$  represented by an undirected graph, the joint distribution is given by the product of non-negative potential functions over the maximal cliques 
+\[p(\mathbf{x}) = \frac{1}{Z} \prod_C \phi_C (x_C)\] 
+where 
+\[Z = \int p(\mathbf{x}) \,d\mathbf{x}\] 
+is the normalizing constant, called the \textbf{partition function}. That is, each $x_C$ is a maximal clique and $\phi_C$ is the nonnegative potential function of that clique. 
+
+This assignment looks pretty arbitrary. How do we know that any arbitrary joint distribution of $\mathbf{x}$, which has a undirected graphical representation, can be represented as the product of a bunch of functions over the maximum cliques? Fortunately, there is a mathematical result that proves this. 
+
+\begin{theorem}[Hammersley-Clifford] 
+The joint probability distribution of any undirected graph can be written as the product of potential functions on the maximal cliques of the graph. Furthermore, for any factorization of these potential functions, there exists an undirected graph for which is the joint.  
+\end{theorem} 
+
+
+\begin{example}
+For example, the joint distribution of the graph below
+\begin{center}
+    \includegraphics[scale=0.5]{Images/clique_factor.png}
+\end{center}
+factorizes into 
+\[p(A, B, C, D) = \frac{1}{Z} \phi(A, C) \, \phi(C, B) \, \phi(B, D) \, \phi(A, D)\]
+\end{example}
+
+Note that each potential function $\phi$ is a mapping from the joint configuration of random variables in a clique to non-negative real numbers. The choice of potential functions is not restricted to having specific probabilistic interpretations, but since they must be nonnegative, we can just represent them as an exponential. The negative sign is not needed, but is a remnant of physics notation. 
+\[p (\mathbf{x}) = \frac{1}{Z} \prod_C \phi_C (x_C) = \frac{1}{Z} \exp \bigg\{ - \sum_C E(x_C) \bigg\} = \frac{1}{Z} \underbrace{\exp \big\{ - E(\mathbf{x}) \big\}}_{\substack{\text{Boltzmann}\\ \text{distribution}}}\]
+
+Any distribution that can be represented as the form above is called a \textbf{Boltzmann distribution}. So far, all we stated is that the joint probability distribution can be expressed as the product of a bunch of potential functions, but besides the fact that it is nonnegative, there is no probabilistic interpretation of these potentials (or equivalently, the energy functions). While this does give us greater flexibility in choosing potential functions, we must be careful in choosing them (e.g. choosing something like $x^2$ may cause the integral to diverge, making the joint not well-defined).
+
+Clearly, these potential functions over the cliques should express which configuration of the local variables are preferred to others. It should assign higher values to configurations that are deemed (either by assumption or through training data) to be more probable. That is, each potential is like an ``expert" that provides some opinion (the value) on a configuration, and the product of the values of all the potential represents the total opinion of all the experts. Therefore, global configurations with relatively high probabilities are those that find a good balance in satisfying the (possibly conflicting) influences of the clique potentials. 
+
+\begin{example}[Transmission of Colds] 
+Say that you want to model a distribution over three binary variables: whether you or not you, your coworker, and your roommate is sick ($0$ represents sick and $1$ represents healthy). Then, you can make simplifying assumptions that your roommate and your coworker do not know each other, so it is very unlikely that one of thme will give the other an infection such as a cold directly. Therefore, we can model the indirect transmission of a cold from your coworker to your roommate by modeling the transmission of the cold from your coworker to you and then you to your roommate. Therefore, we have a model of form
+
+\begin{center}
+\begin{tikzpicture}
+    \node[circle,draw] (hr) at (0,0) {$h_r$};
+    \node[circle,draw] (hy) at (2,0) {$h_y$};
+    \node[circle,draw] (hc) at (4,0) {$h_c$};
+
+    \draw (hr) -- (hy);
+    \draw (hy) -- (hc);
+\end{tikzpicture}
+\end{center}
+One max clique contains $h_y$ and $h_c$. The factor for this clique can be defined by a table and might have values resembling these. 
+\begin{table}[h]
+\centering
+\begin{tabular}{c|c|c|}
+\cline{2-3}
+& \( h_y = 0 \) & \( h_y = 1 \) \\ \hline
+\multicolumn{1}{|c|}{\( h_c = 0 \)} & 2 & 1 \\ \hline
+\multicolumn{1}{|c|}{\( h_c = 1 \)} & 1 & 10 \\ \hline
+\end{tabular}
+\caption{States and Values of \( h_y \) and \( h_c \)}
+\end{table}
+This table completely describes the potential function of this clique. Both of you are usually healthy, so the state $(1, 1)$ gets the maximum value of $1$. If one of you are sick, then it is likely that the other is sick as well, so we have a value of $2$ for $(0, 0)$. Finally, it is most unlikely that one of you is sick and the other healthy, which has a value of $1$. 
+\end{example}
+
+\subsection{Boltzmann Machines} 
+
+Now that we've learned about graphical models, let's put them to use. We have some unknown joint distribution $\mathbf{x}$, and we want to represent it in a graph such that it is not too computationally hard to calculate probabilities and sample from them, but at the same time not so simple such that it doesn't richly capture a broad family of probability distributions. One architecture is to use \textbf{Markov Random Fields}, which represent these joint distributions with undirected graphs satisfying the Markov properties. 
+
+The Hammersley-Clifford theorem states that the joint PDF of any MRF can be written a a Boltzmann distribution. For now, we will limit outselves to \textbf{parwise MRFs}, which only capture dependencies between cliques of maximum size $2$. For example, a MRF can be represented with the graph $G(V, E)$ below. 
+\begin{center}
+\begin{tikzpicture}[scale=0.8]
+  % Define nodes in a 5x5 grid
+  \foreach \i in {1,...,5} {
+    \foreach \j in {1,...,5} {
+      \node[circle, draw, minimum size=0.6cm] (node\i\j) at (\i, \j) {};
+    }
+  }
+
+  % Connect nodes like an Ising model
+  \foreach \i in {1,...,5} {
+    \foreach \j in {1,...,5} {
+      \pgfmathtruncatemacro{\right}{\i+1}
+      \pgfmathtruncatemacro{\down}{\j-1}
+      \pgfmathtruncatemacro{\up}{\j+1}
+      \pgfmathtruncatemacro{\left}{\i-1}
+      
+      \ifnum \i < 5
+        \draw (node\i\j) -- (node\right\j);
+      \fi
+      
+      \ifnum \j > 1
+        \draw (node\i\j) -- (node\i\down);
+      \fi
+    }
+  }
+\end{tikzpicture}
+\end{center}
+
+
+
+\begin{definition}[Bernoulli Pairwise Markov Random Fields]
+    MRFs with binary variables are sometimes \textbf{Ising models} in statistical mechanics, and \textbf{Boltzmann machines} in machine learning. By Hammersley-Clifford, we don't even need to specify the individual functions over the maximal cliques, and rather we can just specify the energy function $E(\mathbf{x})$ of the Boltzmann distribution that the MRF encodes. We define it to capture the interactions between random variables $x_i$ up to order $2$. 
+\[p_{\boldsymbol{\theta}} (\mathbf{x}) = \frac{1}{Z} \exp \bigg( \sum_{ij \in E} x_i x_j \theta_{ij} + \sum_{i \in V} x_i \theta_i \bigg) \]
+Now let's check its conditional distribution. 
+\begin{align*}
+    p(x_k = 1 \mid \mathbf{x}_{-k}) & = \frac{p(x_k = 1, \mathbf{x}_{-k})}{p(\mathbf{x}_{-k})} \\
+                                    & = \frac{p(x_k = 1, \mathbf{x}_{-k})}{p(x_k = 0, \mathbf{x}_{-k}) + p(x_k = 1, \mathbf{x}_{-k})} \\
+                                    & = \frac{\exp \Big( \sum_{k j \in E} x_j \theta_{kj} + x_k \theta_k \Big)}{\exp(0) + \exp \Big(\sum_{k j \in E} x_j \theta_{kj} + x_k \theta_k \Big)} \\
+                                    & = \sigma \bigg\{ - \theta_k x_k - \sum_{k j \in E} x_j \theta_{k j} \bigg\} 
+\end{align*}
+where the penultimate step comes from evaluating 
+\begin{align*} 
+    p(x_k = 1, \mathbf{x}_{-k}) & = \frac{1}{Z(\boldsymbol{\theta})} \exp \bigg( \sum_{ij \in E, k \neq i, j} x_i x_j \theta_{ij} + \sum_{i j \in E, k = i, j} x_i x_j \theta_{ij} + \sum_{i \in V, i \neq k} x_i \theta_i + x_k \theta_k \bigg) \\
+                                & =\frac{1}{Z(\boldsymbol{\theta})} \exp \bigg( \sum_{ij \in E, k \neq i, j} x_i x_j \theta_{ij} + \sum_{k j \in E} x_j \theta_{kj} + \sum_{i \in V, i \neq k} x_i \theta_i + \theta_k \bigg)  \\ 
+    p(x_k = 0, \mathbf{x}_{-k}) & = \frac{1}{Z(\boldsymbol{\theta})} \exp \bigg( \sum_{ij \in E, k \neq i, j} x_i x_j \theta_{ij} + \sum_{i \in V, i \neq k} x_i \theta_i\bigg)  
+\end{align*}
+and canceling out like terms in the numerator and denominator. This tells us that MRFs are related to logistic function.  
+\end{definition}
+
+We have given our first example of a Boltzmann machine. Let's generalize this a little bit by removing the restriction that there can only be pairwise connections. Then, we can model the second order interactions with the slightly more generalized energy function
+\[E(\mathbf{x}) = -\mathbf{x}^T \mathbf{U} \mathbf{x} - \mathbf{b}^T \mathbf{x}\]
+Now this slightly expands the coverage of probability distributions given our model, and we can see that this allows us to model Gaussian distributions. 
+
+\begin{example}[Gaussian Markov Random Fields] 
+    If we assume that $p_{\boldsymbol{\theta}} ( \mathbf{x})$ folows a multivariate Gaussian distribution, we have 
+\[p(\mathbf{x} \mid \boldsymbol{\mu}, \boldsymbol{\Sigma}) = \frac{1}{Z} \exp \bigg( -\frac{1}{2} (\mathbf{x} - \boldsymbol{\mu})^T \boldsymbol{\Sigma}^{-1} (\mathbf{x} - \boldsymbol{\mu}) \bigg)\]
+Since the Gaussian distribution reprsents at most second-order relationships, it automatically encodes a pairwise MRF. Therefore, we can rewrite 
+\[p(\mathbf{x}) = \frac{1}{Z} \exp \bigg( -\frac{1}{2} \mathbf{x}^T J\mathbf{x} + \mathbf{g}^T \mathbf{x} \bigg)\] 
+where $J = \boldsymbol{\Sigma}^{-1}$ and $\boldsymbol{\mu} = J^{-1} \mathbf{g}$. 
+\end{example}
+
+Let's review what we had so far. There is a random vector $\mathbf{x}$ for which we would like to model the probability distribution of. 
+
+\begin{center}
+\begin{tikzpicture}
+  % Define the nodes
+  \node (x1) at (0,0) {$x_1$};
+  \node (x2) at (2,0) {$x_2$};
+  \node (xD) at (4,0) {$x_D$};
+
+  % Add the "..." text box
+  \node at (3,0) {...};
+  \draw[thick] (x1) circle (0.3);
+  \draw[thick] (x2) circle (0.3);
+  \draw[thick] (xD) circle (0.3);
+\end{tikzpicture}
+\end{center}
+
+What we can do is model the dependencies between these random elements with linear parameters $\mathbf{W}$ and $\mathbf{b}$, which essentially gives us a Markov Random Field.  
+
+However, this is still quite a limited model. For one, due to the linearity of the weight matrix, it always turns out that the probability of $x_k = 1$ is always given by a linear model (logistic regression) from the values of the other units. This family of distributions parameterized by $\boldsymbol{\theta} = \{\mathbf{W}, \mathbf{b}\}$ may not be broad enough to capture the true $p(\mathbf{x})$. Therefore, we can add latent variables that can act similarly to hidden uits in a MLP and model higher-order interactions among the visible units. Just as the addition of hidden units to convert logistic regression into MLP results in the MLP being a universal approximator of functions, a Boltzmann machine with hidden units is not longer limited to modeling linear relationships between variables. Instead, the Boltzmann machine becomes a universal approximator of probability mass functions over discrete random variables. 
+
+\begin{definition}[Boltzmann Machine]
+    The original \textbf{Boltzmann machine} has the energy function 
+\[E(\mathbf{v}, \mathbf{h}) = - \mathbf{v}^T \mathbf{R} \mathbf{v} - \mathbf{v}^T \mathbf{W} \mathbf{h} - \mathbf{h}^T \mathbf{S} \mathbf{h} - \mathbf{b}^T \mathbf{v} - \mathbf{c}^T \mathbf{h} \]
+It can represent the undirected graph that has connections within the $\mathbf{x}$, within the $\mathbf{h}$, and between the $\mathbf{x}$ and $\mathbf{h}$.
+\begin{center} 
+    \includegraphics[scale=0.4]{Images/Boltzmann_lateral.png}
+\end{center}
+Therefore, by adding latent variables and connecting everything together, this gives us a very flexible model that can capture a lot of distribtions.
+\end{definition} 
+
+ \subsubsection{Restricted Boltzmann Machines} 
+
+\begin{definition}[Restricted Boltzmann Machine] 
+    Now, if we put a restriction saying that there cannot be any intra-connections in the $\mathbf{x}$ and $\mathbf{h}$, then we get the \textbf{restricted Boltzmann machine}, which has a slightly more resticted form of the energy function than the general BM. The probability distributions that it can model has a graph that looks like 
+\begin{center}
+    \includegraphics[scale=0.4]{Images/rbm_layer.png}
+\end{center}
+with connections only allowed between $x_i$'s and $h_j$'s, known as a \textbf{bipartite graph}, implying that the maximum clique length is $2$. This model allows the elements of $\mathbf{x}$ to be dependent, but this architecture allows for \textit{conditional independence}, and not just for $\mathbf{x}$ given $\mathbf{h}$, but also $\mathbf{h}$ given $\mathbf{x}$. Therefore, we already have the extremely nice property that 
+\begin{align*} 
+    p(\mathbf{x} \mid \mathbf{h}) & = \prod_{k=1}^{D} p(x_k \mid \mathbf{h}) \\
+    p(\mathbf{h} \mid \mathbf{x}) & = \prod_{j=1}^F p(h_j \mid \mathbf{x}) 
+\end{align*}
+\end{definition}
+
+The fact that we can calculate $p(\mathbf{h} \mid \mathbf{x})$ means that inferring the distribution over the hidden variables is easy. Keep in mind that there are three architectures we've talked about: 
+\begin{enumerate}
+    \item Markov Random Fields, which model just the original $\mathbf{x}$. 
+    \item Restricted Boltzmann machines, which models $\mathbf{x}, \mathbf{h}$ and not allowing intra-connections. 
+    \item Boltzmann machines, which models $\mathbf{x}, \mathbf{h}$. Boltzmann machines without latent variables are just MRFs.  
+\end{enumerate}
+
+\begin{definition}[Bernoulli-Bernoulli RBM]
+    For now, let us assume that we are trying to estimate the distribution of a Bernoulli random vector $\mathbf{x} \in \{0, 1\}^D$ with Bernoulli latent variables $\mathbf{h} \in \{0, 1\}^F$. Then, the energy of the joint configuration is  
+\[E(\mathbf{v}, \mathbf{h}; \boldsymbol{\theta}) = - \sum_{ij} W_{ij} v_i h_j - \sum_i b_i v_i - \sum_j a_j h_j = - \mathbf{v}^T \mathbf{W} \mathbf{h} - \mathbf{b}^T \mathbf{v} - \mathbf{a}^T \mathbf{h}\]
+where $\boldsymbol{\theta} = \{\mathbf{W}, \mathbf{a}, \mathbf{b}\}$ are the model parameters. So we have 
+\begin{align*} 
+    p_{\boldsymbol{\theta}} (\mathbf{v}, \mathbf{h}) & = \frac{1}{Z} \exp \big( -E (\mathbf{v}, \mathbf{h}; \boldsymbol{\theta})\big) = \frac{1}{Z} \prod_{ij} e^{W_ij v_i h_j} \prod_i e^{b_i v_i} \prod_j e^{a_j h_j} \\
+    Z & = \sum_{\mathbf{h}, \mathbf{v}} \exp \big( -E(\mathbf{v}, \mathbf{h}; \boldsymbol{\theta}) \big) 
+\end{align*}
+where we can think of the $\exp(\mathbf{h}^T \mathbf{W} \mathbf{x})$ as encoding the cliques of length $2$ and the others as cliques of length $1$.  
+\end{definition}
+
+Let's get some calculations out of the way. 
+
+\begin{lemma}[Conditional Distributions] 
+For the Bernoulli RBM, we have 
+\begin{align*} 
+    p(h_j = 1 \mid \mathbf{x}) & = \sigma ( b_j + W_{j,:} \mathbf{x}) \\
+    p(x_k = 1 \mid \mathbf{h}) & = \sigma ( c_k + \mathbf{h}^T \mathbf{W}_{:, k})
+\end{align*}
+\end{lemma}
+\begin{proof}
+Just use the definition of conditional probability and substitute the result below in the denominator. The terms will cancel out. 
+\end{proof}
+
+
+\begin{lemma}[Free Energy] 
+    For the Bernoulli RBM, we want to compute the marginal $p(\mathbf{x})$ as
+\begin{align*} 
+    p(\mathbf{x}) & = \frac{\exp(-F(\mathbf{x}))}{Z} \\
+                  & = \frac{1}{Z} \exp \bigg( \mathbf{c}^T \mathbf{x} + \sum_{j=1}^H \log \big( 1 + \exp (b_j + \mathbf{W}_{j, :} \mathbf{x}) \big) \bigg) \\
+                  & = \frac{1}{Z} \exp \bigg( \mathbf{c}^T \mathbf{x} + \sum_{j=1}^H \mathrm{softplus}(b_j + W_{j, :} \mathbf{x} ) \bigg)
+\end{align*}
+where $F$ is called the \textbf{free energy}. Therefore, $p(\mathbf{x})$ is calculated by taking the product of these terms, which is why it's known as a \textbf{product of experts model}. 
+\begin{center}
+    \includegraphics[scale=0.4]{Images/softplus.png} 
+\end{center}
+\end{lemma}
+\begin{proof}
+We have 
+\begin{align*} 
+    p(\mathbf{x}) & = \sum_{\mathbf{h} \in \{0, 1\}^H} \exp \big( \mathbf{h} \mathbf{W} \mathbf{x} + \mathbf{c}^T \mathbf{x} + \mathbf{b}^T \mathbf{h}\big) /Z \\
+                  & = \exp (\mathbf{c}^T \mathbf{x}) \sum_{h_1 = 0, 1} \ldots \sum_{h_H = 0, 1} \exp \bigg( \sum_j h_j \mathbf{W}_{j, :} \mathbf{x} + b_j h_j \bigg) / Z \\
+                  & = \exp (\mathbf{c}^T \mathbf{x}) \bigg( \sum_{h_1 = 0, 1} \exp (h_1 \mathbf{W}_{1, :} \mathbf{x} + b_1 h_1 ) \bigg) \ldots \bigg( \sum_{h_H = 0, 1} \exp (h_H \mathbf{W}_{H, :} \mathbf{x} + b_H h_H) \bigg) / Z \\
+                  & = \exp (\mathbf{c}^T \mathbf{x}) \big( 1 + \exp (b_1 + \mathbf{W}_{1, :} \mathbf{x}) \big) \ldots \big( 1 + \exp (b_H + \mathbf{W}_{H, :} \mathbf{x})\big) / Z \\
+                  & = \exp (\mathbf{c}^T \mathbf{x}) \exp\big\{ \log \big( 1 + \exp (b_1 + \mathbf{W}_{1, :} \mathbf{x}) \big) \big\} \ldots \exp \big\{ \log \big( 1 + \exp (b_H + \mathbf{W}_{H, :} \mathbf{x}) \big) \big\} / Z \\
+                  & = \frac{1}{Z} \exp \bigg( \mathbf{c}^T \mathbf{x} + \sum_{j=1}^H \log \big( 1 + \exp (b_j + \mathbf{W}_{j, :} \mathbf{x}) \big) \bigg) 
+\end{align*} 
+\end{proof}
+
+Now that we've done this, we can finally get to training the model. Now, essentially this is density estimation problem given dataset $\mathcal{D} = \{\mathbf{x}^{(t)}\}$ of iid random variables, we want to maximize the likelihood of $p_{\boldsymbol{\theta}}$, which is really just equivalent to optimizing $E_{\boldsymbol{\theta}}$. So, let's take the average negative log-likelihood and take the derivative of it
+\[\frac{\partial}{\partial \boldsymbol{\theta}} \frac{1}{T} \sum_t - \log p_{\boldsymbol{\theta}} (\mathbf{x}^{(t)}) = \frac{1}{T} \sum_t - \log{p_{\boldsymbol{\theta}} (\mathbf{x}^{(t)})}\]
+There's a lot of computation to do here, so let's focus on one sample $\mathbf{x}^{(t)}$ and claim that the gradient ultimately ends up as the following. 
+
+\begin{theorem}
+It turns out that
+\begin{align*} 
+    \frac{\partial}{\partial \boldsymbol{\theta}} - \log p(\mathbf{x}^{(t)}) & = \sum_{\mathbf{h}}  p(\mathbf{h} \mid \mathbf{x}^{(t)}) \, \frac{ \partial E(\mathbf{x}^{(t)}, \mathbf{h})}{\partial \boldsymbol{\theta}} - \sum_{\mathbf{x}, \mathbf{h}} p(\mathbf{x}, \mathbf{h}) \, \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}} \\
+                                                                             & = \mathbb{E}_{\mathbf{h}} \bigg[ \frac{\partial E( \mathbf{x}^{(t)}, \mathbf{h})}{\partial \boldsymbol{\theta}} \; \bigg| \; \mathbf{x}^{(t)} \bigg] - \mathbb{E}_{\mathbf{x}, \mathbf{h}} \bigg[ \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}} \bigg]  
+\end{align*}
+The derivative of $E$ is easy since we already know the bilinear form by construction. In the left term, we are taking the expectation w.r.t. $p(\mathbf{h} \mid \mathbf{x}^{(t)})$, which we can factorize out due to conditional independence, so this is easy. However, the right term requires us to integrate over the joint $p(\mathbf{x}, \mathbf{h})$, which is intractable, and so we just approximate this with a Monte Carlo sample. 
+\end{theorem}
+\begin{proof}
+As a lemma, we first see that $\ln(Z) = \ln \big( \sum_{\mathbf{x}, \mathbf{h}} \exp \big( - E(\mathbf{x}, \mathbf{h}) \big) \big)$, and so
+\[\frac{\partial \ln(Z)}{\partial \boldsymbol{\theta}} = -\frac{1}{Z} \sum_{\mathbf{x}, \mathbf{h}} \exp \big(-E(\mathbf{x}, \mathbf{h})\big) \, \frac{E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}} = - \sum_{\mathbf{x}, \mathbf{h}} p(\mathbf{x}, \mathbf{h}) \, \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}}\]
+We have 
+\begin{align*} 
+    -\ln p(\mathbf{x}) & = - \ln \bigg\{ \sum_{\mathbf{h}} \exp \big( -E(\mathbf{x}, \mathbf{h}) \big) \bigg\} + \ln(Z)
+\end{align*}
+and so we can apply chain rule and multiply both numerator and denominator by $1/Z$ to get 
+\begin{align*} 
+    -\frac{\partial}{\partial \boldsymbol{\theta}} \ln p(\mathbf{x}) & = \frac{\sum_{\mathbf{h}} \exp \big( -E(\mathbf{x}, \mathbf{h}) \big) \, \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}} / Z}{\sum_{\mathbf{h}} \exp \big( -E (\mathbf{x}, \mathbf{h}) \big) / Z} + \frac{\partial \ln(Z)}{\partial \boldsymbol{\theta}} \\
+                                                                     & = \frac{\sum_{\mathbf{h}} p(\mathbf{x}, \mathbf{h}) \, \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}}}{p(\mathbf{x})} + \frac{\partial \ln(Z)}{\partial \boldsymbol{\theta}} \\
+                                                                     & = \sum_{\mathbf{h}} p(\mathbf{h} \mid \mathbf{x}) \, \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}} - \sum_{\mathbf{x}, \mathbf{h}} p(\mathbf{x}, \mathbf{h}) \, \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}} 
+\end{align*}
+\end{proof} 
+
+So to calculate the second expectation, we can use a Gibbs sampler to do some numerical integration, but before we do that, let's just find the partial of $E$, which should be simple. 
+\[\frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial W_{j k}} = \frac{\partial}{\partial W_{j k}} \bigg( - \sum_{j k} W_{j k} h_j x_k - \sum_k c_k x_k - \sum_j b_j h_j \bigg) = h_j x_k\]
+and so 
+\[\mathbb{E}_{\mathbf{h}} \bigg[ \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial W_{j k}} \bigg| \mathbf{x} \bigg] = \mathbb{E}_{\mathbf{h}} [ -h_j x_k \mid \mathbf{x}] = \sum_{h_j = 0, 1} - h_j x_k \, p(h_j \mid \mathbf{x}) = - x_k p(h_j = 1 \mid \mathbf{x})\]
+where the final term is a sigmoid. Hence, we have 
+\[\mathbb{E}_{\mathbf{h}} [ \nabla_{\mathbf{W}} E(\mathbf{w}, \mathbf{h}) \mid \mathbf{x}] = - \mathbf{h}(\mathbf{x}) \mathbf{x}^T, \text{ where } \mathbf{h}(\mathbf{x}) \coloneqq \begin{pmatrix} p(h_1 = 1 \mid \mathbf{x}) \\ \vdots \\ p(h_H = 1 \mid \mathbf{x}) \end{pmatrix} = \sigma(\mathbf{b} + \mathbf{W} \mathbf{x}) \]
+Now we can substitute what we solved into the second expectation, but again this is infeasible to calculate 
+\[\mathbb{E}_{\mathbf{x}, \mathbf{h}} \bigg[ \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial\boldsymbol{\theta}}\bigg] = \sum_{\mathbf{x}, \mathbf{h}} \mathbf{h}(\mathbf{x}) \mathbf{x}^T p(\mathbf{x}, \mathbf{h}) \]
+The way we do this is through \textbf{contrastive divergence}, which estimates the expectation through Gibbs sampling. Since we know $p(\mathbf{x}\mid \mathbf{h})$ and $p(\mathbf{h} \mid \mathbf{x})$ easily, we can start sampling the chain for some predetermined $K$ steps (actually $2K$ since we are sampling the $x$ and $h$ back and forth), and whatever $\bar{\mathbf{x}}$ you sample at the end is your estimate. So, once you should update your gradient, you start at the sample $\mathbf{x}^{(t)}$, run Gibbs for $k$ steps, and use that to estimate your gradient, and then move onto the next sample. We can tweak this procedure, such as \textbf{persistent CD}, where instead of initializing the chain to $\mathbf{x}^{(t)}$, we can initialize the chain to the negative sample of the last iteration. 
+\begin{center}
+    \includegraphics[scale=0.4]{Images/contrastive_divergence.png}
+\end{center}
+Therefore, for updating $\mathbf{W}$, we get the following 
+\begin{align*} 
+    \mathbf{W} & = \mathbf{W} - \alpha \big( \nabla_{\mathbf{W}}(- \log p(\mathbf{x}^{(t)})) \big) \\
+               & = \mathbf{W} - \alpha \big( \mathbb{E}_{\mathbf{h}} [ \nabla_{\mathbf{W}} E(\mathbf{x}^{(t)}, \mathbf{h}) \mid \mathbf{x}^{(t)} ] - \mathbb{E}_{\mathbf{x}, \mathbf{h}} [\nabla_{\mathbf{W}} E(\mathbf{x}, \mathbf{h}) ]\big) \\
+               & = \mathbf{W} - \alpha \big( \mathbb{E}_{\mathbf{h}} [ \nabla_{\mathbf{W}} E(\mathbf{x}^{(t)}, \mathbf{h}) \mid \mathbf{x}^{(t)} ] - \mathbb{E}_{\mathbf{h}} [\nabla_{\mathbf{W}} E(\bar{\mathbf{x}}, \mathbf{h}) \mid \bar{\mathbf{x}} ]\big) \\
+               & = \mathbf{W} + \alpha \big( \mathbf{h}(\mathbf{x}^{(t)}) (\mathbf{x}^{(t)})^T               - \mathbf{h}(\bar{\mathbf{x}}) \bar{\mathbf{x}}^T \big)
+\end{align*}
+and doing this over all three parameters leads to 
+\begin{align*} 
+    \mathbf{W} & \leftarrow \mathbf{W} + \alpha \big( \mathbf{h} (\mathbf{x}^{(t)}) (\mathbf{x}^{(t)})^T - \mathbf{h}(\bar{\mathbf{x}}) \bar{\mathbf{x}}^T \big) \\
+    \mathbf{b} & \leftarrow \mathbf{b} + \alpha \big( \mathbf{h}(\mathbf{x}^{(t)}) - \mathbf{h}(\bar{\mathbf{x}}) \big) \\
+\mathbf{c} & = \leftarrow \mathbf{c} + \alpha \big( \mathbf{x}^{(t)} - \hat{\mathbf{x}} \big) 
+\end{align*}
+Therefore, contrastive divergence with $k$ iterations gives us the \textbf{CD-k algorithm}. In general, the bigger $k$ is, the less biased the estimate of the gradient will be, and in practice $k=1$ works well for learning good features. The reason this is called contrastive divergence is that in the gradient update step, we have a positive sample and a negative sample that both approximates the expected gradient, which constrasts to each other. 
+
+\subsubsection{Gaussian Bernoulli RBMs}
+
+\begin{definition}[Gaussian-Bernoulli RBM] 
+If we assume that $\mathbf{v}$ is a real-valued (unbounded) input that follows a Gaussian distribution (with $\mathbf{h}$ still Bernoulli), then we can add a quadratic term to the energy function 
+\[E(\mathbf{x}, \mathbf{h}) = - \mathbf{h}^T \mathbf{W} \mathbf{x} - \mathbf{c}^T \mathbf{x} - \mathbf{b}^T \mathbf{h} - \frac{1}{2} \mathbf{x}^T \mathbf{x}\]
+In this case, $p(\mathbf{x} \mid \mathbf{h})$ becomes a Gaussian distribution $N(\mathbf{c} + \mathbf{W}^T \mathbf{h}, \mathbf{I})$. The training process is slightly harder for this, so what we usually do is normalize the training set by subtracting the mean off each input and dividing the input by the training set standard deviation to get  
+\[E(\mathbf{v}, \mathbf{h}; \boldsymbol{\theta}) = \sum_i \frac{(v_i - b_i)^2}{2 \sigma_i^2} - \sum_{ij} W_{ij} h_j \frac{v_i}{\sigma_i} - \sum_j a_j h_j\]
+You should also use a smaller learning rate $\alpha$ compared to Bernoulli RBM. 
+\end{definition} 
+
+
+\section{Variational Autoencoders}
+
+Variational autoencoders are very good at generating fake data/images. The general construction of VAEs, which bridges graphical models and deep learning, is based on generative probability models and does not really need to be implemented using neural nets. VAEs based on deep learning were proposed in 2013. 
+
+We start off by stating a fundamental problem with autoencoders. The latent space where the encoded vectors lie may not be contiguous or allow easy interpretation. For example, training an autoencoderon MNIST and then visualizing the encodings from a 2D latent space shows the formation of distinct clusters, but there are huge empty spaces (e.g. between $1$ and $7$) where the labeling may be ambiguous and not allow us to interpolate effectively. 
+\begin{center} 
+    \includegraphics[scale=0.4]{Images/mnist_autoencoder.png}
+\end{center}
+Ideally, we want the encodings to be close to being contiguous while still being distinct. This allows smooth interpolation and enables construction of \textit{new} samples. If the space has discontinuities and you sample a variation from there, the decoder will simply generate an unrealistic output. 
+\begin{center}
+    \includegraphics[scale=0.3]{Images/ciontiguous_encoding.png}
+\end{center}
+
+The general idea here is to replace all the ``point-estimates" into distributions in a regular autoencoder. In a way, we have done this already in softmax classification. In a classification neural network, it takes in an input $\mathbf{x}$ and outputs a softmax vector $NN(\mathbf{x}) =(p_1, \ldots, p_K)^T$. This basically means that $NN(\mathbf{x}) = \boldsymbol{\theta}$ parameterizes the conditional distribution (in this case, multinomial) of $\mathbf{y}$ given $\mathbf{x}$. 
+\[Y \mid X = x \sim \mathrm{Multinomial}(\boldsymbol{\theta} = NN(\mathbf{x}))\]
+This is a much more efficient way to store conditional distributions than a $\dim(X) (K - 1)$ lookup table. 
+
+\subsubsection{Deep Latent Variable Models}
+
+Latent variable models that uses some deep learning architecture is pretty much what DLVMs are. This is essentially what we want to extend. We take a latent model $(\mathbf{x}, \mathbf{z})$ and want to approximate $p(\mathbf{x}, \mathbf{z})$. There are essentially 2 things we're interested in: 
+\begin{enumerate}
+    \item \textbf{Generation}: Computing $p(\mathbf{x} \mid \mathbf{z})$. 
+    \item \textbf{Inference}: Computing $p(\mathbf{z} \mid \mathbf{x})$. 
+\end{enumerate}
+Given a latent sample $\mathbf{z}$ we want to find the conditional probability distribution of $\mathbf{x}$ given $\mathbf{z}$. We can also assume a simple prior $p(\mathbf{z})$ and calculate 
+\[p(\mathbf{x}, \mathbf{z}) = p(\mathbf{x} \mid \mathbf{z}) \, p(\mathbf{z}) \]
+That is, we generate a latent variable from $p(\mathbf{z})$ and want to use this value to get the parameters of $x \sim p_{\boldsymbol{\theta}} (\mathbf{x} \mid \mathbf{z})$ with some decoder neural network $D_{\boldsymbol{\theta}}$ that parameterizes the distribution. Clearly put, $D_{\boldsymbol{\theta}} (\mathbf{z})$ are the parameters of $\mathbf{X} \mid \mathbf{Z} = \mathbf{z}$. 
+
+\begin{example}[Bernoulli Random Vector] 
+    We would like to approximate a $D$-dimensional Bernoulli vector $\mathbf{x}$ with a latent variable $\mathbf{z} \in \mathbb{R}^K$. We will assume a prior $p(\mathbf{z}) \sim N(\mathbf{0}, \mathbf{I})$, and let us have a neural net $D_{\boldsymbol{\theta}}$ that parameterizes the random vector $\mathbf{x}$, where $x_i \sim \mathrm{Bernoulli}(p_i)$ for $p_i$.  
+\end{example}
+
+Let's go back to the fundamentals. We want to approximate some distribution $p(\mathbf{x})$, which is very complex. Just like how we did so far, we introduce a latent variable $\mathbf{z}$ and can construct a directed graphical model that represents the joint probability distribution of $\mathbf{x}$ and $\mathbf{z}$ with $\boldsymbol{\theta}$. Therefore, $\mathbf{z}$ is dependent on $\boldsymbol{\theta}$ and $\mathbf{x}$ is dependent on both $\mathbf{z}$ and $\boldsymbol{\theta}$. 
+\begin{center}
+
+\end{center}
+We are interested in a few tasks: 
+\begin{enumerate}
+    \item \textbf{Generation}: Given a latent sample $\mathbf{z}$, we want to find the corresponding observable $\mathbf{x}$: $p_{\boldsymbol{\theta}} (\mathbf{x} \mid \mathbf{z})$. This turns out to be highly nonlinear, but if needed, we can generate this by taking the value of $\mathbf{z}$, inputting it in a neural network, and using the outputs $NN(\mathbf{z})$ to parameterize the conditional distribution of $\mathbf{x}$. 
+
+    \item \textbf{Inference}: Given an observed sample $\mathbf{x}$, we want to find its corresponding distribution in $\mathbf{z}$: $p_{\boldsymbol{\theta}} (\mathbf{z} \mid \mathbf{x})$. This allows us to represent the distribution of $\mathbf{x}$ in a lower-dimensional latent space. This also turns out to be very hard, since by Bayes rule, we have 
+    \[p(\mathbf{z} \mid \mathbf{x}) = \frac{p(\mathbf{x} \mid \mathbf{z}) \, p(\mathbf{z})}{p(\mathbf{x})}\]
+    This is also intractable since the denominator is complex, and MCMC sampling is too slow since $p(\mathbf{x} \mid \mathbf{z})$ is highly nonlinear and complex. 
+\end{enumerate}
+
+
+The VAE can be seen as an extension of an AE. First
+
+\subsection{Conditional VAEs}
+
+\subsection{Importance Weighted Autoencoders}
+
+
+\section{Generative Adversarial Networks}
+
+
 
 \section{Recurrent Neural Networks}
+
+\subsection{Tmp} 
+
+When we model physical systems like a pendulum, this is some nonlinear system of the form
+\[s^{(t)} = f(s^{(t - 1)}, \theta)\]
+which implies that $s^{(t+1)} = f(f(s^{(t-1)}, \theta), \theta)$, which can be represented as the ``unfolding" of a graph. When we describe a system, it is often dependent on inputs as well as the current state. The state update can include information from both the current state and the input, making our recursive function like 
+\[h^{(t)} T= f(h^{(t-1)}, x^{(t)}; \, \theta)\] 
+Nearly any recursive function could b eused here, so we need to determine useful (and learnable) functions. A simple neural network is to relate the state information to an output (i.e. make a prediction). Hence the function relationships are determined by the given parameters $\theta$.
+
+Training a RNN is a pain in the neck. Let us have a chosen parameterization: 
+\begin{align*} 
+    h^{(t)} & = \tanh(b + W h^{(t-1)} U x^{(t)}) \\
+    o^{(t)} & = c + V h^{(t)} \\ 
+    \hat{y}^{(t)} & = \mathrm{softmax}(o^{(t)}) \\
+    L^{(t)} & = loss(y^{(t)}, \hat{y}^{(t)})
+\end{align*} 
+There are a lot of problems: 
+\begin{enumerate}
+    \item If we extend the neural net so that the $h^{(t)}$ is a function of $o^{(t-1)}$, then this becomes a lot harder to train (linking only through predictions slidn (linking only through predictions slide) 
+    \item Taking gradients through an infinite time is extremely hard unless the problem was hand-crafted, so we make a justifiable assumption: we compute gradients on a finite length network (finite memory). The more you cut the dependence in time, the model becomes less robust.  
+\end{enumerate}
+
+
+\subsection{Perm}
 
 Let's focus on what is lacking in the vanilla feedforward neural net architecture. In a vanilla feedforward neural net architecture, we had a one to one map, where we take an input of fixed size and we map it to an output of fixed size. Perhaps we would want a one-to-many model, which takes in an image for example and outputs a variable-length description of the image. Or a many-to-many (e.g. machine translation from a sequence of words to a sequence of words) or many-to-one. Just as a convolutional neural network is specialized for processing a grid a values such as an image, a recurrent neural network is specialized for processing a sequence of values (e.g. audio, video, text, speech, time series). It is not limited to a fixed size of inputs and outputs. 
 \begin{center}
