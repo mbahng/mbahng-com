@@ -1,0 +1,463 @@
+\documentclass{article}
+\usepackage[letterpaper, top=1in, bottom=1in, left=1in, right=1in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{amsmath, amssymb, amsthm, mathrsfs, mathtools, centernot, hyperref, fancyhdr, lastpage}
+\usepackage{graphicx} 
+\usepackage{caption, subcaption}
+\usepackage{enumitem}
+\usepackage{fancyvrb,newverbs,xcolor}
+\definecolor{cverbbg}{gray}{0.93}
+
+\renewcommand{\thispagestyle}[1]{}
+
+\newenvironment{cverbatim}
+ {\SaveVerbatim{cverb}}
+ {\endSaveVerbatim
+  \flushleft\fboxrule=0pt\fboxsep=.5em
+  \colorbox{cverbbg}{%
+    \makebox[\dimexpr\linewidth-2\fboxsep][l]{\BUseVerbatim{cverb}}%
+  }
+  \endflushleft
+}
+
+
+\begin{document}
+\pagestyle{fancy}
+
+\lhead{Supervised Learning}
+\chead{Muchang Bahng}
+\rhead{\date{Summer 2023}}
+\cfoot{\thepage / \pageref{LastPage}}
+
+
+\title{Linux}
+\author{Muchang Bahng}
+\date{January 2024}
+
+\maketitle
+
+\tableofcontents
+
+\pagebreak 
+
+The following set of notes describes the everyday use of a Linux operating system. I refer to it for mainly my personal desktop, but it is also useful for working in computing clusters. Some of the commands are specific to the Arch Linux distribution (since that is what I work with), but I occasionally include those from Ubuntu and Red Hat, since I run into these distributions often in servers. 
+
+I try to organize this in a way so that one who wishes to get started in Linux can go through these notes chronologically. For now, we will assume that you have a Linux distribution installed. There are many resources beyond this book that helps you do that. 
+
+\section{Introduction}
+
+  \subsection{Vim and Neovim}
+
+    Vim is guaranteed to be on every Linux system, so there is no need to install it. However, you may have to install Neovim (which is just a command away). Vim can be a really big pain in the ass to learn, but I got into it when I was watching some video streams from a senior software engineer at Netflix called The Primeagen. He moved around the code like I've never seen, and I was pretty much at the limit of my typing speed, so I decided to give it a try during the 2023 fall semester. My productivity plummetted during the first 2 days (which was quite scary given that I had homework due), but within a few weeks I was faster than before, so if you have the patience, I would recommend learning it. Here is a summary of reasons why I would recommend learning Vim: 
+    
+    \begin{enumerate}
+      \item It pushes you to know the ins and outs of your editor. As a mechanic with his tools, a programmer should know exactly how to configure their editor.  
+      \item The plugin ecosystem is much more diverse than other editors such as VSCode. You can find plugins/extensions for everything. Here is a summmary of them [here](https://github.com/rockerBOO/awesome-neovim\#neovim-lua-development). 
+      \item You're faster. If you're going to be coding for the next 5 years, then why no t spend a month to master something that will make you faster? You'll increase total productivity. 
+      \item Computing clusters and servers will be much easier to navigate since they all run Linux with Vim. 
+      \item Vim is lightweight, and you don't have to open up VSCode every time you want to edit a configuration file.  
+    \end{enumerate}
+  
+    \subsubsection{Vim vs Neovim}
+
+      Experience wise, Vim and Neovim are very similar, and if you configure things rihght, you may not even be able to tell the difference. But there are 3 differences that I want to mention: 
+      
+      \begin{enumerate}
+        \item Neovim can be configured in Lua, which is much cleaner than Vimscript. 
+        \item Neovim provides mouse control right out of the box, which is convenient for me at times and can be easier to transition into, while Vim does not provide any mouse support. 
+        \item There are some plugins that are provided in Neovim that are not in Vim. 
+      \end{enumerate}
+
+      Either way, the configuration is essentially the same. At startup, the text editor will parse some predetermined configuration file and load those settings. 
+
+    \subsubsection{Vim Configuration File}
+
+      In Vim, your configuration files are located in \texttt{~/.vimrc} and plugins are located in \texttt{~/.vim/}. In here, you can put in whatever options, keymaps, and plugins you want. All the configuration is written in VimScript. 
+
+      \begin{cverbatim} 
+        # options 
+        filetype plugin indent on 
+        syntax on 
+        set background=dark
+        set expandtab ts=2 sw=2 ai
+        set nu
+        set linebreak 
+        set relativenumber        
+        
+        # keymaps
+        inoremap <C-j> <esc>dvbi
+        inoremap jk <esc>
+        nnoremap <C-h> ge
+        nnoremap <C-l> w 
+      \end{cverbatim}
+        
+    \subsubsection{Neovim Configuration File}
+
+      In Neovim, I organize it using Lua. It essentially looks for the \texttt{~/.config/nvim/init.lua} file and loads the options from there. We also have the option to import other Lua modules for better file structure with the \texttt{require} keyword. The tree structure of this configuration file should be the following below. The extra \texttt{user} director layer is necessary for isolating configuration files on multiple user environments.  
+      
+      \begin{cverbatim}
+        ... ftplugin
+        .   ... cpp.lua
+        .   ... html.lua
+        ... init.lua
+        ... LICENSE
+        ... lua
+        .   ... user
+        .       ... options.lua
+        .       ... keymaps.lua
+        .       ... plugins.lua
+        .       ... telescope.lua
+        .       ... toggleterm.lua
+        ... plugin
+            ... packer_compiled.lua
+      \end{cverbatim}
+
+      The init file is the ``main file'' which is parsed first. I generally don't put any explicit options in this file and reserve it only for require statements. It points to the following (group of) files: 
+      \begin{enumerate}
+        \item \textbf{options.lua}: This is where I store all my options. 
+        \item \textbf{keymaps.lua}: All keymaps. 
+        \item \textbf{plugins.lua}: First contains a script to automatically install packer if it is not there, and then contains a list of plugins to download. 
+        \item \textbf{Plugin Files}: Individual configuration files for each plugin (e.g. if I install a colorscheme plugin, I should choose which specific colorscheme I want from that plugin). 
+        \item \textbf{Filetype Configuration Files}: Options/keymaps/plugins to load for a specific filetype. This helps increase convenience and speed since I won't need plugins like VimTex if I am working in JavaScript. 
+      \end{enumerate}
+
+      Once you have your basic options and keymaps done, you'll be spending most of your time experimenting with plugins. It is worth to mention some good ones that I use. 
+      \begin{enumerate}
+        \item \textbf{Packer} as the essential package manager.  
+        \item \textbf{Plenary} 
+        \item \textbf{Telescope} for quick search and retrieval of files.  
+        \item \textbf{Indent-blankline} for folding. 
+        \item \textbf{Neoformat} for automatic indent format. 
+        \item \textbf{Autopairs} and \textbf{autotag} to automatically close quotation marks and parantheses. 
+        \item \textbf{Undotree} to generate and navigate undo history. 
+        \item \textbf{Vimtex} for compilation of LaTeX documents. 
+        \item \textbf{Onedark} and \textbf{Oceanic Next} for color schemes. 
+        \item \textbf{Vim-Startify} for nice looking neovim startup. 
+        \item \textbf{Comment} for commenting visual blocks of code. 
+      \end{enumerate}
+
+      It is also worthwhile to see how they are actually loaded in the backend. Each plugin is simply a github repo that has been cloned into \texttt{~/.local/share/nvim/site/pack/packer/}, which contains two directories. The packages in \texttt{start/} are loaded up every time Neovim starts, and those in \texttt{opt/} are packages that are loaded up when a command is called in a certain file (known as lazy loading). Therefore, if you have any problems with Neovim, you should probably look into these folders (and possibly delete them and reinstall them using Packer if needed).
+
+    \subsubsection{Troubleshooting}
+
+      A good test to run is \texttt{:checkhealth}, which checks for any errors or warnings in your Neovim configuration. You should aim to have every (non-optional) warning cleared, which usually involves having to install some package, making it executable and/or adding to \texttt{\$PATH}. 
+
+      If you are getting plugin errors, you can also manually delete the plugin directory in `pack/packer` and run `PackerInstall` to re-pull the repos. This may help. 
+
+  \subsection{Distributions and Package Managers}
+    
+    Linux comes in many flavors of distributions. Most beginners look at screenshots of these distributions on the internet and judge them based on their aesthetics (e.g. I like how Kali Linux looks so I'll go with that one). A common feature of all Linux distributions is that they provide the user the power to customize their system however they want, so you can essentially make every linuxdistribution look like any other. So what are some things you should consider when choosing a distribution? 
+  
+    \begin{enumerate}
+      \item First is the popularity and how well it is supported. This includes the number of people who use the distribution (e.g. the Ubuntu StackExchange is a very large community) and how good the documentation is overall (e.g. the ArchLinux wiki is very well documented). 
+      \item Each linux distribution essentially consists of a kernel and package manager. The architecture, design, and the update scheme of the kernel may be an interest to many linux users.  
+      \item Every distribution has its own native package manager, and the availability of certain necessary packages, the ease of installation, and the updating schemes is also something to consider.  
+      \item The ideals of the respective communities. The community behind each distribution has a certain set of ideals that they lean more towards. For example, the Ubuntu community likes having programs that are right out of the box, with good GUI support and is more beginner-friendly while Arch has more of a minimal and extremely customizable nature to it with its software being much more CLI dependent. 
+    \end{enumerate}
+
+    Let's begin with the package managers. Every application on your system (Firefox, Spotify, pdf readers, VSCode, etc.) is a package, and manually downloading and managing each one is impossible to do. Therefore, each distribution has its own native package manager that automatically takes care of downloading, installing, removing, checking dependency requirements of each package. In order to download a package, a package manager should also know where it is downloading \textit{from}. Essentially, a package manager itself can be downloaded with other package managers, so package managers are packages as well. 
+    
+    \begin{enumerate}
+      \item \textbf{apt} : The advanced packaging tool is the native manager for Ubuntu distributions. 
+      \item \textbf{pacman} : Native package manager for Arch Linux. 
+      \item \textbf{yay} : The package manager for software in the \textbf{Arch User Repository}. 
+      \item \textbf{snap} : 
+      \item \textbf{flatpak} : 
+      \item \textbf{dpkg} : Package manager for Debian based distributions. 
+    \end{enumerate}
+
+    Chances are if you are using one distribution, you would only have to work with a small subset of these package managers. Each package manager has one or more files in the computer that specify a list of \textbf{repositories}. 
+
+    \subsubsection{Pacman}
+
+      For example, the configuration file for pacman is located at \texttt{/etc/pacman.conf}. In the options section, I can configure stuff like text color, enabling/disabling parallel downloads, choosing specific packages to ignore upgrading, etc. Then, we can specify the servers that we should download from. In the text below, the server variable defines which server we should look at first, and then the Include variable stores the location of the file \texttt{mirrorlist} that defines a list of other servers that we should download from. 
+      
+      \begin{figure}
+        \begin{cverbatim} 
+          # The following paths are commented out with their default values listed.
+          # If you wish to use different paths, uncomment and update the paths.
+          #RootDir     = /
+          #DBPath      = /var/lib/pacman/
+          #CacheDir    = /var/cache/pacman/pkg/
+          #LogFile     = /var/log/pacman.log
+          #GPGDir      = /etc/pacman.d/gnupg/
+          #HookDir     = /etc/pacman.d/hooks/
+          HoldPkg     = pacman glibc
+          #XferCommand = /usr/bin/curl -L -C - -f -o %o %u
+          #XferCommand = /usr/bin/wget --passive-ftp -c -O %o %u
+          #CleanMethod = KeepInstalled
+          Architecture = auto
+
+          # Pacman won't upgrade packages listed in IgnorePkg and members of IgnoreGroup
+          #IgnorePkg   =
+          #IgnoreGroup =
+
+          #NoUpgrade   =
+          #NoExtract   =
+
+          # Misc options
+          #UseSyslog
+          #Color
+          #NoProgressBar
+          CheckSpace
+          #VerbosePkgLists
+          ParallelDownloads = 5
+          ILoveCandy
+
+        \end{cverbatim}
+        \caption{Subset of contents of the \texttt{/etc/pacman.conf} file} \label{fig:pacman.conf}
+      \end{figure}
+      
+      The mirrorlist file stores a list of URLs. Each URL is a \textbf{mirror}, which is a server that contains a physical replica of all the packages that are available to you via \texttt{pacman} (hence the name mirror). You can literally type in the links provided in Figure \ref{fig:mirrorlist} (replacing \texttt{\$repo} with \texttt{core} and \texttt{\$arch} with \texttt{x86\_64}). It contains a tarball of each package ready to be downloaded. Some repos might contain more packages than others, some might have packages that only they supply that others don’t, but if you can install the piece of software via your package manager then one of your configured repos is declaring they have it available and therefore should have the file on hand to give to you if asked for it. A list of all available mirrors are available \href{https://archlinux.org/mirrorlist/all/https/}{here} (this only uses HTTPS, but HTTP mirrors are also available).  
+
+      \begin{figure}
+        \begin{cverbatim}
+          Server = https://archlinux.mailtunnel.eu/$repo/os/$arch
+          Server = https://mirror.cyberbits.eu/archlinux/$repo/os/$arch
+          Server = https://mirror.theo546.fr/archlinux/$repo/os/$arch
+          Server = https://mirror.sunred.org/archlinux/$repo/os/$arch
+          Server = https://mirror.f4st.host/archlinux/$repo/os/$arch
+          Server = https://md.mirrors.hacktegic.com/archlinux/$repo/os/$arch
+          Server = https://mirrors.neusoft.edu.cn/archlinux/$repo/os/$arch
+          Server = https://mirror.moson.org/arch/$repo/os/$arch
+          Server = https://archlinux.thaller.ws/$repo/os/$arch
+        \end{cverbatim}
+        \caption{Contents of the \texttt{/etc/pacman.d/mirrorlist} file}\label{fig:mirrorlist}
+      \end{figure}
+      
+      The mirrors that you download from should be trustworthy and fast. The speed is mainly related to how close you are to that mirror geographically, so if you are moving to another country you should probably update this mirrorlist for faster download speeds. There is a default mirrorlist file that is generated, but you can download and use the \textbf{reflector} package to update it.  
+
+      Here are some common commands: 
+      \begin{enumerate}
+        \item Install a package: \texttt{sudo pacman -S pkg1} (\texttt{-s} stands for synchronize)
+
+        \item Remove a package: \texttt{sudo pacman -R pkg}
+        \begin{itemize}
+          \item remove dependencies also: \texttt{-s} (recursive)
+          \item also remove configuration files: \texttt{-n} (no save)
+          \item also removes children packages: \texttt{-c} (cascade)
+        \end{itemize}
+
+        \item Update all packages: \texttt{sudo pacman -Syu}
+        \begin{itemize}
+          \item synchronize: \texttt{-S}
+          \item refresh package databases: \texttt{-y} (completely refresh: \texttt{-yy})
+          \item system upgrade: \texttt{-u}
+        \end{itemize}
+
+        \item List installed packages: \texttt{pacman -Q}
+        \begin{itemize}
+          \item List detailed info about a package: \texttt{pacman -Qi pkg}
+          \item List all files provided by a package: \texttt{pacman -Ql pkg}
+          \item List all orphaned packages: \texttt{pacman -Qdt}
+          \item List all packages that have updates available: \texttt{pacman -Qu}
+          \item List all explicitly installed packages: \texttt{pacman -Qet}
+          \item Display the dependency tree of a package: \texttt{pactree pkg} (from the \texttt{pacman-contrib} package) 
+          \item List last 20 installed packages: 
+          \begin{cverbatim}
+            expac --timefmt='%Y-%m-%d %T' '%l\t%n' | sort | tail -n 20
+          \end{cverbatim}
+        \end{itemize}
+
+        \item To check size of current packages and dependencies, download \texttt{expac} and run \texttt{expac -H M '\%m \\t\%n' | sort -h} 
+
+        \item The package cache stored in \texttt{/var/cache/pacman/pkg/} keeps old or uninstalled versions of packages automatically. 
+        \begin{itemize}
+          \item We can delete all cached versions of installed and uninstalled packages, except for the most recent 3, by running \texttt{paccache -r} (provided by the \texttt{pacman-contrib} package). 
+          \item To remove all cached packages not currently installed, run \texttt{pacman -Sc}
+          \item To remove all cached aggressively, run \texttt{pacman -Scc}
+        \end{itemize} 
+      \end{enumerate}
+
+    \subsubsection{Apt}  
+  
+  \subsection{Display Servers}
+
+    X11, Xorg, Wayland.
+
+  \subsection{Windows Managers and Desktop Environments}
+
+  These days, the terms window managers (WMs) and Desktop Environments (DEs) are used interchangeably, but they mean slightly different things. A window manager is the display software that determines how the pixels for each window overlaps with other and their movement. This is generally divided into two paradigms with the most familiar being \textbf{floating WMs} and the other being \textbf{tiling WMs}. Even before I knew about tiling WMs, I found myself manually tiling windows on floating WMs, so the move to tiling WMs was a no-brainer. 
+  
+  Some DEs and WMs are: 
+  \begin{enumerate}
+    \item GNOME 
+    \item KDE Plasma
+    \item Qtile
+  \end{enumerate}
+
+  \subsection{File Tree of Linux Systems}
+
+    The root director contains the following directories. Let's briefly go over what each of them do: 
+    \begin{enumerate}
+      \item \textbf{bin}: Contains all the binaries (i.e. executables) and is usually included in the PATH environment variable. Elementary commands like \texttt{ls} or \texttt{cd} reside in this directory. If you pay attention, you'll see that \textbf{/bin} is a symlink to \textbf{/usr/bin}. What about \textbf{/usr/local/bin}? 
+      \item \textbf{sbin}: Also a symlink to \textbf{/usr/bin}.   
+      \item \textbf{tmp}: A temporary folder for storing caches, local configurations, and a place to download packages to build and install. 
+      \item \textbf{boot}: Booting files. 
+      \item \textbf{home}: Contains all users. 
+    \end{enumerate}
+  
+  \subsection{Shells and Terminals}
+
+    Beginners may think of the shell and the terminal to be the same thing, but they are different. The \textbf{shell} is a command line interpreter, a layer that sits on top of the kernel in which the user can interact with. It is essentially the only API to the kernel where the user can input commands and processes them. The \textbf{terminal emulator} is a wrapper program that runs a shell and allows us to access the API. It may be useful to think of the shell as like a programming language and the terminal as a text editor like VSCode. 
+
+    The three most common shells are the following: 
+    \begin{enumerate}
+      \item \textbf{Bash}: 
+      \item \textbf{Zsh}: 
+      \item \textbf{Fish}:  
+    \end{enumerate}
+
+    Some common terminal emulators (most of which comes as a part of the desktop environment) are the following: 
+    \begin{enumerate}
+      \item \textbf{Kitty}: 
+      \item \textbf{Alacritty}: 
+      \item \textbf{Gnome-Terminal}: 
+    \end{enumerate}
+
+  \subsection{Boot Configuration and Automatic Scripts}
+
+    Find which file you need to put commands in to load stuff up on boot (and specify which part of the boot process). Also talk about crontab. 
+
+\section{Booting}
+
+  \subsection{Hardware}
+
+
+  \subsection{BIOS and UEFI}
+
+
+  \subsection{FileSystems}
+
+
+\section{LaTeX and VimTex} 
+
+Latex is a great way to take notes. One can go to Overleaf and have everything preconfigured, but in here I set it up on my local desktop. I will already assume you have a PDF viewer installed. I use zathura, which is lightweight and also comes with vim motions for navigation. 
+
+First install the VimTex plugin in \texttt{plugins.lua} with \texttt{use lervag/vimtex}. Then, you want to install TexLive, which is needed to compile tex files and to manage packages. The directions for TexLive installation is available [here](https://tug.org/texlive/quickinstall.html). Once I downloaded the install files, I like to run \texttt{sudo perl ./install-tl --scheme=small}. Be careful with the server location (which can be set with the \texttt{--location} parameter), as I have gotten some errors. I set \texttt{--scheme=small}, which installs about 350 packages compared to the default scheme, which installs about 5000 packages (~7GB). I also did not set \texttt{--no-interaction} since I want to slightly modify the \texttt{--texuserdir} to some other path rather than just my home directory. 
+
+Once you installed everything, make sure to add the binaries to PATH, which will allow you to access the \textbf{tlmgr} package manager, which pulls from the CTAN (Comprehensive TeX Archive Network) and gives VimTex access to these executables. Unfortunately, the small scheme installation does not also install the \textbf{latexmk} compiler, which is recommended by VimTex. We can simply install this by running 
+```
+sudo tlmgr install latexmk
+```
+Now run `:checkhealth` in Neovim and make sure that everything is OK, and install whatever else is needed. 
+
+
+To install other Latex packages (and even document classes), we can use tlmgr. All the binaries and packages are located in \texttt{/usr/loca/texlive/202*/} and since we're modifying this, we should run it with root privileges. The binaries can also be found here. Let's go through some basic commands: 
+\begin{enumerate}
+  \item List all available packages: \texttt{tlmgr list}
+  \item List installed packages: \texttt{tlmgr list --only-installed} (the packages with the `i` next to them are installed)
+  \item Install a package and dependencies: \texttt{sudo tlmgr install amsmath tikz} 
+  \item Reinstall a package: \texttt{sudo tlmgr install amsmath --reinstall}
+  \item Remove a package: \texttt{sudo tlmgr remove amsmath} 
+More commands can be found \href{http://tug.ctan.org/info/tlmgrbasics/doc/tlmgr.pdf}{here} for future reference.  
+\end{enumerate}
+
+After this, you can install Inkscape, which is free vector-based graphics editor (like Adobe Illustrator). It is great for drawing diagrams, and you can generate custom keymaps that automatically open Inkscape for drawing diagrams within LaTeX, allowing for an seamless note-taking experience.  
+  
+
+\section{Networking}
+
+  Networking is a large field in itself, but in here I go over the most useful and practical applications of it in my everyday use. Some ways that I personally benefit from this is:
+
+  \begin{enumerate}
+    \item Connecting to WiFi and diagnosing problems.  
+    \item Connecting to WiFi and diagnosing problems. 
+    \item Connecting to other networks such as computing clusters or third-party blockchains.  
+    \item Seeing how more abstract schemes such as APIs work. 
+    \item Ethical hacking. 
+  \end{enumerate}
+  I introduce these concepts and how to do some basic implementation a Unix operating system.
+
+  I like to learn about networking as if I am designing it from scratch. Some big questions to ask when designing network schemes are:
+
+  \begin{enumerate}
+    \item How do we uniquely identify computers? 
+    \item How should we establish a connection between them? Through hardware or signals? 
+    \item What protocols should we use, like a common language, so that all computers understand what each other are saying? 
+    \item Can we implement security measures to prevent unwanted visitors into our computer? 
+  \end{enumerate} 
+
+  \section{Network Topologies and IP Addresses}
+
+    Talk about public vs private networks (IPv4 vs v6). How data is transmitted (bandwidth, latency, etc). Then talk about ports.  
+
+    In here we address the first of the big questions. Every computer has an IP address. We can access our public IPv4 address with the command \texttt{curl ifconfig.me}. Since this is public, any device connected to the same network/router should have the same IP address. However, if we want to find our private IP address, we use the following command: \texttt{ip -c a}
+
+    \begin{cverbatim}
+      ~ ip -c a                                                                       
+      1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+          link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+          inet 127.0.0.1/8 scope host lo
+             valid_lft forever preferred_lft forever
+          inet6 ::1/128 scope host noprefixroute 
+             valid_lft forever preferred_lft forever
+      2: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+          link/ether 64:bc:58:11:c0:24 brd ff:ff:ff:ff:ff:ff
+          inet 172.30.1.61/24 brd 172.30.1.255 scope global dynamic noprefixroute wlan0
+             valid_lft 3235sec preferred_lft 3235sec
+          inet6 fe80::6ab9:70c3:f583:ff3e/64 scope link noprefixroute 
+             valid_lft forever preferred_lft forever
+    \end{cverbatim}
+
+    There's a few things to look at: 
+    \begin{enumerate}
+      \item The type of connection that I am on is important. The `lo` (loopback) connection is default to every computer, representing the local connection. `wlan*` refers to WiFi, `eth*` represents ethernet. 
+
+    \end{enumerate}
+
+    Every device has a public/private IP if it is connected to the internet. To connect to the computer, you need to know the IP and then find a port to connect to. Computers usually have $2^{16} = 65,536$ ports, and whenever computer A is connecting to computer B, data is both coming in and out through certain ports. A port, combined with an IP address, results in a socket address that is used to establish a connection between a client and a server. 
+
+  \subsection{OSI and Internet Protocols}
+
+  
+
+  \subsection{HTTP and HTTPS} 
+
+    HTTP stands for hypertext transfer protocol, implemented in Layer 7, which transfers data between your computer and the server over the internet through \textbf{clear text}. This may not be the most ideal way since any interceptors can read the transferred data. This isn't a problem for regular internet browsing, but if you are inputting sensitive data, then HTTP should not be used. This is why HTTPS (which stands for secure HTTP) was invented, which  is implemented in Layer 4 and encrypts the data being transferred, and every website where you input sensitive data should be using HTTPS (indicated by the \texttt{https://} prefix in the URL and a padlock symbol for modern browsers). Due to the extra security measures, HTTPS is less lightweight than HTTP, and its respective default ports are HTTP (80) and HTTPS (443).  
+
+    A natural question to ask would be: which encryption scheme does HTTPS use? Both Secure Sockets Layer (SSL) and Transport Layer Security (TLS) is used in the modern web. 
+
+    SSL certificate. 
+
+    
+  \subsection{UDP and TCP}
+
+    TCP handshake can be seen with curl. 
+
+  \subsection{SSH}
+
+
+\section{Driver and Hardware Configuration}
+
+  \subsection{Audio Drivers} 
+
+
+  \subsection{Bluetooth}
+    Blueman. 
+
+  \subsection{Synaptics}
+
+
+  \subsection{Video Drivers}
+
+
+  \subsection{Monitor}
+
+
+  \subsection{Nvidia GPU Drivers} 
+
+
+\section{Development}
+
+  \subsection{Git} 
+    
+
+
+  \subsection{Python and Conda}
+
+    Make sure to add conda path to PATH. 
+
+\end{document}
+
