@@ -25,7 +25,7 @@
 \begin{document}
 \pagestyle{fancy}
 
-\lhead{Supervised Learning}
+\lhead{Linux}
 \chead{Muchang Bahng}
 \rhead{\date{Summer 2023}}
 \cfoot{\thepage / \pageref{LastPage}}
@@ -53,7 +53,7 @@ I try to organize this in a way so that one who wishes to get started in Linux c
     
     \begin{enumerate}
       \item It pushes you to know the ins and outs of your editor. As a mechanic with his tools, a programmer should know exactly how to configure their editor.  
-      \item The plugin ecosystem is much more diverse than other editors such as VSCode. You can find plugins/extensions for everything. Here is a summmary of them [here](https://github.com/rockerBOO/awesome-neovim\#neovim-lua-development). 
+      \item The plugin ecosystem is much more diverse than other editors such as VSCode. You can find plugins/extensions for everything. Here is a summmary of them \href{https://github.com/rockerBOO/awesome-neovim\#neovim-lua-development}{here}. 
       \item You're faster. If you're going to be coding for the next 5 years, then why no t spend a month to master something that will make you faster? You'll increase total productivity. 
       \item Computing clusters and servers will be much easier to navigate since they all run Linux with Vim. 
       \item Vim is lightweight, and you don't have to open up VSCode every time you want to edit a configuration file.  
@@ -262,13 +262,33 @@ I try to organize this in a way so that one who wishes to get started in Linux c
 
         \item To check size of current packages and dependencies, download \texttt{expac} and run \texttt{expac -H M '\%m \\t\%n' | sort -h} 
 
-        \item The package cache stored in \texttt{/var/cache/pacman/pkg/} keeps old or uninstalled versions of packages automatically. 
+        \item The package cache stored in \texttt{/var/cache/pacman/pkg/} keeps old or uninstalled versions of packages automatically. This is helpful since it also keeps older versions of packages in the cache, and you can manually downgrade in case some packages break.  
         \begin{itemize}
           \item We can delete all cached versions of installed and uninstalled packages, except for the most recent 3, by running \texttt{paccache -r} (provided by the \texttt{pacman-contrib} package). 
           \item To remove all cached packages not currently installed, run \texttt{pacman -Sc}
           \item To remove all cached aggressively, run \texttt{pacman -Scc}
+          \item To downgrade, you go into the package cache directory and say you want to see which versions of neovim you have installed. You can \texttt{ls} the directory to see the following. 
+          
+            \begin{cverbatim}
+              neovim-0.9.5-1-x86_64.pkg.tar.zst
+              neovim-0.9.5-1-x86_64.pkg.tar.zst.sig
+              neovim-0.9.5-2-x86_64.pkg.tar.zst
+              neovim-0.9.5-2-x86_64.pkg.tar.zst.sig
+            \end{cverbatim}
+
+            We have an older version of neovim installed, and to roll it back we can use 
+            \begin{cverbatim} 
+              pacman -U neovim-0.9.5-1-x86_64.pkg.tar.zst
+            \end{cverbatim}
         \end{itemize} 
       \end{enumerate}
+
+      The pacman log (\texttt{/var/log/pacman.log}) is also useful since it logs all pacman outputs when you do anything with pacman. So if you are looking for the packages that have been installed in the latest \texttt{pacman -Syu}, then you can use this to individually see each package that has been upgraded. 
+
+
+    \subsubsection{Yay}
+
+      Yay is used to install from the Arch User repository and must be updated separately. To run this, you can either run \texttt{yay -Syu} or you can just run \texttt{yay}. Since this is not officially maintained, these packages are more likely to break something. The yay logs are not stored separately can can be accessed in the pacman logs. 
 
     \subsubsection{Apt}  
   
@@ -330,6 +350,59 @@ I try to organize this in a way so that one who wishes to get started in Linux c
 
   \subsection{FileSystems}
 
+
+  \subsection{Systemd}
+
+    When the computer boots up, the init process is the first process (PID 1) that the kernel starts. It is used to get the system running and for starting other processes. It is responsible for killing zombie processes or parenting orphaned processes. 
+
+    Historically, SysVinit was a series of plaintext files that ran as scripts to start processes, but due to some problems, Linux now uses systemd. \textbf{Systemd} is a collection of smaller programs, services, and libraries such as systemctl, journalctl, init, process management, network management, login management, logs, etc. Some processes may depend on other processes, and with hundreds of them, it's very hard to do manually, which is why systemd does it all for you. A \textbf{unit} is anything that is managed by systemd, and their files are all over the place: 
+    
+    \begin{enumerate}
+      \item \texttt{/lib/systemd/system} contains standard systemd unit files 
+      \item \texttt{/usr/lib/systemd/system} are from locally installed packages, e.g. if I installed a pacman package that contained unit files, then those would go here. 
+      \item \texttt{/etc/systemd/system} is where you put your custom files. etc also has the highest priority, so it overwrites the other files.  
+    \end{enumerate}
+
+    If we go into one of these unit files, which have the prefix \texttt{.service}, they are usually formatted as such: 
+
+    \begin{cverbatim}
+      # comments are just the same as in bash Scripts
+      # the headers are important! 
+
+      [Unit]        #  
+      Description=Description of the unit file 
+      Documentation=man:something 
+      After=network.target
+
+      [Service]
+      Type=forking  # tells that the process may exit and is not permanent
+      PIDFile=      # 
+      ExecStartPre= # scripts to run before you start 
+      ExecStart=    # scripts to run when starting 
+      ExecReload=   # script to run when you try to reload the process
+      ExecStop=     # script to run to stop the process 
+
+      [Install]   # Tells at what point should this be running
+      WantedBy=multi-user.target 
+
+    \end{cverbatim}
+
+    The two main commands that you will use to interact with systemd is \texttt{systemctl} and \texttt{journalctl}. 
+    
+    \begin{enumerate}
+      \item \texttt{systemctl status pkg} checks the status, ouputting the description, whether it's enabled/disabled, and whether it's active/inactive. 
+      \item \texttt{systemctl enable pkg} enables it, which means that it will start when booting the computer. It does this by creating a symlink to the unit file. This is different from start. 
+      \item \texttt{systemctl disable pkg} disables it. 
+      \item \texttt{systemctl start pkg} starts it now and runs it immediately. 
+      \item \texttt{systemctl stop pkg} makes it inactive. 
+      \item \texttt{systemctl reload} will run whatever is in the \texttt{ExecReload} in the unit file. 
+      \item \texttt{systemctl restart} runs ExecStop and then ExecStart. 
+      \item \texttt{systemctl kill pkg} kills the process. 
+    \end{enumerate}
+
+    Some of the statuses that you may see are inactive (deactivated, exited), active (activating, running), failed, static (not started, frozen by systemd), bad (broken, probably due to bad unit files), masked (ignored by systemd), indirect (disabled, but another unit file references it so it could be activated). 
+
+    To troubleshoot, you should run \texttt{systemctl --failed} to see if there are any failed processes, which can be a problem, and then you can use \texttt{journalctl --since=today} to view your systemd logs. This log is important for diagnosing fundamental problems with your system. To view only entries logged at the error level or above, you can set the priorities with \texttt{-p err -b}. 
 
 \section{LaTeX and VimTex} 
 

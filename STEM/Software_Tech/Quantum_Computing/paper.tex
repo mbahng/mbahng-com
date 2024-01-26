@@ -30,10 +30,13 @@
   \DeclareMathOperator{\Corr}{Corr}
   \DeclareMathOperator*{\argmin}{\arg\!\min}
   \DeclareMathOperator*{\argmax}{\arg\!\max}
+  \newenvironment{question}{\color{blue}}{\ignorespacesafterend}
+
 
   \newcommand{\ket}[1]{\ensuremath{\left|#1\right\rangle}}
   \newcommand{\bra}[1]{\ensuremath{\left\langle#1\right|}}
-
+  \newcommand{\bracket}[2]{\langle #1 | #2 \rangle}
+    
   \theoremstyle{definition}
   \newtheorem{theorem}{Theorem}[section]
   \newtheorem{proposition}[theorem]{Proposition}
@@ -93,11 +96,19 @@ Notes from Neilson and Chuang.
     In quantum mechanics we usually work in a Hilbert space $V$ over field $\mathbb{C}$. A \textbf{ket} is of the form $| v \rangle$, which mathematically denotes a vector $v$ in $V$. A \textbf{bra} is of the form $\langle f |$, which denotes a covector $f \in V^\ast$, the dual space. With the usual construction of the canonical isomorphism between a Hilbert space and its dual, we say if $| m \rangle$ defines a column vector in $\mathbb{C}^n$, then $\langle m |$ is its conjugate transpose. This is formalized in the first postulate. 
 
     \begin{theorem}[Postulate 1: State Space]
-      Associated to any isolated physical system is a Hilbert space (a complex inner product space) known as the \textbf{state space} of the system. The system is completely described by its \textbf{state vector}, which is a unit vector in the system's state space. If we choose a particular basis for the Hilbert space $\ket{j}$, for $j = 1, \ldots, D$, a state can be written in the form 
+      Associated to any isolated physical system is a Hilbert space (a complex inner product space) known as the \textbf{state space} of the system. The system is completely described by its \textbf{state vector}, which is a unit vector in the system's state space. 
       \begin{equation}
-        \ket{\psi} = \sum_{j=1}^D \alpha_j \ket{j}, \text{where} \sum_{j} |\alpha_j|^2 = 1 
+        \ket{\psi} \in \mathcal{H} \text{ s.t. } \bracket{\psi}{\psi} = 1 
+        \label{eq:state_vector}
+      \end{equation}
+        
+      This has been stated in a general term without respect to any basis. However, if we do fix an orthonormal basis $\mathcal{B} = \{\ket{\psi_1}, \ldots, \ket{\psi_n}\}$, then the state can be written in the form 
+      \begin{equation}
+        \ket{\psi} = \sum_{j=1}^D \alpha_j \ket{\psi_j}, \text{where} \sum_{j} |\alpha_j|^2 = 1 
         \label{eq:pos_1}
       \end{equation}
+
+      The basis with which we write $\ket{\psi}$ with respect to is important when we perform measurement operators on it, as we will see later. 
     \end{theorem}
 
     This postulate is quite intuitive, since in Lagrangian mechanics we use the familiar configuration manifold to model the state of a system, and by Whitney's embedding theorem every manifold can be embedded in a sufficiently high-dimensional vector space. But QM does not tell us what the state space of that system is, nor does it tell us what the state vector of that system is. Figuring it out for a specific system is done independently with rules that physicists have developed. Furthermore, as we will see later, the choice of base relates to possible measurements of the system, and each base is associated with a particular measurement (or a group of compatible measurements). 
@@ -105,55 +116,98 @@ Notes from Neilson and Chuang.
 
     The most fundamental construct of computer science is the bit, which is $0$ or $1$. This is intuitive, since it is easy to understand mathematically and it also has an easy physical realization. For example, when computers retrieve memory or when you have a wire with some electrical current flowing over a certain threshold. The quantum analogue of the bit and the simplest quantum mechanical system is a single qubit. While the physical realization is less intuitive, let's only focus on the mathematical construct and properties for now. 
 
-    \begin{definition}[Qubit]
-      The classical notions of the $0$ and $1$ bit can be represented as the orthonormal vectors $\ket{0}, \ket{1} \in \mathbb{C}^2$, called \textbf{computational basis states}, which can be interpreted as 
+    \begin{definition}[Basis States]
+      We list 4 different orthonormal bases that we will work with often in $\mathbb{C}^2$. We first introduce the standard basis, the Z basis state, and write the rest of the states in the Z basis. 
+
+      \begin{enumerate}
+        \item The classical notions of the $0$ and $1$ bit can be represented as the orthonormal vectors $\ket{0}, \ket{1} \in \mathbb{C}^2$, called \textbf{computational basis states} or the \textbf{z basis states}, which are
+          \[\ket{0} = \ket{+}_z = \begin{pmatrix} 1 \\ 0 \end{pmatrix}, \;\;\;\; \ket{1} = \ket{-}_z = \begin{pmatrix} 0 \\ 1 \end{pmatrix}\]  
+
+        \item The \textbf{x basis states} are 
+          \begin{equation}
+            \ket{+}_x \coloneqq \frac{\ket{0} + \ket{1}}{\sqrt{2}} , \;\;\;\; \ket{-}_x \coloneqq \frac{\ket{0} - \ket{1}}{\sqrt{2}} 
+            \label{eq:x_basis}
+          \end{equation}
+        
+        \item The \textbf{y basis states} are 
+          \begin{equation}
+            \ket{+}_y \coloneqq \frac{\ket{0} + i \ket{1}}{\sqrt{2}} , \;\;\;\; \ket{-}_y \coloneqq \frac{\ket{0} - i \ket{1}}{\sqrt{2}} 
+            \label{eq:y_basis}
+          \end{equation}
+      \end{enumerate}
+
       
-        \[\ket{0} = \begin{pmatrix} 1 \\ 0 \end{pmatrix}, \;\;\;\; \ket{1} = \begin{pmatrix} 0 \\ 1 \end{pmatrix}\]
+    \end{definition}
 
-      A \textbf{qubit} is simply a linear combination of them, also called a \textbf{superposition}, of these two states, satisfying the normalization condition that $\langle \psi | \psi \rangle = 1$, i.e. $|\psi\rangle$ is a unit vector. 
+    \begin{definition}[Qubit]
+      A \textbf{qubit} is simply a vector $\ket{\psi} \in \mathbb{C}^2$. The natural orthonormal basis for this vector space is the computational basis states, but given any orthonormal basis $\mathcal{B} = \{\ket{\psi_1} , \ket{\psi_2}\}$, we can write the qubit as a linear combination of them, known as a \textbf{superposition}. Note that since $\ket{\psi}$ is unit, its coefficients with respect to every basis must satisfy the normalization.  
 
-        \[\ket{\psi} = \alpha \ket{0} + \beta \ket{1} = \begin{pmatrix} \alpha \\ \beta \end{pmatrix}, \text{ where } |\alpha|^2 + |\beta|^2 = 1\]
+        \[\ket{\psi} = \alpha \ket{\psi_1} + \beta \ket{\psi_2} = \begin{pmatrix} \alpha \\ \beta \end{pmatrix}, \text{ where } |\alpha|^2 + |\beta|^2 = 1\]
 
       When we measure this qubit, for now we can interpret it has a $|\alpha|^2$ probability of realizing into the result $0$ and $|\beta|^2$ probability of realizing into $1$ (this notion is formalized in postulate 3). The coefficients of the state vector are also called the \textbf{amplitude}. 
     \end{definition} 
 
+    \begin{example} 
+      Say that a qubit with respect to the standard basis can be written as 
+      \begin{equation}
+        \ket{\psi} = \alpha \ket{0} + \beta \ket{1}
+        \label{eq:qubit_standard_basis}
+      \end{equation}
+      Then, we can write it with respect to another basis as 
+      \begin{equation}
+        \ket{\psi} = \alpha \frac{\ket{+} + \ket{-}}{\sqrt{2}} + \beta \frac{\ket{+} - \ket{-}}{\sqrt{2}} = \frac{\alpha + \beta}{\sqrt{2}} \ket{+} + \frac{\alpha - \beta}{\sqrt{2}} \ket{-}
+        \label{eq:qubit_not_standard_basis}
+      \end{equation}
+      which we can interpret as having a probability of $|\alpha + \beta|^2 /2$ of realizing to $\ket{+}$ and probability of $|\alpha - \beta|^2 / 2$ of realizing to $\ket{-}$. This may not make sense since we just said that it has a probability of $|\alpha|^2$ and $|\beta|^2$ of realizing to $\ket{0}$ and $\ket{1}$, but these probabilities emerge depending on the basis when we measure.  
+    \end{example}
+
   \subsection{Postulate 2: Evolution}
 
-    \begin{theorem}[Postulate 2: Evolution]
-      The second postulate comes in two forms: The first form describes how the quantum states of a closed system at two different times are related. The second form is a refinement and a generalization of the first which describes the evolution of a quantum system in continuous time.
-      \begin{enumerate}
-        \item The evolution of a closed quantum system is described by a unitary transformation U. That is, the state of the system $|\psi \rangle$ at time $t_1$ is related to the state $|\psi^\prime \rangle$ of the system at time $t_2$ by a unitary operator $U$ which depends only on the times $t_1$ and $t_2$.
+  The equations of motion of a physical system can be written as a differential equation relating the derivative of the position vector $\ket{\psi(t)}$ with some operator on $\ket{\psi(t)}$. This operator can be a simple linear map $A$, leading to a \textbf{time-independent} equation of form
+    \begin{equation}
+      \frac{d}{dt} \ket{\psi(t)} = A \ket{\psi(t)} 
+      \label{eq:form }
+    \end{equation}
+    Sometimes, it may be \textbf{time-dependent}, meaning that the operator $A$ can also change with time, and so we should replace it above with $A(t)$. For now, we will focus on the time-independent equation. 
 
-          \[|\psi^\prime \rangle = U \, |\psi \rangle\]
+    \begin{definition}[Schrodinger's Equation of Motion]
+      The time evolution of a closed quantum system is described by the \textbf{Schrodinger equation}
 
-        \item The time evolution of a closed quantum system is described by the \textbf{Schrodinger equation}
+        \[i \hbar \frac{d |\psi \rangle}{dt} = \hat{H} |\psi \rangle, \]
 
-            \[i \hbar \frac{d |\psi \rangle}{dt} = \hat{H} |\psi \rangle, \]
+      an ordinary differential equation with solution $| \psi \rangle (t)$ ($|\psi\rangle: \mathbb{R}_t \longrightarrow \mathbb{C}^n$, the Hilbert space). Where $\hbar$ is Planck's constant and $\hat{H}$ is a fixed Hermitian operator called the \textbf{Hamiltonian} of the closed system. Note that because $H$ is self-adjoint, it has the spectral decomposition
 
-          an ordinary differential equation with solution $| \psi \rangle (t)$ ($|\psi\rangle: \mathbb{R}_t \longrightarrow \mathbb{C}^n$, the Hilbert space). Where $\hbar$ is Planck's constant and $\hat{H}$ is a fixed Hermitian operator called the \textbf{Hamiltonian} of the closed system. Note that because $H$ is self-adjoint, it has the spectral decomposition
+        \[H = \sum_{E} E \, |E \rangle \langle E |\]
 
-            \[H = \sum_{E} E \, |E \rangle \langle E |\]
+      with eigenvalues $E$ and corresponding normalized eigenvectors $|E \rangle$. The eigenvectors $|E \rangle$ are called \textbf{energy eigenstates} with the energy of the state being $E$. The minimum energy and energy eigenstate is known as the \textbf{ground state energy} and \textbf{ground state}, respectively.
+    \end{definition}
 
-          with eigenvalues $E$ and corresponding normalized eigenvectors $|E \rangle$. The eigenvectors $|E \rangle$ are called \textbf{energy eigenstates} with the energy of the state being $E$. The minimum energy and energy eigenstate is known as the \textbf{ground state energy} and \textbf{ground state}, respectively.
-      \end{enumerate}
+    \begin{question} 
+      Motivations of using a self-adjoint operator as the Hamiltonian? What do the energy levels (eigenvalues) and eigenvectors mean? How do we solve this equation of motion? 
+    \end{question}
 
-      We can visualize the evolution of a quantum system as a point traversing through a unit sphere in some complex vector space. 
-    \end{theorem}
-
-    In general finding out the Hamiltonian of a system is a very difficult problem, but we will assume that it is given in our context. Furthermore, for systems that are under the experimentalist's control and which may be changed, a \textbf{time-varying Hamiltonian} may be used to describe the quantum system. The connection between these two forms can be seen when writing down the solution to Schrodinger's equation (with initial time value $t_1$ and its initial state vector $|\psi (t_1)\rangle$), which is easily verified to be:
+    The solutions to the time-indpendent Schrodinger's equation (with initial time value $t_1$ and its initial state vector $|\psi (t_1)\rangle$), which is easily verified to be:
 
     \begin{align*}
       |\psi (t_2) \rangle & = \exp \bigg( \frac{-i \hat{H} (t_2 - t_1)}{\hbar} \bigg) \, |\psi(t_1)\rangle \\
       & = U(t_1, t_2) \, |\psi (t_1) \rangle
     \end{align*}
 
-    We can see that $\frac{-i \hat{H} (t_2 - t_1)}{\hbar}$ is in the Lie algebra $\mathfrak{u}(2)$, which is mapped to the Lie group $\text{U}(2)$ through the exponential map $\exp: \mathfrak{u}(2) \longrightarrow \text{U}(2)$. In other words we are describing a homotopy: smoothly changing $t_2$ smoothly changes $U(t_1, t_2)$ within $\text{U}(2)$, which itself is a function $|\psi (t_1) \rangle \mapsto | \psi (t_2) \rangle$ from one state to another.
+    Since $U$ is the exponential of an imaginary scalar times the Hermitian operator, we can prove that it is unitary. The converse is also true: for every unitary operator there exists a Hermitian operator satisfying the identity above, and thus we can rewrite the dynamics of the time-independent Schrodinger's equation above to postulate 2. 
+    
+    \begin{theorem}[Postulate 2: Evolution]
+      The evolution of a closed quantum system is described by a unitary transformation U. That is, the state of the system $|\psi \rangle$ at time $t_1$ is related to the state $|\psi^\prime \rangle$ of the system at time $t_2$ by a unitary operator $U$ which depends only on the times $t_1$ and $t_2$.
+
+        \[|\psi^\prime \rangle = U \, |\psi \rangle\]
+    \end{theorem}
+
+    In general finding out the Hamiltonian of a system is a very difficult problem, but we will assume that it is given in our context. Furthermore, for systems that are under the experimentalist's control and which may be changed, a \textbf{time-varying Hamiltonian} may be used to describe the quantum system. 
 
     We have postulated that closed quantum systems evolve according to unitary evolution. The evolution of systems which don't interact with the rest of the world is all very well, but there must also be times when the experimenter and their experimental equipment (i.e., an external physical system) observe the system to find out what is going on inside the system. This observation is an interaction with the system, making the system not closed, and thus not subject to unitary evolution. The effects of measurements done on quantum systems can be described with postulate 3, and in here let us remind the reader that a measurement outcome is \textit{different} than the state of a quantum system (e.g., the state space of a qubit is the complex $2$-sphere, while the measurement outcomes can be $0$ or $1$).
 
     \subsubsection{Logic Gates}
 
-      From postulate 2, we have found out that closed quantum systems evolve according to a unitary operator. A question to ask is what kind of unitary operators are natural to consider? In the case of single qubits, it turns out that \textit{any} unitary operator at all can be realized in physical systems. Therefore, we can modify these qubits with general unitary operators, which are in some way a generalization of classical logic gates. Quantum logic gates can be interpreted as matrices that modify the state of qubits. This is similar to those of classical gates, but one key difference between quantum logic gates and classical ones is that quantum gates are always \textit{reversible} (from the unitary condition), while some classical gates like NAND are irreversible (e.g., if the output of a NAND gate is $1$, we don't know if the input is $00, 01$, or $10$). We can divide them into classes depending on how many arguments they take, but as we will see, the general form of a quantum gate taking in $n$ input qubits is some unitary matrix in $U(2^n)$. Let us first focus on gates of one qubit. We will start with the Pauli matrices and spend some time investigating their properties.  
+      From postulate 2, we have found out that closed quantum systems evolve according to a unitary operator. A question to ask is what kind of unitary operators are natural to consider? In the case of single qubits, it turns out that \textit{any} unitary operator at all can be realized in physical systems. Therefore, we can modify these qubits with general unitary operators, which are in some way a generalization of classical logic gates. Quantum logic gates can be interpreted as matrices that modify the state of qubits. This is similar to those of classical gates, but one key difference between quantum logic gates and classical ones is that quantum gates are always invertible (from the unitary condition), while some classical gates like NAND are irreversible (e.g., if the output of a NAND gate is $1$, we don't know if the input is $00, 01$, or $10$). We can divide them into classes depending on how many arguments they take, but as we will see, the general form of a quantum gate taking in $n$ input qubits is some unitary matrix in $U(2^n)$. Let us first focus on gates of one qubit. We will start with the Pauli matrices and spend some time investigating their properties.  
 
       \begin{definition} 
         The \textbf{Pauli matrices} are defined 
@@ -163,6 +217,10 @@ Notes from Neilson and Chuang.
             Z = \begin{pmatrix} 1 & 0 \\ 0 & -1 \end{pmatrix}  
           \]
       \end{definition}
+
+      \begin{question}
+        Can we use Pauli matrices on other orthonormal bases?  
+      \end{question}
 
       \begin{lemma}[Decomposition of Pauli Matrices]
         The Pauli matrices are self-adjoint (Hermitian) and unitary. 
@@ -219,67 +277,31 @@ Notes from Neilson and Chuang.
 
       \begin{definition}
         Listed. 
+
         \begin{enumerate}
-          \item The 
-        \end{enumerate}
+          \item The \textbf{Hadamard gate} $H$ takes in $|0\rangle$ or $|1\rangle$ and puts it into exactly equal superposition.
+
+            \[H = \frac{1}{\sqrt{2}} \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}.\]
+
+          That is, $H|0\rangle = |+\rangle$ and $H|1\rangle = |-\rangle$. This can be thought of as a rotation around the Bloch vector $(1, 0, 1)$.
+
+          \item The \textbf{Phase gate} $S$ is the square root of the Pauli-Z gate.
+
+            \[S = \begin{pmatrix} 1 & 0 \\ 0 & i \end{pmatrix}.\]
+
+          \item The \textbf{$\pi/8$ gate} $T$ is the square root of the Phase gate.
+
+            \[T = \begin{pmatrix} 1 & 0 \\ 0 & e^{i \pi/4} \end{pmatrix}.\]
+        \end{enumerate} 
       \end{definition}
 
-      \begin{definition}[Pauli Matrices]
-        Three fundamental such gates are precisely the \textbf{Pauli matrices} (recall that they are Hermitian and unitary):
-        \begin{enumerate}
-          \item The Pauli $X$, also called the NOT gate, is simply a rotation by $\pi$ radians around the $x$-axis of the Bloch sphere.
-
-              \[X = \begin{pmatrix} 0 & 1 \\ 1 & 0 \end{pmatrix} \iff X \big(\alpha |0\rangle + \beta |1 \rangle \big) = \beta |0\rangle + \alpha |1\rangle,\]
-
-            with normalized eigenvectors
-
-              \[\psi_{x+} = \frac{1}{\sqrt{2}} \begin{pmatrix} 1 \\ 1 \end{pmatrix}, \;\;\; \psi_{x-} = \frac{1}{\sqrt{2}} \begin{pmatrix} 1 \\ -1 \end{pmatrix},\]
-
-            which we call the \textbf{eigenstates} of the X-gate.
-
-          \item The Pauli $Y$ is a rotation of $\pi$ radians around the $y$-axis.
-
-              \[
-                Y = \begin{pmatrix} 0 & -i \\ i & 0 \end{pmatrix} \iff Y \big( \alpha |0\rangle + \beta |1 \rangle \big) = -\beta i |0\rangle + \alpha i |1 \rangle,\]
-
-            with eigenstates
-
-              \[\psi_{y+} = \frac{1}{\sqrt{2}} \begin{pmatrix} 1 \\ i \end{pmatrix}, \;\;\; \psi_{y-} = \frac{1}{\sqrt{2}} \begin{pmatrix} 1 \\ -i \end{pmatrix}.\]
-
-          \item The Pauli $Z$ is a rotation of $\pi$ radians around the $z$-axis.
-
-              \[Z = \begin{pmatrix} 1 & 0 \\ 0 & -1 \end{pmatrix} \iff Z \big( \alpha |0\rangle + \beta | 1 \rangle \big) = \alpha |0 \rangle - \beta |1 \rangle,\]
-
-            with eigenstates
-
-              \[\psi_{z+} = \begin{pmatrix} 1 \\ 0 \end{pmatrix}, \;\;\; \psi_{z-} = \begin{pmatrix} 0 \\ 1 \end{pmatrix},\]
-
-            which is why the $Z$ gate doesn't have any effect on a qubit in either the $|0\rangle$ or $|1\rangle$ state.
-        \end{enumerate}
-      \end{definition}
-
-      \begin{enumerate}
-        \item The \textbf{Hadamard gate} $H$ takes in $|0\rangle$ or $|1\rangle$ and puts it into exactly equal superposition.
-
-          \[H = \frac{1}{\sqrt{2}} \begin{pmatrix} 1 & 1 \\ 1 & -1 \end{pmatrix}.\]
-
-        That is, $H|0\rangle = |+\rangle$ and $H|1\rangle = |-\rangle$. This can be thought of as a rotation around the Bloch vector $(1, 0, 1)$.
-
-        \item The \textbf{Phase gate} $S$ is the square root of the Pauli-Z gate.
-
-          \[S = \begin{pmatrix} 1 & 0 \\ 0 & i \end{pmatrix}.\]
-
-        \item The \textbf{$\pi/8$ gate} $T$ is the square root of the Phase gate.
-
-          \[T = \begin{pmatrix} 1 & 0 \\ 0 & e^{i \pi/4} \end{pmatrix}.\]
-      \end{enumerate}
-
+      
   \subsection{Postulate 3: Measurement}
 
     We have postulated that closed quantum systems evolve according to unitary evolution, but there must be times when the experimentalist must interact with the external system through some measurement. To explain what happens when this is one, we use postulate 3, which provides a means for describing the effects of measurements on quantum systems. 
 
     \begin{theorem}[Posulate 3: General Measurement]
-      Let the total number of measurement outcomes of a quantum system be parameterized by $m$. Then, a quantum measurement is described by a collection $\{M_m\}$ of \textbf{measurement operators} (acting on the state space) satisfying the \textit{completeness equation}
+      Given a state vector $\ket{\psi} \in \mathcal{H}$ with a total possible number of measurement outcomes parameterized by $m$. Then, a quantum measurement is described by a collection $\{M_m\}$ of \textbf{measurement operators} (acting on the state space) satisfying the \textit{completeness equation}
 
         \[\sum_{m} M_m^\dagger M_m = I\]
 
@@ -290,16 +312,26 @@ Notes from Neilson and Chuang.
       Immediately after this measurement outcome $m$, the state of the system then becomes
 
         \[\frac{M_m |\psi \rangle}{\sqrt{\langle \psi| M_m^\dagger M_m |\psi \rangle}} = \frac{M_m |\psi \rangle}{\sqrt{p(m)}}\]
+
+      Note that the completeness equation implies
+
+        \[1 = \sum_m p(m) = \sum_m \langle \psi | M_m^\dagger M_m | \psi \rangle\]
+
+      Note that we have defined measurements in a basis-independent way. If we do fix an orthonormal $B = \{ \ket{\psi_1}, \ldots, \ket{\psi_n}\}$, then both the state $\ket{\psi}$ and the measurement operators $\{M_m\}$ should be written with respect to $B$. 
+
     \end{theorem}
 
-    Note that the completeness equation implies
+    \begin{question} 
+      What is the physical realization of a measurement operator? 
 
-      \[1 = \sum_m p(m) = \sum_m \langle \psi | M_m^\dagger M_m | \psi \rangle\]
+      We've defined in a basis independent way, but when conducting measurements, we must choose an orthonormal basis $v_1, v_2$. Now does the measurement operator have to be in that same basis? (probably yes). Next question is what does the eigenvectors (which should be orthonormal) have to do with it? Are the possible outcomes determined to be the fixed bases or the eigenvectors? 
+    \end{question}
 
-    A point to make: Measuring devices are quantum mechanical systems, so the quantum system being measured and the measuring device together are part of a larger, isolated, quantum mechanical system which, according to postulate 2, undergoes evolution through a unitary operator. Whether postulate 3 can be derived by postulate 2 is debated today.
+    That's all there is to measurements: they are a collection of operators satisfying the normalization identity above. Usually, this is not how measurement operators are introduced in quantum mechanics courses. They are introduced as projective measurements which can be encoded in self-adjoint operators, but for more precise measurements needed in quantum computing, we should introduce the generalized version first. 
 
+    
     \begin{example}
-      As an example, suppose that we have the simple quantum system consisting of a single qubit that has the state $|\psi \rangle = a|0\rangle + b|1 \rangle$ immediately before measurement
+      As an example, suppose that we have the simple quantum system consisting of a single qubit that has the state $|\psi \rangle = a|0\rangle + b|1 \rangle$  (w.r.t. Z basis) immediately before measurement
 
         \[\{M_0, M_1\} = \bigg\{ \begin{pmatrix} 0.8 & 0 \\  0 & 0.6 \end{pmatrix}, \; \begin{pmatrix} 0.6&0\\0&0.8 \end{pmatrix} \bigg\}\]
 
@@ -319,30 +351,76 @@ Notes from Neilson and Chuang.
         \[\frac{M_1 | \psi\rangle}{\sqrt{\langle \psi | M_1^\dagger M_1 | \psi\rangle}} = \frac{1}{\sqrt{0.36a^2 + 0.64b^2}} \begin{pmatrix} 0.6a \\ 0.8b \end{pmatrix} = \frac{0.6a}{\sqrt{0.36a^2 + 0.64b^2}}\, |0 \rangle + \frac{0.8 b}{\sqrt{0.36a^2 + 0.64b^2}} \, |1\rangle\]
     \end{example}
 
-    A following theorem is that a composition of measurements, e.g., $\{L_l\}$ followed by a separate $\{M_m\}$ is physically equivalent to a single measurement defined by measurement operators $\{N_{lm}\}$ with the representation $N_{lm} = M_m L_l$.
+    \begin{theorem}[Composition of Measurements]
+    A following theorem is that a composition of measurements, e.g., $\{L_l\}$ followed by a separate $\{M_m\}$ is physically equivalent to a single measurement defined by measurement operators $\{N_{lm}\}$ with the representation $N_{lm} = M_m L_l$.  
+    \end{theorem}
+
+    \subsubsection{Bloch Sphere: Global and Relative Phase}
+
+      Now that we've talked about measurements, we can introduce the global and relative phase, which will give us the justification to introduce the Bloch sphere. 
+
+
+      \begin{definition}[Global and Relative Phase]
+        Note that the unit sphere in $S^2 \subset \mathbb{C}^2$ captures the state space of the single qubit in full generality. Because $|\alpha|^2 + |\beta|^2 = 1$, we can rewrite the qubit to 
+
+        \begin{equation}
+          \ket{\psi} = \alpha \ket{0} + \beta \ket{1} = e^{i \gamma} \bigg( \cos{\frac{\theta}{2}} \ket{0} + e^{i \varphi} \sin{\frac{\theta}{2}} \ket{1} \bigg) 
+          \label{eq:global_phase}
+        \end{equation}
+
+        where $\theta, \gamma, \varphi \in \mathbb{R}$. The $e^{i \gamma}$ is known as the \textbf{global phase} and $e^{i \varphi}$ is known as the \textbf{relative phase}. 
+      \end{definition}
+
+      Now note that $\ket{\psi}$ and $e^{- i \gamma} \ket{\psi}$ are two different states in $S^2$. Let us measure them with a set of measurements $\{M_m\}$, and we can see that they both give the same probabilities for each outcome $m$. 
+      
+      \begin{align*}
+        p(m) & = \langle e^{i \delta} \psi | M_m^\dagger M_m | e^{i \delta} \psi \rangle, \\
+        & = \langle \psi | e^{-i \delta} M_m^\dagger M_m e^{i \delta} | \psi \rangle, \\
+        & = \langle \psi | M_m^\dagger M_m | \psi \rangle = p(m)
+      \end{align*}
+
+      Therefore, both $\ket{\psi}$ and any state vector of form $e^{i \gamma} \ket{\psi}$ produce the same probabilities under any general measurement, and from an observational point of view, these two states are identical. So we can construct a quotient space on $S^2$ by defining a equivalence relation $\ket{\psi} \sim e^{i\gamma} \ket{\psi}$ where both are equal up to a global phase factor. This restricts our states space to having 2 real parameters $\theta$ and $\varphi$, so we now can construct some visual. 
+
+      \begin{definition}[Bloch Sphere]
+        The previous parameterization of the real unit sphere $S^2 \subset \mathbb{R}^2$ is known as the \textbf{Bloch sphere}, which can be visualized below. 
+
+        \begin{center}
+          \includegraphics[scale=0.4]{img/330px-Bloch_sphere.png}
+        \end{center}
+
+
+        A few properties should be mentioned: 
+        \begin{enumerate}
+          \item The antiparallel vectors lying on the $X, Y, Z$ axes represent the orthonormal $X, Y, Z$ basis in $\mathbb{C}^2$. Note that while the basis is pairwise perpendicular in $\mathbb{C}^2$, in the Bloch sphere they are visualized as antiparallel. 
+
+          \item The probability of it being $|0\rangle$ or $|1\rangle$ depends on the value of $\theta$. 
+        \end{enumerate}
+      \end{definition}
+
+      
+
+
+
+      The other kind of phase is known as the \textbf{relative phase factor}. Given two states
+
+        \[|\psi \rangle = \alpha |0\rangle + \beta |1\rangle \text{ and } |\psi^* \rangle = \alpha^* |0 \rangle + | \beta^* \rangle,\]
+
+      if $|\alpha| = |\alpha^*|$ or $|\beta| = |\beta^*|$, then we say that \textbf{the amplitudes differ by a relative phase}. Furthermore, two states $|\psi \rangle, |\psi^* \rangle$ are said to \textbf{differ by a relative phase in some basis} if each of the amplitudes in that basis is related by such a phase factor. For example, two states 
+
+      \[\frac{|0\rangle + |1\rangle}{\sqrt{2}} \text{ and } \frac{|0\rangle - |1\rangle}{\sqrt{2}}\]
+      differ by a relative phase (in the computational basis $|0\rangle, |1\rangle$) since the $|0\rangle$ amplitudes differ by a relative phase factor of $1$ ($ \frac{1}{\sqrt{2}} = 1 \cdot \frac{1}{\sqrt{2}}$) and the $|1\rangle$ amplitudes differ by a relative phase factor of $-1$ ($-\frac{1}{\sqrt{2}} = -1 \cdot \frac{1}{\sqrt{2}}$). It is clear that due to Born's rule on this one-qubit system, $|\alpha| = |\alpha^*| \iff |\beta| = |\beta^*|$, and so, all we have to do is check the magnitudes of the $|0\rangle$ amplitudes of two state vectors. Visualizing this on the Bloch sphere, we can see that the $\theta$ is the only parameter capable of changing the $|0\rangle$ amplitude. The global phase factor $e^{i\gamma}$ is merely a rotation map and also cannot change the $|0\rangle$. Therefore, we can see that two state vectors differ by a relative phase if and only if they have the same $\theta$ value, i.e. if the two points on the Bloch sphere are on the same "latitude."
+
+      \begin{center} 
+        \includegraphics[scale=0.3]{img/Bloch_Sphere_latitude.jpg}
+      \end{center}
+
+      Notice that if two states are differ by a relative phase, then these phases are observationally equivalent, and so must be similar to the global phase factor. However, the relative phase is basis-dependent and so may produce different probability densities depending on the computational basis, while the global one is basis-independent. 
 
     \subsubsection{Projective Measurements}
 
-      We have defined a measurement as a collection $\{ M_m\}$ of operators satisfying the completeness equation. The majority of cases that we will be interested in are \textbf{projective measurements}. To introduce this, recall a few facts from linear algebra:
-      \begin{enumerate}
-        \item Every Hermitian (self-adjoint) operator $M$ has an eigendecomposition of orthogonal eigenspaces
-          \[M = \sum_m \lambda_m P_m\]
-        where each $P_m$ is an orthogonal projection operator, and the $\lambda_m$ is the eigenvalue corresponding to the $m$th eigenspace of $M$. The eigenspaces may have multiple dimensions, but $M$ can be diagonalized, i.e., decomposed into a collection of 1-dimensional eigenspaces (some having the same eigenvalue).
+      We have defined a measurement as a collection $\{ M_m\}$ of operators satisfying the completeness equation. The majority of cases that we will be interested in are projective measurements, which are a specific case of general measurements. 
 
-        \item A projection map $P$ is a linear map if and only if $P = P^2$.
-
-        \item If $P$ is a projection map, it is an orthogonal projection if and only if $P$ is Hermitian (self-adjoint).
-
-        \item If $\{ |u_1 \rangle, |u_2 \rangle, \ldots, |u_n \rangle \}$ are an orthonormal basis for $\mathbb{C}^n$, then
-
-          \[A = \sum_i |u_i \rangle \langle u_i | = I_n\]
-
-        since $A |u_i \rangle = |u_i \rangle$ for each $i$ and therefore by linearity it must be the identity.
-      \end{enumerate}
-
-      Now, we can state postulate 3 in terms of projective measurements. 
-
-      \begin{theorem}[Postulate 3]
+      \begin{definition}[Projective Measurement]
         The following statements are all equivalent:
 
         \begin{enumerate}
@@ -355,15 +433,11 @@ Notes from Neilson and Chuang.
             \[P_{m^\prime} P_m = |m^\prime \rangle \langle m^\prime | m \rangle \langle m | = \begin{cases} 0 & m^\prime \neq m \\ |m \rangle \langle m | = P_m & m^\prime = m \end{cases}\]
           which implies that $P_m$ is projective. Since $P_m$ is the outer product of two identical vectors it is clearly Hermitian, and therefore $P_m$ is an orthogonal projection. Furthermore, by the linear algebra result above we can see that the $P_m = |m\rangle \langle m|$ satisfies the completeness equation.
         \end{enumerate}
-      \end{theorem}
+      \end{definition}
 
       This formulation simplifies calculations. Upon measuring the state $|\psi\rangle$, the probability of getting result $m$ is
 
-        \[p(m) = \langle \psi | P_m^\dagger P_m | \psi \rangle = \langle \psi | P_m | \psi \rangle\]
-
-      Given that outcome $m$ occurred, the state of the quantum system immediately after measurement is
-
-        \[\frac{P_m |\psi \rangle}{\sqrt{ p(m)}}\]
+        \[p(m) = \langle \psi | P_m^\dagger P_m | \psi \rangle = \langle \psi | P_m | \psi \rangle \text{ with state after measurement } \frac{P_m  \ket{\psi}}{\sqrt{p(m)}}\]
 
       When we conduct a measurement of some quantum system, we can interpret $M$ in two very similar and connected ways:
 
@@ -517,63 +591,6 @@ Notes from Neilson and Chuang.
 
       of those states, and we can \textbf{perform a measurement with respect to the $|a\rangle, |b\rangle$ basis}, giving result $a$ with probability $|\alpha|^2$ and $b$ with probability $|\beta|^2$.
   
-      \subsubsection{Bloch Sphere: Global and Relative Phase}
-
-        The unit sphere in $\mathbb{C}^2$ captures the state space of the single qubit in full generality. However, for the sake of visualization and for simplicity, we can reduce it to a quotient space by defining an equivalence relation. Given a quantum system with state vector $|\psi \rangle$ that we observe with measurements $\{M_m\}$, we can see that
-
-        \[p(m) = \langle \psi | M_m^\dagger M_m | \psi \rangle.\]
-
-        Given any $\delta \in \mathbb{R}$, if the state vector is $e^{i\delta} |\psi \rangle$, then we have
-
-        \begin{align*}
-          p(m) & = \langle e^{i \delta} \psi | M_m^\dagger M_m | e^{i \delta} \psi \rangle, \\
-          & = \langle \psi | e^{-i \delta} M_m^\dagger M_m e^{i \delta} | \psi \rangle, \\
-          & = \langle \psi | M_m^\dagger M_m | \psi \rangle.
-        \end{align*}
-
-        Therefore, from an observational point of view, these two states $|\psi \rangle$ and $e^{i \delta} |\psi \rangle$ are identical.
-
-        Let's go back to the main discussion. Since $\mathbb{C}^2$ is isomorphic to $\mathbb{R}^4$, we can construct an equivalent representation of $|\psi \rangle$ as a real 3-manifold parameterized as below:
-
-          \[|\psi \rangle = \alpha |0 \rangle + \beta | 1 \rangle = e^{i \gamma} \bigg( \cos \frac{\theta}{2} \, |0 \rangle + e^{i \varphi} \sin \frac{\theta}{2} \, | 1\rangle \bigg), \;\;\; \gamma, \varphi, \theta \in \mathbb{R}.\]
-
-        But since $|\psi \rangle$ and $e^{i \delta} |\psi \rangle$ are observationally equivalent, we can construct an equivalence class defined as
-
-          \[|\psi\rangle \sim |\phi\rangle \text{ if } \exists \delta \in \mathbb{R} \text{ s.t. } |\psi \rangle = e^{i\delta} |\phi \rangle,\]
-
-        which allows us to disregard the \textbf{global phase factor} $e^{i \gamma}$ and write $|\psi \rangle$ as
-
-          \[|\psi \rangle = \cos \frac{\theta}{2} \; |0 \rangle + e^{i \varphi} \, \sin \frac{\theta}{2} \; |1 \rangle.\]
-
-        This describes the parameterization of a unit $2$-sphere, known as the \textbf{Bloch sphere}, which can be visualized below. Notice that the arrow points up if it is in the $|0\rangle$ state and down if it is in the $|1\rangle$ state, which is counterintuitive since these vectors are supposed to be orthogonal. The probability of it being $|0\rangle$ or $|1\rangle$ depends on the value of $\theta$. 
-
-        \begin{center}
-          \includegraphics[scale=0.4]{img/330px-Bloch_sphere.png}
-        \end{center}
-
-        and some examples of important states are shown below, which all have a 50-50 probability of collapsing to $0$ or $1$. 
-
-        \begin{align*} 
-          |+\rangle = \frac{1}{\sqrt{2}} (|0\rangle + |1\rangle) \\ 
-          |-\rangle = \frac{1}{\sqrt{2}} (|0\rangle - |1\rangle) \\ 
-          |i+\rangle = \frac{1}{\sqrt{2}} (|0\rangle + i|1\rangle) \\ 
-          |i-\rangle = \frac{1}{\sqrt{2}} (|0\rangle - i|1\rangle) \\ 
-        \end{align*}
-
-        The other kind of phase is known as the \textbf{relative phase factor}. Given two states
-
-          \[|\psi \rangle = \alpha |0\rangle + \beta |1\rangle \text{ and } |\psi^* \rangle = \alpha^* |0 \rangle + | \beta^* \rangle,\]
-
-        if $|\alpha| = |\alpha^*|$ or $|\beta| = |\beta^*|$, then we say that \textbf{the amplitudes differ by a relative phase}. Furthermore, two states $|\psi \rangle, |\psi^* \rangle$ are said to \textbf{differ by a relative phase in some basis} if each of the amplitudes in that basis is related by such a phase factor. For example, two states 
-
-        \[\frac{|0\rangle + |1\rangle}{\sqrt{2}} \text{ and } \frac{|0\rangle - |1\rangle}{\sqrt{2}}\]
-        differ by a relative phase (in the computational basis $|0\rangle, |1\rangle$) since the $|0\rangle$ amplitudes differ by a relative phase factor of $1$ ($ \frac{1}{\sqrt{2}} = 1 \cdot \frac{1}{\sqrt{2}}$) and the $|1\rangle$ amplitudes differ by a relative phase factor of $-1$ ($-\frac{1}{\sqrt{2}} = -1 \cdot \frac{1}{\sqrt{2}}$). It is clear that due to Born's rule on this one-qubit system, $|\alpha| = |\alpha^*| \iff |\beta| = |\beta^*|$, and so, all we have to do is check the magnitudes of the $|0\rangle$ amplitudes of two state vectors. Visualizing this on the Bloch sphere, we can see that the $\theta$ is the only parameter capable of changing the $|0\rangle$ amplitude. The global phase factor $e^{i\gamma}$ is merely a rotation map and also cannot change the $|0\rangle$. Therefore, we can see that two state vectors differ by a relative phase if and only if they have the same $\theta$ value, i.e. if the two points on the Bloch sphere are on the same "latitude."
-
-        \begin{center} 
-          \includegraphics[scale=0.3]{img/Bloch_Sphere_latitude.jpg}
-        \end{center}
-
-        Notice that if two states are differ by a relative phase, then these phases are observationally equivalent, and so must be similar to the global phase factor. However, the relative phase is basis-dependent and so may produce different probability densities depending on the computational basis, while the global one is basis-independent. 
 
   \subsection{Postulate 4: Composite Systems}
 
