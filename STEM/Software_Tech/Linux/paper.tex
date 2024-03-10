@@ -327,6 +327,8 @@ I try to organize this in a way so that one who wishes to get started in Linux c
     Intel drivers are open source, but Nvidia drivers are proprietary (which is why Linus Torvalds has beef with Nvidia).\footnote{A video of Linus Torvalds saying ``fuck you'' to Nvidia: https://www.youtube.com/watch?v=iYWzMvlj2RQ}
     \end{definition}
 
+    Some popular graphics drivers include \textbf{mesa} for Intel and \textbf{nvidia} drivers for NVIDIA. 
+
     \subsubsection{Multiple GPUs} 
 
       Everything is pretty straightforward when you have one graphics card, but when you have multiple graphics cards, you have to specify which one you want to use. If you want to only use one GPU, you can just disable the other one in the BIOS. However, if you have an Intel/Nvidia dual driver and want to use both, install \textbf{Nvidia Optimius} (for Ubuntu, it is supported through \textbf{nvidia-prime}).\footnote{This wiki article (https://github.com/Askannz/optimus-manager/wiki) provides a good overview of this matter. },\footnote{Installation instructions here: https://github.com/Askannz/optimus-manager?tab=readme-ov-file} 
@@ -538,7 +540,50 @@ UUID=5c191f65-b016-475d-b04a-5b7c89bda31d	none swap defaults 0 0
 
   \subsection{Modifying Partitions} 
     
-    Modifying partitions require specialized software. Partitioning can be done using two main partitioning schemes \textbf{GPT} and \textbf{MBR}. 
+    Modifying partitions require specialized software. Partitioning can be done using two main partitioning schemes \textbf{GPT} (the modern one) and \textbf{MBR} (legacy). The \textbf{parted} utility gives detailed info on your partitions. To see which scheme you have, just run \texttt{sudo parted -l}, where the output can be shown in Figure \ref{fig:parted}. 
+
+    \begin{figure}[hbt!]
+      \centering 
+      \begin{cverbatim} 
+Model: PM9A1 NVMe Samsung 1024GB (nvme)
+Disk /dev/nvme0n1: 1024GB
+Sector size (logical/physical): 512B/512B
+Partition Table: gpt
+Disk Flags: 
+
+Number  Start   End     Size    File system     Name                          Flags
+ 1      1049kB  253MB   252MB   fat32           EFI system partition          boot, esp
+ 2      253MB   387MB   134MB                   Microsoft reserved partition  msftres
+ 3      387MB   333GB   332GB   ntfs            Basic data partition          msftdata
+ 7      333GB   333GB   524MB   fat32                                         boot, esp
+ 8      333GB   338GB   5000MB  linux-swap(v1)                                swap
+ 9      338GB   1004GB  666GB   ext4
+ 4      1004GB  1005GB  1038MB  ntfs                                          hidden, diag
+ 5      1005GB  1023GB  17.9GB  ntfs                                          hidden, diag
+ 6      1023GB  1024GB  1503MB  ntfs                                          hidden, diag
+
+
+Model: Unknown (unknown)
+Disk /dev/zram0: 4295MB
+Sector size (logical/physical): 4096B/4096B
+Partition Table: loop
+Disk Flags: 
+
+Number  Start  End     Size    File system     Flags
+ 1      0.00B  4295MB  4295MB  linux-swap(v1) 
+      \end{cverbatim}
+      \caption{Output of \texttt{sudo parted -l} on my own machine. } 
+      \label{fig:parted}
+    \end{figure}
+
+    It is important to know which partition scheme you should use. 
+    \begin{enumerate} 
+      \item To dual-boot with Windows (both 32-bit and 64-bit) using Legacy BIOS, the MBR scheme is required.
+      \item To dual-boot Windows 64-bit using UEFI mode instead of BIOS, the GPT scheme is required.
+      \item If you are installing on older hardware, especially on old laptops, consider choosing MBR because its BIOS might not support GPT.
+      \item If you are partitioning a disk that is larger than 2TB, you need to use GPT.
+      \item It is recommended to always use GPT for UEFI boot, as some UEFI implementations do not support booting to the MBR while in UEFI mode.
+    \end{enumerate}
 
 \section{Firmware} 
 
@@ -609,7 +654,26 @@ UUID=5c191f65-b016-475d-b04a-5b7c89bda31d	none swap defaults 0 0
 
 \section{Bootloaders} 
 
-    The \textbf{bootloader} is another critical piece of software that allows you to identify and load the proper operating system kernel. If it also provides an interactive menu with multiple boot choices, then it is often called a \textbf{boot manager}. The way that these kernels can be loaded can be configured through the bootloader, and the most popular boot manager is \textbf{GRUB}, the \textbf{Grand Unified Bootloader}. 
+  Once the firmware is loaded, which probes the system to find the hardware, it must load the operating system kernel. This is the job of the boot loader.
+
+  \begin{definition}[Boot Loader, Boot Manager]
+    The \textbf{bootloader} is another critical piece of software that allows you to identify and load the proper operating system kernel. If it also provides an interactive menu with multiple boot choices, then it is often called a \textbf{boot manager}. 
+  \end{definition}
+
+  In modern systems which support UEFI (not the legacy BIOS), you must configure your partitions so that there exists an EFI partition (at \texttt{/boot}) that contains this bootloader. 
+
+  EFI bootloaders usually have a \texttt{.efi} extension, and it is crucial that you know where the bootloaders are in your system in case they go missing or are corrupt. To see the configuration, you can run \textbf{efibootmgr} (with verbose), which gives you information on several things: 
+  \begin{enumerate} 
+    \item It scans the entire system for EFI bootloaders and lists them. 
+    \item It lists the locations of the EFI bootloaders. It starts off which what partition they are in, and then lists the directory where the bootloader is located. \texttt{BootX64.efi} is the Windows bootloader and \texttt{grubx64.efi} is the GRUB bootloader. For example, you may have a bootloader at \texttt{(partition 7)/boot/efi/EFI/Boot/bootx64.efi}. 
+    \item It lists the boot order, which is the order in which the bootloaders are loaded. In case a boot loader fails to load, the next one is loaded. Therefore, if you have an arch linux bootloader that is corrupt, and the next in line is the Windows bootloader, you will automatically boot into Windows. You can also set the boot order in the BIOS. 
+  \end{enumerate}
+
+  In case you can't boot in, you can always get an Arch ISO burned in on a thumb drive, boot into it, mount the relevant partitions containing the Arch bootloader and the root directory, and then chroot into the root directory to modify files. 
+
+  \subsection{GRUB}
+
+    The way that these kernels can be loaded can be configured through the bootloader, and the most popular boot manager is \textbf{GRUB}, the \textbf{Grand Unified Bootloader}. 
 
     GRUB, developed by the GNU project, is the default loader on most Linux distributions. There is an old version called GRUB legacy and the more modern GRUB 2. Most people refer to GRUB 2 and simply GRUB. FreeBSD, which is another complete (non-Linux) OS, have their own boot loader, but GRUB is compatible with it. Therefore, for dual-boot or triple-boot systems that have multiple kernels, GRUB is the go-to bootloader for loading any of them. 
 
@@ -728,7 +792,27 @@ UUID=5c191f65-b016-475d-b04a-5b7c89bda31d	none swap defaults 0 0
 
 \section{Display Servers}
 
-  X11, Xorg, Wayland.
+  When you boot up your computer, you are greeted with a graphical user interface (GUI) that allows you to interact with your computer. This is the job of the display server, which is a program that provides graphical display capabilities for the operating system. 
+
+  \begin{definition}[Display Server]
+    A \textbf{display server} is a program that manages the communication between your computer's hardware and graphical software applications. It acts as a bridge for input and output devices; for example, it processes the input from your keyboard and mouse and outputs graphics to the monitor. The display server is responsible for the fundamental task of drawing windows and handling the low-level aspects of input and output, but it doesn't dictate how these windows look or are arranged. For almost every purpose, there are two types of display servers: 
+    \begin{enumerate} 
+      \item \textbf{X}: The X Window System, which is the older and more established display server. 
+      \item \textbf{Wayland}: The newer and more modern display server.
+    \end{enumerate}
+  \end{definition}
+
+  \begin{definition}[X Window System]
+    The \textbf{X Window System} is a windowing protocol for Unix/Linux OSes, similar to the way that Microsoft Windows or Apple Mac OS X can run different apps in separate windows. \textbf{X} defines the protocol for a display server what can render windows on a \textit{display client} (your computer), inside which are running apps.\footnote{Explanation here: https://www.reddit.com/r/linuxquestions/comments/3uh9n9/what\_exactly\_is\_xxorgx11/} 
+    \begin{enumerate} 
+      \item \textbf{X11} refers to version 11 of the X protocol, while 
+      \item \textbf{Xorg} is an open-source implementation of X. 
+    \end{enumerate}
+  \end{definition}
+
+  \begin{definition}[Wayland]
+    X, made in 1984, has developed a lot of cruft over the years, and Wayland is a modern replacement for X. It is a protocol for a compositor to talk to its clients, as well as a C library implementation of that protocol. The compositor can be a standalone display server running on Linux kernel modesetting and evdev input devices, an X application, or a wayland client itself. 
+  \end{definition}
 
 \section{Windows Managers and Desktop Environments}
 

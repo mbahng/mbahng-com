@@ -60,15 +60,26 @@
 
   \newenvironment{solution}{\noindent \textit{Solution.}}{}
 
+  \newenvironment{code}
+    {\begin{center}
+    \begin{tabular}{|p{0.9\textwidth}|}
+    \hline\\
+    }
+    { 
+    \\\\\hline
+    \end{tabular} 
+    \end{center}
+    }
+
   \renewcommand{\thispagestyle}[1]{}
 
-\begin{document}
-\pagestyle{fancy}
+  \pagestyle{fancy}
+  \fancyhead[L]{Deep Learning}
+  \fancyhead[C]{Muchang Bahng}
+  \fancyhead[R]{Summer 2023} 
+  \fancyfoot[C]{\thepage / \pageref{LastPage}}
 
-\lhead{Deep Learning}
-\chead{Muchang Bahng}
-\rhead{\date{Summer 2023 ~ Spring 2024}}
-\cfoot{\thepage / \pageref{LastPage}}
+\begin{document}
 
 \title{Deep Learning}
 \author{Muchang Bahng}
@@ -85,6 +96,10 @@ This requires you to know both the supervised and unsupervised learning notes, e
 \section{Multi-Layered Perceptrons}
 
   \subsection{Generalized Linear Models}
+
+    \begin{code} 
+      Before we get into anything. You must be familiar with how to work with pytorch tensors. For a primer, look \href{code/utilities.ipynb}{here}. 
+    \end{code}
 
      First, we transform the inputs into the relevant features $\mathbf{x}_n \mapsto \boldsymbol{\phi} (\mathbf{x}_n) = \boldsymbol{\phi}_n$ and then, when we construct a generalized linear model, we assume that the conditional distribution $Y \mid X = x$ is in the canonical exponential family, with some natural parameter $\eta(x)$ and expected mean $\mu(x) = \mathbb{E}[Y \mid X = x]$. Then, to choose the link function $g$ that related $g(\mu(x)) = x^T \beta$, we can set it to be the canonical link $g$ that maps $\mu$ to $\eta$. That is, 
     
@@ -406,9 +421,6 @@ This requires you to know both the supervised and unsupervised learning notes, e
 
     A little fact is that the time complexity of both forward prop and back prop should be the same, so if you ever notice that the time to compute these two functions scales differently, you're probably making some repeated calculations somewhere. 
 
-
-    \subsubsection{Summary}
-
     Therefore, let us summarize what a MLP does: 
     \begin{enumerate}
         \item \textit{Initialization}: We initialize all the parameters to be 
@@ -437,471 +449,6 @@ This requires you to know both the supervised and unsupervised learning notes, e
         The specific optimizer can differ, e.g. Adam, SGD, BFGS, etc., but the specific algorithm won't be covered here. It is common to use Adam, since it usually works better. If we can afford to iterate over the entire batch, L-BFGS may also be useful. 
     \end{enumerate}
 
-  \subsection{Neural Net from Scratch}
-
-    Now let us implement a neural network with batch gradient descent in Python from scratch, using only Numpy. We will train on the MNIST dataset where the train and test sets can be gotten using the following commands. 
-    \begin{cverbatim}
-    import numpy as np 
-    import torchvision.datasets as datasets
-
-    train_set = datasets.MNIST('./data', train=True, download=True)
-    test_set = datasets.MNIST('./data', train=False, download=True)
-
-  # Check the lengths of train sets and test sets
-    assert len(train_set) == 60000 and len(test_set) == 10000
-    \end{cverbatim}
-
-    Now we want to take each $28 \times 28$ image and flatten it out to a $784$ vector. 
-    \begin{cverbatim}
-    X_train = np.array([picture.numpy().reshape(-1) for picture in train_set.data]).T / 255.
-    Y_train = train_set.targets.numpy() 
-    X_test = np.array([picture.numpy().reshape(-1) for picture in test_set.data]).T / 255.
-    Y_test = test_set.targets.numpy()
-
-  # Check shapes 
-    assert X_train.shape == (784, 60000) and Y_train.shape == (60000, )
-    \end{cverbatim}
-
-    Here are some helper functions that we will need. 
-    \begin{cverbatim}
-    def initialize_params(): 
-        W1 = np.random.uniform(-1, 1, size=(10, 784)) 
-        b1 = np.random.uniform(-1, 1, size=(10, 1)) 
-        W2 = np.random.uniform(-1, 1, size=(10, 10)) 
-        b2 = np.random.uniform(-1, 1, size=(10, 1)) 
-        return W1, b1, W2, b2 
-
-    def oneHot(Y): 
-        # Y is 60000 
-        oneHotY = np.zeros((10, Y.size))
-        oneHotY[Y, np.arange(Y.size)] = 1 
-        return oneHotY # 10x60000
-
-    def ReLU(Z): 
-        return np.maximum(0, Z)
-
-    def ReLU_d(Z): 
-        return Z > 0
-
-    def softMax(X:np.array): 
-        x_max = np.max(X, axis=0)
-        X = X - x_max
-        return np.exp(X) / np.sum(np.exp(X), axis=0) 
-
-    def softMax_d(X:np.array): 
-        sm = softMax(X)
-        return - (np.diag(sm.sum(axis=1)) - np.matmul(sm, np.transpose(sm))) / X.shape[1]
-    \end{cverbatim}
-
-    Now we implement the forward propagation and back propagation. 
-    \begin{cverbatim}
-    def forwardProp(W1, b1, W2, b2, X): 
-        # Z1 12x1, W1 12x784 , X 784x1, b1 12x1
-        Z1 = np.matmul(W1, X) + b1
-        # A1 12x60000
-        A1 = ReLU(Z1) 
-        
-        # Z2 10x1, W2 10x12, A1 12x60000, b2 10x60000
-        Z2 = np.matmul(W2, A1) + b2 
-        # A2 10x60000
-        A2 = softMax(Z2) 
-        return Z1, A1, Z2, A2 
-
-    def backProp(Z1, A1, Z2, A2, W1, W2, X, Y): 
-        N = Y.size
-        oneHotY = oneHot(Y)
-        
-        # 10x1 = 10x10 10x1
-        error2 = A2 - oneHotY
-        # error2 = np.matmul(np.transpose(softMax_d(Z2)), A2 - oneHotY) 
-        # 10x12 = 10x1 1x12
-        dW2 = 1/N * np.matmul(error2, A1.T)
-        # 10x1
-        dB2 = 1/N * error2.sum(axis=1)
-        
-        # 12x1 = 12x1 .* 12x10 10x1
-        error1 = np.vectorize(ReLU_d)(Z1) * np.matmul(W2.T, error2) 
-        # 12x784 = 12x1 1x784
-        dW1 = 1/N * np.matmul(error1, X.T)
-        # 12x1 
-        dB1 = 1/N * error1.sum(axis=1)
-
-        return dW1, dB1, dW2, dB2 
-    \end{cverbatim}
-
-    We now build the batch gradient descent algorithm. 
-    \begin{cverbatim}
-    def get_predictions(A2):
-        return np.argmax(A2, 0)
-
-    def get_accuracy(predictions, Y):
-        print(predictions, Y)
-        return np.sum(predictions == Y) / Y.size
-
-    def update_params(W1, b1, W2, b2, dW1, db1, dW2, db2, alpha):
-        W1 = W1 - alpha * dW1
-        b1 = b1 - alpha * db1.reshape(-1, 1)    
-        W2 = W2 - alpha * dW2  
-        b2 = b2 - alpha * db2.reshape(-1, 1)       
-        return W1, b1, W2, b2
-
-    def gradient_descent(X, Y, alpha, iterations): 
-        W1, b1, W2, b2 = initialize_params()
-        for i in range(iterations):
-            Z1, A1, Z2, A2 = forwardProp(W1, b1, W2, b2, X)
-            dW1, db1, dW2, db2 = backProp(Z1, A1, Z2, A2, W1, W2, X, Y)
-            W1, b1, W2, b2 = update_params(W1, b1, W2, b2, dW1, db1, dW2, db2, alpha)
-            if i % 10 == 0:
-                print("Iteration: ", i)
-                predictions = get_predictions(A2)
-                print(get_accuracy(predictions, Y))
-        return W1, b1, W2, b2
-
-  # Run it
-    W1, b1, W2, b2 = gradient_descent(X_train, Y_train, 0.1, 500)
-    \end{cverbatim}
-    Which gives the following output, ultimately yielding a $77\%$ accuracy rate in detecting handwritten digits. 
-    \begin{cverbatim}
-    Iteration:  0
-    [4 7 4 ... 4 7 0] [5 0 4 ... 5 6 8]
-    0.10175
-    Iteration:  10
-    [8 0 4 ... 4 6 0] [5 0 4 ... 5 6 8]
-    0.20715
-    Iteration:  20
-    [8 0 4 ... 4 6 0] [5 0 4 ... 5 6 8]
-    0.2333
-    Iteration:  30
-    [9 0 4 ... 4 6 0] [5 0 4 ... 5 6 8]
-    0.2579166666666667
-    ...
-    ...
-    ...
-    Iteration:  470
-    [3 0 9 ... 5 6 0] [5 0 4 ... 5 6 8]
-    0.7645
-    Iteration:  480
-    [3 0 9 ... 5 6 0] [5 0 4 ... 5 6 8]
-    0.7646833333333334
-    Iteration:  490
-    [3 0 9 ... 5 6 0] [5 0 4 ... 5 6 8]
-    0.7728166666666667
-    \end{cverbatim}
-
-  \subsection{Quick Start to PyTorch}
-
-    There is no more of a reason to go any further with vanilla Python. We will use the PyTorch package, which manipulates $\texttt{torch.tensor}$ objects similar to $\texttt{numpy.array}$ objects. We will not go over the basic tensor object here. Now in neural nets, most of the training algorithms are basically matrix multiplication, meaning that a massively parallelized architecture is best. Therefore, we would like to run our modules in the $\texttt{cuda}$ device. 
-
-    \begin{cverbatim}
-      import torch
-
-      device = (
-        "cuda"
-        if torch.cuda.is_available()
-        else "mps"
-        if torch.backends.mps.is_available()
-        else "cpu"
-      )
-      print(f"Using {device} device")
-    \end{cverbatim}
-
-    \subsubsection{Datasets and Features/Label Transformations}
-
-      Now we have popular datasets for machine learning. It is good to know what they are, what the input and output data consists of, and its size. 
-      \begin{enumerate}
-          \item \textit{MNIST} consists of 70k (60k training + 10k test) $28 \times 28$ grayscale images in 10 classes ($0, 1, \ldots, 9$). It has a bunch of handwritten digits. 50MB 
-
-          \item \textit{Fashion-MNIST} consists of 70k (60k + 10k) $28 \times 28$ grayscale images in 10 classes (top, trouser, pullover, dress, coat, sandal, shirt, sneaker, bag, ankle boot). 
-
-          \item \textit{CIFAR-10} consists of 60k (50k train + 10k test) $32 \times 32$ color images in 10 classes (airplane, automobile, bird, cat, deer, dog, frog, horse, ship, truck). 170MB. 
-
-          \item \textit{CIFAR-100} is just like the CIFAR-10, but with 100 classes containing 600 images each. CIFAR-10 is a standard benchmark for most classification tasks, while CIFAR-100 provides a more challening classification problem. 
-
-          \item \textit{ImageNet} consists of ~1.33m (1.28m + 50k) color images in 1000 classes, with a variety of resolutions, but many researchers crop/compress them down to $224 \times 224$. 150GB 
-      \end{enumerate}
-
-      Now we can load these datasets with the following command. If they are not found in the $\texttt{root}$ directory specified in the parameters, then they will be downloaded. Since we may be working with different datasets, we should have a $\texttt{data}$ folder containing multiple subfolders for each dataset. 
-
-      \begin{cverbatim}
-      import os
-      import torch
-      from torchvision import datasets
-      from torchvision.transforms import ToTensor
-
-      training_data = datasets.FashionMNIST(
-          root="data",            # the folder where the data will be stored in
-          train=True,             # training or test dataset
-          download=True,          # downloads data if not available at root
-          transform=ToTensor()    # specifies features/label transformations
-      )
-      test_data = datasets.FashionMNIST(
-          root="data",
-          train=False,
-          download=True,
-          transform=ToTensor()
-      )
-      \end{cverbatim}
-
-      Now the $\texttt{training\_data}$ and $\texttt{test\_data}$ are lists of 2-tuples of the input image (tensor object of size 1, 28, 28) and the output label (integer). 
-      \begin{cverbatim}
-        img, label = training_data[0] 
-        print(img.shape)        torch.size([1, 28, 28])
-        print(label)            9
-      \end{cverbatim} 
-      We can manually map the integers to the category word, and use the $\texttt{torch.squeeze}$ method to get rid of the extra dimension of $1$, before plotting the image, which is shown by Figure \ref{fig:fashionmnist_data}.  
-      \begin{cverbatim}
-        labels_map = {
-            0: "T-Shirt",
-            1: "Trouser",
-            2: "Pullover",
-            3: "Dress",
-            4: "Coat",
-            5: "Sandal",
-            6: "Shirt",
-            7: "Sneaker",
-            8: "Bag",
-            9: "Ankle Boot",
-        }
-
-        random_index = torch.randint(len(training_data), size=(1,)).item() 
-        img, label = training_data[random_index] 
-
-        # Plot 
-        plt.title(f"{labels_map[label]}")
-        plt.imshow(torch.squeeze(img), cmap="gray") 
-        plt.axis("off")
-        \end{cverbatim}
-
-        \begin{figure}
-            \centering
-            \includegraphics[scale=0.4]{img/PyTorch/fashion.png}
-            \caption{Data point from FashionMNIST}
-            \label{fig:fashionmnist_data}
-      \end{figure}
-
-      Now that we have loaded our dataset, we can retrieve our features and labels one sample at a time. However, while training a model, we typically want to pass the samples in minibatches (e.g. in SGD), reshuffle the data at every epoch to reduce model overfitting, and use Python's multiprocessing to speed up data retrieval. We can do all this with the $\texttt{DataLoader}$ API. 
-
-      \begin{cverbatim}
-        from torch.utils.data import DataLoader
-
-        train_dataloader = DataLoader(training_data,    # our dataset
-                                    batch_size=64,    # batch size
-                                    shuffle=True      # shuffling the data
-                                  )
-        test_dataloader = DataLoader(test_data, batch_size=64, shuffle=True)
-
-        train_features, train_labels = next(iter(train_dataloader))
-        print(f"Feature batch shape: {train_features.size()}")
-        print(f"Labels batch shape: {train_labels.size()}")
-
-        # Feature batch shape: torch.Size([64, 1, 28, 28])
-        # Labels batch shape: torch.Size([64])
-      \end{cverbatim}
-
-      Like in machine learning, we would like to normalize our data in some way. Fortunately, when loading the data, this is automatically done for us. The Fashion image are in PIL format, and the labels are just integers. 
-      \begin{cverbatim}
-      from torchvision.transforms import ToTensor, Lambda
-
-      ds = datasets.FashionMNIST(
-          root="data",
-          train=True,
-          download=True,
-          transform=ToTensor(),
-          target_transform=Lambda(lambda y: torch.zeros(10, dtype=torch.float).scatter_(0, 
-              torch.tensor(y), value=1))
-      )
-      \end{cverbatim}
-      \begin{enumerate}
-          \item $\texttt{transform=ToTensor()}$ tells us to take the images, convert them to a tensor, covert all the elements to floats, and normalize them. 
-          \item $\texttt{target\_transform}$ tells us to one-hot encode the integer labels to vectors. It first creates a zero tensor of size 10 (the number of labels in our dataset) and calls $\texttt{scatter\_}$ which assigns a $\texttt{value=1}$ on the index as given by the label y.
-      \end{enumerate}
-
-    \subsubsection{Building a Neural Net}
-
-      We can build a neural net as a subclass of $\texttt{nn.Module}$. Note that the $\texttt{nn.flatten}$ method flattens the tensor with $\texttt{start\_dim}$ set to $1$ by default to avoid flattening the first axis (usually the batch axis). 
-
-      \begin{cverbatim}
-        from torch import nn
-
-        class NeuralNetwork(nn.Module):
-          def __init__(self):
-            super().__init__()
-            self.flatten = nn.Flatten()
-            self.linear_relu_stack = nn.Sequential(
-              nn.Linear(28*28, 512),
-              nn.ReLU(),
-              nn.Linear(512, 512),
-              nn.ReLU(),
-              nn.Linear(512, 10),
-            )
-
-          def forward(self, x):
-            x = self.flatten(x)
-            logits = self.linear_relu_stack(x)
-            return logits
-      \end{cverbatim}
-
-      All of these methods can be used separately, and they can be combined using sequential to form a composition of functions. 
-
-      \begin{cverbatim}
-        X = torch.rand(3, 28, 28)
-        Y = torch.rand(3, 8)
-
-        flatten = nn.Flatten()      # flattens from dim=1 
-        linear = nn.Linear(8, 4)    # linear map 
-        relu = nn.ReLU()            # ReLU map 
-        softmax = nn.Softmax(dim=1) # Softmax map 
-
-        print(flatten(X).size())    # torch.Size([3, 784])
-        print(linear(Y).size())     # torch.Size([3, 4])
-        print(relu(Y).size())       # torch.Size([3, 8])
-        print(softmax(Y).size())    # torch.Size([3, 8])
-      \end{cverbatim}
-
-      Next, we want to create an instance of this neural network and move it to our cuda device. 
-      \begin{cverbatim}
-        model = NeuralNetwork().to(device)
-        print(model)
-
-        # NeuralNetwork(
-        #   (flatten): Flatten(start_dim=1, end_dim=-1)
-        #   (linear_relu_stack): Sequential(
-        #     (0): Linear(in_features=784, out_features=512, bias=True)
-        #     (1): ReLU()
-        #     (2): Linear(in_features=512, out_features=512, bias=True)
-        #     (3): ReLU()
-        #     (4): Linear(in_features=512, out_features=10, bias=True)
-        #   )
-        # )
-      \end{cverbatim}
-
-      To use the model, we can just directly pass in the input data, which executes the model's forward propagation ($\texttt{forward}$ method). Do not call $\texttt{model.forward()}$ directly! 
-      \begin{cverbatim}
-        X = torch.rand(3, 28, 28, device=device)
-        logits = model(X)
-        pred_probab = nn.Softmax(dim=1)(logits)
-        y_pred = pred_probab.argmax(1)
-        print(f"Predicted class: {y_pred}")
-
-        # tensor([[-0.0518,  0.0379, -0.0579,  0.0050,  0.0367,  0.0958,  0.0055,  0.1385,
-        #           0.0464, -0.0017]], device='cuda:0', grad_fn=<AddmmBackward0>)
-        # tensor([[0.0924, 0.1011, 0.0919, 0.0978, 0.1010, 0.1071, 0.0979, 0.1118, 0.1019,
-        #          0.0972]], device='cuda:0', grad_fn=<SoftmaxBackward0>)
-        # Predicted class: tensor([7], device='cuda:0')
-      \end{cverbatim}
-
-      We can also access parameters by calling $\texttt{model.named\_parameters()}$, which gives us a list of tuples $(name, param)$, where name is simply the name of the weight, and the param is the matrix representing the linear mapping or the bias term. 
-      \begin{cverbatim}
-      for name, param in model.named_parameters():
-        print(f"Layer: {name} | Size: {param.size()} | Values : {param[:2]} \n")
-      \end{cverbatim}
-
-    \subsubsection{Automatic Differentiation}
-
-      The forward and backward API for a computational gate multiplying its inputs 
-      \begin{center}
-      \begin{tikzpicture}[scale=1.5, every node/.style={draw, circle, minimum size=1cm}]
-
-        % Input nodes
-        \node (x) at (0, 1) {$x$};
-        \node (y) at (0, -1) {$y$};
-
-        % Multiply gate node
-        \node[shape=rectangle] (multiply) at (1.5, 0) {$\times$};
-
-        % Output node
-        \node (z) at (3.5, 0) {$z$};
-
-        % Connections
-        \draw[->] (x) -- (multiply);
-        \draw[->] (y) -- (multiply);
-        \draw[->] (multiply) -- (z);
-
-      \end{tikzpicture}
-      \end{center}
-      is represented with the code below. 
-      \begin{cverbatim}
-      class MultiplyGate(object): 
-          def forward(x, y): 
-              z = x * y 
-              self.x = x      # must keep these around! 
-              self.y = y 
-              return z 
-
-          def backward(dz): 
-              dx = self.y * dz  
-              dy = self.x * dz 
-              return [dx, dy] 
-      \end{cverbatim}
-
-    \subsubsection{Optimizing Model Parameters}
-
-      Basically in each epoch, we want to do two things: 
-      \begin{enumerate}
-          \item \textit{Train Loop}: Iterate over the (minibatch) training dataset and try to converge to optimal parameters using backprop. 
-          \item \textbf{Test Loop}: Iterate over the test dataset to check if model performance is improving. 
-      \end{enumerate}
-
-      Once we compute the gradient of a given loss function, we can use different optimizers like SGD or ADAM to optimize. 
-      \begin{cverbatim}
-      loss_fn = nn.CrossEntropyLoss()
-      optimizer = torch.optim.SGD(
-          model.parameters(),     # which parameters to optimize
-          lr=1e-3                 # learning rate 
-      )
-      \end{cverbatim}
-      Our train loop 
-      \begin{cverbatim}
-      def train(dataloader, model, loss_fn, optimizer):
-          size = len(dataloader.dataset)
-          model.train()
-          for batch, (X, y) in enumerate(dataloader):
-              X, y = X.to(device), y.to(device)
-
-              # Compute prediction error
-              pred = model(X)
-              loss = loss_fn(pred, y)
-
-              # Backpropagation
-              loss.backward()
-              optimizer.step()
-              optimizer.zero_grad()
-
-              if batch % 100 == 0:
-                  loss, current = loss.item(), (batch + 1) * len(X)
-                  print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
-      \end{cverbatim}
-      We can then evaluate the model's performance against the test dataset. 
-      \begin{cverbatim}
-      def test(dataloader, model, loss_fn):
-          size = len(dataloader.dataset)
-          num_batches = len(dataloader)
-          model.eval()
-          test_loss, correct = 0, 0
-          with torch.no_grad():
-              for X, y in dataloader:
-                  X, y = X.to(device), y.to(device)
-                  pred = model(X)
-                  test_loss += loss_fn(pred, y).item()
-                  correct += (pred.argmax(1) == y).type(torch.float).sum().item()
-          test_loss /= num_batches
-          correct /= size
-          print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
-      \end{cverbatim}
-      Now we run this through a loop over some number of epochs. 
-      \begin{cverbatim}
-      epochs = 5
-      for t in range(epochs):
-          print(f"Epoch {t+1}\n-------------------------------")
-          train(train_dataloader, model, loss_fn, optimizer)
-          test(test_dataloader, model, loss_fn)
-      print("Done!")
-      \end{cverbatim}
-
-\section{Training Stability}
-
-  Training stability refers to helping the training process, which does not improve the theoretical upper bound on the accuracy of the neural net, but are extremely important for practical applications. It is related to regularization, which prevents the neural net from overfitting to the data. They are both related as they improve the performance of training and the neural network itself, but it good to distinguish them. Given some loss landscape, regularization ensures that we don't ``fall" into some deep hole that looks great on our training error, but does terribly on our testing error. On the other hand, training stability ensures that we update our parameters efficiently to traverse the landscape. 
-
   \subsection{Weight Initialization}
 
     Now how should we initialize our weights? 
@@ -914,118 +461,60 @@ This requires you to know both the supervised and unsupervised learning notes, e
 
   \subsection{Optimizers}
 
+  \subsection{Activation Functions} 
 
-  \subsection{Vanishing Gradient Problem}
+    The choice of the activation function can have a significant impact on your training, and we will describe a few examples below. The first thing to note is that we must ensure that there is a nonzero gradient almost everywhere. If, for example, we had a piecewise constant activation function, the gradient is $0$ almost everywhere, and it would kill the gradient of the entire network. 
 
-    \subsubsection{Activation Functions}
+    \begin{example}[Sigmoid]
+    Sigmoid activations are historically popular since they have a nice interpretation as a saturating ``fire rate" of a neuron. However, there are 3 problems: 
+    \begin{enumerate}
+        \item The saturated neurons ``kill" the gradients, since if the input at any one point in the layers is too positive or negative, the gradient will vanish, making very small updates. This is known as the \textbf{vanishing gradient problem}. Therefore, the more layers a neural network has, the more likely we are to see this vanishing gradient problem. 
+        \item Sigmoid functions are not zero centered (i.e. its graph doesn't cross the point $(0, 0)$ ). Consider what happens when the input $x$ to a neuron is always positive. Then, the sigmoid $f$ will have a gradient of 
+        \[f \bigg( \sum_i w_i x_i + b \bigg) \implies \frac{\partial f}{\partial w_i} = f^\prime \bigg( \sum_i w_i x_i + b \bigg) 
+        \, x_i\]
+        which means that the gradients $\nabla_\mathbf{w} f$ will always have all positive elements or all negative elements, meaning that we will be restricted to moving in certain nonoptimal directions when updating our parameters. 
+    \end{enumerate}
+    \end{example}
 
-      The choice of the activation function can have a significant impact on your training, and we will describe a few examples below. The first thing to note is that we must ensure that there is a nonzero gradient almost everywhere. If, for example, we had a piecewise constant activation function, the gradient is $0$ almost everywhere, and it would kill the gradient of the entire network. 
+    \begin{example}[Hyperbolic Tangent]
+    The hyperbolic tangent is zero centered, which is nice, but it still squashes numbers to range $[-1, 1]$ and therefore kills the gradients when saturated. 
+    \end{example}
 
-      \begin{example}[Sigmoid]
-      Sigmoid activations are historically popular since they have a nice interpretation as a saturating ``fire rate" of a neuron. However, there are 3 problems: 
-      \begin{enumerate}
-          \item The saturated neurons ``kill" the gradients, since if the input at any one point in the layers is too positive or negative, the gradient will vanish, making very small updates. This is known as the \textbf{vanishing gradient problem}. Therefore, the more layers a neural network has, the more likely we are to see this vanishing gradient problem. 
-          \item Sigmoid functions are not zero centered (i.e. its graph doesn't cross the point $(0, 0)$ ). Consider what happens when the input $x$ to a neuron is always positive. Then, the sigmoid $f$ will have a gradient of 
-          \[f \bigg( \sum_i w_i x_i + b \bigg) \implies \frac{\partial f}{\partial w_i} = f^\prime \bigg( \sum_i w_i x_i + b \bigg) 
-          \, x_i\]
-          which means that the gradients $\nabla_\mathbf{w} f$ will always have all positive elements or all negative elements, meaning that we will be restricted to moving in certain nonoptimal directions when updating our parameters. 
-      \end{enumerate}
-      \end{example}
+    \begin{example}[Rectified Linear Unit]
+    The ReLU function has the following properties: 
+    \begin{enumerate}
+        \item It does not saturate in the positive region. 
+        \item It is very computationally efficient (and the fact that it is nondifferentiable at one point doesn't really affect computations). 
+        \item It converges much faster than sigmoid/tanh in practice. 
+        \item However, note that if the input is less than $0$, then the gradient of the ReLU is $0$. Therefore, if we input a vector that happens to have all negative values, then the gradient would vanish and we wouldn't make any updates. These ReLU ``dead zones" can be a problem since it will never activate and never update, which can happen if we have bad initialization. A more common case is when your learning rate is too high, and the weights will jump off the data manifold. 
+    \end{enumerate}
+    \end{example}
 
-      \begin{example}[Hyperbolic Tangent]
-      The hyperbolic tangent is zero centered, which is nice, but it still squashes numbers to range $[-1, 1]$ and therefore kills the gradients when saturated. 
-      \end{example}
+    \begin{example}[Leaky ReLU]
+    The leaky ReLU 
+    \[\sigma(x) = \max\{0.01 x, x\}\]
+    does not saturate (i.e. gradient will not die), is computationally efficient, and converges much faster than sigmoid/tanh in practice. We can also parameterize it with $\alpha$ and have the neural net optimize $\alpha$ along with the weights. 
+    \[\sigma(x) = \max\{\alpha x, x\}\]
+    \end{example}
 
-      \begin{example}[Rectified Linear Unit]
-      The ReLU function has the following properties: 
-      \begin{enumerate}
-          \item It does not saturate in the positive region. 
-          \item It is very computationally efficient (and the fact that it is nondifferentiable at one point doesn't really affect computations). 
-          \item It converges much faster than sigmoid/tanh in practice. 
-          \item However, note that if the input is less than $0$, then the gradient of the ReLU is $0$. Therefore, if we input a vector that happens to have all negative values, then the gradient would vanish and we wouldn't make any updates. These ReLU ``dead zones" can be a problem since it will never activate and never update, which can happen if we have bad initialization. A more common case is when your learning rate is too high, and the weights will jump off the data manifold. 
-      \end{enumerate}
-      \end{example}
+    \begin{example}[Exponential Linear Unit]
+    The exponential linear unit has all the benefits of ReLU, with closer to mean outputs. It has a negative saturation regime compared with leaky ReLU, but it adds some robustness to noise. 
+    \[\sigma(x) = \begin{cases} x & \text{ if } x > 0 \\ \alpha \big(\exp{x} - 1 \big) & \text{ if } x \leq 0 \end{cases}\]
+    \end{example}
 
-      \begin{example}[Leaky ReLU]
-      The leaky ReLU 
-      \[\sigma(x) = \max\{0.01 x, x\}\]
-      does not saturate (i.e. gradient will not die), is computationally efficient, and converges much faster than sigmoid/tanh in practice. We can also parameterize it with $\alpha$ and have the neural net optimize $\alpha$ along with the weights. 
-      \[\sigma(x) = \max\{\alpha x, x\}\]
-      \end{example}
+    \begin{example}[Max-Out Neuron]
+    The maxout neuron has the following form 
+    \[\sigma(\mathbf{x}) = \max\{ \mathbf{w}_1^T \mathbf{x} + b_1 , \mathbf{w}_2^T \mathbf{x} + b_2 \}\]
+    This generalizes the ReLU and leaky ReLU. It is linear, which is nice, and it does not saturate, meaning that the gradient will never die. However, this doubles the number of parameters in the neuron, making it more computationally expensive. 
+    \end{example}
 
-      \begin{example}[Exponential Linear Unit]
-      The exponential linear unit has all the benefits of ReLU, with closer to mean outputs. It has a negative saturation regime compared with leaky ReLU, but it adds some robustness to noise. 
-      \[\sigma(x) = \begin{cases} x & \text{ if } x > 0 \\ \alpha \big(\exp{x} - 1 \big) & \text{ if } x \leq 0 \end{cases}\]
-      \end{example}
-
-      \begin{example}[Max-Out Neuron]
-      The maxout neuron has the following form 
-      \[\sigma(\mathbf{x}) = \max\{ \mathbf{w}_1^T \mathbf{x} + b_1 , \mathbf{w}_2^T \mathbf{x} + b_2 \}\]
-      This generalizes the ReLU and leaky ReLU. It is linear, which is nice, and it does not saturate, meaning that the gradient will never die. However, this doubles the number of parameters in the neuron, making it more computationally expensive. 
-      \end{example}
-
-      In practice, we should do the following: 
-      \begin{enumerate}
-          \item Use ReLU and be careful with your learning rates. 
-          \item Try out leaky ReLU, maxout, and ELU 
-          \item Try out tanh but don't expect much 
-          \item Do not use sigmoid, since it is obsolete
-      \end{enumerate}
-
-    \subsubsection{Residual Connections}
-
-      \begin{center}
-          \includegraphics[scale=0.3]{img/resnet_loss.png}
-      \end{center}
-
-
-      Some residual architecture solutions include feedforward/convolutional architectures that add more direct connections from the lower layers, thus allowing the gradient to flow. 
-      \begin{enumerate}
-          \item The \textbf{ResNet} (\textbf{Residual Connections}) includes an additional path from layer $i$ to layer $j$ that skips the intermediate layers and simply goes through an identity connection, which is then summed with the original path during forward prop. 
-          \begin{center}
-              \includegraphics[scale=0.3]{img/resnet-arch.png}
-          \end{center}
-          
-          \item The \textbf{DenseNet} directly connects each layer to all future layers, which allows for maximal flow but a lot of computational cost. 
-          \begin{center}
-              \includegraphics[scale=0.5]{img/densenet.png}
-          \end{center}
-
-          \item The \textbf{HighwayNet} (\textbf{Highway Connections}) is similar to residual connections, but the identity connection vs the transformation layer is controlled by a dynamic gate. These are inspired by LSTMs, but are applied to deep feedforward/convolutional networks. 
-      \end{enumerate}
-
-  \subsection{Exploding Gradient Problem}
-
-    \subsubsection{Normalization Layers}
-
-      Note that given the distribution of the covariates $X$ in $\mathcal{X} \subset \mathbb{R}^D$, our neural network transforms them into different distributions in $\mathbb{R}^{[l]}$. For example, in the first layer, where both the affine and the activation functions are usually measurable, the random variable 
-      \[\boldsymbol{\sigma} \big( \mathbf{W}^{[1]} X + \mathbf{b}^{[1]} \big)\]
-      will induce a probability measure over $\mathbb{R}^{[1]}$. This phenomenon where the distribution of each layer's inputs change is called \textbf{internal covariate shift}. 
-
-      It has long been known that standardization of the inputs (i.e. transforming them to have $0$ mean and unit variance) results in better convergence of the neural net, and extending this to hidden layers, it would be advantageous to achieve the same standardization of each layer. In one case, if our inputs to a saturated activation (like tanh, which are saturated for very positive or very negative inputs) are too big, then the gradient will die off, which is why we want to constrain them to a small interval around $0$. This is called a \textbf{normalization layer}, which works like this: 
-      \begin{enumerate}
-          \item We select a minibatch of training examples $\mathcal{B} = \{\mathbf{x}^{(1)}, \ldots, \mathbf{x}^{(B)}\}$. Ideally, we would get the mean and variance over the whole batch, but in SGD, the minibatch is a good approximation of the distribution, so we take it with respect to $\mathcal{B}$. 
-          
-          \item We standardize the $\mathbf{x}^{(b)}$'s element-wise. That is, for a given feature dimension $d$, 
-          \[\mu_d = \frac{1}{B} \sum_b x^{(b)}_d, \;\; \sigma^2_d = \frac{1}{B} \sum_{b} \big(x^{(b)}_d - \mu_d \big)^2\]
-          and we set 
-          \[\hat{x}_d^{(b)} = \frac{x_d^{(b)} - \mu_d}{\sqrt{\sigma^2_d + \epsilon}}, \;\; \text{ i.e. } \hat{\mathbf{x}}^{(b)} = (\mathbf{x}^{(b)} - \boldsymbol{\mu}) \odot (\boldsymbol{\sigma}^2 + \boldsymbol{\epsilon})^{-1/2}\]
-          where $\epsilon$ is a small float needed for numerical stability. 
-          This element-wise normalization is not optimal if the covariates are correlated, but in practicality this is not too big of a problem. 
-
-          \item However, constraining our normalization to the unit Gaussian in many cases constrains us to the linear regime of the nonlinearity of our activation functions (e.g. sigmoid or tanh). We would like a little bit of control over how much saturation we would like to have, so we allow some rescaling and reshifting (element-wise, again) parameters for flexibility. 
-          \[\mathbf{y} = \boldsymbol{\gamma} \odot \hat{\mathbf{x}} + \boldsymbol{\beta} = \mathrm{BN}_{\boldsymbol{\gamma}, \boldsymbol{\beta}} (\mathbf{x})\]
-          If the network learns that $\gamma_d = \sqrt{\Var(x_d)}$ and $\beta_d = \mathbb{E}[x_d]$, then it is as if there was no normalization at all, just the identity mapping. If $\mathbf{x} \in \mathbb{R}^n$, then this one normalization layer gives us $2n$ more parameters to learn in our network. 
-      \end{enumerate}
-      Therefore, rather than our steps being simply 
-      \[\mathbf{z}^{[l]} \mapsto \boldsymbol{\sigma}(\mathbf{z}^{[l]}) = \mathbf{a}^{[l]}\]
-      we now have the normalization later 
-      \[\mathbf{z}^{[l]} \mapsto \boldsymbol{\sigma}\big( \mathrm{BN}_{\boldsymbol{\gamma}, \boldsymbol{\beta}})(\mathbf{z}^{[l]}) \big) = \mathbf{a}^{[l]}\]
-      In test time, we have the trained parameters, along with the $\boldsymbol{\gamma}$'s and $\boldsymbol{\beta}$'s, but we now recompute the normalization constants with respect to the entire training set, not a minibatch. 
-
-    \subsubsection{Max Norm Regularization}
-
-      Though large momentum and learning rate speed up learning, they sometimes cause the network weights to grow very large. To prevent this, we can use max-norm regularization. This constraints the norm of the vector of incoming weights at each hidden unit to be bound by a constant $c$. Typical values of $c$ range from $3$ to $4$. 
+    In practice, we should do the following: 
+    \begin{enumerate}
+        \item Use ReLU and be careful with your learning rates. 
+        \item Try out leaky ReLU, maxout, and ELU 
+        \item Try out tanh but don't expect much 
+        \item Do not use sigmoid, since it is obsolete
+    \end{enumerate}
 
 \section{Regularization}
 
@@ -2634,53 +2123,55 @@ This requires you to know both the supervised and unsupervised learning notes, e
 
   If the discriminator $\mathcal{D}$ is optimal, then the generator is minimizing the \textbf{Jensen-Shannon divergence} between the real and generated (model distributions). However, $\mathcal{D}$ is not optimal in practice since we have limited computational resources, the loss is non-convex, etc. 
 
+\section{Adversarial Learning}
+
+  Deep neural networks are known for being overparameterized and tends to predict data very nicely, known as benign overfitting. In fact, it can be proved that a data set of any size, we can always fit a one-layer perceptron that perfectly fits through all of them, given that the layer is large enough. In most cases, we are interested in fitting the data \textit{smoothly} in the sense that data extrapolations are stable, i.e. a small perturbation of $x$ should result in a small perturbation of $h(x)$. It turns out that the more parameters it has, the better this stability is and therefore the more robust the model. 
+
+  Deep neural networks, despite their usefulness in many problems, are known for being very sensitive to their input. Adversarial examples take advantage of this weakness by adding carefully chosen perturbations that drastically change the output of the network. Adversarial machine learning attempts to study these weaknesses and hopefully use them to create more robust models. It is natural to expect that the precise configuration of the minimal necessary perturbations is a random artifact of the normal variability that arises in different runs of backpropagation learning. Yet, it has been found that adversarial examples are relatively robust, and are shared by neural networks with varied number of layers, activations or trained on different subsets of the training data. This suggest that the deep neural networks that are learned by backpropagation have \textit{intrinsic} blind spots, whose structure is connected to the data distribution in a non-obvious way. 
+
+  A metric to assess the robustness of a deep neural net $h_\theta: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ is its Lipshitz constant, which effectively bounds how much $h$ can change given some change in $\mathbf{x}$. 
+
+  \begin{definition}[Lipshitz Continuity]
+  A function $f: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ is called \textbf{Lipshitz continuous} if there exists a constant $L$ such that for all $x, y \in \mathbb{R}^n$
+  \[||f(x) - f(y)||_2 \leq L ||x - y||_2\]
+  and the smallest $L$ for which the inequality is true is called the \textbf{Lipshitz constant}, denoted $\mathrm{Lip}(f)$. 
+  \end{definition}
+
+  \begin{theorem}
+  If $f: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ is Lipschitz continuous, then 
+  \[\mathrm{Lip}(f) = \sup_{x \in \mathbb{R}^n} ||D_x f||_{\mathrm{op}}\]
+  where $||\cdot ||_{\mathrm{op}}$ is the operator norm of a matrix. In particular, if $f$ is scalar-valued, then its Lipschitz constant is the maximum norm of its gradient on its domain 
+  \[\mathrm{Lip}(f) = \sup_{x \in \mathbb{R}^n} ||\nabla f(x)||_2\]
+  \end{theorem}
+
+  The above theorem makes sense, since indeed the stability of the function should be equal to the stability of its "maximum" linear approximation $D_x f$. 
+
+  \begin{theorem}[Lipschitz Upper Bound for MLPs]
+  It has already been shown that for a $K$-layer MLP
+  \[h_\theta (\mathbf{x}) \coloneqq \mathbf{T}_K \circ \boldsymbol{\rho}_{K-1} \circ \mathbf{T}_{K-1} \circ \cdots \circ \boldsymbol{\rho}_1 \circ \mathbf{T}_1 (\mathbf{x})\]
+  the Lipshitz constant for an affine map $\mathbf{T}_k (\mathbf{x}) = M_k \mathbf{x} + b_k$ is simply the operator norm (largest singular value) of $M_k$, while that of an activation function is always bounded by some well-known constant, usually $1$. So, the Lipshitz constant of the entire composition $h$ is simply the product of all operator norms of $M_k$. 
+  \end{theorem}
+
+  % What about $K$-computable functions in general? That is, given a function $f: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ with 
+  % \begin{align*}
+  %     v_0 (\mathbf{x}) & = \mathbf{x} \\ 
+  %     v_1 (\mathbf{x}) & = g_1 \big(v_0(\mathbf{x}) \big) \\
+  %     v_2 (\mathbf{x}) & = g_2 \big(v_0(\mathbf{x}), v_1 (\mathbf{x}) \big) \\ 
+  %     \ldots & = \ldots \\
+  %     v_k (\mathbf{x}) & = g_k \big(v_0 (\mathbf{x}), v_1(\mathbf{x}), \ldots, v_{k-1} (\mathbf{x}) \big) \\
+  %     \ldots & = \ldots \\
+  %     v_K (\mathbf{x}) & = g_K \big(v_0(\mathbf{x}), v_1 (\mathbf{x}), \ldots, v_{K-2}(\mathbf{x}), v_{K-1}(\mathbf{x}) \big)
+  % \end{align*}
+  % where $v_k: \mathbb{R}^n \longrightarrow \mathbb{R}^{n_k}$, with $n_0 = n$ and $n_K = m$, and 
+  % \[g_k : \prod_{i=0}^{k-1} \mathbb{R}^{n_i} \longrightarrow \mathbb{R}^{n_k}\]
+  % To differentiate $v_k$ w.r.t. $\mathbf{x}$, we can use the chain rule, resulting in the total derivative 
+  % \[\underbrace{\frac{\partial v_k}{\partial \mathbf{x}}}_{n_k \times n} = \sum_{i=1}^{k-1} \underbrace{\frac{\partial g_k}{\partial v_i}}_{n_k \times n_i} \, \underbrace{\frac{\partial v_i}{\partial \mathbf{x}}}_{n_i \times n}\]
+
+
 
 \section{Deep Reinforcement Learning}
 
 
-% \section{Lipshitz Regularity of Deep Neural Networks}
-
-% Deep neural networks are known for being overparameterized and tends to predict data very nicely, known as benign overfitting. In fact, it can be proved that a data set of any size, we can always fit a one-layer perceptron that perfectly fits through all of them, given that the layer is large enough. In most cases, we are interested in fitting the data \textit{smoothly} in the sense that data extrapolations are stable, i.e. a small perturbation of $x$ should result in a small perturbation of $h(x)$. It turns out that the more parameters it has, the better this stability is and therefore the more robust the model. 
-
-% Deep neural networks, despite their usefulness in many problems, are known for being very sensitive to their input. Adversarial examples take advantage of this weakness by adding carefully chosen perturbations that drastically change the output of the network. Adversarial machine learning attempts to study these weaknesses and hopefully use them to create more robust models. It is natural to expect that the precise configuration of the minimal necessary perturbations is a random artifact of the normal variability that arises in different runs of backpropagation learning. Yet, it has been found that adversarial examples are relatively robust, and are shared by neural networks with varied number of layers, activations or trained on different subsets of the training data. This suggest that the deep neural networks that are learned by backpropagation have \textit{intrinsic} blind spots, whose structure is connected to the data distribution in a non-obvious way. 
-
-% A metric to assess the robustness of a deep neural net $h_\theta: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ is its Lipshitz constant, which effectively bounds how much $h$ can change given some change in $\mathbf{x}$. 
-
-% \begin{definition}[Lipshitz Continuity]
-% A function $f: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ is called \textbf{Lipshitz continuous} if there exists a constant $L$ such that for all $x, y \in \mathbb{R}^n$
-% \[||f(x) - f(y)||_2 \leq L ||x - y||_2\]
-% and the smallest $L$ for which the inequality is true is called the \textbf{Lipshitz constant}, denoted $\mathrm{Lip}(f)$. 
-% \end{definition}
-
-% \begin{theorem}
-% If $f: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ is Lipschitz continuous, then 
-% \[\mathrm{Lip}(f) = \sup_{x \in \mathbb{R}^n} ||D_x f||_{\mathrm{op}}\]
-% where $||\cdot ||_{\mathrm{op}}$ is the operator norm of a matrix. In particular, if $f$ is scalar-valued, then its Lipschitz constant is the maximum norm of its gradient on its domain 
-% \[\mathrm{Lip}(f) = \sup_{x \in \mathbb{R}^n} ||\nabla f(x)||_2\]
-% \end{theorem}
-
-% The above theorem makes sense, since indeed the stability of the function should be equal to the stability of its "maximum" linear approximation $D_x f$. 
-
-% \begin{theorem}[Lipschitz Upper Bound for MLPs]
-% It has already been shown that for a $K$-layer MLP
-% \[h_\theta (\mathbf{x}) \coloneqq \mathbf{T}_K \circ \boldsymbol{\rho}_{K-1} \circ \mathbf{T}_{K-1} \circ \cdots \circ \boldsymbol{\rho}_1 \circ \mathbf{T}_1 (\mathbf{x})\]
-% the Lipshitz constant for an affine map $\mathbf{T}_k (\mathbf{x}) = M_k \mathbf{x} + b_k$ is simply the operator norm (largest singular value) of $M_k$, while that of an activation function is always bounded by some well-known constant, usually $1$. So, the Lipshitz constant of the entire composition $h$ is simply the product of all operator norms of $M_k$. 
-% \end{theorem}
-
-% What about $K$-computable functions in general? That is, given a function $f: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ with 
-% \begin{align*}
-%     v_0 (\mathbf{x}) & = \mathbf{x} \\ 
-%     v_1 (\mathbf{x}) & = g_1 \big(v_0(\mathbf{x}) \big) \\
-%     v_2 (\mathbf{x}) & = g_2 \big(v_0(\mathbf{x}), v_1 (\mathbf{x}) \big) \\ 
-%     \ldots & = \ldots \\
-%     v_k (\mathbf{x}) & = g_k \big(v_0 (\mathbf{x}), v_1(\mathbf{x}), \ldots, v_{k-1} (\mathbf{x}) \big) \\
-%     \ldots & = \ldots \\
-%     v_K (\mathbf{x}) & = g_K \big(v_0(\mathbf{x}), v_1 (\mathbf{x}), \ldots, v_{K-2}(\mathbf{x}), v_{K-1}(\mathbf{x}) \big)
-% \end{align*}
-% where $v_k: \mathbb{R}^n \longrightarrow \mathbb{R}^{n_k}$, with $n_0 = n$ and $n_K = m$, and 
-% \[g_k : \prod_{i=0}^{k-1} \mathbb{R}^{n_i} \longrightarrow \mathbb{R}^{n_k}\]
-% To differentiate $v_k$ w.r.t. $\mathbf{x}$, we can use the chain rule, resulting in the total derivative 
-% \[\underbrace{\frac{\partial v_k}{\partial \mathbf{x}}}_{n_k \times n} = \sum_{i=1}^{k-1} \underbrace{\frac{\partial g_k}{\partial v_i}}_{n_k \times n_i} \, \underbrace{\frac{\partial v_i}{\partial \mathbf{x}}}_{n_i \times n}\]
 
 \bibliographystyle{apalike}
 \bibliography{bibfile}
