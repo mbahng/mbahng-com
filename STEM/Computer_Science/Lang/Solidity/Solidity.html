@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Muchang Bahng | Duke Math</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/CSS/Pictures/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/CSS/Pictures/favicon.ico">
+  <link rel="icon" type="image/png" sizes="16x16" href="/CSS/Pictures/favicon.ico">
+  <link rel="stylesheet" href="/CSS/Header_Footer.css">
+  <link rel="stylesheet" href="/CSS/html_notes.css">
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]}});
+  </script>
+  <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-MML-AM_CHTML"></script>
+  <style>
+    pre {
+      background-color: rgb(213, 212, 212);
+      overflow-x: visible
+    }
+  </style>
+</head>
+
+<body>
+<div class="header">
+  <div id="menu_button" onclick="myFunction(this)">
+      <div id="bar1"></div>
+      <div id="bar2"></div>
+      <div id="bar3"></div>
+  </div>
+  <a id="HeaderName" href="/index.html" style="text-decoration: none;">Muchang Bahng</a>
+</div>
+  
+  <div class="space" style="height:100px;"></div>
+  <div class="information">
+  
+  <p class="title">Ethereum</p>
+  <hr>
+  
+  <div class="toc">
+    <div class="toctitle">Contents</div>
+    <ol class="toclist">
+      <li><a href="#Section1">Solidity</a></li>
+      <li><a href="#Section2">Basic Topics</a></li>
+      <li><a href="#Section3">Intermediate Topics</a></li>
+    </ol>
+  </div>
+
+<div class="title_and_hide">
+<p id="Section1" class="section_title">Solidity</p>
+<a id="show_hide_1" class="show_hide" onclick="show_hide_1()">[Hide]</a></div>
+<hr>
+<div id="section_content_1">
+A prerequisite to this section is the <a href="../Blockchain.html">Blockchain</a> section. Recall that a wallet is really just some application that contains a hierarhical structure of private keys. These private keys in turn generate public keys, which generate addresses (at least in the Bitcoin protocol). Things may slightly differ in the Ethereum protocol, but this is the general relationship. An address is just some hash that identifies some entity owning whatever keys that are used to gain access to UTXOs in the blockchain. A <b>smart contract</b> is also represented by a hash, but the owner of it is a program, rather than an individual/party. Sending ether to this smart contract address allows you to run the program, which have several applications mentioned later. 
+<br><br> 
+We will use the web browser-based IDE <a href="https://remix.ethereum.org/">remix.ethereum.org</a>. We should always write down the version of solidity we are using at the top of each <code>.sol</code> file. The version is important for proper compilation. 
+<pre>
+pragma solidity 0.6.0     // Version 0.6.0 
+pragma solidity ^0.6.0    // Version 0.6.Anything 
+</pre>
+Furthermore, Solidity strongly recommends us to include the license of our program at the header. The following MIT license indicates that our code is open source. 
+<pre>
+// SPDX-License-Identifier: MIT
+</pre>
+Furthermore, remember that 1 Ether is worth: 
+<ul>
+  <li>$10^{18}$ wei</li>
+  <li>$10^9$ Gwei</li> 
+  <li>$1000$ Finney</li>
+</ul>
+Finally, know that gas is pretty much the amount of ether you have to pay (usually demoniated in Gwei) to execute a contract and its functions (at least the non-view/pure ones). Every time you execute a function, you're using someone else's computer resources to run the Ethereum Virtual Machine, so due to naturally supply and demand, the existence of this fee is natural. 
+
+<div class="subsection_title">Basic Types and Contracts</div>
+<div>
+We introduce the basic types in Solidity. Since Solidity is a <i>statically-typed language</i>, the type of each variable should be specified. For now, do not worry about the visibility modifiers like <code>public</code>, <code>private</code>, <code>external</code>, and <code>internal</code>. 
+<ul>
+  <li>
+    The <b>signed integer</b> <code>int</code> and <b>unsigned integer</b> <code>uint</code> are by default stored in 256-bits. We can, however, specify their number of bits accordingly as below. It is recommended to keep it 256 for compatibility reasons between smart contracts. If an integer has a greater value than the maximum possible, it reverts back to the smallest, making integer addition really a modulo addition. 
+    <pre>
+    uint public myInt = 32;       // unsigned integer 
+    int8 external myInt2 = -3;    // signed integer of 8-bits
+    // uint8 max size: 255 
+    // uint16 max size: 65,535 
+    // uint32 max size: 4,294,967,295
+    </pre>
+  </li>
+  <li>
+    The <b>bool</b> is pretty self-explanatory. 
+    <pre>
+    bool internal myBool = false;     // Boolean 
+    </pre>
+  </li>
+  <li>
+    The <b>address</b> type allows you to store addresses in hexadecimal. 
+    <pre>
+    address private EthWallet = 0xA0362AD63a5ac9e630849f19709e46368b9610Ab; 
+    </pre>
+  </li>
+  <li>
+    The <b>string</b> type is also pretty self-explanatory. 
+    <pre>
+    string public myStr = "Hello World"; 
+    </pre>
+  </li>
+  <li>
+    The <b>bytes</b> type is quite new and confusing, especially since it seems to cover the same things as strings. However, they store data in bytes rathen than UTF-8 data. As a rule of thumb, use <code>bytes</code> for arbitrary-length raw byte data and <code>string</code> for arbitrary string (UTF-8) data. They have the advantage of using less gas than strings. You can limit the length to a certain number of bytes from <code>bytes1</code> to <code>bytes32</code> if possible. 
+    <pre>
+    bytes32 myCat = "cat";      // 32-byte data 
+    </pre>
+  </li>
+  <li>
+    Note that there are no floating point numbers in Solidity! They may be innaccurate, which is extremely risky when dealing with finances. 
+  </li>
+</ul>
+To <b>cast</b> one type to another, we can simply just use the syntax below: 
+<pre>
+uint256 tooBig = 250;             // too many bits for a small number 
+uint8 justRight = uint8(tooBig)   // casted it into a smaller-bit uint 
+</pre>
+
+Solidity contracts are like a class in any other object-oriented language, which contain data as state variables and functions which can modify these variables. They can be created with the <code>contract</code> keyword. The <b>state variables</b>, which contain the data representing the state of the contract, are shown below, and we use the default <b>constructor</b> function, which gets called as soon as the contract is deployed. 
+<pre>
+contract SimpleStorage {
+    uint256 myInt = 0;          // state variable
+    int private myAge = 21;     // state variable 
+
+    constructor() {}            // default constructor 
+}
+</pre>
+</div>
+
+<div class="subsection_title">Functions, Scope, View/Pure</div>
+<div>
+The syntax of functions generally looks like the following. It is called with a <code>function</code> keyword, followed by the <code>function_name</code> and its parameters. 
+<pre>
+function function_name(parameter_list) scope returns(return_type) {
+    // block of code
+}
+</pre>
+<ul>
+  <li>
+    The type of the parameters can be determined by <code>function_name(uint a, uint b)</code>. 
+  </li>
+  <li>
+    The return value type can be specified with the <code>returns</code> keyword. Multiple return types may be specified. 
+  </li>
+  <li>
+    The type of function determines what the function can do to your contract. 
+    <ul>
+      <li>
+        <b>View functions</b> do not modify the state variables but they do read them, which ensures that state variables cannot be modified after calling them. You do not have to make a transaction to call a view function, since we are not making a state change to the contract and therefore to the blockchain (in Remix, public view functions are represented with blue buttons). 
+      </li>
+      <li>
+        <b>Pure functions</b> do not read nor modify the state variables. It can only use local variables that are declared in the function and the arguments that are passed to the function. You do not have to make a transaction to call a pure function, since we are not making a state change to the contract and therefore to the blockchain. These functions are usually used to perform math calculations. 
+      </li>
+      <li>
+        Functions that are not specified to be <code>view</code> or <code>pure</code> by default have access to both read and modify powers. You do have to make a transaction to call these functions. 
+      </li>
+    </ul>
+  </li>
+  <li>
+    The <b>scope</b>, or <b>visibility</b>, of these functions determine who has access to the functions and state variables in your contract and how they interact with them. For cohesiveness, we can just think of state variables as as function calls that looks at a variable and returns its value, making it also a (view) function. Functions have to be specified by any of the four visibilities, but for state variables <i>external</i> is not allowed: 
+    <ul>
+      <li>
+        <b>External</b> functions can only be called from outside the contract in which they were declared. 
+      </li>
+      <li>
+        <b>Public</b> functions and variables can be accessed by all parties within and outside the contract. When the visibility is not specified, the default visibility of a function is public. 
+      </li>
+      <li>
+        <b>Internal</b> functions and variables are only accessible within the contract in which they were declared, although they can be accessed from derived contracts. When visibility is not specified, state variables have the default value of internal. 
+      </li>
+      <li>
+        <b>Private</b> functions are only accessible within the contract in which they were declared. Private functions are also the only functions that cannot be inherited by other functions. 
+      </li>
+    </ul>
+  </li>
+</ul>
+Finally, know that just like other languages, every variable is either defined in the local scope (within the function only), the contract scope (as a state variable within the contract), or the global scope (i.e. variables representing the state of the entire blockchain). 
+
+</div>
+
+<div class="subsection_title">Contracts & Functions</div>
+<div>
+These all sound familiar to the properties of other languages, but a new characteristic is the <b>visibility</b> of state variables and functions, which controls who has access to the functions and state variables in your contract and how they interact with them. For cohesiveness, we can just think of state variables as as function calls that looks at a variable and returns its value, making it also a function. More specifically, it becomes a view function. Functions have to be specified by any of the four visibilities, but for state variables <i>external</i> is not allowed: 
+<ul>
+  <li>
+    <b>External</b> functions can only be called from outside the contract in which they were declared. They cannot be called from within the contract. In order to do this we must set the visibility to public. 
+  </li>
+  <li>
+    <b>Public</b> functions and variables can be accessed by all parties within and outside the contract. When the visibility is not specified, the default visibility of a function is public. 
+  </li>
+  <li>
+    <b>Internal</b> functions and variables are only accessible within the contract in which they were declared, although they can be accessed from derived contracts. When visibility is not specified, state variables have the default value of internal. 
+  </li>
+  <li>
+    <b>Private</b> functions are only accessible within the contract in which they were declared. Private functions are also the only functions that cannot be inherited by other functions. 
+  </li>
+</ul>
+
+
+Now let's dive into building contracts a bit further. Let's build a simple contract that stores a number. Note that like in other languages, it is conventional to precede local variable names with an underscore. 
+<pre>
+pragma solidity ^0.6.0 
+
+contract SimpleStorage {
+    
+    // this will get initialized to 0 
+    uint256 favoriteNumber; 
+
+    function store(uint256 _favoriteNumber) public {
+        favoriteNumber = _favoriteNumber   
+    }
+}
+</pre>
+Note that the state variable of this contract is specified by <code>favoriteNumber</code>. Since the function <code>store</code> is public, we can interact with it from outside the contract, and calling the function with an <code>int256</code> parameter updates the state variable of it. When we deploy this contract, it becomes a part of the blockchain, and modifying the state variable of this contact means to modify the blockchain itself. Therefore, transactions, smart-contract interactions, and function calls can be used interchangeable (kinda), because whenever you call a function (or whenever you make some state change to the blockchain), you're also making a transaction, which will cost a bit of gas. That is why whenever we call some function, we must always pay a bit of gas fees. 
+<br><br>
+However, notice that even though we can call the <code>store</code> function and update the state variable, we can't actually look at what the value of <code>favoriteNumber</code> is. To do this, we can simply set the visibility of the state variable to <code>public</code>, changing the line to <code>uint256 public favoriteNumber;</code>. Furthermore, let us introduce a public view function <code>retrieve</code> that returns the value of <code>favoriteNumber</code> and a pure function <code>add</code> that simply adds the two together (but does not set it as the new state variable). Note that the pure function does <i>not</i> change the state variable of the contract. 
+<pre>
+pragma solidity ^0.6.0 
+
+contract SimpleStorage {
+    
+    // this will get initialized to 0 
+    uint256 public favoriteNumber; 
+
+    function store(uint256 _favoriteNumber) public {
+        favoriteNumber = _favoriteNumber   
+    }
+
+    // view, pure 
+    function retrieve() public view returns(uint256) {
+        return favoriteNumber; 
+    }
+
+    function add(uint256 favoriteNumber) public pure {
+      uint256 twoTimes = favoriteNumber + favoriteNumber; 
+      return twoTimes; 
+  }
+}
+</pre>
+Now if we remove the public keyword from the state variable initialization, it gets set back to internal. But this is no problem, since we can call the public retrieve function to return the value. 
+</div>
+
+<div class="subsection_title">Error Handling: Require, Assert, </div>
+<div>
+We can use three statements to handle errors and to check the truth of something. 
+<ul>
+  <li>
+    The <code>require</code> statement checks whether the statement within the parenthesis is true and stops the contract if it is false, providing an error statement and refunding the gas. 
+    <pre>
+    function divide(int _num1, int _num2) public pure returns(int) {
+      require(_num2 != 0, "2nd number can't be zero!"); 
+      int quotient = _num1 / _num2; 
+      return quotient; 
+    }
+    </pre>
+  </li>
+  <li>
+    The <code>assert</code> statement checks for a statement that should never be false. If the statement is false, then it reverts all state changes to the blockchain and uses up gas. 
+    <pre>
+    function divide(int _num1, int _num2) public pure returns(int) {
+      assert(_num2 > 0); 
+      int quotient = _num1 / _num2; 
+      return quotient; 
+    }
+    </pre>
+  </li>
+  <li>
+    The <code>revert</code> only sends a message and must be put inside an conditional <code>if</code> statement. 
+    <pre>
+    function divide(int _num1, int _num2) public pure returns(int) {
+      
+      if(_num2 &lt; 0) {
+          revert("2nd number must be greater than 0")
+      }
+      int quotient = _num1 / _num2; 
+      return quotient; 
+    }
+    </pre>
+  </li>
+</ul>
+</div>
+
+<div class="subsection_title">Global Variables, Generating Random Numbers</div>
+<div>
+Let us list some useful global variables (describing the state of the blockchain) that may be useful in future calculations. The complete list can be found <a href="https://docs.soliditylang.org/en/v0.8.14/cheatsheet.html">here</a>. 
+<ol>
+  <li>
+    <code>block.basefee</code> gives the current block's base fee in <code>uint</code>. 
+  </li>
+  <li>
+    <code>block.chainid</code> gives the current chain id in <code>uint</code>. 
+  </li>
+  <li>
+    <code>block.coinbase</code> gives the current block miner's address in <code>address payable</code>
+  </li>
+  <li>
+    <code>block.number</code> gives the current block number in <code>uint</code>. 
+  </li>
+  <li>
+    <code>block.timestamp</code> gives the current block timestamp in seconds since Unix epoch in <code>uint</code>. 
+  </li>
+  <li>
+    <code>msg.data</code> gives the complete calldata in <code>bytes</code>. 
+  </li>
+  <li>
+    <code>msg.sig</code> gives the first four bytes of the calldata in <code>bytes4</code>. 
+  </li>
+  <li>
+    <code>msg.value</code> gives the number of wei send with the message in <code>uint</code>. 
+  </li>
+  <li>
+    <code>msg.sender</code> gives the sender of the message in <code>address</code>. 
+  </li>
+</ol>
+
+We can utilize these global variables to create a random integer generator (within a certain range). True randomness it impossible, but we can have some sort of random seed to generate from. We take the following steps: 
+<ol>
+  <li>
+    We call the global <code>block.timestamp</code> which should give a different <code>uint</code> every second. 
+  </li>
+  <li>
+    We input this <code>uint</code> to the global variable/function <code>abi.encodePacked</code>, which returns a <code>bytes</code> type. This function performs packed encoding of the given arguments (note that this encoding can be ambiguous). 
+  </li>
+  <li>
+    We input this <code>bytes</code> to the <code>keccack256</code> hash function, which outputs a 256-bit output in the form of a <code>bytes32</code> type. 
+  </li>
+  <li>
+    We cast this into a <code>uint</code> type, giving it the impression of randomness and modulo it by <code>_max</code>. 
+  </li>
+</ol>
+The full code is shown below: 
+<pre>
+contract demonstrate {
+    function getRandNum(uint _max) public view returns(uint) {
+        uint rand = uint(keccak256(abi.encodePacked(block.timestamp))); 
+        return rand % _max; 
+    }
+}
+</pre>
+
+</div>
+
+<div class="subsection_title">Memory vs Storage: Strings, Bytes, Arrays</div>
+<div>
+There is a bit of difficulty when dealing with strings, bytes, and arrays. They are all dynamic arrays (elements of strings are characters, elements of bytes are single bytes). But apparently we have to do memory allocation for them, and so rather than writing function parameters like this: <code>string _str1</code>, we must write them with the proper memory allocation, one of two ways:
+<ul>
+  <li>
+    <code>string memory _str1</code>: The <code>memory</code> keyword means that the memory for this string will be deleted as soon as the function is finished executing. 
+  </li>
+  <li>
+    <code>string storage _str1</code>: The <code>storage</code> keyword means that the memory for this string will persist even after the function execution. 
+  </li>
+</ul>
+Just know that <code>memory</code> refers to short-term (like RAM) storage that gets deleted after execution of the function, while <code>storage</code> persists after execution (like drives). Furthermore, the regular built-in functionalities of string such as concatenation, determining the string's length, and reading/changing a character are not built-in within Solidity's <code>string</code> class! We can make a function to concatenate strings using our global variables again: 
+<pre>
+function combineString(string memory _str1, string memory _str2) public pure returns(string memory) {
+    return string(abi.encodePacked(_str1, " ", _str2));       // Concatenates _str1 and _str2 with a space in between
+}
+</pre>
+Here is a function returning the number of characters within a string: 
+<pre>
+function numChars(string memory _str1) public pure returns(uint) {
+    bytes memory _byte1 = bytes(_str1); 
+    return _byte1.length; 
+}
+</pre>
+</div>
+
+<div class="subsection_title">Structs, Arrays, Mappings</div>
+<div>
+Three more often-used types are structs, arrays, and mappings. 
+<ul>
+  <li>
+    The syntax for arrays are quite different. To declare an array of fixed size in Solidity, you must specify the type of the elements and the number of elements required by an array as follows. Arrays can have a fixed size or be dynamically sized. 
+    <pre>
+    type[ arraySize ] arrayName       # fixed size 
+    type[] arrayName                  # dynamically sized 
+    </pre>
+    We can append a last element, delete the last element, get the length, set the element at a certain index to 0, delete a certain index of an array, sum the elements of an array, and more... 
+    <pre>
+    contract demonstrate { 
+
+        uint[] arr1;            // create dynamically-sized array
+        uint[10] arr2;          // create statically-sized array of 10 elements
+        uint [] public numList = [1, 2, 3, 4, 5]; 
+    
+        function addToArray(uint num) public {
+            // push to array (last element) 
+            arr1.push(num)
+        }
+    
+        function removeFromArray() public {
+            // pop array (delete last element) 
+            arr1.pop(); 
+        }
+    
+        function getLength() public view returns (uint) {
+            // return length of array
+            return arr1.length; 
+        }
+    
+        function setIndexToZero(uint _index) public {
+            // the delete function just sets the value at the index to 0
+            delete arr1[_index]; 
+        }
+
+        function removeIndex(uint _index) public {
+            // removes the element at specified index 
+            for (uint i = _index; i &lt; arr1.length-1; i++) {
+                arr1[i] = arr1[i+1]; 
+            }
+            arr1.pop(); 
+        }
+
+        function getArrayVals() public view returns(uint[] memory) {
+            // needed since the arr1 state variable is not public 
+            return arr1; 
+        }
+
+        function sumNums() public view returns(uint) {
+            // sums all elements of an array  
+            uint _sum = 0; 
+            for (uint i = 0; i &lt;= numList.length-1; i++) {
+                _sum += numList[i]; 
+            }
+            return _sum; 
+        }
+
+        function sumNums2() public view returns(uint) {
+            // sums all elements of an array, but using a while loop 
+            uint _i = 0; 
+            uint _sum = 0; 
+            while (_i &lt; numList.length) {
+                _sum += numList[_i]; 
+                _i++;
+            }
+            return _sum; 
+        }
+    
+    }
+    </pre>
+  </li>
+  <li>
+    We can think of a struct as a custom type with certain attributes/fields, similar to structs in Julia. 
+    <pre>
+    contract test {
+        struct Book {
+            string title; 
+            string author; 
+            uint book_id; 
+        }
+    
+        // Initialize a public Book object called 'book'
+        Book public book = Book('Learn Java', 'TP', 1); 
+    }
+    </pre>
+    Let us create a contract that implements a struct, with functions that adds structs to arrays and gets from them too. 
+    <pre>
+    contract demonstrate {
+        struct Customer {
+            string name;
+            string custAddress;
+            uint age;
+        }
+
+        Customer[] public customers;
+
+        function addCust(string memory n, string memory ca, uint a) public {
+            // adds Customer object to to customers array 
+            customers.push(Customer(n, ca, a));
+        }
+
+        function getCust(uint _index) public view returns (string memory n, string memory ca, uint a){
+            // returns Customer object by index from customers array 
+            Customer storage cust = customers[_index];
+            return (cust.name, cust.custAddress, cust.age);
+        }
+      } 
+    </pre>
+  </li>
+  <li>
+    A mapping is similar to a Python dictionary, which have some key-value pair. 
+    <pre>
+    mapping(key => value) mapping_name;     // Initialization of mapping 
+    mapping_name[key] = value               // Adding key-value to mapping
+    </pre>
+    Let us create a contract implementing a mapping that assigns a superhero name with the real name. 
+    <pre>
+    contract demonstrate {
+        mapping(string => string) public myMap;
+
+        function addHero(string memory _secret, string memory _name) public {
+            // adds hero name and real name to myMap 
+            myMap[_secret] = _name;
+        }
+
+        function getName(string memory _secret) public view returns(string memory){
+            // returns the real name given the hero name from myMap
+            return myMap[_secret];
+        }
+    
+        function deleteName(string memory _secret) public {
+            // deletes the hero/real name pair 
+            delete myMap[_secret];
+        }
+    }
+    </pre>
+    We can also predefine a struct and implement a contract that takes in a mapping that maps an index to a Customer object. 
+    <pre>
+    contract demonstrate {
+
+        mapping(uint => Customer) customer;
+
+        function addCust2(uint custID, string memory n, string memory ca, uint a) public {
+            // Map customer data to a index
+            customer[custID] = Customer(n, ca, a);
+        }
+
+        function getCust2(uint _index) public view returns (string memory n, string memory ca, uint a) {   
+            // Retrieve customer data using an index 
+            return (customer[_index].name, customer[_index].custAddress, customer[_index].age);
+        }
+
+    }
+    </pre>
+  </li>
+</ul>
+We can also create nested mappings. If we wanted a customer list (mapping indices to Customer objects) for multiple businesses, we would need a map that first took in a business and then outputted another map where we can find the customers by index. 
+<pre>
+contract demonstrate {
+    mapping(address => mapping(uint => Customer)) public myCusts;     // initialize iterated mapping 
+
+    function addMyCusts(uint custID, string memory n, string memory ca, uint a) public {
+        // Adds index-Customer data for each person calling function
+        // Now has data on which address sent which data 
+        myCusts[msg.sender][custID] = Customer(n, ca, a);     // msg.sender is global variable returning address of person calling contract 
+    }
+}
+</pre>
+Finally, we can create a ledger with a smart contract. The following creates a map from addresses to <code>uint</code>, where the values can be changed or returned. 
+<pre>
+contract MyLedger {
+    // Create a map of addresses and balances
+    mapping(address => uint) public balances;
+
+    // Change the balance for the address
+    function changeBalance(uint newBal) public {
+        // msg.sender is the sender of the message
+        balances[msg.sender] = newBal;
+    }
+
+    // Get current balance for address
+    function getBalance() public view returns (uint){
+        return balances[msg.sender];
+    }
+}
+</pre>
+
+</div>
+
+<div class="subsection_title">For, While, Do-While Loops & Conditionals</div>
+<div>
+A while loop has the syntax 
+<pre>
+while (condition) {
+  ...
+}
+</pre>
+Implementing it in a contract looks like this, which, upon calling the <code>loop()</code> function, pushes 5 elements into the <code>data</code> array. 
+<pre>
+contract demonstrate {
+    uint[] public data; 
+
+    uint8 j = 0; 
+
+    function loop() public returns (uint[] memory) {
+      while (j &lt; 5) { 
+        j++; 
+        data.push(j); 
+      }
+      return data; 
+    }
+}
+</pre>
+The do-while loop is very similar to the while loop, but it checks the condition at the end of the loop. So, the loop will execute at least one time even if the condition is false. 
+<pre>
+do {
+  ...
+} while (condition) 
+</pre>
+We can implement it in a contract as such: 
+<pre>
+contract demonstrate {
+  uint[] public data; 
+
+  uint8 j = 0; 
+
+  function loop() public returns (uint[] memory) {
+    do { 
+      j++; 
+      data.push(j); 
+    } while (j &lt; 5); 
+    return data; 
+  }
+  
+}
+</pre>
+A for loop has syntax similar to that of JavaScript. 
+<pre>
+for (initialization; test condition; iteration statement) {
+  ... 
+}
+</pre>
+It is implemented in a contract as such: 
+<pre>
+contract test {
+  uint[] public data; 
+
+  uint8 j = 0; 
+
+  function loop() public returns (uint[] memory) {
+    for (uint i = 0; i &lt; 5; i++) { 
+      j++; 
+      data.push(j); 
+    } 
+    return data; 
+  }
+}
+</pre>
+We can implement conditionals in a contract. In this example, we will create a function that returns what school level you should be going to depending on your age. 
+<pre>
+contract demonstrate {
+
+    string myName = "Muchang"; 
+    uint age = 8; 
+
+    function whatSchool() public view returns(string memory) {
+        if (age &lt; 5) {
+            return "Stay home"; 
+        } else if (age == 5) {
+            return "Go to Kindergarten";
+        } else if (age >= 6 && age &lt;= 17) {
+            uint _grade = age - 5; 
+            string memory _gradeStr = Strings.toString(_grade)      // convert uint to string
+            return string(abi.encodePacked("Grade ", _gradeStr)); 
+        } else {
+            return "Go to college"; 
+        }
+    }
+}
+</pre>
+
+</div>
+
+<div class="subsection_title">Date & Time</div>
+<div>
+Solidity has time units with the lowest unit at 1 second. We demonstrate this by running the code below. Calling the function after contract deployment shouldn't lead to an error since none of the lines are false. 
+<pre>
+contract demonstrate {
+    function timeUnits() public pure {
+        // If any of these aren't true the function throws
+        // an error
+        assert(1 seconds == 1);
+        assert(1 minutes == 60 seconds);
+        assert(1 hours == 60 minutes);
+        assert(1 days == 24 hours);
+        assert(1 weeks == 7 days);
+    }
+}
+</pre>
+</div>
+
+<div class="subsection_title">Constructors and Inheritance</div>
+<div>
+If we would like to specify the state variables of a contract <i>upon deployment</i>, we can use the constructor function for that. Let us define a <code>Shape</code> contract with state variables <code>height</code> and <code>width</code>. We can set their values upon initialization as such, similar to how we would do it in other OOP languages. 
+<pre>
+contract Shape {
+    uint height; 
+    uint width; 
+
+    constructor(uint _height, uint _width) {
+        height = _height; 
+        width = _width; 
+    }
+}
+</pre>
+To construct a child contract that inherits from a parent contract, we use the <code>is</code> keyword. In here, we construct a child class <code>Square</code> and <code>Rectangle</code>. 
+<pre>
+contract Square is Shape {
+    constructor(uint s) Shape(s, s) {}
+
+    function getArea() public view returns(uint) {
+        return s**2; 
+    }
+}
+
+contract Rectangle is Shape {
+    constructor(uint h, uint w) Shape(h, w) {}
+
+    function getArea() public view returns(uint) {
+        return h*w 
+    }
+}
+</pre>
+</div>
+
+<div class="subsection_title">Modifiers: Owner Permissions</div>
+<div>
+Function modifiers allow you to block the execution of certain functions unless the address of the caller is the owner. We first create an <code>Owner</code> contract which first identifies the owner address and immediately saves it as <code>msg.sender</code> within the constructor. Then, we create the modifier with the require statement that whoever sent the message must be the owner. The main use for modifiers is for automatically checking a condition prior to executing a function. If the function does not meet the modifier requirement, an error is thrown. The syntax for one kind of modifier is 
+<pre>
+modifier MyModifier {
+    require(msg.sender == owner); 
+    _;
+}
+</pre>
+The symbol <code>_;</code> is called a merge wildcard, and it must always be present in the modifier. It merges the function code with the modifier code where the <code>_;</code> is placed. In other terms, the body of the function (to which the modifier is attached to) will be inserted where the special symbol <code>_;</code> appears in the modifier’s definition. 
+
+<pre>
+contract Owner {
+    address owner; 
+
+    constructor() public {
+        owner = msg.sender; 
+    }
+
+    // If caller is owner then continue executing the function that uses this modifier
+    modifier onlyOwner {
+        require(msg.sender == owner); 
+        _;      // a merge wildcard
+    }
+}
+</pre>
+We can place whatever restricted-access function within this contract, but we will create a child contract for our purposes. Let us create a subcontract with two state variables, a mapping of purchasers and a price of some good. Clearly, the deployer of the contract, who is made the owner (from the constructor of <code>Owner</code>) sets the price upon deployment. If an individual would like to express the intent to purchase this good for this price, they can call the public payable function <code>purchase</code> which adds their address (<code>msg.sender</code>) and their intent to buy (<code>true</code>) in the <code>purchasers</code> mapping. The function <code>setPrice</code> can change the price, but because of the <code>onlyOwner</code> modifier, the conditions mentioned in the modifier above are immediately placed, restricting access to this function to everybody except for <code>owner</code>. 
+<pre>
+contract Purchase is Owner {
+    // Mapping that links addresses for purchasers
+    mapping (address => bool) purchasers;
+
+    uint price;
+
+    constructor(uint _price) {
+        price = _price;
+    }
+
+    // You can call this function along with some ether because of payable
+    function purchase() public payable {
+        purchasers[msg.sender] = true;
+    }
+
+    // Only the owner can change this price
+    function setPrice(uint _price) public onlyOwner {
+        price = _price;
+    }
+}
+</pre>
+</div>
+
+<div class="subsection_title">Making Contracts for Funding and Withdrawing</div>
+Now let us create a contract that can store and send funds. Note a few things: 
+<ul>
+  <li>
+    When we are intending to send funds to an address, then this address must be initialized with <code>address payable</code> rather than <code>address</code>. This distinction only exists in the Solidity type system at compile-time and is gone in the compiled contract code. You can use <code>.transfer(...)</code>, <code>.send(...)</code> on <code>address payable</code>, but not on address. However, can you can use <code>.call(...)</code> on both, and since May 2021, the call function is recommended.
+  </li>
+  <li>
+    A function with modifier <code>payable</code> means that we can send ether along with the message when we call this function. All the ether that gets send to this function is now held within the contract owning the function. Given a certain address <code>addy</code>, the ether balance of it can be found by calling <code>addy.balance</code>. 
+  </li>
+</ul>
+Now, let us create a simple smart contract where we can deposit and withdraw ether from. 
+<pre>
+contract EtherWallet {
+    address payable public owner;        // initialize address payable state variable
+
+    constructor() {
+        owner = payable(msg.sender);     // set sender address to owner variable upon deployment
+    }
+
+    function deposit() public payable {} // function that can receive ETH payments
+
+    modifier onlyOwner {
+        require(owner == msg.sender); 
+        _;
+    }
+
+    function withdraw(uint _amount) public onlyOwner {
+        (bool success, ) = owner.call{value: _amount}(""); 
+        require(success, "Failure: Not Sent");
+    }
+
+    function withdrawAll() public onlyOwner {
+        (bool success,) = owner.call{value: address(this).balance}(""); 
+        require(success, "Failure: Not Sent");
+    }
+
+    function getBalance() external view returns (uint) {
+        return address(this).balance; 
+    }
+}
+</pre>
+<a href="https://ropsten.etherscan.io/address/0xf2562bbf3797b31691997b1aab4b6e37b4729c69" target="BLANK">Here</a> is the address of the wallet. Just for reference, you can also use the transfer function, which has less confusing syntax: 
+<pre>
+function withdraw(uint _amount) public {
+    payable(msg.sender).transfer(_amount); 
+}
+</pre>
+
+<div class="subsection_title">Fallback Functions</div>
+<div>
+
+</div>
+
+
+</div>
+
+<div class="title_and_hide">
+<p id="Section2" class="section_title">TBD</p>
+<a id="show_hide_2" class="show_hide" onclick="show_hide_2()">[Hide]</a></div>
+<hr>
+<div id="section_content_2">
+</div>
+
+
+<script src="/JS/html_notes.js"></script>
+</body>
+</html>
