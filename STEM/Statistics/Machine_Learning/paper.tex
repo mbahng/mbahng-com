@@ -50,6 +50,7 @@
   \usepackage{graphicx}
   \usepackage{caption} 
   \usepackage{subcaption}
+  \captionsetup{font=small}
 
   % for tabular stuff 
   \usepackage{dcolumn}
@@ -835,7 +836,7 @@ You should know measure (probability) theory, a bit of functional analysis, and 
           \label{fig:11e}
         \end{subfigure}
 
-        \caption{Different model complexities (i.e. different polynomial degrees) lead to different fits of the data generated from the true distribution. The lower degree best fit polynomials don't have much variability in their best fits but have high bias, while the higher degree best fit polynomials have very high variability in their best fits but have low bias. The code used to generate this data is \href{code/polynomial_fitting.py}{here}}.
+        \caption{Different model complexities (i.e. different polynomial degrees) lead to different fits of the data generated from the true distribution. The lower degree best fit polynomials don't have much variability in their best fits but have high bias, while the higher degree best fit polynomials have very high variability in their best fits but have low bias. The code used to generate this data is \href{code/polynomial_fitting.ipynb}{here}. }
         \label{fig:polynomial_fitting}
       \end{figure}
 
@@ -847,7 +848,6 @@ You should know measure (probability) theory, a bit of functional analysis, and 
         \item What overfitting essentially means is that our model is too complex to the point where it starts to fit to the \textit{noise} of the data. This means that the variance is high, since different samples of the dataset $\mathcal{D}$ would cause huge fluctuations in the optimal trained parameters $\boldsymbol{\theta}$. However, the function set would be large, and thus it would be close to $\mathbb{E}[Y \mid X]$, leading to a low bias. 
       \end{enumerate}
     \end{example}
-
     
     \begin{example}[Polynomial Regression Continued]
       Another way to reduce the overfitting problem is if we have more training data to work with. That is, if we were to fit a 9th degree polynomial on a training set of not $N = 15$, but $N = 100$ data points, then we can see that this gives a much better fit. This makes sense because now the random variable $\mathcal{D}$, as a function of more random variables, has lower variance. Therefore, the lower variance in the dataset translates to lower variance in the optimal parameter. 
@@ -1024,6 +1024,48 @@ You should know measure (probability) theory, a bit of functional analysis, and 
       We can also maximize the log likelihood w.r.t. $\sigma^2$, which gives the MLE 
       \[\sigma^2_{ML} = \frac{1}{N} \sum_{n=1}^N \big( y^{(n)} - \mathbf{w}^T_{ML} \boldsymbol{\phi}(\mathbf{x}^{(n)}) \big)^2\]
     \end{theorem}
+
+    \begin{code}[MWE for OLS Linear Regression in scikit-learn]
+      Here is a minimal working example of performing linear regression with scikit-learn. Note that the input data must be of shape $(n, d)$. 
+
+      \noindent\begin{minipage}{.6\textwidth}
+      \begin{lstlisting}[]{Code}
+        import numpy as np 
+        from sklearn.linear_model import LinearRegression 
+
+        X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]]) 
+        y = np.dot(X, np.array([1, 2])) + 3 
+
+        model = LinearRegression()  
+        model.fit(X, y) 
+        print(X) 
+        print(y)
+        print(model.score(X, y))  
+        print(model.intercept_)
+        print(model.coef_) 
+        print(model.predict(np.array([[3, 5]])))
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.39\textwidth}
+      \begin{lstlisting}[]{Output}
+        [[1 1]
+         [1 2]
+         [2 2]
+         [2 3]]
+        [ 6  8  9 11]
+        1.0
+        3.0000000000000018
+        [1. 2.]
+        [16.]
+        .
+        .
+        .
+        .
+        .
+      \end{lstlisting}
+      \end{minipage}
+    \end{code}
 
     \subsubsection{Bias Variance Decomposition} 
 
@@ -1343,7 +1385,7 @@ You should know measure (probability) theory, a bit of functional analysis, and 
     \begin{definition}[Ridge Regression]
       In \textbf{ridge regression}, we minimize 
       \begin{equation}
-        E(\boldsymbol{\theta}) \coloneqq \frac{1}{2} \sum_{n=1}^N \big( h_{\boldsymbol{\theta}} (x^{(n)}) - y^{(n)} \big)^2 + \frac{\lambda}{2} ||\boldsymbol{\theta}||_2^2
+        L(\beta) = ||Y - X \beta||^2 + \lambda ||\beta||^2 
       \end{equation}
       where we penalize according to the L2 norm of the coefficients. 
     \end{definition}
@@ -1358,7 +1400,7 @@ You should know measure (probability) theory, a bit of functional analysis, and 
     \begin{theorem}[Least Squares Solution for Ridge Regression]
       The minimizer of the ridge loss is 
       \begin{equation}
-        \hat{\beta} = (X^T X+ \lambda I)^{-1} \mathbf{X}^T \mathbf{Y}
+        \hat{\beta} = (X^T X+ \lambda I)^{-1} X^T Y
       \end{equation}
     \end{theorem}
     \begin{proof}
@@ -1380,21 +1422,83 @@ You should know measure (probability) theory, a bit of functional analysis, and 
 
     We can see that the $\lambda$ term exists in the numerator on $\frac{\lambda ||\beta||^2}{2}$ and in the denominator on $\frac{\Tr(\Sigma)}{2 \lambda}$. This is the bias variance tradeoff. The first term is the bias term, which is the penalty for not being able to fit the data as well. The second term is the variance term, which is the penalty for having a more complex model. So our optimal $\lambda$ in the theoretical sense would be the one that minimizes the sum of these two terms. In practice, it's not this clean since we have unknown quantities in the formula, but just like how we did cross validation over the model complexity, we can also do cross validation over the $\lambda$. The decomposition above just gives you a theoretical feeling of how these things trade off. 
 
+    \begin{code}[MWS of Ridge Regression in scikit-learn]
+      \noindent\begin{minipage}{.6\textwidth}
+      \begin{lstlisting}[]{Code}
+        import numpy as np 
+        from sklearn.linear_model import Ridge  
+
+        X = np.random.randn(10, 5) 
+        y = np.random.randn(10)
+        # regularization parameter
+        model = Ridge(alpha=1.0)  
+        model.fit(X, y) 
+        print(model.score(X, y))  
+        print(model.intercept_)
+        print(model.coef_) 
+        print(model.predict(np.array([[1, 2, 3, 4, 5]]))) 
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.39\textwidth}
+      \begin{lstlisting}[]{Output}
+        0.8605535024325397
+        -0.28291076492665157
+        [-0.10400521 -0.7587073  -0.05116735  1.16236649 -0.0401323 ]
+        [2.39097184]
+        .
+        .
+        .
+        .
+        .
+        .
+      \end{lstlisting}
+      \end{minipage}
+    \end{code}
+
     \begin{question}[To Do]
       Bayesian interpretation of ridge regression. 
     \end{question}
 
   \subsection{Forward Stepwise Regression} 
 
-    Forward stepwise regression is a greedy algorithm that starts with an empty set of covariates and adds the covariate that most improves the fit. 
+    Forward stepwise regression is a greedy algorithm that starts with an empty set of covariates and adds the covariate that most improves the fit. It avoids the NP-hardness of the best subset regression by adding covariates one by one. 
 
     \begin{definition}[Greedy Forward Stepwise Regression]
-      Given your data $\mathcal{D}$, let's first standardize it to have mean $0$ and variance $1$.\footnote{This may or may not be a good idea, since the variance of each covariate can tell you a lot about the importance of the covariate.} With each covariate $X = (X_1, \ldots, X_n)$, we compute the correlation between it and the $Y$, which reduces to the inner product (since we standardized). 
-      \begin{equation}
-        \rho_j = \langle Y, X_j \rangle = \frac{1}{n} \sum_{i=1}^n Y_i X_{ij}
-      \end{equation}
+      Given your data $\mathcal{D}$, let's first standardize it to have mean $0$ and variance $1$.\footnote{This may or may not be a good idea, since the variance of each covariate can tell you a lot about the importance of the covariate.} You start off with a set $\mathcal{Q} = \{\}$ and choose the number of parameters $K$. 
+      \begin{enumerate}
+        \item With each covariate $X = (X_1, \ldots, X_n)$, we compute the correlation between it and the $Y$, which reduces to the inner product (since we standardized). 
+        \begin{equation}
+          \rho_j = \langle Y, X_{:, j} \rangle = \frac{1}{n} \sum_{i=1}^n Y_i X_{ji}
+        \end{equation}
+
+        \item Then, we take the covariate index that has the highest empirical correlation with $Y$, add it to $\mathcal{Q}$ and regress $Y$ only on this covariate. 
+        \begin{equation}
+          q_1 = \argmax_j \rho_j , \;\; \mathcal{Q} = \{q_1\}, \;\; \hat{\beta}_{q_1} = \argmin_{\beta} \frac{1}{n} ||Y - X_{:, q_1} \beta||^2 
+        \end{equation}
+
+        \item Then you repeat the process. You take the residual values $r = Y - X_{:, q_1} \hat{\beta}_{q_1} \in \mathbb{R}^n$ compute the correlation between $r$ and the remaining covariates, and pick our the maximum covariate index $q_2$. Then, you \textit{repeat the regression from start} with these two covariates 
+        \begin{equation}
+          q_2 = \argmax_j \langle r, X_{: ; j} \rangle , \;\; \mathcal{Q} = \{q_1, q_2\}, \;\; \hat{\beta}_{q_1, q_2} = \argmin_{\beta} \frac{1}{n} ||Y - X_{:,[q_1, q_2]} \beta||^2
+        \end{equation}
+        Note that you're not going to get the same coefficient for $\hat{\beta}_{q_1}$ as before since you're doing two variable regression. 
+
+        \item You get out the residual values $r = Y - X_{:, [q_1, q_2]} \hat{\beta}_{q_1, q_2} \in \mathbb{R}^n$ and keep repeating this process until you have $K$ covariates in $\mathcal{Q}$. 
+      \end{enumerate}
     \end{definition}
 
+    Again, there is a bias variance tradeoff in choosing the number of covariates $K$, but through cross-validation, we can find the optimal $K$. It is also easy to add constraints, e.g. if we wanted to place a restriction that two adjacent covariates can't be chosen, we can easily add this to the algorithm. 
+
+    \begin{theorem}[Rate of Convergence for Stepwise Regression]
+      Let $\hat{f}_K$ be the optimal regressor we get from $K$ covariates in stepwise regression. Then, we have something like
+      \begin{equation}
+        ||f - \hat{f}||^2 \leq c ||f - f_K||^2 + \frac{\log{n}}{\sqrt{n}}
+      \end{equation}
+    \end{theorem}
+
+    \subsubsection{Stagewise Regression} 
+
+      Stagewise regression is a variant of forward stepwise regression where we add the covariate that most improves the fit, but we only take a small step in that direction. This is useful when we have a lot of covariates and we don't want to overfit. 
 
   \subsection{Lasso Regression}
 
@@ -1402,7 +1506,7 @@ You should know measure (probability) theory, a bit of functional analysis, and 
     \begin{equation}
       \argmin_{||\beta||_0 \leq L} r(\beta) \mapsto \argmin_{||\beta||_1 \leq L} r(\beta)
     \end{equation}
-    This gives us a convex problem, which we can then solve. In fact, it turns out that optimizing the risk given the L1 restriction on the norm is equivalent to minimizing the risk plus a L1 penalty. Therefore, there exists a pair $(L, \lambda)$ for which the two problems are equivalent 
+    This gives us a convex problem, which we can then solve. In fact, it turns out that optimizing the risk given the L1 restriction on the norm is equivalent to minimizing the risk plus a L1 penalty, as this is the Lagrangian form of the original equation (this is in convex optimization). Therefore, there exists a pair $(L, \lambda)$ for which the two problems are equivalent 
     \begin{equation}
       \argmin_{||\beta||_1 \leq L} r(\beta) = \argmin_{\beta} r(\beta) + \lambda ||\beta||_1
     \end{equation}
@@ -1414,8 +1518,8 @@ You should know measure (probability) theory, a bit of functional analysis, and 
       \end{equation}
       where we penalize according to the L1 norm of the coefficients. 
     \end{definition}
-    
-    Unfortunately, there is no closed form solution for this estimator, but in convex optimization, we can prove that this estimator is sparse. That is, for large enough $\lambda$, many of the components of $\hat{\beta}$ are $0$. The classical intuition for this is the figure below. 
+  
+    A question arises: Why use the L1 norm? The motivation behind this is that we want to model the L0 norm as much as possible but at the same time we want it to be convex. This turns out to be precisely the L1 norm. Unfortunately, there is no closed form solution for this estimator, but in convex optimization, we can prove that this estimator is sparse. That is, for large enough $\lambda$, many of the components of $\hat{\beta}$ are $0$. The classical intuition for this is the figure below, where the equipotential lines have ``corners.'' In fact for any $0 < p < 1$, there are also corners, but the problem with using these p-norms is that they are not convex. 
 
     \begin{figure}[H]
       \centering 
@@ -1423,6 +1527,12 @@ You should know measure (probability) theory, a bit of functional analysis, and 
       \caption{The ridge regularizer draws equipotential circles in our parameter space. The lasso draws a diamond, which tends to give a sparser solution since the loss is most likely to ``touch'' the corners of the contour plots of the regularizer. The elastic net is a linear combination of the ridge and lasso regularizers.} 
       \label{fig:regularizers_visual}
     \end{figure}
+
+    To motivate this even further, let us take the two vectors 
+    \begin{align}
+      a = \bigg( \frac{1}{\sqrt{d}}, \ldots, \frac{1}{\sqrt{d}} \bigg) \qquad b = ( 1, 0, \ldots, 0)
+    \end{align}
+    Then the L0, L1, and L2 norms of $a$ are $d, \sqrt{d}, 1$ and those of $b$ are $1, 1, 1$. We want to choose a norm that capture the sparsity of $b$ and distinguishes it from $b$., The L0 norm clearly does this, but the L2 norm does not. The L1 norm is a good compromise between the two. 
 
     This now raises the question of how to determine a suitable regularization parameter $\lambda$. The next theorem shows a nice concentration property of the Lasso for bounded covariates. 
 
@@ -1444,13 +1554,155 @@ You should know measure (probability) theory, a bit of functional analysis, and 
       
     \end{proof}
 
+    \begin{code}[MWS of Lasso Regression in scikit-learn]
+      \noindent\begin{minipage}{.6\textwidth}
+      \begin{lstlisting}[]{Code}
+        from sklearn.linear_model import Lasso
+
+        X = np.random.randn(10, 5) 
+        y = np.random.randn(10)
+        # regularization parameter
+        model = Lasso(alpha=1e-1)  
+        model.fit(X, y) 
+        print(model.score(X, y))  
+        print(model.intercept_)
+        print(model.coef_) 
+        print(model.predict(np.array([[1, 2, 3, 4, 5]]))) 
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.39\textwidth}
+      \begin{lstlisting}[]{Output}
+        0.47590269719236045
+        -0.8861298412689853
+        [0.         0.10767647 0.24172197 0.7427863  0.        ]
+        [3.02553422]
+        .
+        .
+        .
+        .
+        .
+      \end{lstlisting}
+      \end{minipage}
+    \end{code}
+
+    \subsubsection{Soft Thresholding and Proximal Gradient Descent} 
+
+
+
 \section{Nonparametric Regression}
 
   \subsection{Kernel Regression}
-    
-    This is a local linear smoother. 
 
-    Linear smoothers, Kernel regression, Gaussian smoothing, Kernel smoothers, but has the desgin bias and boundary bias problem. Good fix is local linear regression. 
+    When we want to do nonparametric regression, i.e. when dealing with nonlinear functions, we can construct a function that uses local averaging of its nearby points. 
+
+    \begin{example}[Local Averaging]
+      Say that we want to fit some function through a series of datapoints in simple regression (one covariate). Then, what we can do is take some sliding window and our vale of the function at a point $x$ is the average of all values in the window $[x - \delta, x + \delta]$. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.6]{img/kmeans_smoother.png}
+        \caption{K means smoother} 
+        \label{fig:kmeans_smoother}
+      \end{figure}
+    \end{example}
+
+    But this way puts equal weights on both near and far points, as long as they are in the window. This may not be ideal, so a simple modification is to \textit{weigh} these points according to their distance from the middle $x$. We can do this with a kernel, as the name suggests. Now this is not the same thing as a Mercer kernel in RKHS, so to distinguish that I will call it a \textit{local averaging kernel}. 
+
+    \begin{definition}[Local Averaging Kernel]
+      A \textbf{kernel} is any smooth, symmetric, and non-negative function $K : \mathbb{R} \to \mathbb{R}$.  
+    \end{definition}
+
+    \begin{definition}[Kernel Regression]
+      Given some datapoints, $X$, our fitted regressor is of form 
+      \begin{equation}
+        \hat{f} (x) = \frac{\sum_{i} Y_i K \bigg( \frac{||x - X_i||}{h} \bigg)}{\sum_{i} K \bigg( \frac{||x - X_i||}{h} \bigg)}
+      \end{equation}
+      where $h$ is the \textbf{bandwidth} and the denominator is made sure so that the coefficients sum to $1$. To get a clearer picture, we are really taking the weighted average of the $Y_i$'s. 
+      \begin{equation}
+        \hat{f} (x) = \sum_{i} Y_i \ell_i (x) \text{ where } \sum_{i} \ell_i (x) = 1
+      \end{equation}
+    \end{definition}
+
+    \begin{code}[MWS of K Nearest Neighbor Regression in scikit-learn]
+      Local averaging is implemented as the K nearest neighbor regressor in scikit learn. It is slightly different in the way that it doesn't use the points within a certain $\delta$ away but rather the $K$ nearest points. Either way, a minimal working example of this is 
+      \begin{lstlisting}
+        X = [[0], [1], [2], [3]]
+        y = [0, 0, 1, 1]
+        from sklearn.neighbors import KNeighborsRegressor
+        neigh = KNeighborsRegressor(n_neighbors=2)
+        neigh.fit(X, y)
+        print(neigh.predict([[1.5]])) 
+      \end{lstlisting}
+    \end{code}
+
+    The reason we'd like to have the weights to sum to $1$ is that if we had data that was constant (i.e. all $Y_i$'s are the same), then the fitted function should be constant at that value as well. Here are some popular kernels. 
+
+    \begin{definition}[Gaussian Kernel]
+      The \textbf{Gaussian kernel} is defined as 
+      \begin{equation}
+        K(x) = \frac{1}{\sqrt{2 \pi}} e^{-x^2/2}
+      \end{equation}
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.6]{img/gaussian_smoother.png}
+        \caption{Gaussian kernel. } 
+        \label{fig:gaussian_smoother}
+      \end{figure}
+    \end{definition}
+
+    \begin{definition}[Box-Car Kernel]
+      The \textbf{Box-Car kernel} is defined as 
+      \begin{equation}
+        K(x) = \frac{1}{2} \mathbbm{1}(|x| \leq 1)
+      \end{equation}
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.6]{img/boxcar_smoother.png}
+        \caption{Boxcar kernel. } 
+        \label{fig:boxcar_smoother}
+      \end{figure}
+    \end{definition}
+
+    \begin{definition}[Epanechnikov Kernel]
+      The \textbf{Epanechnikov kernel} is defined as 
+      \begin{equation}
+        K(x) = \frac{3}{4} (1 - x^2) \mathbbm{1}(|x| \leq 1)
+      \end{equation}
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.6]{img/epanechnikov_smoother.png}
+        \caption{Epanechnikov kernel.} 
+        \label{fig:epanechnikov_smoother}
+      \end{figure}
+    \end{definition}
+
+    It turns out that from a theoretical point of view, the choice of the kernel doesn't really matter. What really matters is the bandwidth $h$ since that is what determines the bias variance tradeoff. To see why, if $h = 0$, then it will simply interpolate the points and variance is extremely high, and if $h = \infty$, then the fitted function will be constant at $\bar{Y}$, leading to high bias. The following theorem formalizes this.  
+
+    \begin{theorem}
+      Suppose that $d = 1$ and that $m^{\prime\prime}$ is bounded. Also suppose that $X$ has a nonzero, differentiable density $p$ and that the support is unbounded. Then, the risk is 
+      \begin{align}
+        R_n & = \frac{h_n^4}{4} \bigg( \int x^2 K(x) \bigg)^2 \int \bigg( m^{\prime\prime} (x) + 2m^\prime (x) \frac{p^\prime (x)}{p(x)} \bigg)^2 \,dx \\
+            & \;\;\; + \frac{\sigma^2 \int K^2(x)\,dx} {n h_n} \int \frac{dx}{p(x)} + o \bigg( \frac{1}{n h_n} \bigg) + o(h_n^4) 
+      \end{align}
+      The first term is the squared bias and the second term is the variance. 
+    \end{theorem}
+
+    From the theorem above, we can see that if the bandwidth is small, then $h^4$ is small and the bias decreases. However, there is a $h$ term in the denominator of the variance term, which also trades it off. We can furthermore see that the bias is sensitive to $p^\prime / p(x)$. This means that if the density is steep, then the bias will be high. This is known as \textit{design bias}, which is an underlying weakness in smoothing kernel regression. Another problem that is not contained in the theorem is the \textit{boundary bias}, which states that if you're near the boundary of the distribution (i.e. near the boundary of its support), then the bias also explodes. This happens to be very nasty especially in high dimensions where most of the data tends to be near the boundary. It turns out that this can be easily fixed with local polynomial regression, which gets rid of this term in the bias without any cost to variance. This means that this is unnecessary bias. 
+    
+    Then you can apply regularization on this to get kernel ridge regression. 
+
+    \begin{code}[MWS of Kernel Ridge Regression in scikit learn]
+      \begin{lstlisting}
+        from sklearn.kernel_ridge import KernelRidge
+        import numpy as np
+        n_samples, n_features = 10, 5
+        rng = np.random.RandomState(0)
+        y = rng.randn(n_samples)
+        X = rng.randn(n_samples, n_features)
+        krr = KernelRidge(alpha=1.0)
+        krr.fit(X, y)
+      \end{lstlisting}
+    \end{code}
 
   \subsection{Local Polynomial Regression}
 
@@ -1465,9 +1717,21 @@ You should know measure (probability) theory, a bit of functional analysis, and 
     This is not local, but it's a linear smoother. 
 
   \subsection{Additive Models}
-  
-    We've learned about linear smoothers to create nonparametric models in 1 dimension. We can then extend this to multiple input dimensions with additive models, which aren't as flexible since they can't capture dependencies, but we can create dependency functions. 
 
+    In the most general case, we want to create nonparametric regression functions of the form 
+    \begin{equation}
+      Y = f(x_1, \ldots, x_d) + \epsilon 
+    \end{equation}
+    We've done this for one dimensional case, but we can extend this to multiple dimensions through additive models of the form 
+    \begin{equation}
+      Y = \sum_j f_j (x_j)  + \epsilon
+    \end{equation}
+    This gives us very interpretable models where we can clearly see the effect of each covariate on $Y$. Clearly, this is not as flexible as the previous model since they can't capture dependencies, but we can create sub-dependency functions and replace the form above to something like 
+    \begin{equation}
+      Y = \sum_{i, j} f_{i, j} (x_i, x_j) + \epsilon
+    \end{equation}
+    giving us more flexible models. 
+  
   \subsection{Nonlinear Smoothers, Trend Filtering} 
 
     Tough example of the Dobbler function (like topologists sine curve). It's a pretty good fit but it's not too good since it's using a linear smoother (homogeneous). So we might need to fit it with nonlinear smoothers. 
@@ -2082,6 +2346,8 @@ You should know measure (probability) theory, a bit of functional analysis, and 
       It turns out that $C_d$ decreases exponentially, so the radius $r_k$ explodes as $d$ grows. Another way of looking at this is that in high dimensions, the $\ell_2$ distance between all the pairwise points are close in every single dimension, so it becomes harder to distinguish points that are close vs those that are far.  
     \end{example} 
 
+    \subsubsection{Approximate K Nearest Neighbors}
+
   \subsection{Classification Trees}
 
     \begin{definition}[Decision Trees]
@@ -2128,59 +2394,59 @@ You should know measure (probability) theory, a bit of functional analysis, and 
     \[H(X) \geq H(X ; Y) \geq H(X ; Y, Z) \geq H(X ; Y, Z, W) \geq \ldots \geq 0\]
 
     \begin{example}
-    Continuing the example above, since there are $6$ labels of $0$ and $1$ each, we can model this $Y \sim \mathrm{Bernoulli}(0.5)$ random variable, with entropy 
-    \[H(Y) = \mathbb{E}[-\log_2 p(Y)] = \frac{1}{2} \big( -\log_2 \frac{1}{2} \big) + \frac{1}{2} \big( -\log_2 \frac{1}{2} \big) = 1\]
-    Now what would happen if we had branched according to how crowded it was, $X_{\mathrm{crowded}}$. Then, our decision tree would split into 3 sections: 
-    \begin{center}
-      \includegraphics[scale=0.5]{img/decision_crowded.png}
-    \end{center}
-    In this case, we can define the multinomial distribution $X_{\mathrm{crowded}}$ representing the proportion of the data that is crowded in a specific level. That is, $X_{\mathrm{crowded}} \sim \mathrm{Multinomial}(\frac{2}{12}, \frac{4}{12}, \frac{6}{12} \big)$, with 
-    \[\mathbb{P}(X_{\mathrm{crowded}} = x) = \begin{cases} 2/12 & \text{ if } x = \text{ none} \\ 4/12 & \text{ if } x = \text{ some} \\ 6/12 & \text{ if } x = \text{ full} \end{cases} \]
-    Therefore, we can now compute the conditional entropy of this new decision tree conditioned on how crowded the store is 
-    \begin{align*}
-        H(Y \mid X_{\mathrm{crowded}}) & = \sum_x \mathbb{P}(X_{\mathrm{crowded}} = x) H(Y \mid X_{\mathrm{crowded}} = x) \\
-        & = \frac{2}{12} H(\mathrm{Bern}(1)) + \frac{4}{12} H(\mathrm{Bern}(0)) + \frac{6}{12} H(\mathrm{Bern}(1/3)) = 0.459 \\
-        I(Y; X_{\mathrm{crowded}}) & = 0.541
-    \end{align*}
-    We would do this for all the features and greedily choose the feature that maximizes our information gain. 
+      Continuing the example above, since there are $6$ labels of $0$ and $1$ each, we can model this $Y \sim \mathrm{Bernoulli}(0.5)$ random variable, with entropy 
+      \[H(Y) = \mathbb{E}[-\log_2 p(Y)] = \frac{1}{2} \big( -\log_2 \frac{1}{2} \big) + \frac{1}{2} \big( -\log_2 \frac{1}{2} \big) = 1\]
+      Now what would happen if we had branched according to how crowded it was, $X_{\mathrm{crowded}}$. Then, our decision tree would split into 3 sections: 
+      \begin{center}
+        \includegraphics[scale=0.5]{img/decision_crowded.png}
+      \end{center}
+      In this case, we can define the multinomial distribution $X_{\mathrm{crowded}}$ representing the proportion of the data that is crowded in a specific level. That is, $X_{\mathrm{crowded}} \sim \mathrm{Multinomial}(\frac{2}{12}, \frac{4}{12}, \frac{6}{12} \big)$, with 
+      \[\mathbb{P}(X_{\mathrm{crowded}} = x) = \begin{cases} 2/12 & \text{ if } x = \text{ none} \\ 4/12 & \text{ if } x = \text{ some} \\ 6/12 & \text{ if } x = \text{ full} \end{cases} \]
+      Therefore, we can now compute the conditional entropy of this new decision tree conditioned on how crowded the store is 
+      \begin{align*}
+          H(Y \mid X_{\mathrm{crowded}}) & = \sum_x \mathbb{P}(X_{\mathrm{crowded}} = x) H(Y \mid X_{\mathrm{crowded}} = x) \\
+          & = \frac{2}{12} H(\mathrm{Bern}(1)) + \frac{4}{12} H(\mathrm{Bern}(0)) + \frac{6}{12} H(\mathrm{Bern}(1/3)) = 0.459 \\
+          I(Y; X_{\mathrm{crowded}}) & = 0.541
+      \end{align*}
+      We would do this for all the features and greedily choose the feature that maximizes our information gain. 
     \end{example}
 
     \begin{example}
-    The Ferrari F1 team hired you as a new analyst! You were given the following table of the past race history of the team. You were asked to use information gain to build a decision tree to predict race wins. First, you will need to figure out which feature to split first. 
+      The Ferrari F1 team hired you as a new analyst! You were given the following table of the past race history of the team. You were asked to use information gain to build a decision tree to predict race wins. First, you will need to figure out which feature to split first. 
 
-    \begin{center}
-    \begin{tabular}[c]{c|c|c||c}
-    Rain & Good Strategy & Qualifying & Win Race \\ \hline
-    1 & 0 & 0 & 0 \\
-    1 & 0 & 0 & 0 \\
-    1 & 0 & 1 & 0 \\
-    0 & 0 & 1 & 1 \\
-    0 & 0 & 0 & 0 \\
-    0 & 1 & 1 & 1 \\
-    1 & 0 & 1 & 0 \\
-    0 & 1 & 0 & 1 \\
-    0 & 0 & 1 & 1 \\
-    0 & 0 & 1 & 1 \\
-    \end{tabular}
-    \end{center}
-    Let $X \sim \mathrm{Bernoulli}(1/2)$ be the distribution of whether a car wins a race over the data. Then its entropy is 
-    \[H(X) = \mathbb{E}[-\log_2 p(x)] = \frac{1}{2} \big( -\log_2 \frac{1}{2} \big) + \frac{1}{2} \big( -\log_2 \frac{1}{2} \big) = 1\]
-    Let $R \sim \mathrm{Bernoulli}(4/10), G \sim \mathrm{Bernoulli}(2/10), Q \sim \mathrm{Bernoulli}(6/10)$ be the distribution of the features rain, good strategy, and qualifying over the data, respectively. Then, the conditional entropy of $X$ conditioned on each of these random variables is 
-    \begin{align*}
-        H(X \mid R) & = \mathbb{P}(R = 1)\, H(X \mid R = 1) + \mathbb{P}(R = 0) \, H(X \mid R = 0) \\
-        & = \frac{4}{10} \cdot - \big( 1 \cdot \log_2 1 + 0 \cdot \log_2 0 \big) + \frac{6}{10} \cdot - \big( \frac{1}{6} \cdot \log_2 \frac{1}{6} + \frac{5}{6} \cdot \log_2 \frac{5}{6} \big) \approx 0.390 \\
-        H(X \mid G) & =  \mathbb{P}(G = 1)\, H(X \mid G = 1) + \mathbb{P}(G = 0) \, H(X \mid G = 0) \\
-        & = \frac{2}{10} \cdot - \big( 1 \cdot \log_2 1 + 0 \cdot \log_2 0 \big) + \frac{8}{10} \cdot - \big( \frac{3}{8} \cdot \log_2 \frac{3}{8} + \frac{5}{8} \log_2 \frac{5}{8} \big) \approx 0.763\\
-        H(X \mid Q ) & = \mathbb{P}(Q = 1)\, H(X \mid Q = 1) + \mathbb{P}(Q = 0) \, H(X \mid Q = 0) \\
-        & = \frac{6}{10} \cdot - \big( \frac{4}{6} \cdot \log_2 \frac{4}{6} + \frac{2}{6} \cdot \log_2 \frac{2}{6} \big) + \frac{4}{10} \cdot - \big( \frac{1}{4} \log_2 \frac{1}{4} + \frac{3}{4} \log_2 \frac{3}{4} \big) \approx 0.875
-    \end{align*}
-    Therefore, the information gain are 
-    \begin{align*}
-        I(X; R) & = 1 - 0.390 = 0.610 \\
-        I(X; G) & = 1 - 0.763 = 0.237 \\
-        I(X; Q) & = 1 - 0.875 = 0.125 
-    \end{align*}
-    And so I would split on $R$, the rain, which gives the biggest information gain. 
+      \begin{center}
+      \begin{tabular}[c]{c|c|c||c}
+      Rain & Good Strategy & Qualifying & Win Race \\ \hline
+      1 & 0 & 0 & 0 \\
+      1 & 0 & 0 & 0 \\
+      1 & 0 & 1 & 0 \\
+      0 & 0 & 1 & 1 \\
+      0 & 0 & 0 & 0 \\
+      0 & 1 & 1 & 1 \\
+      1 & 0 & 1 & 0 \\
+      0 & 1 & 0 & 1 \\
+      0 & 0 & 1 & 1 \\
+      0 & 0 & 1 & 1 \\
+      \end{tabular}
+      \end{center}
+      Let $X \sim \mathrm{Bernoulli}(1/2)$ be the distribution of whether a car wins a race over the data. Then its entropy is 
+      \[H(X) = \mathbb{E}[-\log_2 p(x)] = \frac{1}{2} \big( -\log_2 \frac{1}{2} \big) + \frac{1}{2} \big( -\log_2 \frac{1}{2} \big) = 1\]
+      Let $R \sim \mathrm{Bernoulli}(4/10), G \sim \mathrm{Bernoulli}(2/10), Q \sim \mathrm{Bernoulli}(6/10)$ be the distribution of the features rain, good strategy, and qualifying over the data, respectively. Then, the conditional entropy of $X$ conditioned on each of these random variables is 
+      \begin{align*}
+          H(X \mid R) & = \mathbb{P}(R = 1)\, H(X \mid R = 1) + \mathbb{P}(R = 0) \, H(X \mid R = 0) \\
+          & = \frac{4}{10} \cdot - \big( 1 \cdot \log_2 1 + 0 \cdot \log_2 0 \big) + \frac{6}{10} \cdot - \big( \frac{1}{6} \cdot \log_2 \frac{1}{6} + \frac{5}{6} \cdot \log_2 \frac{5}{6} \big) \approx 0.390 \\
+          H(X \mid G) & =  \mathbb{P}(G = 1)\, H(X \mid G = 1) + \mathbb{P}(G = 0) \, H(X \mid G = 0) \\
+          & = \frac{2}{10} \cdot - \big( 1 \cdot \log_2 1 + 0 \cdot \log_2 0 \big) + \frac{8}{10} \cdot - \big( \frac{3}{8} \cdot \log_2 \frac{3}{8} + \frac{5}{8} \log_2 \frac{5}{8} \big) \approx 0.763\\
+          H(X \mid Q ) & = \mathbb{P}(Q = 1)\, H(X \mid Q = 1) + \mathbb{P}(Q = 0) \, H(X \mid Q = 0) \\
+          & = \frac{6}{10} \cdot - \big( \frac{4}{6} \cdot \log_2 \frac{4}{6} + \frac{2}{6} \cdot \log_2 \frac{2}{6} \big) + \frac{4}{10} \cdot - \big( \frac{1}{4} \log_2 \frac{1}{4} + \frac{3}{4} \log_2 \frac{3}{4} \big) \approx 0.875
+      \end{align*}
+      Therefore, the information gain are 
+      \begin{align*}
+          I(X; R) & = 1 - 0.390 = 0.610 \\
+          I(X; G) & = 1 - 0.763 = 0.237 \\
+          I(X; Q) & = 1 - 0.875 = 0.125 
+      \end{align*}
+      And so I would split on $R$, the rain, which gives the biggest information gain. 
     \end{example}
 
     Finally, we can use the Gini index of $X \sim \mathrm{Bernoulli}(p)$, defined 
@@ -2694,15 +2960,318 @@ You should know measure (probability) theory, a bit of functional analysis, and 
 
 \section{Dimensionality Reduction} 
 
-  \subsection{Random Matrix Theory} 
+  Dimensionality reduction is used for many purposes, such as preprocessing data, visualizing it, or encoding it in a sparser, more efficient way. 
+
+  \subsection{Principal Component Analysis} 
+    
+    PCA finds low dimensional approximations to the data by projecting the data onto linear subspaces. 
+
+    \begin{definition}[Principal Component Analysis]
+      Let $X \in \mathbb{R}^d$ and $\mathcal{L}_k$ denote all $k$-dimensional linear subspaces. The $k$th principal subspace is 
+      \begin{equation}
+        \ell_k = \argmin_{\ell \in \mathcal{L}_k} \mathbb{E} \big( \min_{y \in \ell} ||\Tilde{X} - y||^2 \big)
+      \end{equation}
+      where $\Tilde{X} = X - \mu$ and $\mu = \mathbb{E}[X]$. To parse this, let's fix a subspace $\ell$. Then, the normalized data $\Tilde{X}$ is a random vector and the minimum distance of $\Tilde{X}$ onto the subspace $\ell$ is the inner min term. Taking the expectation of that gives us the expected distance of the data onto the subspace. The principal subspace is the subspace that minimizes this expected distance. The dimension reduced version of $X$ is then $T_k (X) = \mu + \mathrm{proj}_{\ell_k} X$. 
+    \end{definition}
+
+    Note that this is in fact different from linear regression as it minimizes the expected \textit{orthogonal distance} to the subspace, rather than the residual distance to the subspace as in linear regression. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.3\textwidth}
+      \centering
+        \includegraphics[width=\textwidth]{img/pca_ortho.png}
+        \caption{PCA minimizes the orthogonal distance to the subspace. }
+      \end{subfigure}
+      \begin{subfigure}[b]{0.3\textwidth}
+      \centering
+        \includegraphics[width=\textwidth]{img/lin_reg_vert.png}
+        \caption{Linear regression minimizes the residual distance to the subspace.} 
+      \end{subfigure}
+      \caption{PCA vs Linear Regression}
+      \label{fig:pca_lin_reg}
+    \end{figure}
+
+    There is a very nice way to calculate this principal subspace. 
+
+    \begin{theorem}[Calculating the Principal Subspace] 
+      Given our data matrix $X \in \mathbb{R}^{n \times d}$, we take the SVD of it. 
+      \begin{equation}
+        X = U \Sigma V^T
+      \end{equation}
+      where $\Sigma$ contains the singular values of $X$ in decreasing order. Then $\ell_k$ is the subspace spanned by the columns $v_1, v_2, \ldots, v_k$ of $V$. Furthermore, 
+      \begin{equation}
+        T_k (X) = \mu + \sum_{j=1}^k \beta_j v_j , \text{ where } \beta_j = \langle X - \mu, v_j \rangle
+      \end{equation}
+      Note that this is really just equivalent to calculating the eigendecomposition of $\hat{\Sigma} = X^T X$. 
+    \end{theorem}
+
+    Now a question arises: how do we know that this sample decomposition is a good approximation to the true decomposition? It comes from the fact that the sample covariance $\hat{\Sigma}$ is a good approximation of the true covariance $\Sigma$, which we will later prove using concentration of measure. 
+
+    \begin{theorem}[Risk]
+      The risk satisfies 
+      \begin{equation}
+        R(k) = \mathbb{E}[|| X - T_k (X) ||^2 ] = \sum_{j=k+1}^d \lambda_j 
+      \end{equation}
+    \end{theorem}
+
+    It is essential that you plot the spectrum in decreasing order. This allows you to analze how well PCA is working. People often use the ``elbow'' technique to determine where to choose $K$, and we value 
+    \begin{equation}
+      \frac{\sum_{j=1}^k \lambda_j}{\sum_{j=1}^d \lambda_j} 
+    \end{equation}
+    accounts for the \textbf{variance explained}, which should be high with $K$ low. If you have to go out to dimension $K=50$ to explain $90\%$ of the variance, then PCA is not working. It may not work because of many reasons, such as there being nonlinear structure within the data. 
+
+    It turns out that the elements of $\hat{\Sigma}$ are close entry-wise to those of $\Sigma$. But if this is true, then does it mean that the eigenvalues of the sample covariance matrix are close to the true eigenvalues of the covariance matrix? It turns out that the answer is no, and we need a proper metric to satisfy this assumption. The metric, as we can guess from linear algebra, is the operator norm, and we will show some results from matrix perturbation theory. 
+
+    \begin{definition}[Operator Norm]
+      The \textbf{operator norm} of a matrix $A$ is defined as 
+      \begin{equation}
+        ||A|| = \sup_{x \neq 0} \frac{||Ax||}{||x||} 
+      \end{equation}
+    \end{definition}
+
+    \begin{lemma}[]
+      It turns out that 
+      \begin{equation}
+        ||\hat{\Sigma} - \Sigma|| = O_p \bigg( \frac{1}{\sqrt{n}} \bigg)
+      \end{equation}
+    \end{lemma}
+
+    \begin{theorem}[Weyl's Theorem]
+      If $\hat{\Sigma}$ and $\Sigma$ are close in the operator norm, then their eigenvalues are close. 
+      \begin{equation}
+        ||\hat{\Sigma} - \Sigma|| = O_p \bigg( \frac{1}{\sqrt{n}} \bigg) \implies |\hat{\lambda}_j - \lambda_j| = O_p \bigg( \frac{1}{\sqrt{n}} \bigg) 
+      \end{equation}
+    \end{theorem}
+
+    This only talks about their eigenvalues, but this does not necessarily imply that the eigenvalues are close. We need an extra condition. 
+
+    \begin{theorem}[David-Kahan Theorem]
+      If $\hat{\Sigma}$ and $\Sigma$ are close in the operator norm, and if the eigenvectors of $\Sigma$ are well-conditioned, then the eigenvectors of $\hat{\Sigma}$ are close to the eigenvectors of $\Sigma$. More specifically, 
+      \begin{equation}
+        ||\hat{v}_j - v_j|| \leq \frac{2^{3/2} ||\hat{\Sigma} - \Sigma||}{\lambda_j - \lambda_{j+1}}
+      \end{equation}
+    \end{theorem}
+
+    \subsubsection{Kernel PCA}
+
+      \begin{definition}[Kernel PCA]
+        Let $N_i$ be the neighborhood around $X_i$. Then, we want to find a mapping $W: \mathbb{R}^n \rightarrow \mathbb{R}^k$ that minimizes 
+        \begin{equation}
+          \min_{W} \sum_{i=1}^n \bigg| \bigg| X_i - \sum_{j \in N_i} W_{ij} X_j \bigg| \bigg|^2 \text{ where } \sum_{j} W_{ij} = 1
+        \end{equation}
+        We can constrain the weights in $W$ so that anything that is not in the neighborhoods are $0$. 
+      \end{definition}
+
+  \subsection{Multi-Dimensional Scaling}
+
+    Again, we want to reduce our dimension, but the goal is slightly different from PCA. 
+
+    \begin{definition}[Multi-Dimensional Scaling]
+      Given our data $X \in \mathbb{R}^d$, we want to construct a linear map $T: \mathbb{R}^d \rightarrow \mathbb{R}^k$ such that it preserves the pairwise differences between the data points. That is, we want to minimize the following loss function 
+      \begin{equation}
+        \min_{T} \sum_{i \neq j} \big( d_{\mathbb{R}^k}(T(x_i), T(x_j)) - d_{\mathbb{R}^d}(x_i, x_j) \big)
+      \end{equation}
+      where $d_{V}$ is a distance metric in the space $V$. 
+    \end{definition}
+
+    Note that we can easily modify this formulation to preserve other structures, such as dot products, weights between distances, or different types of metrics in each space. It turns out that when the distance metric is the Euclidean L2 distance, then the solution to this linear map turns out to be PCA. This may be a more intuitive way to think about PCA, since we're trying to preserve the pairwise distances between the data points. 
+
+    \begin{theorem}[Equivalence of Classical MDS and PCA]
+      If the distance metric is the Euclidean L2 distance, then the solution to the MDS problem is equivalent to PCA. That is, 
+      \begin{equation}
+        T_k = \argmin_{T} \sum_{i \neq j} \big( ||T(x_i) - T(x_j)||^2 - ||x_i - x_j||^2 \big)
+      \end{equation}
+    \end{theorem}
+
+    Generally, if you don't use classical MDS, then you will get a different answer than PCA and there doesn't exist a closed form solution, so you'll have to minimize this numerically. 
+
+    \begin{example}[Non Classical MDS]
+      The loss 
+      \begin{equation}
+        \sum_{i \neq j}  \big( ||T(x_i) - T(x_j)|| - ||x_i - x_j|| \big)^2 
+      \end{equation}
+      does not give the same solution as PCA. 
+    \end{example}
+
+    \subsubsection{Isomap} 
+
+      Isomap is a bit different in the way that it tries to capture more of the global structure of the data, which brings advantages and disadvantages. It is simply a modification of MDS but with geodesic distances. 
+
+      \begin{definition}[Isomap]
+        You start off with the point cloud, but with every point, $X_i$, you find the local neighborhood $N_i$ and you make a weighted graph over the whole dataset in the high dimensional space. Then, the distance between any two arbitrary points is the weighted sum of the path between them, calculated by Dijkstra's algorithm. Intuitively, this is an approximation of the geodesic distance between these two points on a manifold. Call this distance $d_G$. Then, we simply do MDS by minimizing 
+        \begin{equation}
+          \min_{T} \sum_{i \neq j} \big( d_{\mathbb{R}^k}(T(x_i), T(x_j)) - d_G(x_i, x_j) \big)
+        \end{equation}
+
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.4]{img/isomap.png}
+          \caption{The classical example is the spiral manifold. The data lies in this manifold, and the geodesic distance helps us gain an accurate distance metric within this data. } 
+          \label{fig:isomap}
+        \end{figure}
+      \end{definition}
+
+      The problem with this is that it is very sensitive to noise. For example, if we had a few points lying between the spirals, then the geodesic distance between the two spirals would be very small, and so the MDS would try to bring them closer together.  
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/isomap_problem.png}
+        \caption{With extra noisy points (red), the geodesic distance can get corrupted.} 
+        \label{fig:isomap_problem}
+      \end{figure}
+
+      To fix this, we use \textit{diffusion maps}, which looks at all possible paths between two points and looks at some average of them, which increases robustness. 
+
+  \subsection{Local Linear Embedding} 
+
+    PCA and MDS are linear embedding methods. Let's move onto nonlinear ones. The first nonlinear models that we work with again use the idea of locality (remember kernel regression). You have data that is globally nonlinear, but if you look at a point and its local neighborhood around it, then it is approximately linear since we assume that it lives in some smooth manifold. 
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/local_linear_embedding.png}
+      \caption{Local linear embedding assumes that the data is locally linear. } 
+      \label{fig:local_linear_embedding}
+    \end{figure}
+
+    The concept of neighborhood can be defined in two ways. You can either just fix an $\epsilon$ and take the $\epsilon$-ball around each point $x_i$. Or you can fix a $k$ and take the $k$ nearest neighbors of each point. The general idea of using kernel PCA is to take a local neighborhood of the data and construct some linear approximation of it. 
 
   \subsection{Factor Analysis}
 
+    Factor analysis is very similar to PCA since it looks for a small number of hidden features within the data. Say that we want to do density estimation for the probability distribution of the covariates $\mathbf{x}$, a random variable. We can try to model it directly, but this may be infeasible. Rather, what we do is ``add" a latent distribution $\mathbf{h}$, creating the joint distribution $(\mathbf{x}, \mathbf{h})$. This may look more complicated, but make two simplifying assumptions: we hope that we can model the latent $\mathbf{h}$ in a simple form (like a Gaussian), and we can model the conditional probability $p(\mathbf{x} \mid \mathbf{h})$ as some function $f_\theta$ parameterized by $\theta$. We can therefore marginalize and find that 
+    \begin{equation} 
+      p(\mathbf{x}) = \int p(\mathbf{x} \mid \mathbf{h}) \, p(\mathbf{h}) \,d\mathbf{h} = \mathbb{E}_\mathbf{h} [p(\mathbf{x} \mid \mathbf{h})] 
+    \end{equation}
+
+    Like we do with everything else in math, we take a look at the simplest example: linear functions. 
+
+    In \text{linear factor models}, we start with the unknown covariate distribution $\mathbf{x} \in \mathbb{R}^d$, and we create a latent variable $\mathbf{h} \in \mathbb{R}^k$ ($k$ is to be chosen). We first assume that 
+    \[\mathbf{h} \sim p(\mathbf{h})\] 
+    comes from some predefined distribution, with the only constraint being that it is factorable (i.e. is the product of its marginal distributions: $p(\mathbf{h}) = \prod_i p(h_i)$) so that it is easy to sample from. Occasionally, the stronger assumption of the $h_i$'s being iid is made. Then, we assume that 
+    \[\mathbf{x} = \mathbf{W} \mathbf{h} + \mathbf{b} + \epsilon\] 
+    where the noise $\epsilon$ is typically Gaussian and diagonal (but not necessarily the same component-wise variances). Finally, we can use techniques like MLE to estimate $\mathbf{W}, \mathbf{b}$, and the parameters of $\epsilon$.  
+
+    The entire reason we want to do this is that we are hoping that $\mathbf{h} \in \mathbb{R}^k$ and $\mathbf{x} \in \mathbb{R}^d$, and $d >> k$. Therefore, $\mathbf{W}$ is a $d \times k$ matrix, and the latent variables $\mathbf{h}$ give a more compact (parsimonious)  explanation of dependencies between the components of the observations $\mathbf{x}$. We will look at 3 specific cases of linear factor models: Probabilistic PCA, Factor Analysis, and Independent Component Analysis. 
+
+
+    \begin{example}[Factor Analysis] 
+      Factor analysis is a specific case of a linear factor model where 
+      \[\mathbf{x} = W \mathbf{h} + b + \epsilon, \text{ where } \mathbf{h} \sim N(\mathbf{0}, \mathbf{I}), \; \epsilon \sim N(0, \sigma^2)\] 
+      It should be clear to us that $\mathbf{x}$ should be Gaussian and that $\mathbb{E}[\mathbf{x}] = \mathbf{b}$, with 
+      \begin{align*} 
+          \mathrm{Var}[\mathbf{x}] & = \mathbb{E}[ (\mathbf{x} - \mathbf{b})( \mathbf{x} - \mathbf{b})^T ] \\
+                                   & = \mathbb{E}[ (W \mathbf{h} + \epsilon) (\mathbf{h}^T W^T + \epsilon^T)] \\
+                                   & = \mathbb{E}[W h h^T W^T] + \mathbb{E}[ \epsilon \epsilon^T] \\
+                                   & = W \mathbb{E}[ h h^T] W^T + \mathbb{E}[ \epsilon \epsilon^T] \\
+                                   & = W W^T + \mathrm{diag}(\sigma_1^2, \ldots, \sigma_d^2) 
+      \end{align*} 
+      The $\mathbf{W}, \mathbf{b}$, and $\boldsymbol{\sigma}$ can be estimated using MLE methods. Unfortunately, no closed form  exists, so iterative methods are commonly applied. 
+    \end{example} 
+
+    Note that in here, we do not assume that the variances of the $h_i$'s are the same, though they are independent. This means that the subspace generated by the MLE estimate of $\mathbf{W}$ will not necessarily correspond to the principal subspace of the data. But we can make this happen with one more assumption. Before we get into probabilistic PCA, let's review regular PCA. 
+
+    \begin{example}[PCA] 
+        
+    \end{example} 
+
+    \begin{example}[Probabilistic PCA] 
+    In PPCA, we assume everything we did for factor analysis, but now also that $\sigma_1 = \ldots = \sigma_k = \sigma$. In this case, 
+    \[\mathbf{x} \sim N(\mathbf{b}, \mathbf{W}\mathbf{W}^T + \sigma^2 \mathbf{I})\]
+    and the MLEs for $\mathbf{W}, \mathbf{b}, \sigma$ have a closed form, and model parameter estimation can be performed iteratively and efficiently. We define. It is pretty clear that 
+    \[\hat{\mathbf{b}}_{MLE} = \frac{1}{N} \sum_{i=1}^N \mathbf{x}^{(i)}\]
+    and setting 
+    \[\widehat{\mathrm{Var}}_{MLE}(\mathbf{x}) = S = \frac{1}{N} \sum_{i=1}^N (\mathbf{x}^{(i)} - \mathbf{b}) (\mathbf{x}^{(i)} - \mathbf{b})^T\]
+    which is the biased, but MLE estimator of the variance, let us derive the MLE of $\mathbf{W}$. Say that $\mathbf{W}^\ast$ is an MLE, then, for any unitary $\mathbf{U} \in \mathbb{R}^{k \times k}$, we have 
+    \[\mathbf{W}^\ast \mathbf{W}^{\ast T} = (\mathbf{W}^\ast \mathbf{U}) (\mathbf{W}^\ast \mathbf{U})^T \]
+    which means that the MLE is not unique. We can find the MLE estimate of $\sigma$ first by taking a look at $C = \mathrm{Var}[\mathbf{x}] = \mathbf{W} \mathbf{W}^T + \sigma^2 \mathbf{I}$. It is the sum of positive semidefinite patrices that are also symmetric, so by the spectral theorem it is diagonalizable and has full rank $d$. But $\mathbf{W} \mathbf{W}^T$ is rank $k$, so $d - k$ of the eigenvalues of $\mathbf{W} \mathbf{W}^T$ is $0$, indicating that the same $d-k$ smallest eigenvalues of $C$ is $\sigma^2$. Therefore, we can take the smallest $d-k$ eigenvalues of our MLE estimator of $C$, which is $S$, and average them to get our MLE for $\sigma$. 
+    \[\hat{\sigma}^2_{MLE} = \frac{1}{d-k} \sum_{j=k+1}^d \lambda_j\]
+    We can approximate $\mathbf{W} \mathbf{W}^T = C - \sigma^2 \mathbf{I} \approx S - \hat{\sigma}^2_{MLE} \mathbf{I}$, and by further taking the eigendecomposition $C = U \Sigma U^T \implies \mathbf{W} \mathbf{W}^T = U (\Sigma - \sigma^2 \mathbf{I}) U^T$ and cutting off the last $d-k$ smallest eigenvalues and their corresponding eigenvectors, we can get 
+    \[\mathbf{W}_{ML} = \mathbf{U}_q (\Lambda_d - \hat{\sigma}_{MLE}^2 \mathbf{I}_d )^{1/2} R\] 
+    where the $R$ just accounts for any unitary matrix. 
+    \end{example}
+
+    Now as $\sigma \rightarrow 0$, the density model defined by PPCA becomes very sharp around these $d$ dimensions spanned by the columns of $\mathbf{W}$. At $0$, our MLE of $W$ is simplified and we have 
+    \[\mathbf{x} = \mathbf{W}_{MLE} \mathbf{h} + \mathbf{b}_{MLE} + \epsilon = \mathbf{U}_q \boldsymbol{\Lambda}_q^{1/2} \mathbf{h} + \mathbf{b}_{MLE} \]
+    which essentially reduces to regular PCA. That is, the conditional expected value of $\mathbf{h}$ given $\mathbf{x}$ becomes an orthogonal projection of $\mathbf{x} - \mathbf{b}$ onto the subspace spanned by the columns of $\mathbf{W}$.  
+
+
   \subsection{Sparse Dictionary Learning}
 
-  \subsection{Principal Component Analysis} 
+    What we want to do in sparse coding is that for each input $\mathbf{x}^{(t)}$, we want to find a latent representation $\mathbf{h}^{(t)}$ s.t. 1) it is sparse (i.e. has many $0$s) and 2) we can reconstruct the original input $\mathbf{x}^{(t)}$ well. We have basically two things to optimize: the latent representations $\mathbf{h}$ and the decoding mechanism, which we can do with a \textbf{dictionary matrix} $\mathbf{D}$. Therefore, we want to perform the joint optimization
+    \[\min_{\mathbf{D}} \frac{1}{T} \sum_{t=1}^T \min_{\mathbf{h}^{(t)}} \underbrace{\frac{1}{2} ||\mathbf{x}^{(t)} - \mathbf{D} \mathbf{h}^{(t)}||_2^2}_{\text{reconstruction error}} + \underbrace{\lambda ||\mathbf{h}^{(t)}||_1}_{\text{sparsity penalty}}\]
+    To break this term down, let's just assume that we have a fixed dictionary $\mathbf{D}$. Then, we just need to minimize with respect to each $\mathbf{h}^{(t)}$. Now we can add the dictionary parameter back again. 
+
+    Note that the reconstruction, or decoding, of $\mathbf{x}^\prime = \mathbf{D} \mathbf{h}$ is linear and explicit, but if we want to encode $\mathbf{x} \mapsto \mathbf{h}$, we need to substitute the $\mathbf{x}$ into the term above and minimize it w.r.t. $\mathbf{D}$ and $\mathbf{h}$ to solve it. Therefore, this encoder is an implicit and nonlinear function of $\mathbf{x}$. 
+
+    For example, we can reconstruct an image of a seven as a linear combination of a set of images. Note that each of the images of strokes are columns of $\mathbf{W}$ and the coefficients make up the sparse vector $\mathbf{h}$. 
+    \begin{center}
+        \includegraphics[scale=0.4]{img/sparse_coding.png}
+    \end{center}
+    Let's think about how we can optimize the objective function w.r.t. $\mathbf{h}$, keeping $\mathbf{D}$ constant. We can do stochastic gradient descent, which gives us the steps
+    \[\nabla_{\mathbf{h}^{(t)}} \mathcal{L}(\mathbf{x}^{(t)}) = \mathbf{D}^T (\mathbf{D} \mathbf{h}^{(t)} - \mathbf{x}^{(t)}) + \lambda \, \mathrm{sign}(\mathbf{h}^{(t)})\]
+    but this wouldn't achieve sparsity since it overshoots the $0$ all the time. Therefore, we can clip it, or we can use proximal gradient descent/ISTA to take a step, and shrink the parameters according to the L1 norm. 
+    \begin{align*} 
+        \mathbf{h}^{(t)} & = \mathbf{h}^{(t)} - \alpha \mathbf{D}^T (\mathbf{D} \mathbf{h}^{(t)} - \mathbf{x}^{(t)}) \\
+        \mathbf{h}^{(t)} & = \mathrm{shrink}(\mathbf{h}^{(t)}, \alpha \lambda)
+    \end{align*}
+        where $\mathrm{shrink}(\mathbf{a}, \mathbf{b}) = [\ldots, \mathrm{sign}(a_i)\, \max(|a_i| - b_i, 0), \ldots]$. This is guaranteed to converge if $1/\alpha$ is bigger than the largest eigenvalue of $\mathbf{D^T} \mathbf{D}$.  
+    
 
   \subsection{Independent Component Analysis} 
+
+    Another special case of linear factor model is ICA. In our setting, let us just assume that $\mathbf{b} = \mathbf{0}$ and $\epsilon = 0$. That is, we have the simple model 
+    \[\mathbf{x} = \mathbf{W} \mathbf{h}\] 
+    In here, $\mathbf{x} \in \mathbb{R}^d$ is a mixture vector and $\mathbf{W} \in \mathbb{R}^{d \times d}$ is a \textbf{mixing matrix}. Note that the hidden $\mathbf{h}$ has the same dimensions as $\mathbf{x}$, but this can be generalized to rectangular matrices. Both $\mathbf{W}$ and $\mathbf{h}$ are unknown, and we need to recover them given $\mathbf{x}$. In \textbf{linear ICA}, we have two strong assumptions: 
+    \begin{enumerate} 
+        \item Each component of $\mathbf{h}$ is independent (not just uncorrelated). This is an easy enough assumption to intuit.  
+        \item Independent components of $\mathbf{h}$ must \textit{not} be Gaussian. This is needed for us to be able to ``unmix" the signals. To see why, just suppose $\mathbf{h}$ was Gaussian, and so the vector $\mathbf{R} \mathbf{h}$ is also Gaussian for any invertible $\mathbf{R}$. Therefore, we could find an infinite number of solutions of form 
+        \[\mathbf{x} = \mathbf{W} \mathbf{R}^{-1} \mathbf{R} \mathbf{h}\]
+        and I have no way to separate them. 
+    \end{enumerate}
+
+    There are further ambiguities with ICA. 
+    \begin{enumerate}
+        \item Estimating the latent components up to a scaling factor. 
+            \[\mathbf{x} = (\alpha \mathbf{W}) (\frac{1}{\alpha} \mathbf{h}) \text{ for some } \alpha > 0\]
+            We can fix this by forcing $\mathbb{E}[h_i^2] = 1$. However, there is still an ambiguity for the sign of hidden components, but this is insignificant in most applications. 
+
+        \item Estimating the components up to permutation. We have 
+            \[\mathbf{x} = \mathbf{W} \mathbf{P}^{-1} \mathbf{P} \mathbf{h}\] 
+            for some permutation matrix $\mathbf{P}$. 
+    \end{enumerate}
+
+    Now let's see how linear ICA actually estimates $\mathbf{W}$ and $\mathbf{h}$. Once $\mathbf{W}$ is estimated, the latent components of a given test mixture vector, $\mathbf{x}^\ast$ is computed by $\mathbf{h}^\ast = \mathbf{W}^{-1} \mathbf{x}^\ast$. So now all there's left to do is to estimate $\mathbf{W}$, which we want to estimate so that $\mathbf{W}^{-1} \mathbf{x}$ is far from Gaussian. The reason for this is that given a bunch of independent non-Gaussian $h_i$'s, if we mix them with a matrix that is not $\pm \mathbf{I}$ , then by CLT, a linear combination of random variables will tend to be Gaussian, and so for an arbitrary $\mathbf{W}$ we would expect $\mathbf{x}$ to be Gaussian. Therefore, what we want to do is guess some matrix $\mathbf{A}$, and compute 
+    \[\mathbf{A} \mathbf{x} = \mathbf{A} \mathbf{W} \mathbf{h}\]
+    and if we get things right, $\mathbf{A} \approx \mathbf{W}^{-1}$, and the result of $\mathbf{A} \mathbf{x}$ would look pretty non-Gaussian. If it it not the case, then $\mathbf{A W}$ will still be some mixing matrix, and so $\mathbf{A} \mathbf{x}$ would look Gaussian. So now the question reduces to how do we choose this $\mathbf{A}$? There are multiple ways to measure non-Gaussianity: 
+    \begin{enumerate} 
+        \item The absolute or squared kurtosis, which is $0$ for Gaussians. This is a differentiable function w.r.t. $\mathbf{W}$, so we can try maximizing it. This is done for the sample kurtosis, of course.  
+        \item Another measure is by maximizing the neg-entropy. 
+    \end{enumerate}
+
+    We can perform this on three mixed signals with additive noise, and ICA does very well, though again some recovered signals are scaled or permuted weirdly. 
+    \begin{center}
+      \includegraphics[scale=0.4]{img/ICA_example.png}
+    \end{center}
+
+  \subsection{Slow Feature Analysis}
+
+    Slow feature analysis also another special case of a linear factor model that uses information from time signals to learn invariant features. It is motivated by a general principle called the \textbf{slowness principle}. The idea is that the important characteristics of scenes change very slowly compared to the individual measurements that make up a description of a scene. For example, in computer vision, individual pixels can change very rapidly. If a zebra moves from left to right across the image, an individual pixel wil rapidly change from black to white. By comparison, the feature indicating whether a zebra is in the image will not change at all, and the feature describing the zebra's position will change slowly. Therefore, we want to regularize our model to learn features that change slowly over time.  
+
+    We can apply the slowness principle to any differentiable model trained with gradient descent. That is, we can add the following term to the loss function: 
+    \[\lambda \sum_i d\big( f(\mathbf{x}^{(t+1)}), f(\mathbf{x}^{(t)}) \big)\]
+    where $\lambda$ is a hyperparameter determining the strength of the slowness regularization term, $t$ is the time index, $f$ is the feature extractor to be regularized, and $d$ is the distance between $f(\mathbf{x}^{(t)})$ and $f(\mathbf{x}^{(t+1)})$. A common choice for $d$ is the mean squared difference. 
+
+    Essentially, given a set of time-varying input signals $\mathbf{x}^{(t)}$, SFA learns a nonlinear function $f$ that transforms $\mathbf{x}$ into slowly-varying output signals $\mathbf{y}$. Obviously, we can't just take some trivial function like $f = 0$, so we have the following constraints 
+    \begin{align*}
+        \mathbb{E}_t [ f(\mathbf{x}^{(t)})_i]  & = 0 \\ 
+        \mathbb{E}_t [ f(\mathbf{x}^{(t)})_i^2] & = 1 
+    \end{align*}
+    \begin{center} 
+        \includegraphics[scale=0.4]{img/slow_feature.png}
+    \end{center}
+    We can restrict the nonlinear $f$ to some subspace of functions, and this becomes a standard optimization problem where we solve 
+    \[\min_\theta \mathbb{E}_t \big[ \big( f(\mathbf{x}^{(t+1)})_i - f(\mathbf{x}^{(t)})_i \big)^2 \big]\]
+
 
   \subsection{Latent Dirichlet Allocation} 
 
