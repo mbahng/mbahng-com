@@ -214,9 +214,9 @@ We will go through these one by one, touching on C and Assembly along the way, b
 
 We first go over some basic theoretical properties of basic data types, focusing on C, and then we cover all the stuff about memory and then all the stuff about the CPU. This is a natural progression since to work with data, you must first know where to store the data and how it is stored (the memory), and then you want to know how data is manipulated (the CPU). 
 
-\section{Primitive Types}
+\section{Encoding Schemes}
 
-  Let's first define some basic terms. 
+  In order to get into memory, it is helpful to know the theory behind how primitive types are stored in memory.  
 
   \begin{definition}[Collections of Bits]
     There are many words that are used to talk about values of different data types: 
@@ -505,165 +505,175 @@ We first go over some basic theoretical properties of basic data types, focusing
 
 \section{Memory} 
 
-  \begin{definition}[Memory]
-    The \textbf{memory} is where the computer stores data and instructions, which can be though of as a giant array of memory addresses, with each containing a byte. This data consists of graphical things or even instructions to manipulate other data. It can be visualized  as a long array of boxes that each have an \textbf{address} (where it is located) and \textbf{contents} (what is stored in it).
+    \begin{definition}[Memory]
+      The \textbf{memory} is where the computer stores data and instructions, which can be though of as a giant array of memory addresses, with each containing a byte. This data consists of graphical things or even instructions to manipulate other data. It can be visualized  as a long array of boxes that each have an \textbf{address} (where it is located) and \textbf{contents} (what is stored in it).
 
-    Memory simply works as a bunch of bits in your computer with each bit having some memory address, which is also a bit. For example, the memory address \texttt{0b0010} (2) may have the bit value of \texttt{0b1} (1) stored in it. 
+      Memory simply works as a bunch of bits in your computer with each bit having some memory address, which is also a bit. For example, the memory address \texttt{0b0010} (2) may have the bit value of \texttt{0b1} (1) stored in it. 
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/memory_visual_bit.png}
+        \caption{Visualization of memory as a long array of boxes of bits. }
+        \label{fig:memory_visual_bit}
+      \end{figure}
+
+      However, computers do not need this fine grained level of control on the memory, and they really work at the Byte level rather than the bit level. Therefore, we can visualize the memory as a long array of boxes indexed by \textit{Bytes}, with each value being a byte as well. In short, the memory is \textbf{byte-addressable}. In certain arthitectures, some systems are \textbf{word-addressable}, meaning that the memory is addressed by words, which are 4 bytes.\footnote{Note that in here the size of a word is 2 bytes rather than 4 as stated above. This is just how it is defined in some \texttt{x86} architectures.}
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/memory_visual_byte.png}
+        \caption{Visualization of memory as a long array of boxes of bytes. Every address is a byte and its corresponding value at that address is also a byte, though we represent it as a 2-digit hex. } 
+        \label{fig:memory_visual_byte}
+      \end{figure}
+    \end{definition}
+
+    In the examples above, I listed the memory addresses as a 3 hex character (1.5 bytes) for brevity. In reality, the number of bytes that a memory address takes is much longer. 
+
+    \begin{definition}[32 and 64 Bit Machines]
+      There are two types of machines that tend to format these boxes very differently: 32-bit and 64-bit machines. 
+      \begin{enumerate}
+        \item 32 bit machines store addresses in 32 bits, so they can have $2^{32}$ addresses, which is about 4 GB of memory. 
+        \item 64 bit machines store addresses in 64 bits, so they can have $2^{64}$ addresses, which is about 16 EB of memory. This does not mean that the actual RAM is 16 EB, but it means that the machine can \textit{handle} that much memory. 
+        \begin{lstlisting} 
+          ...
+          0x00007FFF7FBFF860 --> 0b000000000000000000000000011111111111
+                                 111101111111101111111111100001100000
+          0x00007FFF7FBFF861 --> 0b000000000000000000000000011111111111
+                                 111101111111101111111111100001100001
+          0x00007FFF7FBFF862 --> 0b000000000000000000000000011111111111
+                                 111101111111101111111111100001100010
+          0x00007FFF7FBFF863 --> 0b000000000000000000000000011111111111
+                                 111101111111101111111111100001100011
+          0x00007FFF7FBFF864 --> 0b000000000000000000000000011111111111
+                                 111101111111101111111111100001100100
+          ...
+        \end{lstlisting}
+      \end{enumerate}
+      The numbers typically mean the size of the type that the machine works best with, so all memory addresses will be 32 or 64 bits wide. Most machines are 64-bits, and so everything in this notes will assume that we are working with a 64 bit machine. As we will later see, this is why pointers are 8 bytes long, i.e. 64 bits. This is because the memory addresses are 64 bits long, though all of them are not used. 
+    \end{definition}
+
+    With this structure in mind and knowing the size of some primitive types, we can now focus on how declaring them works in the backend. 
+
+    \begin{definition}[Declaration, Initialization]
+      Assigning a value to a variable is a two step process, which is often not distinguished in high level languages like Python. 
+      \begin{enumerate}
+        \item You must first \textbf{initialize} the variable by setting aside the correct number of bytes in memory. 
+        \item You must then \textbf{assign} that variable to be some actual value. 
+      \end{enumerate}
+      The two step process is often called declaration. 
+    \end{definition}
+
+    This is the reason why C is statically, or strongly, typed. In order to set aside some memory for a variable, you must know how big that variable will be, which you know by its type. This makes sense. We can first demonstrate how to both initialize and declare a variable. 
 
     \begin{figure}[H]
       \centering 
-      \includegraphics[scale=0.4]{img/memory_visual_bit.png}
-      \caption{Visualization of memory as a long array of boxes of bits. }
-      \label{fig:memory_visual_bit}
-    \end{figure}
+      \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        int main() {
+          // declaring 
+          int x = 4;   
+          printf("%p\n", &x); 
+          
+          // initializing and assigning
+          int y; 
+          printf("%p\n", &y); 
+          y = 3; 
+          printf("%p\n", &y); 
 
-    However, computers do not need this fine grained level of control on the memory, and they really work at the Byte level rather than the bit level. Therefore, we can visualize the memory as a long array of boxes indexed by \textit{Bytes}, with each value being a byte as well. In short, the memory is \textbf{byte-addressable}. In certain arthitectures, some systems are \textbf{word-addressable}, meaning that the memory is addressed by words, which are 4 bytes.\footnote{Note that in here the size of a word is 2 bytes rather than 4 as stated above. This is just how it is defined in some \texttt{x86} architectures.}
-
-    \begin{figure}[H]
-      \centering 
-      \includegraphics[scale=0.4]{img/memory_visual_byte.png}
-      \caption{Visualization of memory as a long array of boxes of bytes. Every address is a byte and its corresponding value at that address is also a byte, though we represent it as a 2-digit hex. } 
-      \label{fig:memory_visual_byte}
-    \end{figure}
-  \end{definition}
-
-  In the examples above, I listed the memory addresses as a 3 hex character (1.5 bytes) for brevity. In reality, the number of bytes that a memory address takes is much longer. 
-
-  \begin{definition}[32 and 64 Bit Machines]
-    There are two types of machines that tend to format these boxes very differently: 32-bit and 64-bit machines. 
-    \begin{enumerate}
-      \item 32 bit machines store addresses in 32 bits, so they can have $2^{32}$ addresses, which is about 4 GB of memory. 
-      \item 64 bit machines store addresses in 64 bits, so they can have $2^{64}$ addresses, which is about 16 EB of memory. This does not mean that the actual RAM is 16 EB, but it means that the machine can \textit{handle} that much memory. 
-      \begin{lstlisting} 
-        ...
-        0x00007FFF7FBFF860 --> 0b000000000000000000000000011111111111
-                               111101111111101111111111100001100000
-        0x00007FFF7FBFF861 --> 0b000000000000000000000000011111111111
-                               111101111111101111111111100001100001
-        0x00007FFF7FBFF862 --> 0b000000000000000000000000011111111111
-                               111101111111101111111111100001100010
-        0x00007FFF7FBFF863 --> 0b000000000000000000000000011111111111
-                               111101111111101111111111100001100011
-        0x00007FFF7FBFF864 --> 0b000000000000000000000000011111111111
-                               111101111111101111111111100001100100
-        ...
+          return 0; 
+        }
       \end{lstlisting}
-    \end{enumerate}
-    The numbers typically mean the size of the type that the machine works best with, so all memory addresses will be 32 or 64 bits wide. Most machines are 64-bits, and so everything in this notes will assume that we are working with a 64 bit machine. As we will later see, this is why pointers are 8 bytes long, i.e. 64 bits. This is because the memory addresses are 64 bits long, though all of them are not used. 
-  \end{definition}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        0x16d37ee68
+        0x16d37ee64
+        0x16d37ee64 
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+      \end{lstlisting}
+      \end{minipage}
+      \caption{How to declare variables in C. As you can see, by initializing \texttt{y}, the memory address is already assigned and it doesn't change when you assign it. The address is only shown to be 9 hex digits long, but it is actually 16 hex digits long and simply 0 padded on the left. } 
+      \label{fig:declaring_initializing_variables}
+    \end{figure}
 
-  With this structure in mind and knowing the size of some primitive types, we can now focus on how declaring them works in the backend. 
-
-  \begin{definition}[Declaration, Initialization]
-    Assigning a value to a variable is a two step process, which is often not distinguished in high level languages like Python. 
-    \begin{enumerate}
-      \item You must first \textbf{initialize} the variable by setting aside the correct number of bytes in memory. 
-      \item You must then \textbf{assign} that variable to be some actual value. 
-    \end{enumerate}
-    The two step process is often called declaration. 
-  \end{definition}
-
-  This is the reason why C is statically, or strongly, typed. In order to set aside some memory for a variable, you must know how big that variable will be, which you know by its type. This makes sense. We can first demonstrate how to both initialize and declare a variable. 
-
-  \begin{figure}[H]
-    \centering 
-    \noindent\begin{minipage}{.5\textwidth}
-    \begin{lstlisting}[]{Code}
-      int main() {
-        // declaring 
-        int x = 4;   
-        printf("%p\n", &x); 
-        
-        // initializing and assigning
-        int y; 
-        printf("%p\n", &y); 
-        y = 3; 
-        printf("%p\n", &y); 
-
-        return 0; 
-      }
-    \end{lstlisting}
-    \end{minipage}
-    \hfill
-    \begin{minipage}{.49\textwidth}
-    \begin{lstlisting}[]{Output}
-      0x16d37ee68
-      0x16d37ee64
-      0x16d37ee64 
-      .
-      .
-      .
-      .
-      .
-      .
-      .
-      .
-      .
-      .
-    \end{lstlisting}
-    \end{minipage}
-    \caption{How to declare variables in C. As you can see, by initializing \texttt{y}, the memory address is already assigned and it doesn't change when you assign it. The address is only shown to be 9 hex digits long, but it is actually 16 hex digits long and simply 0 padded on the left. } 
-    \label{fig:declaring_initializing_variables}
-  \end{figure}
-
-  One question that may come to mind is, what is the value of the variable if you just initialize it? After all the value at that address that is initialized must be either $0$s or $1$s. Let's find out. 
-
-  \begin{figure}[H]
-    \centering 
-    \noindent\begin{minipage}{.5\textwidth}
-    \begin{lstlisting}[]{Code}
-      int main() { 
-        int y; 
-        printf("%d\n", y); 
-        y = 3; 
-        printf("%d\n", y); 
-
-        return 0; 
-      }
-    \end{lstlisting}
-    \end{minipage}
-    \hfill
-    \begin{minipage}{.49\textwidth}
-    \begin{lstlisting}[]{Output}
-      6298576 
-      3
-      .
-      .
-      .
-      .
-      .
-      .
-    \end{lstlisting}
-    \end{minipage}
-    \caption{The value of an uninitialized variable is some random number. } 
-    \label{fig:uninitialized_variable}
-  \end{figure}
-
-  It may be interesting to see how this random unititialized value is generated. It is simply the value that was stored in that memory address before, and it is not cleared when you initialize it, so you should not use this as a unifom random number generator. 
-
-  It is intuitive to think that given some multi-byte object like an \texttt{int} (4 bytes), the beginning of the int would be the lowest address and the end of the int would be the highest address, like how consecutive integers are stored in an array. However, this is not always the case (almost always not the case since most computers are little-endian).  
-
-  \begin{definition}[Endian Architecture]
-    Depending on the machine architecture, computers may store these types slightly differently in their \textit{byte} order. Say that we have an integer of value \texttt{0xA1B2C3D4} (4 bytes). Then, 
-    \begin{enumerate} 
-      \item A \textbf{big-endian architecture} (e.g. SPARC, z/Architecture) will store it so that the least significant byte has the highest address.
-      \item A \textbf{little-endian architecture} (e.g. x86, x86-64, RISC-V) will store it so that the least significant byte has the lowest address. 
-      \item A \textbf{bi-endian architecture} (e.g. ARM, PowerPC) can specify the endianness as big or little. 
-    \end{enumerate}
+    One question that may come to mind is, what is the value of the variable if you just initialize it? After all the value at that address that is initialized must be either $0$s or $1$s. Let's find out. 
 
     \begin{figure}[H]
       \centering 
-      \includegraphics[scale=0.4]{img/endianness.png}
-      \caption{The big vs little endian architectures. } 
-      \label{fig:endianness}
+      \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        int main() { 
+          int y; 
+          printf("%d\n", y); 
+          y = 3; 
+          printf("%d\n", y); 
+
+          return 0; 
+        }
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        6298576 
+        3
+        .
+        .
+        .
+        .
+        .
+        .
+      \end{lstlisting}
+      \end{minipage}
+      \caption{The value of an uninitialized variable is some random number. } 
+      \label{fig:uninitialized_variable}
     \end{figure}
-  \end{definition}
 
-  We can simply print out the hex values of primitive types to see how they are stored in memory, but it does not provide the level of details that we want on which bytes are stored where. At this point, we must use certain \textbf{debuggers} to directly look at the memory. For x86 architectures, we can use \texttt{gdb} and for ARM architectures, we can use \texttt{lldb}. At this point, we need to understand assembly to look through debuggers, so we will provide the example here. 
+    It may be interesting to see how this random unititialized value is generated. It is simply the value that was stored in that memory address before, and it is not cleared when you initialize it, so you should not use this as a uniform random number generator. 
 
-  \begin{example}[Endianness of C Int in x86]
-    To do. 
-  \end{example}
+  \subsection{Debugging and Object Dumping} 
+
+    Talk about gdb, lldb, objdump, etc. These are debugging tools that allow you to parse your code line by line. However, to actually see the C code, you must compile it with the debugging flag. This adds a little bit of overhead memory to the binary, but not a lot. 
+
+  \subsection{Endian Architecture}
+
+    It is intuitive to think that given some multi-byte object like an \texttt{int} (4 bytes), the beginning of the int would be the lowest address and the end of the int would be the highest address, like how consecutive integers are stored in an array. However, this is not always the case (almost always not the case since most computers are little-endian).  
+
+    \begin{definition}[Endian Architecture]
+      Depending on the machine architecture, computers may store these types slightly differently in their \textit{byte} order. Say that we have an integer of value \texttt{0xA1B2C3D4} (4 bytes). Then, 
+      \begin{enumerate} 
+        \item A \textbf{big-endian architecture} (e.g. SPARC, z/Architecture) will store it so that the least significant byte has the highest address.
+        \item A \textbf{little-endian architecture} (e.g. x86, x86-64, RISC-V) will store it so that the least significant byte has the lowest address. 
+        \item A \textbf{bi-endian architecture} (e.g. ARM, PowerPC) can specify the endianness as big or little. 
+      \end{enumerate}
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/endianness.png}
+        \caption{The big vs little endian architectures. } 
+        \label{fig:endianness}
+      \end{figure}
+    \end{definition}
+
+    We can simply print out the hex values of primitive types to see how they are stored in memory, but it does not provide the level of details that we want on which bytes are stored where. At this point, we must use certain \textbf{debuggers} to directly look at the memory. For x86 architectures, we can use \texttt{gdb} and for ARM architectures, we can use \texttt{lldb}. At this point, we need to understand assembly to look through debuggers, so we will provide the example here. 
+
+    \begin{example}[Endianness of C Int in x86-64]
+      To do. 
+    \end{example}
+
+    \begin{example}[Endianness of C Int in ARM64]
+      To do. 
+    \end{example}
 
   \subsection{Type Casting}
 
@@ -735,107 +745,33 @@ We first go over some basic theoretical properties of basic data types, focusing
 
     Since the size of addresses are predetermined by the architecture, it may not seem like we need to know the underlying data type of what it points to, so why do we need to write strongly type the underlying data type? Remember that to do pointer arithmetic, you need to know how large the underlying data type is so that you can know how many bytes to move when traversing down an array. 
 
-    Just like for regular variables, you may be curious on the value of an unassigned pointer. Let's take a look. 
+    One of the reasons why pointers are so valuable is that they allow you to pass by reference, which is a way to change the value of a variable in a function. 
 
-    \begin{example}[Uninitialized Pointers]
-    \begin{figure}[H]
-      \centering 
-      \noindent\begin{minipage}{.5\textwidth}
-      \begin{lstlisting}[]{Code}
-        int main() { 
-          int x = 4; 
-          int *p; 
-          printf("p = %p\n", p); 
-          printf("*p = %x\n", *p); 
+    \subsubsection{Call by Value vs Call by Reference}
 
-          return 0; 
-        }
-      \end{lstlisting}
-      \end{minipage}
-      \hfill
-      \begin{minipage}{.49\textwidth}
-      \begin{lstlisting}[]{Output}
-        p = 0x10249ff20
-        *p = d100c3ff
-        .
-        .
-        .
-        .
-        .
-        .
-      \end{lstlisting}
-      \end{minipage}
-      \caption{The value of an uninitialized pointer is some random address and at a random address it would be some random byte. } 
-      \label{fig:uninitialized_pointer}
-    \end{figure}
-    \end{example}
+      \begin{definition}[Call by Value]
+        
+      \end{definition}
 
-    This is clearly not good, especially since the program compiles correctly and runs without any errors. This kind of pointer that hasn't been initialized is called a wild pointer. 
+      \begin{definition}[Call by Reference]
+        
+      \end{definition}
+    
+    \subsubsection{Pointer Errors}
 
-    \begin{definition}[Wild Pointer]
-      A \textbf{wild pointer} is a pointer that has not been initialized to a known value. 
-    \end{definition}
+      Just like for regular variables, you may be curious on the value of an unassigned pointer. Let's take a look. 
 
-    To fix this, we must always initialize a pointer to a known value. This may come at a disadvantage, since now we can't reap the benefits of initializing first and assigning later. A nice compromise is to initialize the pointer to a null pointer. 
-
-    \begin{definition}[Null Pointer]
-      A \textbf{null pointer} is a pointer that has been initialized to a known value, which is the address 0x0. You can set the type of the pointer and then initialize it to \texttt{NULL}. 
-    \begin{figure}[H]
-      \centering 
-      \noindent\begin{minipage}{.5\textwidth}
-      \begin{lstlisting}[]{Code}
-        int main() { 
-          int *p = NULL; 
-          printf("p = %p\n", p); 
-          
-          // the code below gives seg fault
-          /* printf("*p = %d\n", *p); */
-
-          int x = 4; 
-          p = &x; 
-          printf("p = %p\n", p); 
-          printf("*p = %d\n", *p);
-          return 0; 
-        }
-      \end{lstlisting}
-      \end{minipage}
-      \hfill
-      \begin{minipage}{.49\textwidth}
-      \begin{lstlisting}[]{Output}
-        p = 0x0
-        p = 0x16da72e5c
-        *p = 4
-        .
-        .
-        .
-        .
-        .
-        .
-        .
-        .
-        .
-        .
-      \end{lstlisting}
-      \end{minipage}
-      \caption{Initializing a null pointer. It is a good practice to initialize a pointer to a null value. } 
-      \label{fig:null_pointer}
-    \end{figure}
-    \end{definition}
-
-    Therefore, the null pointer allows you to set the type of the underlying data type, but the actual address will be 0x0. You cannot dereference a null pointer, and doing so will give you a segmentation fault. There may be times when you do not even know the data type of the pointer, and for this you can use the void pointer, which now doesn't know the type of the variable that it points to but it does allocate address. 
-
-    \begin{definition}[Void Pointer]
-      A \textbf{void pointer} is a pointer that does not know the type of the variable that it points to. We can initialize it by simply setting the underlying type to be void. This initializes the address, which should always be 8 bytes, but trying to access the value of the variable is not possible. 
+      \begin{example}[Uninitialized Pointers]
       \begin{figure}[H]
         \centering 
         \noindent\begin{minipage}{.5\textwidth}
         \begin{lstlisting}[]{Code}
           int main() { 
-            void *p; 
-            printf("p = %p\n", p); 
             int x = 4; 
-            p = &x; 
-            printf("%d", *((int*)p));
+            int *p; 
+            printf("p = %p\n", p); 
+            printf("*p = %x\n", *p); 
+
             return 0; 
           }
         \end{lstlisting}
@@ -843,8 +779,8 @@ We first go over some basic theoretical properties of basic data types, focusing
         \hfill
         \begin{minipage}{.49\textwidth}
         \begin{lstlisting}[]{Output}
-          p = 0x102553f54
-          4 
+          p = 0x10249ff20
+          *p = d100c3ff
           .
           .
           .
@@ -853,12 +789,100 @@ We first go over some basic theoretical properties of basic data types, focusing
           .
         \end{lstlisting}
         \end{minipage}
-        \caption{Initialize a void pointer and then use typecasting to access the value of the variable that it points to. } 
-        \label{fig:initialize_void_pointer}
+        \caption{The value of an uninitialized pointer is some random address and at a random address it would be some random byte. } 
+        \label{fig:uninitialized_pointer}
       \end{figure}
-    \end{definition}
+      \end{example}
 
-  \subsection{Arrays and Pointer Arithmetic} 
+      This is clearly not good, especially since the program compiles correctly and runs without any errors. This kind of pointer that hasn't been initialized is called a wild pointer. 
+
+      \begin{definition}[Wild Pointer]
+        A \textbf{wild pointer} is a pointer that has not been initialized to a known value. 
+      \end{definition}
+
+      To fix this, we must always initialize a pointer to a known value. This may come at a disadvantage, since now we can't reap the benefits of initializing first and assigning later. A nice compromise is to initialize the pointer to a null pointer. 
+
+      \begin{definition}[Null Pointer]
+        A \textbf{null pointer} is a pointer that has been initialized to a known value, which is the address 0x0. You can set the type of the pointer and then initialize it to \texttt{NULL}. 
+      \begin{figure}[H]
+        \centering 
+        \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          int main() { 
+            int *p = NULL; 
+            printf("p = %p\n", p); 
+            
+            // the code below gives seg fault
+            /* printf("*p = %d\n", *p); */
+
+            int x = 4; 
+            p = &x; 
+            printf("p = %p\n", p); 
+            printf("*p = %d\n", *p);
+            return 0; 
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          p = 0x0
+          p = 0x16da72e5c
+          *p = 4
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+        \end{lstlisting}
+        \end{minipage}
+        \caption{Initializing a null pointer. It is a good practice to initialize a pointer to a null value. } 
+        \label{fig:null_pointer}
+      \end{figure}
+      \end{definition}
+
+      Therefore, the null pointer allows you to set the type of the underlying data type, but the actual address will be 0x0. You cannot dereference a null pointer, and doing so will give you a segmentation fault. There may be times when you do not even know the data type of the pointer, and for this you can use the void pointer, which now doesn't know the type of the variable that it points to but it does allocate address. 
+
+      \begin{definition}[Void Pointer]
+        A \textbf{void pointer} is a pointer that does not know the type of the variable that it points to. We can initialize it by simply setting the underlying type to be void. This initializes the address, which should always be 8 bytes, but trying to access the value of the variable is not possible. 
+        \begin{figure}[H]
+          \centering 
+          \noindent\begin{minipage}{.5\textwidth}
+          \begin{lstlisting}[]{Code}
+            int main() { 
+              void *p; 
+              printf("p = %p\n", p); 
+              int x = 4; 
+              p = &x; 
+              printf("%d", *((int*)p));
+              return 0; 
+            }
+          \end{lstlisting}
+          \end{minipage}
+          \hfill
+          \begin{minipage}{.49\textwidth}
+          \begin{lstlisting}[]{Output}
+            p = 0x102553f54
+            4 
+            .
+            .
+            .
+            .
+            .
+            .
+          \end{lstlisting}
+          \end{minipage}
+          \caption{Initialize a void pointer and then use typecasting to access the value of the variable that it points to. } 
+          \label{fig:initialize_void_pointer}
+        \end{figure}
+      \end{definition}
+
+  \subsection{Pointer Arithmetic} 
 
     With pointers out of the way, we can talk about how arrays are stored in memory. 
 
@@ -1044,9 +1068,6 @@ We first go over some basic theoretical properties of basic data types, focusing
       \end{figure}
     \end{theorem}
    
-  \subsection{Call by Value vs Call by Reference}
-    When you call by reference, you are essentially modifying the value at a memory address, so it persists. 
-
   \subsection{Global, Stack, and Heap Memory}
 
     Everything in a program is stored in memory, variables, functions, and even the code itself. However, we will find out that they are stored in different parts of the memory. When a program runs, its application memory consists of four parts, as visualized in the Figure \ref{fig:memory_layout}. 
@@ -1163,8 +1184,21 @@ We first go over some basic theoretical properties of basic data types, focusing
 
     The free function may seem odd in that it only expects to receive the address of the heap space to free without needing the size of the heap space to free at that address. That’s because malloc not only allocates the requested memory bytes, but it also allocates a few additional bytes right before the allocated chunk to store a header structure. The header stores metadata about the allocated chunk of heap space, such as the size. As a result, a call to free only needs to pass the address of heap memory to free. The implementation of free can get the size of the memory to free from the header information that is in memory right before the address passed to free.
 
+\section{Implementations of Memory Structures in C} 
+
+  \subsection{Arrays}
+
+  \subsection{Strings}
 
   \subsection{Structs}
+
+  \subsection{Functions}
+
+  \subsection{Classes (for C++)}
+
+  \subsection{Input Output}
+    
+    We have standard in, standard out, and standard error. 
 
 \section{Central Processing Unit} 
 
@@ -1270,7 +1304,7 @@ We first go over some basic theoretical properties of basic data types, focusing
 
   \subsection{Circuits} 
 
-    Let's go over some common logic gates. 
+    Let's go over some common logic gates since this is at the basis of how to construct arithmetic operations. 
     
     \begin{definition}[AND, NOT, OR]
       
@@ -1284,76 +1318,127 @@ We first go over some basic theoretical properties of basic data types, focusing
       
     \end{definition}
 
+    Talk about how to construct arithmetic operations with these gates such as adding two integers or multiplying them, and not just that, but other operations that we may need in a programming language. 
+
+    \begin{theorem}[Implementation of Moving Data in Circuits]
+      
+    \end{theorem}
+
+    \begin{theorem}[Implementation of Addition, Subtraction in Circuits]
+      
+    \end{theorem}
+
+    \begin{theorem}[Implementation of Multiplication in Circuits]
+      
+    \end{theorem}
+
+    \begin{theorem}[Implementation of Bitwise Operations in Circuits]
+      
+    \end{theorem}
+
+    \begin{theorem}[Implementation of Bitshift Operations]
+      
+    \end{theorem}
+
+    We also want some sort of conditionals. This then can be used to implement loops by checking some conditional. 
+
+    \begin{theorem}[Implementation of Conditionals in Circuits]
+      
+    \end{theorem}
+
+    As a bonus, we talk about the difference between volatile and non-volatile memory. We already learned that RAM is volatile, and this is simple to implement in a circuit since we can manually set all the bits to $0$ or just deplete all power. If this is the case, then how does non-volatile memory like SSDs maintain their state? 
+
+    \begin{theorem}[Implementation of Volatile Memory]
+      
+    \end{theorem}
+
+    \begin{theorem}[Implementation of Non-Volatile Memory]
+      
+    \end{theorem}
+
   \subsection{Registers}
 
-    To understand anything that the CPU does, we must understand assembly language. In here, everything is done within registers, and we can see how the CPU fetches, decodes, and executes instructions. So what exactly are these registers? 
+      To understand anything that the CPU does, we must understand assembly language. In here, everything is done within registers, and we can see how the CPU fetches, decodes, and executes instructions. So what exactly are these registers? 
 
-    \begin{definition}[Register]
-      A register is a small, fast storage location within the CPU. It is used to store data that is being used immediately, and is the only place where the CPU can perform operations, which is why it must move data from memory to registers before it can perform operations on it. Everything in a register is in binary, at most 8 bytes, or 64 bits. 
-    \end{definition}
+      \begin{definition}[Register]
+        A register is a small, fast storage location within the CPU. It is used to store data that is being used immediately, and is the only place where the CPU can perform operations, which is why it must move data from memory to registers before it can perform operations on it. Everything in a register is in binary, at most 8 bytes, or 64 bits. 
 
-    The specific type of registers that are available to a CPU depends on the computer architecture, or more specifically, the ISA, but here is a list of common ones for the x86-64. We have \texttt{\%rax}, \texttt{\%rbx}, \texttt{\%rcx}, \texttt{\%rdx}, \texttt{\%rsi}, \texttt{\%rdi}, \texttt{\%rbp}, \texttt{\%rsp}, \texttt{\%r8}, \texttt{\%r9}, \texttt{\%r10}, \texttt{\%r11}, \texttt{\%r12}, \texttt{\%r13}, \texttt{\%r14}, \texttt{\%r15}. Therefore, the x86-64 Intel CPU has a total of 16 registers for storing 64 bit data. However, it is important to know which registers are used for what. 
+        There are very specific types of registers that you should know. All of these registers are implemented for all assembly languages and are integral to the workflow of the CPU.  
+        \begin{enumerate}
+          \item \textbf{parameter registers} which store the parameters of a function.
+          \item \textbf{Return registers} which store return values of functions. 
+          \item \textbf{stack pointers} which point to the top of the stack (at the top of the current stack frame). 
+          \item \textbf{frame pointers} which point to the base of the current stack frame.
+          \item \textbf{instruction pointers} which point to the next instruction to be executed.
+        \end{enumerate}
+      \end{definition}
 
-    \begin{definition}[Parameter Registers]
-      Compilers typically store the first six parameters of a function in registers 
-      \begin{equation}
-        \texttt{\%rdi}, \texttt{\%rsi}, \texttt{\%rdx}, \texttt{\%rcx}, \texttt{\%r8}, \texttt{\%r9}, 
-      \end{equation}
-      respectively. 
-    \end{definition}
+    \subsubsection{x86 Assembly Registers}
 
-    \begin{definition}[Return Register]
-      The return value of a function is stored in the 
-      \begin{equation}
-        \texttt{\%rax} 
-      \end{equation}
-      register.
-    \end{definition}
+      The specific type of registers that are available to a CPU depends on the computer architecture, or more specifically, the ISA, but here is a list of common ones for the x86-64. We have \texttt{\%rax}, \texttt{\%rbx}, \texttt{\%rcx}, \texttt{\%rdx}, \texttt{\%rsi}, \texttt{\%rdi}, \texttt{\%rbp}, \texttt{\%rsp}, \texttt{\%r8}, \texttt{\%r9}, \texttt{\%r10}, \texttt{\%r11}, \texttt{\%r12}, \texttt{\%r13}, \texttt{\%r14}, \texttt{\%r15}. Therefore, the x86-64 Intel CPU has a total of 16 registers for storing 64 bit data. However, it is important to know which registers are used for what. 
 
-    \begin{definition}[Stack and Frame Pointers]
-      The \texttt{\%rsp} register is the \textbf{stack pointer}, which points to the top of the stack. The \texttt{\%rbp} register is the \textbf{frame pointer}, or \textbf{base pointer}, which points to the base of the current stack frame. In a typical function prologue, \textbf{\%rbp} is set to the current stack pointer (\textbf{\%rsp}) value, and then \texttt{\%rsp} is adjusted to allocate space for the local variables of the function. This establishes a fixed point of reference (\texttt{\%rbp}) for accessing those variables and parameters, even as the stack pointer (\texttt{\%rbp}) moves.
-    \end{definition}
+      \begin{definition}[Parameter Registers]
+        Compilers typically store the first six parameters of a function in registers 
+        \begin{equation}
+          \texttt{\%rdi}, \texttt{\%rsi}, \texttt{\%rdx}, \texttt{\%rcx}, \texttt{\%r8}, \texttt{\%r9}, 
+        \end{equation}
+        respectively. 
+      \end{definition}
 
-    \begin{definition}[Instruction Pointer]
-      The \texttt{\%rip} register is the \textbf{instruction pointer}, which points to the next instruction to be executed. Unlike all the registers that we have shown so far, programs cannot write directly to \texttt{\%rip}. 
-    \end{definition}
+      \begin{definition}[Return Register]
+        The return value of a function is stored in the 
+        \begin{equation}
+          \texttt{\%rax} 
+        \end{equation}
+        register.
+      \end{definition}
+
+      \begin{definition}[Stack and Frame Pointers]
+        The \texttt{\%rsp} register is the \textbf{stack pointer}, which points to the top of the stack. The \texttt{\%rbp} register is the \textbf{frame pointer}, or \textbf{base pointer}, which points to the base of the current stack frame. In a typical function prologue, \textbf{\%rbp} is set to the current stack pointer (\textbf{\%rsp}) value, and then \texttt{\%rsp} is adjusted to allocate space for the local variables of the function. This establishes a fixed point of reference (\texttt{\%rbp}) for accessing those variables and parameters, even as the stack pointer (\texttt{\%rbp}) moves.
+      \end{definition}
+
+      \begin{definition}[Instruction Pointer]
+        The \texttt{\%rip} register is the \textbf{instruction pointer}, which points to the next instruction to be executed. Unlike all the registers that we have shown so far, programs cannot write directly to \texttt{\%rip}. 
+      \end{definition}
 
 
-    \begin{definition}[Notation for Accessing Lower Bytes of Registers]
-      Sometimes, we need a more fine grained control of these registers, and x86-64 provides a way to access the lower bits of the 64 bit registers. We can visualize them with the diagram below. 
-      \begin{figure}[H]
-        \centering 
-        \includegraphics[scale=0.6]{img/register_subsets.png}
-        \caption{The names that refer to subsets of register \texttt{\%rax}.} 
-        \label{fig:register_subsets}
-      \end{figure}
-      A complete list is shown below. 
-      \begin{table}[H]
-        \centering
-        \begin{tabular}{|l|l|l|l|}
-        \hline
-        \textbf{64-bit Register} & \textbf{32-bit Register} & \textbf{Lower 16 Bits} & \textbf{Lower 8 Bits} \\ \hline
-        \%rax & \%eax & \%ax & \%al \\ \hline
-        \%rbx & \%ebx & \%bx & \%bl \\ \hline
-        \%rcx & \%ecx & \%cx & \%cl \\ \hline
-        \%rdx & \%edx & \%dx & \%dl \\ \hline
-        \%rdi & \%edi & \%di & \%dil \\ \hline
-        \%rsi & \%esi & \%si & \%sil \\ \hline
-        \%rsp & \%esp & \%sp & \%spl \\ \hline
-        \%rbp & \%ebp & \%bp & \%bpl \\ \hline
-        \%r8 & \%r8d & \%r8w & \%r8b \\ \hline
-        \%r9 & \%r9d & \%r9w & \%r9b \\ \hline
-        \%r10 & \%r10d & \%r10w & \%r10b \\ \hline
-        \%r11 & \%r11d & \%r11w & \%r11b \\ \hline
-        \%r12 & \%r12d & \%r12w & \%r12b \\ \hline
-        \%r13 & \%r13d & \%r13w & \%r13b \\ \hline
-        \%r14 & \%r14d & \%r14w & \%r14b \\ \hline
-        \%r15 & \%r15d & \%r15w & \%r15b \\ \hline
-        \end{tabular}
-        \caption{Register mapping in x86-64 architecture}
-        \label{table:register_mapping}
-      \end{table}
-    \end{definition}
+      \begin{definition}[Notation for Accessing Lower Bytes of Registers]
+        Sometimes, we need a more fine grained control of these registers, and x86-64 provides a way to access the lower bits of the 64 bit registers. We can visualize them with the diagram below. 
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.6]{img/register_subsets.png}
+          \caption{The names that refer to subsets of register \texttt{\%rax}.} 
+          \label{fig:register_subsets}
+        \end{figure}
+        A complete list is shown below. 
+        \begin{table}[H]
+          \centering
+          \begin{tabular}{|l|l|l|l|}
+          \hline
+          \textbf{64-bit Register} & \textbf{32-bit Register} & \textbf{Lower 16 Bits} & \textbf{Lower 8 Bits} \\ \hline
+          \%rax & \%eax & \%ax & \%al \\ \hline
+          \%rbx & \%ebx & \%bx & \%bl \\ \hline
+          \%rcx & \%ecx & \%cx & \%cl \\ \hline
+          \%rdx & \%edx & \%dx & \%dl \\ \hline
+          \%rdi & \%edi & \%di & \%dil \\ \hline
+          \%rsi & \%esi & \%si & \%sil \\ \hline
+          \%rsp & \%esp & \%sp & \%spl \\ \hline
+          \%rbp & \%ebp & \%bp & \%bpl \\ \hline
+          \%r8 & \%r8d & \%r8w & \%r8b \\ \hline
+          \%r9 & \%r9d & \%r9w & \%r9b \\ \hline
+          \%r10 & \%r10d & \%r10w & \%r10b \\ \hline
+          \%r11 & \%r11d & \%r11w & \%r11b \\ \hline
+          \%r12 & \%r12d & \%r12w & \%r12b \\ \hline
+          \%r13 & \%r13d & \%r13w & \%r13b \\ \hline
+          \%r14 & \%r14d & \%r14w & \%r14b \\ \hline
+          \%r15 & \%r15d & \%r15w & \%r15b \\ \hline
+          \end{tabular}
+          \caption{Register mapping in x86-64 architecture}
+          \label{table:register_mapping}
+        \end{table}
+      \end{definition}
+
+    \subsubsection{ARM Assembly Registers}
 
   \subsection{Addressing Modes}
 
@@ -1371,12 +1456,6 @@ We first go over some basic theoretical properties of basic data types, focusing
       \end{equation}
     \end{definition}
 
-    \begin{example}[Immediate Addressing]
-      \begin{lstlisting} 
-        movq $0x4, %rax
-      \end{lstlisting}
-    \end{example}
-
     \begin{definition}[Normal Addressing]
       Normal addressing is when the operand is a register, used with a \% sign and the following syntax. The parentheses are used to dereference the memory address like dereferencing a pointer in C. 
       \begin{equation}
@@ -1385,13 +1464,6 @@ We first go over some basic theoretical properties of basic data types, focusing
       where \texttt{R} is the register name, \texttt{Reg[R]} is the value in the register, and \texttt{Mem[Reg[R]]} is the value in the memory address pointed to by the register. 
     \end{definition}
 
-    \begin{example}[Normal Addressing]
-      The following example shows the source operand being a memory address, with normal addressing, and the destination operand being a register.  
-      \begin{lstlisting} 
-        movq (%rax), %rbx
-      \end{lstlisting}
-    \end{example}
-
     \begin{definition}[Displacement Addressing]
       When we have a memory address stored in a register, we can add an offset to it to access a different memory address. 
       \begin{equation}
@@ -1399,13 +1471,6 @@ We first go over some basic theoretical properties of basic data types, focusing
       \end{equation}
       where \texttt{R} is the register name and \texttt{D} is a constant displacement that specifies offset. 
     \end{definition}
-
-    \begin{example}[Displacement Addressing]
-      The following example shows the source operand being a memory address and the destination operand being a register. They are both addressed normally. 
-      \begin{lstlisting} 
-        movq 8(%rdi), %rdx
-      \end{lstlisting}
-    \end{example}
 
     \begin{definition}[Indexed Addressing]
       Indexed addressing gives us more flexibility, allowing us to multiply the value in the register by a constant and add it to the value in another register. The general formula is shown as the top, but there are special cases: 
@@ -1416,21 +1481,43 @@ We first go over some basic theoretical properties of basic data types, focusing
         \texttt{(Rb, Ri)} && = \texttt{Mem[Reg[Rb] + Reg[Ri]]} \\
         \texttt{(, Ri, S)} && = \texttt{Mem[S*Reg[Ri]]} 
       \end{align*}
-      where \texttt{D} is a constant displacement of 1, 2, or 4 bytes, \texttt{Rb} is the base register (can be any of 8 integer registers), \texttt{Ri} is the index register (can be any register except \texttt{rsp}), and \texttt{S} is the scale factor (1, 2, 4, or 8).
-      
+      where \texttt{D} is a constant displacement of 1, 2, or 4 bytes, \texttt{Rb} is the base register (can be any of 8 integer registers), \texttt{Ri} is the index register (can be any register except \texttt{rsp}), and \texttt{S} is the scale factor (1, 2, 4, or 8). 
     \end{definition}
+
+    \subsubsection{x86 Assembly Addressing Modes}
+
+      \begin{example}[Immediate Addressing]
+        \begin{lstlisting} 
+          movq $0x4, %rax
+        \end{lstlisting}
+      \end{example}
+
+    \begin{example}[Normal Addressing]
+      The following example shows the source operand being a memory address, with normal addressing, and the destination operand being a register.  
+      \begin{lstlisting} 
+        movq (%rax), %rbx
+      \end{lstlisting}
+    \end{example}
+
+    \begin{example}[Displacement Addressing]
+      The following example shows the source operand being a memory address and the destination operand being a register. They are both addressed normally. 
+      \begin{lstlisting} 
+        movq 8(%rdi), %rdx
+      \end{lstlisting}
+    \end{example}
 
     \begin{example}[Indexed Addressing]
       The following shows the source operand being a memory address and the destination operand being a register. Say that \texttt{\%rdx = 0xf000} and \texttt{\%rcx = 0x0100}. Then 
       \begin{equation}
         \texttt{0x80(,\%rdx,2) = Mem[2*0xF000 + 0x80] = Mem[0x1E080]}
       \end{equation}
-
       We see that 
       \begin{lstlisting} 
         movq 0x100(%rdi, %rsi, 8), %rdx
       \end{lstlisting}
     \end{example}
+
+    \subsubsection{ARM Assembly Addressing Modes}
 
   \subsection{Instructions} 
 
@@ -1480,7 +1567,92 @@ We first go over some basic theoretical properties of basic data types, focusing
 
       Now unlike compiled languages, which are translated into machine code by a compiler, assembly code is translated into machine code through a two-step process. First, we \textbf{assemble} the assembly code into an \textbf{object file} by an \textbf{assembler}, and then we \textbf{link} the object file into an executable by a \textbf{linker}. Some common assemblers are \textbf{NASM} (Netwide Assembler) and \textbf{GAS/AS} (GNU Assembler), and common linkers are \textbf{ld} (GNU Linker) and \textbf{lld} (LLVM Linker), both installable with \textbf{sudo pacman -S nasm ld}. 
 
-    \subsubsection{Moving Instructions}
+    \subsubsection{Moving and Arithmetic} 
+
+      Again, it is more important to have a general feel of what instructions every assembly language should  and get the ideas down rather than the syntax. We list them here, beginning with simply moving. 
+
+
+      \begin{definition}[Moving]
+        
+      \end{definition}
+
+      Next we want to have some sort of arithmetic to do calculations and to compare values. 
+
+      \begin{definition}[Arithmetic Operations]
+        
+      \end{definition}
+
+    \subsubsection{Conditionals}
+
+      \begin{definition}[Conditionals]
+        
+      \end{definition}
+
+    \subsubsection{Control Transfer on Stack}
+
+      These are really the three basic functions needed to do anything in assembly, but let's talk about an important implementation called the \textbf{control transfer}. Say that you want to compute a function. 
+      \begin{enumerate}
+        \item Then we must retrieve the data from the memory. 
+        \item We must load it into our registers in the CPU and perform some computation. 
+        \item Then we must store the data back into memory. 
+      \end{enumerate}
+
+      Let’s begin with a refresher on how the call stack is managed. Recall that \texttt{\%rsp} is the stack pointer and always points to the top of the stack. The register \texttt{\%rbp} represents the base pointer (also known as the frame pointer) and points to the base of the current stack frame. The stack frame (also known as the activation frame or the activation record) refers to the portion of the stack allocated to a single function call. The currently executing function is always at the top of the stack, and its stack frame is referred to as the active frame. The active frame is bounded by the stack pointer (at the top of stack) and the frame pointer (at the bottom of the frame). The activation record typically holds local variables for a function.
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.6]{img/stackFrame.png}
+        \caption{The current active frame belongs to the callee function (fname). The memory between the stack pointer and the frame pointer is used for local variables. The stack pointer moves as local values are pushed and popped from the stack. In contrast, the frame pointer remains relatively constant, pointing to the beginning (the bottom) of the current stack frame. As a result, compilers like GCC commonly reference values on the stack relative to the frame pointer. In Figure 1, the active frame is bounded below by the base pointer of fname, which is stack address 0x418. The value stored at address 0x418 is the "saved" \texttt{\%rbp} value (0x42c), which itself is an address that indicates the bottom of the activation frame for the main function. The top of the activation frame of main is bounded by the return address, which indicates where in the main function program execution resumes once the callee function fname finishes executing. }
+        \label{fig:stack_frame_management}
+      \end{figure}
+
+
+      Once we have done this we are really done. Formally, this is called Turing complete (?). 
+
+      \begin{definition}[Control Transfers]
+        We list some. 
+        \begin{enumerate}
+          \item Push 
+          \item Pop 
+          \item Call to call a function 
+          \item Return to return from a function 
+          \item Continue 
+          \item Get out of stack with leave.  
+        \end{enumerate}
+      \end{definition}
+
+      \begin{example}[Control Transfer Example]
+        We show this with a minimal example with psuedocode. 
+      \end{example}
+
+    \subsubsection{Multiple Functions}
+
+      Now what happens if there are multiple functions calling each other? Take a look at the following example with two functions. 
+
+      \begin{example}[Multiple Functions Example]
+        
+      \end{example}
+
+      There is a bit of a concern here from the previous example. The main function had two functions that returned two values. As the subfunction stack frame is removed from the stack, the return value is stored in the \texttt{\%rax} register. If another function is called right after, then the return value of the second function will overwrite that of the previous one. This was not a problem in the previous example since the return value of the \texttt{assign} function was not used. However, if it was, then the return value of the \texttt{adder} function would have overwritten it. This is known as register saving. 
+      \begin{enumerate}
+        \item For \textbf{caller-saved registers}, the caller function is responsible for saving the value of the register before calling a function and restoring it after the function returns. The caller should save values in its stack frame before calling the callee function, e.g. by pushing all the return values of each callee in the caller stack frame. Then it will restore values after the call. 
+
+        \begin{center}
+          \textit{Therefore, if we have a set of registers $\{\texttt{\%reg}\}$, the caller must take everything and push them in the caller stack frame. Then it will restore them after the call.}
+        \end{center}
+
+        \item For \textbf{callee-saved registers}, it is the callee's responsibility to save any data in these registers before using the registers. 
+
+          \begin{center} 
+            \textit{Therefore, if we have a set of registers $\{\texttt{\%reg}\}$, then inside the callee stack frame, the callee must take everything and push them in the callee stack frame. Once it computes the final return value, then it will restore all the saved register values from the callee stack frame back into the registers for the caller to use.}
+          \end{center}
+      \end{enumerate}
+
+      Ideally, we want \textit{one} calling convention to simply separate implementation details between caller and callee. In general, however, neither is best. If the caller isn't using a register, then caller-save is better, and if callee doesn't need a register, then callee-save is better. If we do need to save, then callee save generally makes smaller programs, so we compromise and use a combination of both caller-save and callee-save. 
+
+    \subsubsection{x86-64 Instructions}
+
+      Let's talk about moving instructions first. 
 
       \begin{definition}[mov]
         Let's talk about the \texttt{mov} instruction which copies data from the source to the destination (the data in the source still remains!) and has the syntax 
@@ -1565,9 +1737,7 @@ We first go over some basic theoretical properties of basic data types, focusing
         \end{center}
       \end{example}
 
-    \subsubsection{Control Transfer on Stack}
-
-      Say that you have the following C and Assembly code. 
+      Now we can talk about control transfer. Say that you have the following C and Assembly code. 
       
       \begin{figure}[H]
         \centering 
@@ -1742,7 +1912,7 @@ We first go over some basic theoretical properties of basic data types, focusing
         retq
       \end{lstlisting}
 
-    \subsubsection{Arithmetic Operations}
+      Now arithemtic operations are quite simple.
 
       \begin{definition}[Add, Subtract, Multiply]
         The \textbf{add} and \textbf{sub} instructions are used to add and subtract data from the destination. 
@@ -1878,8 +2048,8 @@ We first go over some basic theoretical properties of basic data types, focusing
         \end{lstlisting}
         \end{minipage}
       \end{example}
-    
-    \subsubsection{Condition Codes}
+  
+      The final thing in our list is condition codes. 
 
       Sometimes, we want to move (really copy) some value to another register if some condition is met. This is where we use conditional moves. These conditions are met by the flags register, which is a special register that stores the status of the last operation. It is the value of these flags that determine whether all future conditional statements are met in assembly. 
       
@@ -1987,8 +2157,8 @@ We first go over some basic theoretical properties of basic data types, focusing
         
       \end{definition}
 
-    \subsubsection{Conditional Move and Jumps}
-    
+      We can then talk about conditional moves and jumps.  
+
       \begin{definition}[Equality with 0]
         The \texttt{test} instruction is used to perform a bitwise AND operation between the source and destination, and set the flags accordingly. 
         \begin{align*}
@@ -2064,8 +2234,6 @@ We first go over some basic theoretical properties of basic data types, focusing
       \begin{definition}[ret]
         The \texttt{ret} instruction is used to return from a function. It returns the value in the \texttt{\%rax} register. 
       \end{definition}
-
-    \subsubsection{If Statements}
 
       Now we can have a basic idea of how if statements can be used as a sequence of conditionals and jump operators. Let's first look at the \textbf{goto} version of C. 
 
@@ -2181,8 +2349,6 @@ We first go over some basic theoretical properties of basic data types, focusing
         \label{fig:if_statement_optimized}
       \end{figure}
 
-    \subsubsection{Loops}
-      
       Like if statements, loops in assembly can be implementing using jump functions that revisit some instruction address based on the result on an evaluated condition. Let's take a look at a basic loop function. 
 
       \begin{figure}[H]
@@ -2232,20 +2398,16 @@ We first go over some basic theoretical properties of basic data types, focusing
         \label{fig:loop_function}
       \end{figure}
 
-    \subsubsection{Functions}
-
-      So far, we've traced through simple functions in assembly. n this section, we discuss the interaction between multiple functions in assembly in the context of a larger program. We also introduce some new instructions involved with function management. 
-
-      Let’s begin with a refresher on how the call stack is managed. Recall that \texttt{\%rsp} is the stack pointer and always points to the top of the stack. The register \texttt{\%rbp} represents the base pointer (also known as the frame pointer) and points to the base of the current stack frame. The stack frame (also known as the activation frame or the activation record) refers to the portion of the stack allocated to a single function call. The currently executing function is always at the top of the stack, and its stack frame is referred to as the active frame. The active frame is bounded by the stack pointer (at the top of stack) and the frame pointer (at the bottom of the frame). The activation record typically holds local variables for a function.
+      Finally, we want to let the reader know the convention of calle and caller saved registers. The compiler tries to pick these registers, and by convention in x86, we have the following. 
 
       \begin{figure}[H]
         \centering 
-        \includegraphics[scale=0.6]{img/stackFrame.png}
-        \caption{The current active frame belongs to the callee function (fname). The memory between the stack pointer and the frame pointer is used for local variables. The stack pointer moves as local values are pushed and popped from the stack. In contrast, the frame pointer remains relatively constant, pointing to the beginning (the bottom) of the current stack frame. As a result, compilers like GCC commonly reference values on the stack relative to the frame pointer. In Figure 1, the active frame is bounded below by the base pointer of fname, which is stack address 0x418. The value stored at address 0x418 is the "saved" \texttt{\%rbp} value (0x42c), which itself is an address that indicates the bottom of the activation frame for the main function. The top of the activation frame of main is bounded by the return address, which indicates where in the main function program execution resumes once the callee function fname finishes executing. }
-        \label{fig:stack_frame_management}
+        \includegraphics[scale=0.4]{img/caller_callee_save.png}
+        \caption{Caller save and callee save registers. } 
+        \label{fig:caller_callee_save}
       \end{figure}
 
-      In here, we introduce three common instructions that are used to manage the call stack. 
+      So far, we've traced through simple functions in assembly. In this section, we discuss the interaction between multiple functions in assembly in the context of a larger program. We also introduce some new instructions involved with function management. 
 
       \begin{definition}[Leave]
         The \textbf{leave} instruction is used to deallocate the current stack frame. For example, the leaveq instruction is a shorthand that the compiler uses to restore the stack and frame pointers as it prepares to leave a function. When the callee function finishes execution, leaveq ensures that the frame pointer is restored to its previous value. It is equivalent to the following two instructions: 
@@ -2484,35 +2646,7 @@ We first go over some basic theoretical properties of basic data types, focusing
         \end{enumerate}
       \end{example}
 
-      There is a bit of a concern here from the previous example. The main function had two functions that returned two values. As the subfunction stack frame is removed from the stack, the return value is stored in the \texttt{\%rax} register. If another function is called right after, then the return value of the second function will overwrite that of the previous one. This was not a problem in the previous example since the return value of the \texttt{assign} function was not used. However, if it was, then the return value of the \texttt{adder} function would have overwritten it. This is known as register saving. 
-      \begin{enumerate}
-        \item For \textbf{caller-saved registers}, the caller function is responsible for saving the value of the register before calling a function and restoring it after the function returns. The caller should save values in its stack frame before calling the callee function, e.g. by pushing all the return values of each callee in the caller stack frame. Then it will restore values after the call. 
-
-        \begin{center}
-          \textit{Therefore, if we have a set of registers $\{\texttt{\%reg}\}$, the caller must take everything and push them in the caller stack frame. Then it will restore them after the call.}
-        \end{center}
-
-        \item For \textbf{callee-saved registers}, it is the callee's repsonsibility to save any data in these registers before using the registers. 
-
-          \begin{center} 
-            \textit{Therefore, if we have a set of registers $\{\texttt{\%reg}\}$, then inside the callee stack frame, the callee must take everything and push them in the callee stack frame. Once it computes the final return value, then it will restore all the saved register values from the callee stack frame back into the registers for the caller to use.}
-          \end{center}
-      \end{enumerate}
-
-      Ideally, we want \textit{one} calling convention to simply separate implementation details between caller and callee. In general, however, neither is best. If the caller isn't using a register, then caller-save is better, and if callee doesn't need a register, then callee-save is better. If we do need to save, then callee save generally makes smaller programs, so we compromise and use a combination of both caller-save and callee-save. The compiler tries to pick these registers, and by convention in x86, we have the following. 
-
-      \begin{figure}[H]
-        \centering 
-        \includegraphics[scale=0.4]{img/caller_callee_save.png}
-        \caption{Caller save and callee save registers. } 
-        \label{fig:caller_callee_save}
-      \end{figure}
-
-
-
-    \subsubsection{Recursion} 
-
-    \subsubsection{Arrays}
+      We have omitted the details of caller and callee saved registers, but they do exist and are important for the general implementations. 
 
       For arrays, there's not anything new here. Let's go over some code and follow through it. 
 
@@ -2552,129 +2686,727 @@ We first go over some basic theoretical properties of basic data types, focusing
         0x4006ca <+68>:	retq                        # return total
       \end{lstlisting}
 
-    \subsubsection{Matrices} 
+    \subsubsection{ARM Instructions}
 
+      
 
-    \subsubsection{Structs}
+    \subsubsection{Buffer Overflows}
 
+\section{Storage Hierarchy}
 
-\section{Compilers}
-
-  Now let's talk about how this compiling actually happens. To actually turn a C file into an executable file, we need to go through a series of steps. 
-  \begin{enumerate}
-    \item \textbf{Source Code}: We start off with the C code, which are the \texttt{.c}, \texttt{.cpp}, or \texttt{.h} files. 
-    \item \textbf{Preprocessing}: The first step is to preprocess the code. We often include header file, global variables, and other things like \texttt{\#include}, \texttt{\#define}, and \texttt{\#ifdef}. The preprocessor will replace these macros with the actual code. This results in a \texttt{.i} or \texttt{.ii} file.
-    \item \textbf{Compiling}: We take these and generate assembly code. This results in a \texttt{.asm} or \texttt{.s} file.
-    \item \textbf{Assembler}: We take the assembly code and generate machine code in the form of object files. This results in a \texttt{.o} or \texttt{.obj} file.
-    \item \textbf{Linking}: We take these object files and link them together to form an executable file. This results in a \texttt{.exe} or \texttt{.out} file.
-  \end{enumerate}
-
-  The GCC compiler automates this process for us. For example, \texttt{gcc -c hello.c} generates an object file, taking care of the preprocessing, compiling, and assembling code. Then, \texttt{gcc hello.o} links the object file to generate an executable file. At this point, we may ask two questions. Why is there a separate linking phase? And why are the differences between \texttt{hello.o} and \texttt{a.out} if they are both machine code? To answer these questions, we need to understand the ELF format. 
-
-  Now when create an executable file, we must link perhaps multiple object files. The problem is that each object file is created independently and does not know that the other object files exist. This can mean that stuff like memory addresses can overlap between these object files. To solve this, we use the linker. 
-
-
-  \begin{definition}[ELF]
-    The \textbf{Executable and Linkable Format} (ELF) is a common standard file format for executables, object code, shared libraries, and core dumps. It is analogous to a book, with the following parts: 
+    There are different types of memory, with three  key components that we should think about: 
     \begin{enumerate}
-      \item \textbf{Sections}, which are like chapters. Each section contains the content for some given purpose or use wthin the program. e.g. \texttt{.binary} is just a block of bytes, \texttt{.text} contains the machine code, \texttt{.data} contains initialized data, and \texttt{.bss} contains uninitialized data.
-      \item \textbf{Header}, which is like the cover of the book. It contains metadata about the file, such as the architecture, the entry point, and the sections. 
-      \item \textbf{Symbol Table}, is like a detailed table of contents of all defined symbols such as functions, external (global) variables, local maps, etc. 
-      \item \textbf{Relocation records}, which is like the index of the book that lists references to symbols. 
+      \item The \textbf{capacity}, i.e. amount of data, it can store (how large the water tank is). 
+      \item The \textbf{latency}, i.e. amount of time it takes for a device to respond with data after it has been instructed to perform a data retrieval operation (how fast the data flows). 
+      \item The \textbf{transfer rate}, i.e. amount of data that can be moved between the device and main memory (how wide the pipe is). 
     \end{enumerate}
-    The format is generally as such when you run \texttt{objdump -d -r hello.o} (d represents disassembly and r represents relocation entries).
 
+    We must provide a good balance of these three qualities, and also note that there are some physical limitations (i.e. latency cannot be faster than speed of light). The highest level categorization of memory is between primary and secondary storage devices, which simply distinguishes the memory that is directly accessible by the CPU and memory that is not. 
+
+    \begin{definition}[Primary Storage]
+      \textbf{Primary storage devices} are directly accessible by the CPU and are used to store data that is currently being processed. This includes CPU registers, cache memory, and RAM. There are two primary ways: 
+      \begin{enumerate}
+        \item \textbf{Static RAM (SRAM)} stores data in small electrical circuits (e.g. latches) and is typically the fastest type of memory. However, it is more expensive to build, consumers more power, and occupies more space, limiting the SRAM storage. 
+        \item \textbf{Dynamic RAM (DRAM)} stores data using electrical components (e.g. capacitors) that hold an electrical charge. It is called \textit{dynamic} because a DRAM system must frequently refresh the charge of its capacitors to maintain a stored value.. 
+      \end{enumerate}
+
+      \begin{table}[H]
+        \centering
+        \begin{tabular}{|l|l|l|l|}
+        \hline
+        \textbf{Device} & \textbf{Capacity} & \textbf{Approx. latency} & \textbf{RAM type} \\ \hline
+        Register & 4 - 8 bytes & < 1 ns & SRAM \\ \hline
+        CPU cache & 1 - 32 megabytes & 5 ns & SRAM \\ \hline
+        Main memory & 4 - 64 gigabytes & 100 ns & DRAM \\ \hline
+        \end{tabular}
+        \caption{Memory hierarchy characteristics}
+        \label{tab:memory_hierarchy}
+      \end{table}
+    \end{definition}
+
+    \begin{definition}[Secondary Storage]
+      \textbf{Secondary storage devices} are not directly accessible by the CPU and are used to store data that is not currently being processed. This includes hard drives, SSDs, and magnetic tapes.
+    \end{definition}
+
+    The figure overviews the different types of memory. 
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/memory_hierarchy.png}
+      \caption{Memory hierarchy.} 
+      \label{fig:memory_hierarchy}
+    \end{figure}
+
+  \subsection{Locality}
+
+    So far, we have abstracted away most of these memory types as a single entity with nearly instantaneous access, but in practice this is not the case. The most simple way is to simply have RAM and our CPU registers, but by introducing more intermediate memory types, we can achieve greater efficiency. 
+
+    \begin{definition}[Locality]
+      \textbf{Locality} is a principle that generally states that a program that accesses a memory location $n$ at time $t$ is likely to access memory location $n + \epsilon$ at time $t + \epsilon$. This principle motivates the design of efficient caches. 
+      \begin{enumerate}
+        \item \textbf{Temporal locality} is the idea that if you access a memory location, you are likely to access it again soon. 
+        \item \textbf{Spatial locality} is the idea that if you access a memory location, you are likely to access nearby memory locations soon.
+      \end{enumerate}
+      This generally means that if you access some sort of memory, the values around that address is also likely to be accessed and therefore it is wise to store it closer to your CPU. 
+    
+    \end{definition}
+
+    \begin{example}[Locality]
+      Consider the following code. 
+      \begin{lstlisting}
+        int sum_array(int *array, int len) {
+          int i;
+          int sum = 0;
+
+          for (i = 0; i < len; i++) {
+            sum += array[i];
+          }
+
+          return sum;
+        }
+      \end{lstlisting}
+      \begin{enumerate}
+        \item The repetitive nature of the for loop exploits temporal locality. More specifically, the CPU accesses the same memory (stored in variables \texttt{i}, \texttt{len}, \texttt{sum}, \texttt{array}) within each iteration and therefore at similar times. 
+        \item The spatial locality is exploited when the CPU accesses memory locations from each element of the array, which are contiguous in memory. Even though the program accesses each array element only once, a modern system loads more than one \texttt{int} at a time from memory to the CPU cache. That is, accessing the first array index fills the cache with not only the first integer but also the next few integers after it too. Exactly how many additional integers get moved depends on the cache's \textbf{block size}. For example, a cache with a 16 byte block size will store \texttt{array[i]} and the elements in \texttt{i+1}, \texttt{i+2}, \texttt{i+3}. 
+      \end{enumerate}
+    \end{example}
+
+    We can see the differences in spatial locality in the following example. 
+
+    \begin{example}
+      One may find that simply changing the order of loops can cause a significant speed up in your program. Consider the following code. 
+      \begin{figure}[H]
+        \centering 
+        \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          float averageMat_v1(int **mat, int n) {
+            int i, j, total = 0;
+
+            for (i = 0; i < n; i++) {
+              for (j = 0; j < n; j++) {
+                // Note indexing: [i][j]
+                total += mat[i][j];
+              }
+            }
+            return (float) total / (n * n);
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          float averageMat_v2(int **mat, int n) {
+            int i, j, total = 0;
+
+            for (j = 0; j < n; j++) {
+              for (i = 0; i < n; i++) {
+                total += mat[i][j];
+              }
+            }
+            return (float) total / (n * n);
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \caption{Two implementations of taking the total sum of all elements in a matrix.} 
+        \label{fig:matrix_sum}
+      \end{figure}
+      It turns out that the left hand side of the code executes about 5 times faster than the second version. Consider why. When we iterate through the \texttt{i} first and then the \texttt{j}, we access the values \texttt{array[i][j]} and then by spatial locality, the next few values in the array, which are \texttt{array[i][j+1]}, ... are stored in the cache. 
+      \begin{enumerate}
+        \item In the left hand side of the code, these next stored values are exactly what is being accessed, and the CPU can access them in the cache rather than having to go into memory. 
+        \item In the right hand side of the code, these next values are \textit{not} being accessed since we want to access \texttt{array[i+1][j]}, .... Unfortunately, this is not stored in the cache and so for every $n^2$ loops we have to go back to the memory to retrieve it. 
+      \end{enumerate}
+    \end{example}
+
+
+  \subsection{RAM}
+
+  \subsection{Caches}
+
+    Valgrind's cachegrind mode. 
+
+  \subsection{SSD}
+
+  \subsection{HDD}
+
+\section{Compiling and Linking}
+
+  Now let's talk about how this compiling actually happens. \textit{Compiling} is actually an umbrella term that is misused. Turning at C file into an executable file consists of multiple intermediate steps, one of which is actually compiling, but the whole series is sometimes referred to as compiling. A more accurate term would be \textit{building}. Before we get onto it, there are two types of compilers. 
+
+  \begin{definition}[GCC, CLang]
+    The two mainstream compilers used is GCC (with the gdb debugger) and Clang (with lldb). For now, the difference is that 
+    \begin{enumerate}
+      \item gcc is more established. 
+      \item clang is newer and has more features. 
+    \end{enumerate}
+    A useful flag to know is that we can always specify the name of the (final or intermediary) output file with the \texttt{-o} flag. 
+  \end{definition}
+
+  \begin{definition}[Complete Build Process]
+    To actually turn a C file into an executable file, we need to go through a series of steps. We start off with the C code, which are the \texttt{.c}, \texttt{.cpp}, or \texttt{.h} files. 
+    \begin{enumerate}
+      \item \textbf{Preprocessing}: The precompiler step expands the \textit{preprocessor directives} (all the \texttt{\#include} and \texttt{\#define} statements) and removes comments. This results in a \texttt{.i} file. The preprocessor will replace these macros with the actual code. This results in a \texttt{.i} file.
+        \begin{lstlisting}
+          clang/gcc -E main.c -o main.i
+        \end{lstlisting}
+
+      \item \textbf{Compiling}: We take these and generate assembly code. This results in a \texttt{.asm} or \texttt{.s} file.
+        \begin{lstlisting}
+          clang/gcc -S main.c -o main.s
+        \end{lstlisting}
+
+      \item \textbf{Assembler}: We take the assembly code and generate machine code in the form of relocatable binary object code (this is machine code, not assembly). This results in a \texttt{.o} or \texttt{.obj} file.
+        \begin{lstlisting}
+          clang/gcc -c main.c -o main.o
+        \end{lstlisting}
+
+      \item \textbf{Linking}: We take these object files and link them together to form an executable file. This results in a \texttt{.exe} or \texttt{.out} file.
+    \end{enumerate}
+    The GCC or CLang compiler automates this process for us. For example, \texttt{gcc -c hello.c} generates an object file, taking care of the preprocessing, compiling, and assembling code. Then, \texttt{gcc hello.o} links the object file to generate an executable file. 
+  \end{definition}
+
+  There are a lot of questions to be asked here, and we will go through them step by step. 
+
+  \subsection{Precompiling Stage} 
+
+    Just like how Python package managers like conda have specific directories that they find package in, the C library also has a certain directory. 
+
+    \begin{definition}[Standard Library Directory]
+      In Linux systems, there are two main directories you look at: 
+      \begin{enumerate}
+        \item \texttt{/usr/include} contains the standard C library headers.
+        \item \texttt{/usr/local/include} contains the headers for libraries that you install yourself.
+      \end{enumerate}
+      In Mac Silicon, these directories are a little bit more involved. You must first install the xcode command line developer tools, which will then create these directories. 
+      \begin{enumerate}
+        \item The standard C library headers are in 
+          \begin{equation*}
+            \texttt{/Library/Developer/CommandLineTools/SDKs/MacOSX*.sdk/usr/include}.
+          \end{equation*}
+      \end{enumerate}
+    \end{definition}
+
+    In here, we can find all the relevant import files like \texttt{stdio.h} and such. When we precompile, the output \texttt{.i} file represents a precompiled C file. It still has C code, but it has been optimized to 
+    \begin{enumerate}
+      \item Remove comments. 
+      \item Replace all the \texttt{\#include} statements with the actual code. 
+      \item Replace all the global variables declared in \texttt{\#define} with the actual value.
+    \end{enumerate}
+    Between x86 and ARM, there are no significant differences in how C files are precompiled. 
+
+    \begin{example}
+      Take a look at the following minimal example. 
+      \begin{figure}[H]
+        \centering 
+        \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          #include "second.h"
+          #define a 3
+
+          int add(int x, int y) {
+            return x + y;
+          }
+
+          int main() {
+            // test comment
+            int b = 5; 
+            int c = add(a, b);
+            int d = subtract(a, b); 
+            return 0; 
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          int subtract(int a, int b) {
+            return a - b; 
+          }
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+        \end{lstlisting}
+        \end{minipage}
+        \caption{I have included a \texttt{main.c} file that imports statements from a \texttt{second.h} file.} 
+        \label{fig:precompile_example}
+      \end{figure}
+      Now, I run \texttt{gcc -E main.c -o main.i} to generate the precompiled file, which gives me the following. 
+      \begin{figure}[H]
+        \centering 
+        \begin{lstlisting}
+          # 1 "main.c"
+          # 1 "<built-in>" 1
+          # 1 "<built-in>" 3
+          # 418 "<built-in>" 3
+          # 1 "<command line>" 1
+          # 1 "<built-in>" 2
+          # 1 "main.c" 2
+          # 1 "./second.h" 1
+          int subtract(int a, int b) {
+            return a - b;
+          }
+          # 2 "main.c" 2
+
+
+          int add(int x, int y) {
+            return x + y;
+          }
+
+          int main() {
+
+            int b = 5;
+            int c = add(3, b);
+            int d = subtract(3, b);
+            return 0;
+          }
+        \end{lstlisting}
+        \caption{The precompiled file. } 
+        \label{fig:precompiled_file}
+      \end{figure}
+      Notice a few things: 
+      \begin{enumerate}
+        \item The header file \texttt{second.h} has been replaced with the actual code.
+        \item The comments have indeed been removed. 
+        \item The global variable \texttt{a} has been replaced with the actual value 3. 
+      \end{enumerate}
+    \end{example}
+
+    This leaves us with the question of what all the rest of the lines that start with a \texttt{\#} are for. They are called \textit{preprocessor directives}.
+
+    \begin{definition}[Preprocessor Directives]
+      \textbf{Preprocessor directives} are commands that are executed before the actual compilation begins. These directives allow additional actions to be taken on the C source code before it is compiled into object code. Directives are not part of the C language itself, and they are always prefixed with a \texttt{\#} symbol. 
+      \begin{enumerate}
+        \item \texttt{\#include} is used to include the contents of a file into the source file. It selects portions of the file to include based on the file name.
+        \item \texttt{\#define} is used to define a macro, which is a way to give a name to a constant value or a piece of code. 
+        \item \texttt{\#ifdef}, \texttt{\#ifndef}, \texttt{\#else}, and \texttt{\#endif} are used for conditional compilation. 
+        \item \texttt{\#error} is used to generate a compilation error. 
+        \item \texttt{\#pragma} is used to give the compiler specific instructions. 
+      \end{enumerate}
+    \end{definition}
+
+  \subsection{Compiling Stage} 
+
+    Once we have precompiled, we can compile the code into assembly code. For the following two examples, we will parse through the general syntax of assembly code. It is quite different between x86 and ARM, so we will use the minimal C code 
     \begin{lstlisting}
-      ELF header         # file type 
-
-      .text section 
-        - code goes here 
-
-      .rodata section
-        - read only data 
-
-      .data section 
-        - initialized global variables 
-
-      .bss section 
-        - uninitialized global variables
-
-      .symtab section 
-        - symbol table (symbol name, type, address) 
-
-      .rel.text section 
-        - relocation entries for .text section 
-        - addresses of instructions that will need to be modified in the executable. 
-
-      .rel.data section 
-        - relocation info for .data section 
-        - addresses of pointer data that will need to be modified in the merged executable. 
-
-      .debug section 
-        - info for symbolic debugging (gcc -g) 
-    \end{lstlisting}
-
-  \end{definition}
-
-  Let's elaborate on what symbols mean. 
-
-  \begin{definition}[Symbol]
-    A \textbf{symbol} is a name that is used to refer to a memory location. It can be a function name, a global variable, or a local variable. 
-    \begin{enumerate}
-      \item Global symbols are symbols that can be referenced by other object files, e.g. non-static functions and global variables. 
-      \item Local symbols are symbols that are only visible within the object file, e.g. static functions and local variables. The linker won't know about these types. 
-      \item External symbols are referenced by this object file but defined in another object file. 
-    \end{enumerate}
-  \end{definition}
-
-  The two types of symbols that the linker will know about are the global and external symbols. We can see that external symbols can be problematic if the object files don't know about each other. 
-
-  \begin{example}[Linker Symbols]
-    Consider the following code where the left file includes the right file. 
-
-    \noindent\begin{minipage}{.5\textwidth}
-    \begin{lstlisting}[]{Code}
-      // file1.c 
-      #include "sum.h" 
-
-      int array[2] = {1, 2}; 
+      int add(int x, int y) {
+        return x + y;
+      }
 
       int main() {
-        int val = sum(array, 2); 
-        return val; 
+        int a = 3;
+        int b = 5; 
+        int c = add(a, b);
+        return 0; 
       }
     \end{lstlisting}
-    \end{minipage}
-    \hfill
-    \begin{minipage}{.49\textwidth}
-    \begin{lstlisting}[]{Output}
-      // sum.h 
-      int sum(int *a, int n) {
-        int i, s = 0; 
-        for (i = 0; i < n; i++) {
-          s += a[i]; 
-        }
-        return s; 
-      }
-      .
-    \end{lstlisting}
-    \end{minipage}
-    In the left file, 
-    \begin{enumerate}
-      \item We define the global symbol \texttt{main()}. 
-      \item Inside main, \texttt{val} is a local symbol so the linker knows nothing about it. 
-      \item The \texttt{sum} function is an external symbol, and it references a global symbol that's defined in \texttt{sum} the right file. 
-      \item The \texttt{array} is a global symbol that is defined in the right file. 
-    \end{enumerate}
-    In the right file, the linker knows nothing of the local symbols \texttt{i} or \texttt{s}. 
-  \end{example}
+    for both examples. 
 
-  Now to make sure that these addresses don't overlap, we need to do some address \textbf{relocation}. To understand this, we will use the \textbf{objdump} command. 
-  
-  \begin{definition}[Object Dump]
-    The \textbf{objdump} command can be used to determine many things: 
+    \begin{example}[x86 Compiled Assembly Language]
+      The assmebly code is shown. 
+      \begin{lstlisting}[language={[x86masm]Assembler}]
+        .
+          .file	"main.c"
+          .text
+          .globl	add
+          .type	add, @function
+        add:
+        .LFB0:
+          .cfi_startproc
+          endbr64
+          pushq	%rbp
+          .cfi_def_cfa_offset 16
+          .cfi_offset 6, -16
+          movq	%rsp, %rbp
+          .cfi_def_cfa_register 6
+          movl	%edi, -4(%rbp)
+          movl	%esi, -8(%rbp)
+          movl	-4(%rbp), %edx
+          movl	-8(%rbp), %eax
+          addl	%edx, %eax
+          popq	%rbp
+          .cfi_def_cfa 7, 8
+          ret
+          .cfi_endproc
+        .LFE0:
+          .size	add, .-add
+          .globl	main
+          .type	main, @function
+        main:
+        .LFB1:
+          .cfi_startproc
+          endbr64
+          pushq	%rbp
+          .cfi_def_cfa_offset 16
+          .cfi_offset 6, -16
+          movq	%rsp, %rbp
+          .cfi_def_cfa_register 6
+          subq	$16, %rsp
+          movl	$3, -12(%rbp)
+          movl	$5, -8(%rbp)
+          movl	-8(%rbp), %edx
+          movl	-12(%rbp), %eax
+          movl	%edx, %esi
+          movl	%eax, %edi
+          call	add
+          movl	%eax, -4(%rbp)
+          movl	$0, %eax
+          leave
+          .cfi_def_cfa 7, 8
+          ret
+          .cfi_endproc
+        .LFE1:
+          .size	main, .-main
+          .ident	"GCC: (Ubuntu 9.4.0-1ubuntu1~20.04.2) 9.4.0"
+          .section	.note.GNU-stack,"",@progbits
+          .section	.note.gnu.property,"a"
+          .align 8
+          .long	 1f - 0f
+          .long	 4f - 1f
+          .long	 5
+        0:
+          .string	 "GNU"
+        1:
+          .align 8
+          .long	 0xc0000002
+          .long	 3f - 2f
+        2:
+          .long	 0x3
+        3:
+          .align 8
+        4:
+      \end{lstlisting}
+    \end{example}
+
+    \begin{example}[ARM Compiled Assembly Language]
+      The assembly code is shown. 
+      \begin{lstlisting}[language={[x86masm]Assembler}]
+        .
+          .section	__TEXT,__text,regular,pure_instructions
+          .build_version macos, 14, 0	sdk_version 14, 4
+          .globl	_add                            ; -- Begin function add
+          .p2align	2
+        _add:                                   ; @add
+          .cfi_startproc
+        ; %bb.0:
+          sub	sp, sp, #16
+          .cfi_def_cfa_offset 16
+          str	w0, [sp, #12]
+          str	w1, [sp, #8]
+          ldr	w8, [sp, #12]
+          ldr	w9, [sp, #8]
+          add	w0, w8, w9
+          add	sp, sp, #16
+          ret
+          .cfi_endproc
+                                                ; -- End function
+          .globl	_main                           ; -- Begin function main
+          .p2align	2
+        _main:                                  ; @main
+          .cfi_startproc
+        ; %bb.0:
+          sub	sp, sp, #48
+          .cfi_def_cfa_offset 48
+          stp	x29, x30, [sp, #32]             ; 16-byte Folded Spill
+          add	x29, sp, #32
+          .cfi_def_cfa w29, 16
+          .cfi_offset w30, -8
+          .cfi_offset w29, -16
+          mov	w8, #0
+          str	w8, [sp, #12]                   ; 4-byte Folded Spill
+          stur	wzr, [x29, #-4]
+          mov	w8, #3
+          stur	w8, [x29, #-8]
+          mov	w8, #5
+          stur	w8, [x29, #-12]
+          ldur	w0, [x29, #-8]
+          ldur	w1, [x29, #-12]
+          bl	_add
+          mov	x8, x0
+          ldr	w0, [sp, #12]                   ; 4-byte Folded Reload
+          str	w8, [sp, #16]
+          ldp	x29, x30, [sp, #32]             ; 16-byte Folded Reload
+          add	sp, sp, #48
+          ret
+          .cfi_endproc
+                                                ; -- End function
+        .subsections_via_symbols
+      \end{lstlisting}
+    \end{example}
+      
+    We can see that in both examples, there are generally two types of codes. 
     \begin{enumerate}
-      \item \textbf{objdump -t} gives us the table of symbols which shows us the addresses of the symbols. 
+      \item The regular CPU operations with registers and memory. 
+      \item Some code starts off with some code that starts with a \texttt{.}. Every line that starts with a \texttt{.} are called \textit{assembler directives}. 
+    \end{enumerate}
+    Let's elaborate more on what these directives are. 
+
+    \begin{definition}[Assembler Directives]
+      An \textbf{assembler directives} are instructions in assembly language programming that that give commands to the assembler (which then converts this to an object file) about various aspects of the assembly process, but they do not represent actual CPU instructions that execute in the program. Unlike typical assembly language instructions that directly manipulate registers and execute arithmetic or logical operations, directives are used to organize, control, and provide necessary information for the assembly and linking of binary programs. They can manage memory allocation, define symbols, control compilation settings, and much more. 
+
+      There are general types of directives that are common in both x86 and ARM that we should be aware about: 
+      \begin{enumerate}
+        \item Section directives. 
+        \item Data allocation directives. 
+        \item Symbol definition directives. 
+        \item Macro and Include directives. 
+        \item Debugging and error handling directives. 
+      \end{enumerate}
+    \end{definition}
+
+    \begin{example}[x86 Assembly Directives]
+      Let us elaborate on the specific directives in the x86 assembly code, some of which are in the example above. 
+      \begin{enumerate}
+        \item \texttt{.file "main.c"} is a directive that tells the assembler that the following code is from the file \texttt{main.c}. It is a form of metadata. 
+        \item \texttt{.text} is a directive that tells the assembler that the following code is the text section (the text/code portion of memory) of the program. This is where the actual code is stored. 
+        \item \texttt{.globl add} is a directive that tells the assembler that the following code is a global function called \texttt{add}.
+        \item \texttt{.type add, @function} is a directive that tells the assembler that the following code is a function.
+      \end{enumerate}
+    \end{example}
+
+    \begin{example}[ARM Assembly Directives]
+      
+    \end{example}
+
+    You also see that there are symbols that represent memory addresses. Let's elaborate on what symbols mean. 
+
+    \begin{definition}[Symbol]
+      A \textbf{symbol} is a name that is used to refer to a memory location. It can be a function name, a global variable, or a local variable. 
+      \begin{enumerate}
+        \item Global symbols are symbols that can be referenced by other object files, e.g. non-static functions and global variables. 
+        \item Local symbols are symbols that are only visible within the object file, e.g. static functions and local variables. The linker won't know about these types. 
+        \item External symbols are referenced by this object file but defined in another object file. 
+      \end{enumerate}
+    \end{definition}
+
+  \subsection{Objdump} 
+
+    Since we will be using the \texttt{objdump} package quite a lot, it is worth mentioning the different commands you will use and store them here as a reference. For first readers, don't expect to know what each of them do, but rather look back at this for a reference. 
+
+    \subsubsection{ELF and Mach-O Formats}
+
+      Objdump is a command line utility that is used to display information about object files, which are often outputted in a specific format. The two main output file types are called ELF (Executable and Linkable Format) and Mach-O (Mach Object). 
+
+      \begin{definition}[ELF]
+        The \textbf{Executable and Linkable Format} (ELF) is a common standard file format for executables, object code, shared libraries, and core dumps. It is analogous to a book, with the following parts: 
+        \begin{enumerate}
+          \item \textbf{Header}, which is like the cover of the book. It contains metadata about the file, such as the architecture, the entry point, and the sections. 
+          \item \textbf{Sections}, which are like chapters. Each section contains the content for some given purpose or use wthin the program. e.g. \texttt{.binary} is just a block of bytes, \texttt{.text} contains the machine code, \texttt{.data} contains initialized data, and \texttt{.bss} contains uninitialized data.
+          \item \textbf{Symbol Table}, is like a detailed table of contents of all defined symbols such as functions, external (global) variables, local maps, etc. 
+          \item \textbf{Relocation records}, which is like the index of the book that lists references to symbols. 
+        \end{enumerate}
+        The format is generally as such when you run \texttt{objdump -d -r hello.o} (d represents disassembly and r represents relocation entries).
+
+        \begin{lstlisting}
+          ELF header         # file type 
+
+          .text section 
+            - code goes here 
+
+          .rodata section
+            - read only data 
+
+          .data section 
+            - initialized global variables 
+
+          .bss section 
+            - uninitialized global variables
+
+          .symtab section 
+            - symbol table (symbol name, type, address) 
+
+          .rel.text section 
+            - relocation entries for .text section 
+            - addresses of instructions that will need to be modified in the executable. 
+
+          .rel.data section 
+            - relocation info for .data section 
+            - addresses of pointer data that will need to be modified in the merged executable. 
+
+          .debug section 
+            - info for symbolic debugging (gcc -g) 
+        \end{lstlisting}
+      \end{definition}
+      
+      \begin{definition}[Mach-O]
+        
+      \end{definition}
+
+    \subsubsection{Objdump Commands}
+
+      \begin{theorem}[File Headers with Objdump]
+        Given that you have an object file, the first thing you might want to do is see the file header. You do with this \texttt{objdump -f main.o}. 
+        \begin{lstlisting}
+          main.o:     file format elf64-x86-64
+          architecture: i386:x86-64, flags 0x00000011:
+          HAS_RELOC, HAS_SYMS
+          start address 0x0000000000000000
+        \end{lstlisting}
+      \end{theorem}
+
+      \begin{theorem}[Section with Objdump]
+        To look at the section headers to get a closer overview, you use \texttt{objdump -h main.o}. 
+        \begin{lstlisting}
+          main.o:     file format elf64-x86-64
+
+          Sections:
+          Idx Name          Size      VMA               LMA               File off  Algn
+            0 .text         0000004b  0000000000000000  0000000000000000  00000040  2**0
+                            CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+            1 .data         00000000  0000000000000000  0000000000000000  0000008b  2**0
+                            CONTENTS, ALLOC, LOAD, DATA
+            2 .bss          00000000  0000000000000000  0000000000000000  0000008b  2**0
+                            ALLOC
+            3 .comment      0000002c  0000000000000000  0000000000000000  0000008b  2**0
+                            CONTENTS, READONLY
+            4 .note.GNU-stack 00000000  0000000000000000  0000000000000000  000000b7  2**0
+                            CONTENTS, READONLY
+            5 .note.gnu.property 00000020  0000000000000000  0000000000000000  000000b8  2**3
+                            CONTENTS, ALLOC, LOAD, READONLY, DATA
+            6 .eh_frame     00000058  0000000000000000  0000000000000000  000000d8  2**3
+                            CONTENTS, ALLOC, LOAD, RELOC, READONLY, DATA
+        \end{lstlisting}
+      \end{theorem}
+
+      \begin{theorem}[Disassembly with Objdump]
+        Now you might actually want to look at the disassembly of the code, which is what we often use it for. To do this, you use \texttt{objdump -D main.o} to get the entire output. 
+        \begin{enumerate}
+          \item The leftmost column represents the address of the instruction. 
+          \item The next column represents the machine code of the instruction. 
+          \item The next column represents the assembly code of the instruction. 
+        \end{enumerate}
+        \begin{lstlisting}
+          main.o:     file format elf64-x86-64
+
+          Disassembly of section .text:
+
+          0000000000000000 <add>:
+             0:	f3 0f 1e fa          	endbr64 
+             ...
+            17:	c3                   	retq   
+
+          0000000000000018 <main>:
+            18:	f3 0f 1e fa          	endbr64 
+            ...
+            4a:	c3                   	retq   
+
+          Disassembly of section .comment:
+
+          0000000000000000 <.comment>:
+             0:	00 47 43             	add    %al,0x43(%rdi)
+             ...
+            2a:	30 00                	xor    %al,(%rax)
+
+          Disassembly of section .note.gnu.property:
+
+          0000000000000000 <.note.gnu.property>:
+             0:	04 00                	add    $0x0,%al
+            ...
+
+          Disassembly of section .eh_frame:
+
+          0000000000000000 <.eh_frame>:
+             0:	14 00                	adc    $0x0,%al
+            ...
+        \end{lstlisting}
+        If you just want to look at the contents of the executable sections, then you can use \texttt{objdump -d main.o}.
+        \begin{lstlisting}
+          main.o:     file format elf64-x86-64
+
+          Disassembly of section .text:
+
+          0000000000000000 <add>:
+             0:	f3 0f 1e fa          	endbr64 
+             4:	55                   	push   %rbp
+             5:	48 89 e5             	mov    %rsp,%rbp
+             8:	89 7d fc             	mov    %edi,-0x4(%rbp)
+             b:	89 75 f8             	mov    %esi,-0x8(%rbp)
+             e:	8b 55 fc             	mov    -0x4(%rbp),%edx
+            11:	8b 45 f8             	mov    -0x8(%rbp),%eax
+            14:	01 d0                	add    %edx,%eax
+            16:	5d                   	pop    %rbp
+            17:	c3                   	retq   
+
+          0000000000000018 <main>:
+            18:	f3 0f 1e fa          	endbr64 
+            1c:	55                   	push   %rbp
+            1d:	48 89 e5             	mov    %rsp,%rbp
+            20:	48 83 ec 10          	sub    $0x10,%rsp
+            24:	c7 45 f4 03 00 00 00 	movl   $0x3,-0xc(%rbp)
+            2b:	c7 45 f8 05 00 00 00 	movl   $0x5,-0x8(%rbp)
+            32:	8b 55 f8             	mov    -0x8(%rbp),%edx
+            35:	8b 45 f4             	mov    -0xc(%rbp),%eax
+            38:	89 d6                	mov    %edx,%esi
+            3a:	89 c7                	mov    %eax,%edi
+            3c:	e8 00 00 00 00       	callq  41 <main+0x29>
+            41:	89 45 fc             	mov    %eax,-0x4(%rbp)
+            44:	b8 00 00 00 00       	mov    $0x0,%eax
+            49:	c9                   	leaveq 
+            4a:	c3                   	retq 
+        \end{lstlisting}
+
+        If you want to see the source code intermixed with disassembly, then you can use the \texttt{-S} flag, but make sure that the object file is a generated with debugging information, i.e. use \texttt{gcc -c -g main.c -o main.o}. 
+        \begin{figure}[H]
+          \centering 
+          \begin{lstlisting}
+            main.o:     file format elf64-x86-64
+
+
+            Disassembly of section .text:
+
+            0000000000000000 <add>:
+            int add(int x, int y) {
+               0:	f3 0f 1e fa          	endbr64 
+               4:	55                   	push   %rbp
+               5:	48 89 e5             	mov    %rsp,%rbp
+               8:	89 7d fc             	mov    %edi,-0x4(%rbp)
+               b:	89 75 f8             	mov    %esi,-0x8(%rbp)
+              return x + y; 
+               e:	8b 55 fc             	mov    -0x4(%rbp),%edx
+              11:	8b 45 f8             	mov    -0x8(%rbp),%eax
+              14:	01 d0                	add    %edx,%eax
+            }
+              16:	5d                   	pop    %rbp
+              17:	c3                   	retq   
+
+            0000000000000018 <main>:
+
+            int main() {
+              18:	f3 0f 1e fa          	endbr64 
+              1c:	55                   	push   %rbp
+              1d:	48 89 e5             	mov    %rsp,%rbp
+              20:	48 83 ec 10          	sub    $0x10,%rsp
+              int a = 3; 
+              24:	c7 45 f4 03 00 00 00 	movl   $0x3,-0xc(%rbp)
+              int b = 5; 
+              2b:	c7 45 f8 05 00 00 00 	movl   $0x5,-0x8(%rbp)
+              int c = add(a, b); 
+              32:	8b 55 f8             	mov    -0x8(%rbp),%edx
+              35:	8b 45 f4             	mov    -0xc(%rbp),%eax
+              38:	89 d6                	mov    %edx,%esi
+              3a:	89 c7                	mov    %eax,%edi
+              3c:	e8 00 00 00 00       	callq  41 <main+0x29>
+              41:	89 45 fc             	mov    %eax,-0x4(%rbp)
+              return 0; 
+              44:	b8 00 00 00 00       	mov    $0x0,%eax
+            }
+              49:	c9                   	leaveq 
+              4a:	c3                   	retq  
+          \end{lstlisting}
+          \caption{Disassembly of the object file back into assembly using \texttt{objdump -d -S main.o}.} 
+          \label{fig:disassembly_example_intermixed}
+        \end{figure}
+        Note that you can always see this disassembly with debuggers like gdb or lldb, but objdump generally works for all architectures. 
+      \end{theorem}
+
+      \begin{theorem}[Symbol Table]
+        If you want to look at all the symbols existing within the object file, you use \texttt{objdump -t main.o} (t for table of symbols). 
         \begin{enumerate}
           \item The leftmost column represents the address of the symbol. 
           \item The next column represents the type of the symbol. The \texttt{g} and \texttt{l} represent global and local symbols, respectively. The \texttt{O} and \texttt{F} represent object and function symbols, while the \texttt{UND} and \texttt{ABS} represent undefined and absolute symbols. 
@@ -2683,108 +3415,535 @@ We first go over some basic theoretical properties of basic data types, focusing
           \item The last column represents the name of the symbol. 
         \end{enumerate}
         \begin{lstlisting}
+          main.o:     file format elf64-x86-64
+
           SYMBOL TABLE:
-          0000000000000000 l    df *ABS*	            0000000000000000 file1.c
-          ...
+          0000000000000000 l    df *ABS*	0000000000000000 main.c
+          0000000000000000 l    d  .text	0000000000000000 .text
+          0000000000000000 l    d  .data	0000000000000000 .data
+          0000000000000000 l    d  .bss	0000000000000000 .bss
+          0000000000000000 l    d  .note.GNU-stack	0000000000000000 .note.GNU-stack
+          0000000000000000 l    d  .note.gnu.property	0000000000000000 .note.gnu.property
+          0000000000000000 l    d  .eh_frame	0000000000000000 .eh_frame
+          0000000000000000 l    d  .comment	0000000000000000 .comment
+          0000000000000000 g     F .text	0000000000000018 add
+          0000000000000018 g     F .text	0000000000000033 main
         \end{lstlisting}
-      \item \textbf{objdump -r} gives us the relocation table which shows us the addresses that need to be modified. 
+      \end{theorem}
+
+      \begin{theorem}[Relocation Table]
+        If you want to look then at the relocation table, then you use \texttt{objdump -r main.o}. 
         \begin{enumerate}
           \item The leftmost column represents the offset of the relocation (i.e. the location within the section where this relocation needs to be applied). 
           \item The second column represents the type of relocation. 
           \item The third column represents the symbol that this relocation references. 
         \end{enumerate}
         \begin{lstlisting}
+          main.o:     file format elf64-x86-64
+
           RELOCATION RECORDS FOR [.text]:
           OFFSET           TYPE              VALUE 
-          0000000000000014 R_X86_64_PC32     array-0x0000000000000004
-          ...
+          000000000000003d R_X86_64_PLT32    add-0x0000000000000004
+
+
+          RELOCATION RECORDS FOR [.eh_frame]:
+          OFFSET           TYPE              VALUE 
+          0000000000000020 R_X86_64_PC32     .text
+          0000000000000040 R_X86_64_PC32     .text+0x0000000000000018
         \end{lstlisting}
-      \item \textbf{objdump -d} gives us the disassembly of the object file. 
-        \begin{enumerate}
-          \item The leftmost column represents the address of the instruction. 
-          \item The next column represents the machine code of the instruction. 
-          \item The next column represents the assembly code of the instruction. 
-        \end{enumerate}
-        \begin{lstlisting}
-          0000000000000000 <main>:
-             0:	f3 0f 1e fa          	endbr64 
-             4:	55                   	push   %rbp
-             ...
-        \end{lstlisting}
-    \end{enumerate}
-  \end{definition}
+      \end{theorem}
 
+  \subsection{Assembling Stage and Object Files}
 
-  Let's look through a simple example. Consider the following two C files. 
-
-  \noindent\begin{minipage}{.50\textwidth}
-  \begin{lstlisting}[]{Code}
-    // main.c
-    extern int sum(int *array, int n); 
-
-    int array[2] = {1, 2};
-
-    int main(void) {
-      int val = sum(array, 2); 
-      return val; 
-      
-    }
-  \end{lstlisting}
-  \end{minipage}
-  \hfill
-  \begin{minipage}{.49\textwidth}
-  \begin{lstlisting}[]{Output}
-    // sum.c
-    int sum(int *array, int n) {
-    int i, s = 0 ; 
-    for (int i = 0; i < n; i++) {
-        s += array[i];
-      }
-      return s;
-    }
-    .
-    .
-  \end{lstlisting}
-  \end{minipage}
-
-  Now once we have generated the object files with \texttt{gcc -c main.c} and \texttt{gcc -c sum.c}. Then we can link them with \texttt{gcc main.o sum.o} to get \texttt{a.out}. Let's now compare the three objdump commands. 
-
-  \begin{example}[Symbol Table]
-    We can see a couple things. 
-    \begin{enumerate}
-      \item In \texttt{main.o}, the numbers on the left represents the address of the symbol (all 0s since we haven't linked yet and their final addresses aren't known), while the addresses in \texttt{a.out} are all known. 
-      \item In \texttt{main.o}, the \texttt{sum} function is an external symbol and is undefined. The linker will need to know where this is. In \texttt{a.out}, note that the \texttt{sum} function is now a global symbol and is defined, along with the size. We can now see that all the final addresses of each symbol is known, along with their sizes, and the \texttt{UND} marker is now gone as well. 
-      \item Only the size of the global variable is known in \texttt{main.o} since we have defined it within the code. However, in \texttt{a.out}, the linker has now assigned an address to it.
-      \item To see the size in bytes of the array, you can look at the address and how much size it takes up. 
-    \end{enumerate}
+    Now, once you have gotten the object file, you cannot simply open it up in a text edit as it is in machine code. To actually interpret anything from it, you must \textbf{disassmble} it, meaning that you convert the machine code back into assembly code. The main software that you use to do this is \texttt{objdump}. Let's take a look again at the object file. 
 
     \begin{figure}[H]
       \centering 
       \begin{lstlisting}
-        main.o:     file format elf64-x86-64
+        Disassembly of section .text:
 
-        SYMBOL TABLE:
-        0000000000000000 l    df *ABS*	            0000000000000000 file1.c
-        0000000000000000 l    d  .text	            0000000000000000 .text
-        0000000000000000 l    d  .data	            0000000000000000 .data
-        0000000000000000 l    d  .bss	               0000000000000000 .bss
-        0000000000000000 l    d  .note.GNU-stack	   0000000000000000 .note.GNU-stack
-        0000000000000000 l    d  .note.gnu.property	0000000000000000 .note.gnu.property
-        0000000000000000 l    d  .eh_frame	         0000000000000000 .eh_frame
-        0000000000000000 l    d  .comment	         0000000000000000 .comment
-        0000000000000000 g     O .data	            0000000000000008 array
-        0000000000000000 g     F .text	            0000000000000025 main
-        0000000000000000         *UND*	            0000000000000000 _GLOBAL_OFFSET_TABLE_
-        0000000000000000         *UND*	            0000000000000000 sumjA
+        0000000000000000 <add>:
+           0:	f3 0f 1e fa          	endbr64 
+           4:	55                   	push   %rbp
+           5:	48 89 e5             	mov    %rsp,%rbp
+           8:	89 7d fc             	mov    %edi,-0x4(%rbp)
+           b:	89 75 f8             	mov    %esi,-0x8(%rbp)
+           e:	8b 55 fc             	mov    -0x4(%rbp),%edx
+          11:	8b 45 f8             	mov    -0x8(%rbp),%eax
+          14:	01 d0                	add    %edx,%eax
+          16:	5d                   	pop    %rbp
+          17:	c3                   	retq   
+
+        0000000000000018 <main>:
+          18:	f3 0f 1e fa          	endbr64 
+          1c:	55                   	push   %rbp
+          1d:	48 89 e5             	mov    %rsp,%rbp
+          20:	48 83 ec 10          	sub    $0x10,%rsp
+          24:	c7 45 f4 03 00 00 00 	movl   $0x3,-0xc(%rbp)
+          2b:	c7 45 f8 05 00 00 00 	movl   $0x5,-0x8(%rbp)
+          32:	8b 55 f8             	mov    -0x8(%rbp),%edx
+          35:	8b 45 f4             	mov    -0xc(%rbp),%eax
+          38:	89 d6                	mov    %edx,%esi
+          3a:	89 c7                	mov    %eax,%edi
+          3c:	e8 00 00 00 00       	callq  41 <main+0x29>
+          41:	89 45 fc             	mov    %eax,-0x4(%rbp)
+          44:	b8 00 00 00 00       	mov    $0x0,%eax
+          49:	c9                   	leaveq 
+          4a:	c3                   	retq  
       \end{lstlisting}
-      \caption{Symbol table for \texttt{main.o}. } 
-      \label{fig:table_main}
+      \caption{Disassembly of the object file back into assembly using \texttt{objdump -d main.o}. }
+      \label{fig:disassembly_example-2}
     \end{figure}
 
-    \begin{figure}[H]
-      \centering 
+    Let's note a couple things. 
+    \begin{enumerate}
+      \item The functions are organized by their starting address followed by their name, e.g.  
+        \begin{lstlisting}
+          0000000000000000 <add>:
+        \end{lstlisting}
+        Within each function, each line of assembly code is shown. To find the total memory the function takes up, you can just take the address of the last line and subtract it from the address of the first line. Or you can literally count the number of bytes in each line (remember 2 hex is 1 byte). 
+      \item The line that calls the \texttt{add} function is \texttt{0x0} (\texttt{00 00 00 00}), with is the \textit{relative target address} intended to be filled in by the linker. The actual assembly line just says that the function continues on to the next line at address \texttt{0x41}. This is because the object file is not aware of where it will be loaded into memory, and all lines with this opcode \texttt{e8 00 00 00 00} is intended to be filled in by the linker. 
+      \item Look at address \texttt{0x3c}. It is calling another function, but the values starting from address \texttt{0x3d} is \texttt{00 00 00 00}, which is not the actual address of the function but also a dummy address. This is because the object file is not aware of where the function is located in memory.
+    \end{enumerate}
+
+  \subsection{Linking Stage and Relocation}
+
+    \subsubsection{Relocation}
+
+      If the object file is already in machine code, then why do we need a separate linking stage that converts \texttt{main.o} into \texttt{main} the binary? The reason is stated in the previous section: because the object files uses relative memory addressing and does not know about which memory is accessed in other object files, we need to \textbf{relocate} the symbols in the object file to their proper addresses. So how does the linker actually know how to relocate these symbols into their proper addresses? It uses the \textit{relocation table}, which contains information about the addresses that need to be modified in the object file. 
+
+      \begin{figure}[H]
+        \centering 
+        \begin{lstlisting}
+          main.o:     file format elf64-x86-64
+
+          RELOCATION RECORDS FOR [.text]:
+          OFFSET           TYPE              VALUE 
+          000000000000003d R_X86_64_PLT32    add-0x0000000000000004
+
+
+          RELOCATION RECORDS FOR [.eh_frame]:
+          OFFSET           TYPE              VALUE 
+          0000000000000020 R_X86_64_PC32     .text
+          0000000000000040 R_X86_64_PC32     .text+0x0000000000000018
+        \end{lstlisting}
+        \caption{Relocation table for \texttt{main.o} object file. } 
+        \label{fig:relocation_table}
+      \end{figure}
+
+      Let's talk about how to actually read this table. We can look at the first entry, which shows an offset of \texttt{0x3d}. This represents the offset from the beginning of the \texttt{.text} section where the relocation needs to be applied. Looking back at the disassembly file, this address \texttt{0x3d} is precisely where there was a dummy address \texttt{00 00 00 00}. We want to replace this with the actual address defined in the \texttt{VALUE} column, which is \texttt{add} (with a slight offset of \texttt{0x4}, which is typically used to compensate for the PC-relative addressing mode where the CPU might be adding the length of the instruction to the program counter (PC) before the relocation value is applied). The type of relocation won't be covered in our scope. Let's go through each relocation entry: 
+
+      \begin{enumerate}
+        \item The first entry is for the \texttt{add} function. If we look at the disassembly, within the \texttt{main} function, the address \texttt{0x3d} is where the \texttt{add} function is called. The linker will replace the dummy address with the actual address of the \texttt{add} function.
+        \begin{lstlisting}
+          Disassembly of section .text:
+
+          0000000000000000 <add>:
+             0:	f3 0f 1e fa          	endbr64 
+             4:	55                   	push   %rbp
+             5:	48 89 e5             	mov    %rsp,%rbp
+             8:	89 7d fc             	mov    %edi,-0x4(%rbp)
+             b:	89 75 f8             	mov    %esi,-0x8(%rbp)
+             e:	8b 55 fc             	mov    -0x4(%rbp),%edx
+            11:	8b 45 f8             	mov    -0x8(%rbp),%eax
+            14:	01 d0                	add    %edx,%eax
+            16:	5d                   	pop    %rbp
+            17:	c3                   	retq   
+
+          0000000000000018 <main>:
+            18:	f3 0f 1e fa          	endbr64 
+            1c:	55                   	push   %rbp
+            1d:	48 89 e5             	mov    %rsp,%rbp
+            20:	48 83 ec 10          	sub    $0x10,%rsp
+            24:	c7 45 f4 03 00 00 00 	movl   $0x3,-0xc(%rbp)
+            2b:	c7 45 f8 05 00 00 00 	movl   $0x5,-0x8(%rbp)
+            32:	8b 55 f8             	mov    -0x8(%rbp),%edx
+            35:	8b 45 f4             	mov    -0xc(%rbp),%eax
+            38:	89 d6                	mov    %edx,%esi
+            3a:	89 c7                	mov    %eax,%edi
+            3c:	e8 00 00 00 00       	callq  41 <main+0x29>     <-- here
+            41:	89 45 fc             	mov    %eax,-0x4(%rbp)
+            44:	b8 00 00 00 00       	mov    $0x0,%eax
+            49:	c9                   	leaveq 
+            4a:	c3                   	retq  
+        \end{lstlisting}
+        \item The second and third entries are for the \texttt{.eh\_frame} section. We can see that the offset of \texttt{0x20} and \texttt{0x40} represents the following lines below. They also have dummy addresses that need to be replaced. They are replaced by the address \texttt{.text}, which represents the first address in the \texttt{.text} section, i.e. the address of the \texttt{add} function, and the address \texttt{.text+0x18}, which represents the address of the \texttt{main} function.
+        \begin{lstlisting}
+          Disassembly of section .eh_frame:
+
+          0000000000000000 <.eh_frame>:
+             0:	14 00                	adc    $0x0,%al
+             2:	00 00                	add    %al,(%rax)
+             4:	00 00                	add    %al,(%rax)
+             6:	00 00                	add    %al,(%rax)
+             8:	01 7a 52             	add    %edi,0x52(%rdx)
+             b:	00 01                	add    %al,(%rcx)
+             d:	78 10                	js     1f <.eh_frame+0x1f>
+             f:	01 1b                	add    %ebx,(%rbx)
+            11:	0c 07                	or     $0x7,%al
+            13:	08 90 01 00 00 1c    	or     %dl,0x1c000001(%rax)
+            19:	00 00                	add    %al,(%rax)
+            1b:	00 1c 00             	add    %bl,(%rax,%rax,1)
+            1e:	00 00                	add    %al,(%rax)
+            20:	00 00                	add    %al,(%rax)     <-- here for 2nd entry
+            22:	00 00                	add    %al,(%rax)
+            24:	18 00                	sbb    %al,(%rax)
+            26:	00 00                	add    %al,(%rax)
+            28:	00 45 0e             	add    %al,0xe(%rbp)
+            2b:	10 86 02 43 0d 06    	adc    %al,0x60d4302(%rsi)
+            31:	4f 0c 07             	rex.WRXB or $0x7,%al
+            34:	08 00                	or     %al,(%rax)
+            36:	00 00                	add    %al,(%rax)
+            38:	1c 00                	sbb    $0x0,%al
+            3a:	00 00                	add    %al,(%rax)
+            3c:	3c 00                	cmp    $0x0,%al
+            3e:	00 00                	add    %al,(%rax)
+            40:	00 00                	add    %al,(%rax)     <-- here for 3rd entry
+            42:	00 00                	add    %al,(%rax)
+            44:	33 00                	xor    (%rax),%eax
+        \end{lstlisting}
+      \end{enumerate}
+      Therefore, we can see that the object file generates a ``skeleton'' code that contains all the instructions, with some dummy addresses that need to be replaced. The relocation table $T$ tells us exactly where these dummy addresses are in the code and what they need to be replaced with. Therefore, if we want to call a function \texttt{printf} that is in the text section at address \texttt{0x30}, then we can actually look at the value at \texttt{T[30]} to see where the actual address is. At this point, note that we still do not know the actual memory address of \texttt{add}. This is determined by the linker. 
+
+    \subsubsection{Linking with One Object File}
+
+      Now let's see what happens once we link the object file \texttt{main.o} into the final executable \texttt{main}. If we disassemble it, then we can see a few things: 
+      \begin{enumerate}
+        \item The addresses of all the functions have been changed. \texttt{add} starts on address \texttt{0x1129} rather than \texttt{0x0} and \texttt{main} starts on address \texttt{0x1141} rather than \texttt{0x18}. 
+        \item The dummy address \texttt{0x0} of the call to function \texttt{add} in \texttt{main} have been replaced with the actual addresses \texttt{0x1129}. 
+      \end{enumerate}
+
       \begin{lstlisting}
-          a.out:     file format elf64-x86-64
+        0000000000001129 <add>:
+          1129:	f3 0f 1e fa          	endbr64 
+          112d:	55                   	push   %rbp
+          112e:	48 89 e5             	mov    %rsp,%rbp
+          1131:	89 7d fc             	mov    %edi,-0x4(%rbp)
+          1134:	89 75 f8             	mov    %esi,-0x8(%rbp)
+          1137:	8b 55 fc             	mov    -0x4(%rbp),%edx
+          113a:	8b 45 f8             	mov    -0x8(%rbp),%eax
+          113d:	01 d0                	add    %edx,%eax
+          113f:	5d                   	pop    %rbp
+          1140:	c3                   	retq   
+
+        0000000000001141 <main>:
+          1141:	f3 0f 1e fa          	endbr64 
+          1145:	55                   	push   %rbp
+          1146:	48 89 e5             	mov    %rsp,%rbp
+          1149:	48 83 ec 10          	sub    $0x10,%rsp
+          114d:	c7 45 f4 03 00 00 00 	movl   $0x3,-0xc(%rbp)
+          1154:	c7 45 f8 05 00 00 00 	movl   $0x5,-0x8(%rbp)
+          115b:	8b 55 f8             	mov    -0x8(%rbp),%edx
+          115e:	8b 45 f4             	mov    -0xc(%rbp),%eax
+          1161:	89 d6                	mov    %edx,%esi
+          1163:	89 c7                	mov    %eax,%edi
+          1165:	e8 bf ff ff ff       	callq  1129 <add>     <-- replaced with actual address
+          116a:	89 45 fc             	mov    %eax,-0x4(%rbp)
+          116d:	b8 00 00 00 00       	mov    $0x0,%eax
+          1172:	c9                   	leaveq 
+          1173:	c3                   	retq   
+          1174:	66 2e 0f 1f 84 00 00 	nopw   %cs:0x0(%rax,%rax,1)
+          117b:	00 00 00 
+          117e:	66 90                	xchg   %ax,%ax 
+      \end{lstlisting}
+
+    \subsubsection{Global vs External Symbols}
+
+      So far, we have talked about using the \texttt{\#include} as a precompiling command that says ``put all the text from this other file right here.'' Take the following code for instance. 
+
+      \begin{figure}[H]
+        \centering 
+        \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          // file1.c 
+          #include "sum.h" 
+
+          int array[2] = {1, 2}; 
+
+          int main() {
+            int val = sum(array, 2); 
+            return val; 
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          // sum.h 
+          int sum(int *a, int n) {
+            int i, s = 0; 
+            for (i = 0; i < n; i++) {
+              s += a[i]; 
+            }
+            return s; 
+          }
+          .
+        \end{lstlisting}
+        \end{minipage}
+        \caption{Including a header file in \texttt{file1.c} to import functions and variables.}
+        \label{fig:include_example}
+      \end{figure}
+
+      However, there is another way to do this. We can use \textit{external symbols} to access. Rather than simply copying and pasting the code into the file, the \texttt{extern} keyword marks that the variable or function exists externally to this source file and does not allocate storage for it. 
+
+      \begin{figure}[H]
+        \centering 
+        \noindent\begin{minipage}{.50\textwidth}
+        \begin{lstlisting}[]{Code}
+          // main.c
+          extern int sum(int *array, int n); 
+
+          int array[2] = {1, 2};
+
+          int main(void) {
+            int val = sum(array, 2); 
+            return val; 
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          // sum.c
+          int sum(int *array, int n) {
+            int i, s = 0 ; 
+            for (int i = 0; i < n; i++) {
+                s += array[i];
+              }
+            return s;
+          }
+          .
+        \end{lstlisting}
+        \end{minipage}
+        \caption{Using external symbols to access functions and variables.} 
+        \label{fig:external_symbols_example}
+      \end{figure}
+      
+      One is not a replacement for the other, so what advantage does this have? Well, as we will see, if we have multiple object (source) files, say \texttt{A.c}, \texttt{B.c}, and \texttt{C.c}, that need to reference the same function or variable \texttt{var} in \texttt{ext.c}, then how would we do this? If we simply put \texttt{\#include "ext.h"} in all the files, then we would have multiple copies of the same code. This means that for each source there would be its own copy of \texttt{var} created and the linker would be unable to resolve this symbol. However, if we put \texttt{extern int var; } at the top of each source file, then only one copy of \texttt{var} would be created (in \texttt{ext.c}), which creates a single instance of \texttt{var} for the linker to resolve. \footnote{https://stackoverflow.com/questions/1330114/whats-the-difference-between-using-extern-and-including-header-files}
+
+      Therefore, there are three types of symbols (variables, functions, etc.) that we need to consider: 
+      \begin{enumerate}
+        \item \textbf{Global symbols} that are defined in the global scope of a C file. 
+        \item \textbf{Local symbols} that are defined in the local scope of a C file, e.g. within functions, loops, etc. 
+        \item \textbf{External symbols} that are defined in another C file referenced by the \texttt{extern} keyword.
+      \end{enumerate}
+      Linkers will only know about global and external symbols, and will have no idea that any local symbols exist. With the information of these two types of symbols and the relocation tables of each object file, the linker can then resolve the addresses of all the symbols in the final binary. 
+
+      The two types of symbols that the linker will know about are the global and external symbols. We can see that external symbols can be problematic if the object files don't know about each other. 
+
+      \begin{example}[Global and Local Symbols]
+        Consider the following code where the left file includes the right file. 
+
+        \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          // main.c 
+          #include "sum.h" 
+
+          int array[2] = {1, 2}; 
+
+          int main() {
+            int val = sum(array, 2); 
+            return val; 
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          // sum.h 
+          int sum(int *a, int n) {
+            int i, s = 0; 
+            for (i = 0; i < n; i++) {
+              s += a[i]; 
+            }
+            return s; 
+          }
+          .
+        \end{lstlisting}
+        \end{minipage}
+        In the left file, 
+        \begin{enumerate}
+          \item We define the global symbol \texttt{main()}. 
+          \item Inside main, \texttt{val} is a local symbol so the linker knows nothing about it. 
+          \item The \texttt{sum} function is an external symbol, and it references a global symbol that's defined in \texttt{sum} the right file. 
+          \item The \texttt{array} is a global symbol that is defined in the right file. 
+        \end{enumerate}
+        In the right file, the linker knows nothing of the local symbols \texttt{i} or \texttt{s}. 
+      \end{example}
+
+    \subsubsection{Linking with Multiple Object Files}
+
+      We have seen the case of linking when we simply have one object file. The relocation was simple since the \texttt{.text} section is contiguous and so we needed simple translations of addresses to relocate \texttt{add} and \texttt{main}, along with whatever other sections and files. Now let's consider the case where we have multiple object files.
+
+      \noindent\begin{minipage}{.50\textwidth}
+      \begin{lstlisting}[]{Code}
+        // main.c
+        extern int sum(int *array, int n); 
+
+        int array[2] = {1, 2};
+
+        int main(void) {
+          int val = sum(array, 2); 
+          return val; 
+        }
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        // sum.c
+        int sum(int *array, int n) {
+          int i, s = 0 ; 
+          for (int i = 0; i < n; i++) {
+              s += array[i];
+            }
+          return s;
+        }
+        .
+      \end{lstlisting}
+      \end{minipage}
+
+      Now they have their own object files shown below, where I also put the source code lines to make it easier to parse. Note that again, in \texttt{main.o} the call to function \texttt{sum} is a dummy address that needs to be replaced. Furthermore, in both \texttt{main.o} and \texttt{sum.o}, the \texttt{.text} section is at address \texttt{0x0}, where the addresses of the function \texttt{main} and \texttt{sum} are, respectively. This causes an overload in the address space. 
+
+      To demonstrate what happens, we look at how the disassembly, symbol tables, and relocation tables are updated before (with the object files) and after (in the binary) linking.  
+
+      \begin{example}[Disassembly of Object Files]
+        In here, note that both the \texttt{array} and \texttt{sum} are not initialized and are therefore set to dummy addresses. 
+        \begin{lstlisting}
+          main.o:     file format elf64-x86-64
+          Disassembly of section .text:
+
+          0000000000000000 <main>:
+          extern int sum(int *array, int n); 
+
+          int array[2] = {1, 2}; 
+
+          int main(void) {
+             0:	f3 0f 1e fa          	endbr64 
+             4:	55                   	push   %rbp
+             5:	48 89 e5             	mov    %rsp,%rbp
+             8:	48 83 ec 10          	sub    $0x10,%rsp
+            int val = sum(array, 2); 
+             c:	be 02 00 00 00       	mov    $0x2,%esi
+            11:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 18 <main+0x18>  <-- dummy address
+            18:	e8 00 00 00 00       	callq  1d <main+0x1d>                          <-- dummy address
+            1d:	89 45 fc             	mov    %eax,-0x4(%rbp)
+            return val; 
+            20:	8b 45 fc             	mov    -0x4(%rbp),%eax
+          }
+            23:	c9                   	leaveq 
+            24:	c3                   	retq  
+        \end{lstlisting}
+        \begin{lstlisting}
+          sum.o:     file format elf64-x86-64
+          Disassembly of section .text:
+
+          0000000000000000 <sum>:
+          int sum(int *array, int n) {
+             0:	f3 0f 1e fa          	endbr64 
+             4:	55                   	push   %rbp
+             5:	48 89 e5             	mov    %rsp,%rbp
+             8:	48 89 7d e8          	mov    %rdi,-0x18(%rbp)
+             c:	89 75 e4             	mov    %esi,-0x1c(%rbp)
+            int i, s = 0; 
+             f:	c7 45 f8 00 00 00 00 	movl   $0x0,-0x8(%rbp)
+            for (int i = 0; i < n; i++) {
+            16:	c7 45 fc 00 00 00 00 	movl   $0x0,-0x4(%rbp)
+            1d:	eb 1d                	jmp    3c <sum+0x3c>
+              s += array[i]; 
+            1f:	8b 45 fc             	mov    -0x4(%rbp),%eax
+            22:	48 98                	cltq   
+            24:	48 8d 14 85 00 00 00 	lea    0x0(,%rax,4),%rdx
+            2b:	00 
+            2c:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+            30:	48 01 d0             	add    %rdx,%rax
+            33:	8b 00                	mov    (%rax),%eax
+            35:	01 45 f8             	add    %eax,-0x8(%rbp)
+            for (int i = 0; i < n; i++) {
+            38:	83 45 fc 01          	addl   $0x1,-0x4(%rbp)
+            3c:	8b 45 fc             	mov    -0x4(%rbp),%eax
+            3f:	3b 45 e4             	cmp    -0x1c(%rbp),%eax
+            42:	7c db                	jl     1f <sum+0x1f>
+            }
+            return s; 
+            44:	8b 45 f8             	mov    -0x8(%rbp),%eax
+          }
+            47:	5d                   	pop    %rbp
+            48:	c3                   	retq  
+        \end{lstlisting}
+        \begin{enumerate}
+          \item In \texttt{main.o} at address \texttt{0x0}, we have the \texttt{main} function and this is because everything is stored relatively to the start of main. Once we have linked, \texttt{main} shows the absolute addresses of all the instructions. 
+          \item In instruction 11 in \texttt{main.o} we can see that \texttt{48 8d 3d} is the \texttt{lea} instruction, which is the same as that in \texttt{main}. However, the address that is was acting on is \texttt{0x0} since the array has not been initialized yet. We can see in \texttt{main} that the address is now \texttt{0x00002ecf}. 
+          \item The comment in \texttt{main} indicates that the final relocated address used to access the \texttt{array} is \texttt{0x4010}. To see relocated addresses in general, just look for the comments and shift them accordingly. 
+        \end{enumerate}
+        \begin{lstlisting}
+          main:     file format elf64-x86-64
+
+          0000000000001129 <main>:
+              1129:	f3 0f 1e fa          	endbr64 
+              112d:	55                   	push   %rbp
+              112e:	48 89 e5             	mov    %rsp,%rbp
+              1131:	48 83 ec 10          	sub    $0x10,%rsp
+              1135:	be 02 00 00 00       	mov    $0x2,%esi
+              113a:	48 8d 3d cf 2e 00 00 	lea    0x2ecf(%rip),%rdi        # 4010 <array>
+              1141:	e8 08 00 00 00       	callq  114e <sum>
+              1146:	89 45 fc             	mov    %eax,-0x4(%rbp)
+              1149:	8b 45 fc             	mov    -0x4(%rbp),%eax
+              114c:	c9                   	leaveq 
+              114d:	c3                   	retq   
+
+          000000000000114e <sum>:
+              114e:	f3 0f 1e fa          	endbr64 
+              1152:	55                   	push   %rbp
+              1153:	48 89 e5             	mov    %rsp,%rbp
+              1156:	48 89 7d e8          	mov    %rdi,-0x18(%rbp)
+              115a:	89 75 e4             	mov    %esi,-0x1c(%rbp) 
+              ...
+        \end{lstlisting}
+      \end{example}
+
+      \begin{example}[Symbol Tables of Object Files]
+        Let's take a look at the symbol table of each file as well. Again, all of the addresses of each symbol are 0s since they are using relative addressing. The \texttt{array} and \texttt{main} are global symbols since they reside in the global scope, while the \texttt{sum} function is an external and undefined symbol.
+        \begin{lstlisting}
+          main.o:     file format elf64-x86-64
+
+          SYMBOL TABLE:
+          0000000000000000 l    df *ABS*	0000000000000000 main.c
+          0000000000000000 l    d  .text	0000000000000000 .text
+          0000000000000000 l    d  .data	0000000000000000 .data
+          0000000000000000 l    d  .bss	0000000000000000 .bss
+          0000000000000000 l    d  .note.GNU-stack	0000000000000000 .note.GNU-stack
+          0000000000000000 l    d  .note.gnu.property	0000000000000000 .note.gnu.property
+          0000000000000000 l    d  .eh_frame	0000000000000000 .eh_frame
+          0000000000000000 l    d  .comment	0000000000000000 .comment
+          0000000000000000 g     O .data	0000000000000008 array
+          0000000000000000 g     F .text	0000000000000025 main
+          0000000000000000         *UND*	0000000000000000 _GLOBAL_OFFSET_TABLE_
+          0000000000000000         *UND*	0000000000000000 sum
+        \end{lstlisting}
+        \begin{lstlisting}
+          sum.o:     file format elf64-x86-64
+
+          SYMBOL TABLE:
+          0000000000000000 l    df *ABS*	0000000000000000 sum.c
+          0000000000000000 l    d  .text	0000000000000000 .text
+          0000000000000000 l    d  .data	0000000000000000 .data
+          0000000000000000 l    d  .bss	0000000000000000 .bss
+          0000000000000000 l    d  .note.GNU-stack	0000000000000000 .note.GNU-stack
+          0000000000000000 l    d  .note.gnu.property	0000000000000000 .note.gnu.property
+          0000000000000000 l    d  .eh_frame	0000000000000000 .eh_frame
+          0000000000000000 l    d  .comment	0000000000000000 .comment
+          0000000000000000 g     F .text	0000000000000049 sum
+        \end{lstlisting}
+        When we have the linked binary, note a few things. 
+        \begin{enumerate}
+          \item In \texttt{main.o}, the numbers on the left represents the address of the symbol (all 0s since we haven't linked yet and their final addresses aren't known), while the addresses in \texttt{a.out} are all known. 
+          \item In \texttt{main.o}, the \texttt{sum} function is an external symbol and is undefined. The linker will need to know where this is. In \texttt{main}, note that the \texttt{sum} function is now a global symbol and is defined, along with the size. We can now see that all the final addresses of each symbol is known, along with their sizes, and the \texttt{UND} marker is now gone as well. 
+          \item Only the size of the global variable is known in \texttt{main.o} since we have defined it within the code. However, in \texttt{main}, the linker has now assigned an address to it.
+          \item To see the size in bytes of the array, you can look at the address and how much size it takes up. 
+        \end{enumerate}
+        \begin{lstlisting}
+          main:     file format elf64-x86-64
 
           SYMBOL TABLE:
           ...
@@ -2798,114 +3957,117 @@ We first go over some basic theoretical properties of basic data types, focusing
           0000000000001129 g     F .text	  0000000000000025              main
           0000000000004018 g     O .data	  0000000000000000              .hidden __TMC_END__
           ...
-      \end{lstlisting}
-      \caption{Symbol table for \texttt{a.out}. } 
-      \label{fig:table_aout}
-    \end{figure}
-  \end{example}
+        \end{lstlisting}
+      \end{example}
 
-  \begin{example}[Relocation Table]
-    We can see a couple things. Namely, there is nothing to be relocated in \texttt{a.out} since everything has been relocated already by the linker. So let's focus on the relocation for \texttt{main.o}. In here, we can see that in the \texttt{.text} section, there are two things being relocated: 
-    \begin{enumerate}
-      \item The reference to the global variable \texttt{array} is being relocated. In this object file, we look at the offset \texttt{0x14} from the beginning of the \texttt{.text} section, which contains the instruction that needs to access \texttt{array}. This relocation record tells the linker to calculate the 32-bit offset from the instruction (at offset \texttt{0x14}) to the start of \texttt{array}, then adjust it by subtracting 4 bytes. 
+      \begin{example}[Relocation Tables]
+        Ignoring the \texttt{.eh\_frame}, in \texttt{main.o} the relocation table contains entries for \texttt{array} and \texttt{sum} that must be relocated. 
+        \begin{lstlisting}
+          main.o:     file format elf64-x86-64
 
-      \item The reference to the \texttt{sum} function is being relocated. In this object file, we look at the offset \texttt{0x19} from the beginning of the \texttt{.text} section, which contains the instruction that needs to access \texttt{sum}. This relocation record tells the linker to calculate the 32-bit offset from the instruction (at offset \texttt{0x19}) to the start of the \texttt{.plt} section, then adjust it by subtracting 4 bytes.
-    \end{enumerate}
+          RELOCATION RECORDS FOR [.text]:
+          OFFSET           TYPE              VALUE 
+          0000000000000014 R_X86_64_PC32     array-0x0000000000000004
+          0000000000000019 R_X86_64_PLT32    sum-0x0000000000000004
 
-    \begin{figure}[H]
-      \centering 
+          RELOCATION RECORDS FOR [.eh_frame]:
+          OFFSET           TYPE              VALUE 
+          0000000000000020 R_X86_64_PC32     .text 
+        \end{lstlisting}
+        \begin{lstlisting}
+          sum.o:     file format elf64-x86-64
+
+          RELOCATION RECORDS FOR [.eh_frame]:
+          OFFSET           TYPE              VALUE 
+          0000000000000020 R_X86_64_PC32     .text
+        \end{lstlisting}
+        We can see a couple things. Namely, there is nothing to be relocated in \texttt{a.out} since everything has been relocated already by the linker. So let's focus on the relocation for \texttt{main.o}. In here, we can see that in the \texttt{.text} section, there are two things being relocated: 
+        \begin{enumerate}
+          \item The reference to the global variable \texttt{array} is being relocated. In this object file, we look at the offset \texttt{0x14} from the beginning of the \texttt{.text} section, which contains the instruction that needs to access \texttt{array}. This relocation record tells the linker to calculate the 32-bit offset from the instruction (at offset \texttt{0x14}) to the start of \texttt{array}, then adjust it by subtracting 4 bytes. 
+
+          \item The reference to the \texttt{sum} function is being relocated. In this object file, we look at the offset \texttt{0x19} from the beginning of the \texttt{.text} section, which contains the instruction that needs to access \texttt{sum}. This relocation record tells the linker to calculate the 32-bit offset from the instruction (at offset \texttt{0x19}) to the start of the \texttt{.plt} section, then adjust it by subtracting 4 bytes.
+        \end{enumerate}
+        \begin{lstlisting}
+          main:     file format elf64-x86-64 
+        \end{lstlisting}
+      \end{example}
+       
+  \subsection{Compiler Optimization}
+
+    We have learned the complete process of compilers, but compilers can be a little smarter than just translating code line by line. They also come with flags that can optimize the code. 
+
+    \begin{definition}[gcc Optimization]
+      The gcc compiler can optimize the code with the \texttt{-O} flag. To run level 1 optimization, we can write 
       \begin{lstlisting}
-        main.o:     file format elf64-x86-64
-
-        RELOCATION RECORDS FOR [.text]:
-        OFFSET           TYPE              VALUE 
-        0000000000000014 R_X86_64_PC32     array-0x0000000000000004
-        0000000000000019 R_X86_64_PLT32    sum-0x0000000000000004
-
-        RELOCATION RECORDS FOR [.eh_frame]:
-        OFFSET           TYPE              VALUE 
-        0000000000000020 R_X86_64_PC32     .text
+        gcc -O1 -o main main.c
       \end{lstlisting}
-      \caption{Relocation table for \texttt{main.o}. }
-      \label{fig:relocation_main}
-    \end{figure}
+      The level of optimizations are listed: 
+      \begin{enumerate}
+        \item Level 1 perform basic optimizations to reduce code size and execution time while attempting to keep compile time to a minimum. 
+        \item Level 2 optimizations include most of GCC’s implemented optimizations that do not involve a space-performance trade-off. 
+        \item Level 3 performs additional optimizations (such as function inlining) and may cause the program to take significantly longer to compile.
+      \end{enumerate}
+    \end{definition}
 
-    \begin{figure}[H]
-      \centering 
+    Let's see what common implementation are. 
+
+    \begin{definition}[Constant Folding]
+      Constants in the code are evaluated at compile time to reduce the number of resulting instructions. For example, in the code snippet that follows, macro expansion replaces the statement \texttt{int debug = N-5} with \texttt{int debug = 5-5}. Constant folding then updates this statement to \texttt{int debug = 0}.
       \begin{lstlisting}
-        a.out:     file format elf64-x86-64
+        #define N 5
+        int debug = N - 5; //constant folding changes this statement to debug = 0; 
       \end{lstlisting}
-      \caption{Relocation table for \texttt{a.out}. }
-      \label{fig:relocation_aout}
-    \end{figure}
-  \end{example}
+    \end{definition}
     
-  \begin{example}[Disassembly]
-    We can see a couple things. 
-    \begin{enumerate}
-      \item In \texttt{main.o} at address \texttt{0x0}, we have the \texttt{main} function and this is because everything is stored relatively to the start of main. Once we have linked, \texttt{a.out} shows the absolute addresses of all the instructions. 
-      \item In instruction 11 in \texttt{main.o} we can see that \texttt{48 8d 3d} is the \texttt{lea} instruction, which is the same as that in \texttt{a.out}. However, the address that is was acting on is \texttt{0x0} since the array has not been initialized yet. We can see in \texttt{a.out} that the address is now \texttt{0x00002ecf}. 
-      \item The comment in \texttt{a.out} indicates that the final relocated address used to access the \texttt{array} is \texttt{0x4010}. To see relocated addresses in general, just look for the comments and shift them accordingly. 
-    \end{enumerate}
-
-    \begin{figure}[H]
-      \centering 
+    \begin{definition}[Constant Propagation]
+      Constant propagation replaces variables with a constant value if such a value is known at compile time. Consider the following code segment, where the \texttt{if (debug)} statement is replaced with \texttt{if (0)}.
       \begin{lstlisting}
-        file1.o:     file format elf64-x86-64
+        int debug = 0;
 
-        Disassembly of section .text:
-        0000000000000000 <main>:
-           0:	f3 0f 1e fa          	endbr64 
-           4:	55                   	push   %rbp
-           5:	48 89 e5             	mov    %rsp,%rbp
-           8:	48 83 ec 10          	sub    $0x10,%rsp
-           c:	be 02 00 00 00       	mov    $0x2,%esi
-          11:	48 8d 3d 00 00 00 00 	lea    0x0(%rip),%rdi        # 18 <main+0x18>
-          18:	e8 00 00 00 00       	callq  1d <main+0x1d>
-          1d:	89 45 fc             	mov    %eax,-0x4(%rbp)
-          20:	8b 45 fc             	mov    -0x4(%rbp),%eax
-          23:	c9                   	leaveq 
-          24:	c3                   	retq 
+        int doubleSum(int *array, int length){
+            int i, total = 0;
+            for (i = 0; i < length; i++){
+                total += array[i];
+                if (debug) {
+                    printf("array[%d] is: %d\n", i, array[i]);
+                }
+            }
+            return 2 * total;
+        }
       \end{lstlisting}
-      \caption{Disassembly of \texttt{main.o}. }
-      \label{fig:dissasembly_main}
-    \end{figure}
+    \end{definition}
 
-    \begin{figure}[H]
-      \centering 
+    \begin{definition}[Dead Code Elimination]
+      Dead code elimination removes code that is never executed. For example, in the code snippet that follows, the \texttt{if (debug)} statement and its body is removed since the value of \texttt{debug} is known to be 0.
       \begin{lstlisting}
-        ...
-        0000000000001129 <main>:
-          1129:	f3 0f 1e fa          	endbr64 
-          112d:	55                   	push   %rbp
-          112e:	48 89 e5             	mov    %rsp,%rbp
-          1131:	48 83 ec 10          	sub    $0x10,%rsp
-          1135:	be 02 00 00 00       	mov    $0x2,%esi
-          113a:	48 8d 3d cf 2e 00 00 	lea    0x2ecf(%rip),%rdi        # 4010 <array>
-          1141:	e8 08 00 00 00       	callq  114e <sum>
-          1146:	89 45 fc             	mov    %eax,-0x4(%rbp)
-          1149:	8b 45 fc             	mov    -0x4(%rbp),%eax
-          114c:	c9                   	leaveq 
-          114d:	c3                   	retq   
-        ...
+        int debug = 0;
+
+        int doubleSum(int *array, int length){
+            int i, total = 0;
+            for (i = 0; i < length; i++){
+                total += array[i];
+                if (debug) {                                      // remove 
+                    printf("array[%d] is: %d\n", i, array[i]);    // remove 
+                }                                                 // remove
+            }
+            return 2 * total;
+        }
       \end{lstlisting}
-      \caption{Disassembly of \texttt{a.out}. }
-      \label{fig:dissasembly_aout}
-    \end{figure}
-  \end{example}
+    \end{definition}
 
-  We can glean a lot of information from this. To see the offset of array, find in the symbol table the address of both the \texttt{.data} and \texttt{.array} and subtract their difference. 
+    \begin{definition}[Simplifying Expressions]
+      Some instructions are more expensive than others, so things like 
+      \begin{enumerate}
+        \item \texttt{2 * total} may be replaced with \texttt{total + total} because addition instruction is less expensive than multiplication. 
+        \item \texttt{total * 8} may be replaced with \texttt{total << 3} 
+        \item \texttt{total \% 8} may be replaced with \texttt{total \& 7}
+      \end{enumerate}
+    \end{definition}
 
+    Note that these optimization techniques are in no way a guarantee that the code will run faster since there are many factors and always edge cases (for example, maybe some localities are lost). Furthermore, compiler optimization will never be able to improve runtime complexity (e.g. by replacing bubble sort with quicksort). 
 
-  
-  \begin{enumerate}
-    \item The address of the main function is 0, which is odd at first, but the object files work with \textit{relative addressing}. This means that the address of the main function is 0 relative to the start of the object file. 
-    \item The leftmost column is the address of the instruction in hexadecimal. 
-    \item The middle column is the machine code. 
-    \item The rightmost column is the assembly code. 
-    \item The lines with b: and 10: indicate relocation entries (R\_X86\_64\_PC32 and R\_X86\_64\_PLT32, respectively), which are placeholders that will be filled with actual addresses by the linker. These relocations reference the \texttt{.rodata} section and the puts function, respectively. 
-  \end{enumerate}
+  \subsection{Virtual Memory Addresses}
 
-
+    Memory addresses are actual virtual. There exists a hashmap from a virtual address to a physical address for each process. If we used physical addresses only to begin with, another application that uses the same physical address would overwrite the data, so there needs to be some sort of isolation. Note that every process has its own mapping, that's completely different! It's not one mapping for all processes. These 
 
 \end{document}
