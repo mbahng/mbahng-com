@@ -2692,142 +2692,6 @@ We first go over some basic theoretical properties of basic data types, focusing
 
     \subsubsection{Buffer Overflows}
 
-\section{Storage Hierarchy}
-
-    There are different types of memory, with three  key components that we should think about: 
-    \begin{enumerate}
-      \item The \textbf{capacity}, i.e. amount of data, it can store (how large the water tank is). 
-      \item The \textbf{latency}, i.e. amount of time it takes for a device to respond with data after it has been instructed to perform a data retrieval operation (how fast the data flows). 
-      \item The \textbf{transfer rate}, i.e. amount of data that can be moved between the device and main memory (how wide the pipe is). 
-    \end{enumerate}
-
-    We must provide a good balance of these three qualities, and also note that there are some physical limitations (i.e. latency cannot be faster than speed of light). The highest level categorization of memory is between primary and secondary storage devices, which simply distinguishes the memory that is directly accessible by the CPU and memory that is not. 
-
-    \begin{definition}[Primary Storage]
-      \textbf{Primary storage devices} are directly accessible by the CPU and are used to store data that is currently being processed. This includes CPU registers, cache memory, and RAM. There are two primary ways: 
-      \begin{enumerate}
-        \item \textbf{Static RAM (SRAM)} stores data in small electrical circuits (e.g. latches) and is typically the fastest type of memory. However, it is more expensive to build, consumers more power, and occupies more space, limiting the SRAM storage. 
-        \item \textbf{Dynamic RAM (DRAM)} stores data using electrical components (e.g. capacitors) that hold an electrical charge. It is called \textit{dynamic} because a DRAM system must frequently refresh the charge of its capacitors to maintain a stored value.. 
-      \end{enumerate}
-
-      \begin{table}[H]
-        \centering
-        \begin{tabular}{|l|l|l|l|}
-        \hline
-        \textbf{Device} & \textbf{Capacity} & \textbf{Approx. latency} & \textbf{RAM type} \\ \hline
-        Register & 4 - 8 bytes & < 1 ns & SRAM \\ \hline
-        CPU cache & 1 - 32 megabytes & 5 ns & SRAM \\ \hline
-        Main memory & 4 - 64 gigabytes & 100 ns & DRAM \\ \hline
-        \end{tabular}
-        \caption{Memory hierarchy characteristics}
-        \label{tab:memory_hierarchy}
-      \end{table}
-    \end{definition}
-
-    \begin{definition}[Secondary Storage]
-      \textbf{Secondary storage devices} are not directly accessible by the CPU and are used to store data that is not currently being processed. This includes hard drives, SSDs, and magnetic tapes.
-    \end{definition}
-
-    The figure overviews the different types of memory. 
-
-    \begin{figure}[H]
-      \centering 
-      \includegraphics[scale=0.4]{img/memory_hierarchy.png}
-      \caption{Memory hierarchy.} 
-      \label{fig:memory_hierarchy}
-    \end{figure}
-
-  \subsection{Locality}
-
-    So far, we have abstracted away most of these memory types as a single entity with nearly instantaneous access, but in practice this is not the case. The most simple way is to simply have RAM and our CPU registers, but by introducing more intermediate memory types, we can achieve greater efficiency. 
-
-    \begin{definition}[Locality]
-      \textbf{Locality} is a principle that generally states that a program that accesses a memory location $n$ at time $t$ is likely to access memory location $n + \epsilon$ at time $t + \epsilon$. This principle motivates the design of efficient caches. 
-      \begin{enumerate}
-        \item \textbf{Temporal locality} is the idea that if you access a memory location, you are likely to access it again soon. 
-        \item \textbf{Spatial locality} is the idea that if you access a memory location, you are likely to access nearby memory locations soon.
-      \end{enumerate}
-      This generally means that if you access some sort of memory, the values around that address is also likely to be accessed and therefore it is wise to store it closer to your CPU. 
-    
-    \end{definition}
-
-    \begin{example}[Locality]
-      Consider the following code. 
-      \begin{lstlisting}
-        int sum_array(int *array, int len) {
-          int i;
-          int sum = 0;
-
-          for (i = 0; i < len; i++) {
-            sum += array[i];
-          }
-
-          return sum;
-        }
-      \end{lstlisting}
-      \begin{enumerate}
-        \item The repetitive nature of the for loop exploits temporal locality. More specifically, the CPU accesses the same memory (stored in variables \texttt{i}, \texttt{len}, \texttt{sum}, \texttt{array}) within each iteration and therefore at similar times. 
-        \item The spatial locality is exploited when the CPU accesses memory locations from each element of the array, which are contiguous in memory. Even though the program accesses each array element only once, a modern system loads more than one \texttt{int} at a time from memory to the CPU cache. That is, accessing the first array index fills the cache with not only the first integer but also the next few integers after it too. Exactly how many additional integers get moved depends on the cache's \textbf{block size}. For example, a cache with a 16 byte block size will store \texttt{array[i]} and the elements in \texttt{i+1}, \texttt{i+2}, \texttt{i+3}. 
-      \end{enumerate}
-    \end{example}
-
-    We can see the differences in spatial locality in the following example. 
-
-    \begin{example}
-      One may find that simply changing the order of loops can cause a significant speed up in your program. Consider the following code. 
-      \begin{figure}[H]
-        \centering 
-        \noindent\begin{minipage}{.5\textwidth}
-        \begin{lstlisting}[]{Code}
-          float averageMat_v1(int **mat, int n) {
-            int i, j, total = 0;
-
-            for (i = 0; i < n; i++) {
-              for (j = 0; j < n; j++) {
-                // Note indexing: [i][j]
-                total += mat[i][j];
-              }
-            }
-            return (float) total / (n * n);
-          }
-        \end{lstlisting}
-        \end{minipage}
-        \hfill
-        \begin{minipage}{.49\textwidth}
-        \begin{lstlisting}[]{Output}
-          float averageMat_v2(int **mat, int n) {
-            int i, j, total = 0;
-
-            for (j = 0; j < n; j++) {
-              for (i = 0; i < n; i++) {
-                total += mat[i][j];
-              }
-            }
-            return (float) total / (n * n);
-          }
-        \end{lstlisting}
-        \end{minipage}
-        \caption{Two implementations of taking the total sum of all elements in a matrix.} 
-        \label{fig:matrix_sum}
-      \end{figure}
-      It turns out that the left hand side of the code executes about 5 times faster than the second version. Consider why. When we iterate through the \texttt{i} first and then the \texttt{j}, we access the values \texttt{array[i][j]} and then by spatial locality, the next few values in the array, which are \texttt{array[i][j+1]}, ... are stored in the cache. 
-      \begin{enumerate}
-        \item In the left hand side of the code, these next stored values are exactly what is being accessed, and the CPU can access them in the cache rather than having to go into memory. 
-        \item In the right hand side of the code, these next values are \textit{not} being accessed since we want to access \texttt{array[i+1][j]}, .... Unfortunately, this is not stored in the cache and so for every $n^2$ loops we have to go back to the memory to retrieve it. 
-      \end{enumerate}
-    \end{example}
-
-
-  \subsection{RAM}
-
-  \subsection{Caches}
-
-    Valgrind's cachegrind mode. 
-
-  \subsection{SSD}
-
-  \subsection{HDD}
-
 \section{Compiling and Linking}
 
   Now let's talk about how this compiling actually happens. \textit{Compiling} is actually an umbrella term that is misused. Turning at C file into an executable file consists of multiple intermediate steps, one of which is actually compiling, but the whole series is sometimes referred to as compiling. A more accurate term would be \textit{building}. Before we get onto it, there are two types of compilers. 
@@ -4066,8 +3930,1008 @@ We first go over some basic theoretical properties of basic data types, focusing
 
     Note that these optimization techniques are in no way a guarantee that the code will run faster since there are many factors and always edge cases (for example, maybe some localities are lost). Furthermore, compiler optimization will never be able to improve runtime complexity (e.g. by replacing bubble sort with quicksort). 
 
-  \subsection{Virtual Memory Addresses}
+\section{Storage Hierarchy}
 
-    Memory addresses are actual virtual. There exists a hashmap from a virtual address to a physical address for each process. If we used physical addresses only to begin with, another application that uses the same physical address would overwrite the data, so there needs to be some sort of isolation. Note that every process has its own mapping, that's completely different! It's not one mapping for all processes. These 
+  \subsection{Expanding on von Neumann Architecture} 
+
+    So far, our model of the computer has been a simple von Neumann architecture which consists of a CPU and memory. However, there are many other intricacies that are extremely important in practice, and we'll expand on each one by one. 
+    
+    \begin{definition}[Computer Architecture]
+      In our elaborated computer architecture, a computer consists of the components. 
+      \begin{enumerate}
+        \item A \textbf{CPU} that consists of an arithmetic logic unit (ALU), registers, and a \textbf{bus interface} that controls the input and output. 
+        \item The \textbf{IO bridge} that handles communication between everything. 
+        \item The \textbf{system bus} that connects the CPU to the IO bridge. 
+        \item The \textbf{memory bus} that connects the memory to the IO bridge. 
+        \item The \textbf{IO bus} that connects the IO devices and disk to the IO bridge. 
+        \item \textbf{IO devices} like mouse, keyboard, and monitor. 
+        \item The \textbf{disk controller and disk} that stores data. 
+      \end{enumerate} 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/io.png}
+        \caption{Diagram of the IO bus.} 
+        \label{fig:io}
+      \end{figure}
+    \end{definition}
+
+    We can see from the diagram above that the CPU can directly access registers (since it's in the CPU itself) and the main memory (since it's connected to the memory bus). However, to access something like the disk, it must go through the disk controller. This gives us our first categorization of memory. 
+
+    \begin{definition}[Primary Storage]
+      \textbf{Primary storage devices} are directly accessible by the CPU and are used to store data that is currently being processed. This includes CPU registers, cache memory, and RAM. In memory, the basic storage unit is normally a \textbf{cell} (one bit per cell), which is the physical material that holds information. A \textbf{supercell} has address and data widths (number of bits), which is analogous to a lock number and the lock capacity, respectively. It is called random access since it takes approximately the same amount of time to access any cell in memory. There are two primary ways that this is implemented:  
+      \begin{enumerate}
+        \item \textbf{Static RAM (SRAM)} stores data in small electrical circuits (e.g. latches) and is typically the fastest type of memory. However, it is more expensive to build, consumers more power, and occupies more space, limiting the SRAM storage. 
+        \item \textbf{Dynamic RAM (DRAM)} stores data using electrical components (e.g. capacitors) that hold an electrical charge. It is called \textit{dynamic} because a DRAM system must frequently refresh the charge of its capacitors to maintain a stored value. It also requires error correction which introduces redundancy. 
+      \end{enumerate}
+
+      \begin{table}[H]
+        \centering
+        \begin{tabular}{|l|l|l|l|}
+        \hline
+        \textbf{Device} & \textbf{Capacity} & \textbf{Approx. latency} & \textbf{RAM type} \\ \hline
+        Register & 4 - 8 bytes & < 1 ns & SRAM \\ \hline
+        CPU cache & 1 - 32 megabytes & 5 ns & SRAM \\ \hline
+        Main memory & 4 - 64 gigabytes & 100 ns & DRAM \\ \hline
+        \end{tabular}
+        \caption{Memory hierarchy characteristics}
+        \label{tab:memory_hierarchy}
+      \end{table}
+    \end{definition}
+
+    \begin{definition}[Secondary Storage]
+      \textbf{Secondary storage devices} are not directly accessible by the CPU and are used to store data that is not currently being processed. This includes hard drives, SSDs, and magnetic tapes. There are two primary ways: 
+      \begin{enumerate}
+        \item \textbf{Spinning disks} store data on a magnetic surface that spins at high speeds.
+        \item \textbf{Solid state drives (SSDs)} store data on flash memory chips.
+      \end{enumerate}
+    \end{definition}
+
+    There are three key components of memory that we should think about: 
+    \begin{enumerate}
+      \item The \textbf{capacity}, i.e. amount of data, it can store (how large the water tank is). 
+      \item The \textbf{latency}, i.e. amount of time it takes for a device to respond with data after it has been instructed to perform a data retrieval operation (how fast the data flows). 
+      \item The \textbf{transfer rate} or \textbf{thoroughput}, i.e. amount of data that can be moved between the device and main memory (how wide the pipe is). Naively, with one channel and sequential transfer the transfer rate is one over the latency. 
+    \end{enumerate}
+
+    We must provide a good balance of these three qualities, and also note that there are some physical limitations (i.e. latency cannot be faster than speed of light), and this is more effectively done through a hierarchical memory system.
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/memory_hierarchy.png}
+      \caption{Memory hierarchy.} 
+      \label{fig:memory_hierarchy}
+    \end{figure}
+
+    For example when we want to read from the disk, the CPU must request to the bus interface, which travels through the bus interface, I/O bridge, I/O bus, disk controller, and to the disk itself. Then the data goes back through the disk controller, I/O bus, I/O bridge, through the memory bus, and resides in the main memory. Note that disks are block addressed, so it will transfer the entire block of data into the memory. It must specify a \textbf{destination memory address (DMA)}. When the DMA completes, the disk controller notifies the CPU with an \textit{interrupt} (i.e. asserts a special interrupt pin on the CPU), letting it know that the operation has finished. This signal goes through the disk controller to the IO bridge to the CPU. From now on, the CPU knows that there is memory that it can access to run an application loaded in memory. 
+
+  \subsection{Disk} 
+
+    \begin{definition}[Hard Disk Drives]
+      Back then, there were \textbf{hard disk drives (HDDs)} that literally had a spinning wheel and a needle head that read the data. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/hdd.png}
+        \caption{Visual diagram of hard disk drive with its sectors. } 
+        \label{fig:hdd}
+      \end{figure}
+      \begin{enumerate}
+        \item HDDs are not random access since the data must be sequentially read. This was disadvantageous since the spinning wheel had to spin to the correct location, which took time. The needle also had to move to the correct location, which also took time and therefore read and write speeds were dominated by the time it took to move the needle.
+        \item The smallest unit of data that can be read is a complete disk sector (not a single byte like RAM). 
+      \end{enumerate}
+    \end{definition}
+
+    \begin{definition}[Solid State Drives]
+      Now, we have \textbf{solid state drives (SSDs)} that store data on flash memory chips. This is advantageous since there are no moving parts, so the latency is much lower and the latency is not dominated by the time it takes to move the needle. 
+      \begin{enumerate}
+        \item SSDs are random access. 
+        \item The smallest unit of data is a \textbf{page}, which is usually 4KB and maybe for high scale computers 2-4 MB (but on ``Big Data'' applications big but computers, it can be up to 1GB). 
+        \item A collection of pages, usually 128 pages, is called a \textbf{block}, making is 512KB. 
+      \end{enumerate}
+    \end{definition}
+
+    While virtually all RAM and primary storage devices are \textbf{byte addressable} (i.e. you can access any byte in memory), secondary storage devices are \textbf{block addressable} (i.e. you can only access a block of memory at a time). Therefore, to access a single byte in secondary storage, you must first load the entire block into memory, calculate which byte from that block you want, and then access it. Therefore, you need both the block number $x$ and the offset $o$ to access a byte in secondary storage, which is why it is even slower than accessing RAM. 
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/block_offset.png}
+      \caption{Block offset.} 
+      \label{fig:block_offset}
+    \end{figure}
+
+    Therefore, you can think of raw data in units of blocks of size $2^b$ for some $b$ bits. 
+    \begin{enumerate}
+      \item Take the low order $b$ bits of a byte address as an integer, which is the offset of the addressed byte in the block. 
+      \item THe rest of the bits are the block number $x$, which is an unsigned long. 
+      \item You request the block number $x$, receive the block contents, and then extract the requested byte at offset in $x$ i.e. calculate \texttt{block[x][offset]}. 
+    \end{enumerate}
+
+  \subsection{Locality}
+
+    So far, we have abstracted away most of these memory types as a single entity with nearly instantaneous access, but in practice this is not the case. The most simple way is to simply have RAM and our CPU registers, but by introducing more intermediate memory types, we can achieve greater efficiency. 
+
+    \begin{definition}[Locality]
+      \textbf{Locality} is a principle that generally states that a program that accesses a memory location $n$ at time $t$ is likely to access memory location $n + \epsilon$ at time $t + \epsilon$. This principle motivates the design of efficient caches. 
+      \begin{enumerate}
+        \item \textbf{Temporal locality} is the idea that if you access a memory location, you are likely to access it again soon. 
+        \item \textbf{Spatial locality} is the idea that if you access a memory location, you are likely to access nearby memory locations soon.
+      \end{enumerate}
+      This generally means that if you access some sort of memory, the values around that address is also likely to be accessed and therefore it is wise to store it closer to your CPU. In CPUs, both the instructions and the data are stored in the cache, which exploits both kinds of locality (repeated operations for temporal and nearby data for spatial). 
+    \end{definition}
+
+    \begin{example}[Locality]
+      Consider the following code. 
+      \begin{lstlisting}
+        int sum_array(int *array, int len) {
+          int i;
+          int sum = 0;
+
+          for (i = 0; i < len; i++) {
+            sum += array[i];
+          }
+
+          return sum;
+        }
+      \end{lstlisting}
+      \begin{enumerate}
+        \item \textbf{Temporal Locality}
+          \begin{enumerate}
+            \item We cycle through each loop repeatedly with the same add operation, exploiting temporal locality.  
+            \item The CPU accesses the same memory (stored in variables \texttt{i}, \texttt{len}, \texttt{sum}, \texttt{array}) within each iteration and therefore at similar times. 
+          \end{enumerate}
+        \item \textbf{Spatial Locality}
+          \begin{enumerate}
+            \item The spatial locality is exploited when the CPU accesses memory locations from each element of the array, which are contiguous in memory. 
+            \item Even though the program accesses each array element only once, a modern system loads more than one \texttt{int} at a time from memory to the CPU cache. That is, accessing the first array index fills the cache with not only the first integer but also the next few integers after it too. Exactly how many additional integers get moved depends on the cache's \textbf{block size}. For example, a cache with a 16 byte block size will store \texttt{array[i]} and the elements in \texttt{i+1}, \texttt{i+2}, \texttt{i+3}. 
+          \end{enumerate}
+      \end{enumerate}
+    \end{example}
+
+    We can see the differences in spatial locality in the following example. 
+
+    \begin{example}
+      One may find that simply changing the order of loops can cause a significant speed up in your program. Consider the following code. 
+      \begin{figure}[H]
+        \centering 
+        \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          float averageMat_v1(int **mat, int n) {
+            int i, j, total = 0;
+
+            for (i = 0; i < n; i++) {
+              for (j = 0; j < n; j++) {
+                // Note indexing: [i][j]
+                total += mat[i][j];
+              }
+            }
+            return (float) total / (n * n);
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          float averageMat_v2(int **mat, int n) {
+            int i, j, total = 0;
+
+            for (j = 0; j < n; j++) {
+              for (i = 0; i < n; i++) {
+                total += mat[i][j];
+              }
+            }
+            return (float) total / (n * n);
+          }
+          .
+        \end{lstlisting}
+        \end{minipage}
+        \caption{Two implementations of taking the total sum of all elements in a matrix.} 
+        \label{fig:matrix_sum}
+      \end{figure}
+      It turns out that the left hand side of the code executes about 5 times faster than the second version. Consider why. When we iterate through the \texttt{i} first and then the \texttt{j}, we access the values \texttt{array[i][j]} and then by spatial locality, the next few values in the array, which are \texttt{array[i][j+1]}, ... are stored in the cache. 
+      \begin{enumerate}
+        \item In the left hand side of the code, these next stored values are exactly what is being accessed, and the CPU can access them in the cache rather than having to go into memory. 
+        \item In the right hand side of the code, these next values are \textit{not} being accessed since we want to access \texttt{array[i+1][j]}, .... Unfortunately, this is not stored in the cache and so for every $n^2$ loops we have to go back to the memory to retrieve it. 
+      \end{enumerate}
+    \end{example}
+
+  \subsection{Caches}
+
+      In theory, a cache should know which subsets of a program's memory it should hold, when it should copy a subset of a program's data from main memory to the cache (or vice versa), and how it can determine whether a program's data is present in the cache. Let's talk about the third point first. It all starts off with a CPU requesting some memory address, and we want to determine whether it is in the cache or not. To do this, we need to look a little deeper into memory addresses. 
+
+      \begin{definition}[Portions of Memory Addresses]
+        A memory address is a $m$-bit number.\footnote{64 in 64-bit machines.} It is divided up into three portions. 
+        \begin{enumerate}
+          \item The \textbf{tag} field with $t$ bits at the beginning.
+          \item The \textbf{index} field with $i$ bits in the middle. 
+          \item The \textbf{offset} field with $o$ bits at the end.
+        \end{enumerate}
+        The tag plus the index together refers to the \textbf{block number}. 
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.4]{img/memory_portions.png}
+          \caption{Portions of a 16 bit memory address with $t = 4, i = 7, o = 5$. } 
+          \label{fig:memory_portions}
+        \end{figure}
+      \end{definition}
+
+      Before we see why we do this, we should also define the portions of a CPU. 
+
+      \begin{definition}[CPU Cache]
+        A \textbf{CPU cache} divides its storage space as follows. A cache is essentially an array of sets, where $S$ is the number of sets. Each set is divided into $E$ units called \textbf{cache lines/rows}, with each cache line independent of all others and contains two important types of information. 
+        \begin{enumerate}
+          \item The \textbf{cache block} stores a subset of program data from main memory, of size $2^o$.\footnote{In Intel computers, it is typically 64 bytes long and for Mac Silicon, it is 128 bytes.} Sometimes, the block is referred to as the cache line. Note that is the cache block size is $2^o$ bytes, then the block offset field has length $\log_2 2^o = o$.
+          \item The \textbf{metadata} stores the \textbf{valid bit} (which tells us if the actual data in memory is valid), and the \textbf{tag} of length $t$ (the same as the tag length of the memory address) which tells us the memory address of the data in the cache. 
+        \end{enumerate}
+        Therefore, the \textbf{cache size} is defined to be $C = S \cdot E \cdot B$ (the metadata is not included). 
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.4]{img/direct_mapped_cache.png}
+          \caption{Diagram of a direct-mapped cache.} 
+          \label{fig:direct_mapped_cache}
+        \end{figure}
+        CPU caches are built-in fast memory (SRAM) that stores stuff. There are two types: 
+        \begin{enumerate}
+          \item \textbf{i-cache} stores copies of instructions. 
+          \item \textbf{d-cache} stores copies of data from commonly referenced locations. 
+        \end{enumerate}
+        We saw that caches come in different levels, they all just hold words retrieved from a higher level of memory. 
+        \begin{enumerate}
+          \item CPU registers hold words retrieved from L1 cache. 
+          \item L1 holds cache lines retrieved from L2 cache. 
+          \item L2 cache holds cache lines retrieved from L3 cache or the main memory.  
+          \item Main memory holds disk blocks retrieved from local disks. 
+          \item Local disks hold blocks retrieved from remote disks or network servers. 
+        \end{enumerate}
+
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.4]{img/cache_retrieve.png}
+          \caption{How caches retrieve data from higher levels of memory.} 
+          \label{fig:cache_retrieve}
+        \end{figure}
+      \end{definition}
+
+      \begin{example}[Simple Calculations]
+        Given a direct-mapped cache specified by a block size of 8 bytes and a cache capacity of 4 KB, 
+        \begin{enumerate}
+          \item the cache can hold 512 blocks. 
+          \item the block offset field is $\log_2 8 = 3$ bits wide. 
+          \item the address \texttt{0x1F = 0b00011111} is in block number $3$ since the last three bits are the offset, and whatever is left (passed through the hashamp, which is simply modulo), is the block number. 
+        \end{enumerate}
+      \end{example}
+
+      In \textbf{I/O caches}, software keeps copies of cached items in memory, indexed by name via a hash table.
+
+      At the lowest level, registers are explicitly program-controlled, but when accessing any sort of higher memory, the CPU doesn't know whether some data is in the cache, memory, or the disk. 
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/hierarchy2.png}
+        \caption{} 
+        \label{fig:hierarchy2}
+      \end{figure}
+
+      Finally, let's compare software vs hardware caches. 
+
+      \begin{definition}[Software Caches]
+        When implementing caches in software, there are large time differences (DRAM vs disk, local vs remote), and they can be tailored to specific uses cases. They also have flexible and sophisticated approaches with data structures (like trees) and can perform complex computation. 
+      \end{definition}
+
+      Theoretically, when implementing hash tables, you never actually have to evict something. You can have the values of the table to be a linked list where we add to the head. If there is unlimited chaining, we have a full associative cache, and if we have limited chaining (e.g. 5), it is like a 5-way set associative cache. If it goes out of bound, we can implement LRU by removing the tail of the linked list. 
+
+      \begin{definition}[Hardware Caches]
+        In hardware caches, there are smaller time differences, needs to be as fast as possible, and parallelization is emphasized. 
+      \end{definition}
+
+      There are slightly different implementations of caching, and for each implementation, we will describe 
+      \begin{enumerate}
+        \item how to load data from memory into the cache, 
+        \item how to retrieve data from the cache, 
+        \item how to write data to the cache. 
+      \end{enumerate}
+
+    \subsubsection{Direct Mapped Cache} 
+
+      A direct mapped cache is a caching implementation when we assume that $E = 1$, which means that for any given memory address, there is only one possible cache line that can store this data at that memory address. That is, the cache is really just a bunch of sets with one cache line each, and each cache line is completely isolated from the others. Whether we load data from memory into cache or try to retrieve data from the cache, it's really the same process. 
+
+      \begin{theorem}[Placement]
+        To load data from memory into the cache, which happens when there is a \textbf{cache miss}, we do the following. 
+        \begin{enumerate}
+          \item The CPU requests a memory address $M = (T, I, O)$. 
+          \item There exists a hashmap $H$ that maps the index $I$ to a cache line. 
+          \item At line $H(I)$, we can get a cache miss and must load from memory into this cache. 
+          \item We wait until the memory has retrieved the data from the portion of the memory. i.e. we wait for the $2^o$ bytes located at addresses $(T, I, 0\ldots 0)$ to $(T, I, 1\ldots 1)$. Call this data $D$. 
+          \item The $2^o$ byte string $D$ is stored in the cache data block at line $M(I)$,ready to be used. 
+        \end{enumerate}
+      \end{theorem}
+
+      \begin{theorem}[Lookup]
+        To see whether a requested memory address is in the cache, we do the following. 
+        \begin{enumerate}
+          \item The CPU requests a memory address $M = (T, I, O)$. 
+          \item There exists a hashmap $H$ that maps the index $I$ to a cache line. 
+          \item At line $H(I)$, check the cache line's valid bit. If it is not valid, then this is a cache miss and we must go to the memory to retrieve the data, leading to the above process. 
+          \item Since there could be multiple $I$ that maps to the same cache line, there will be overlap. But this is where the tag portion comes in. At cache line $H(I)$, the CPU checks the cache tag to see if it matches the memory tag $T$. 
+          \item If it does, then we have just found a way to identify the first $t + i$ bits of the requested memory address, and we have gotten a cache hit. Now, we know that the cache's data block holds the data that the program is looking for. We use the low-order offset bits of the address to extract the program's desired data from the stored block. 
+        \end{enumerate}
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.4]{img/cache_request.png}
+          \caption{Diagram of a cache request. Note that since the entire data in the memory block stored in the cache, we can take advantage of spatial locality.}  
+          \label{fig:cache_request}
+        \end{figure}
+      \end{theorem}
+
+      So far, we've talked about reading operations, but what about writing to the cache? It is generally implemented in two ways. 
+
+      \begin{definition}[Write-Through, Write-Back Cache]
+        Note that when we write data to cache, it does not need to be immediately written to memory, but rather it can be flushed to memory at a later time. This is efficient since if we have repeated operations on a single memory address, we don't have to go back and forth between the CPU and memory. 
+        \begin{enumerate}
+          \item In a \textbf{write-through cache}, a memory write operation modifies the value in the cache and simultaneously writes the value to the corresponding location in memory. It is always synchronized. 
+          \item In a \textbf{write-back cache}, a memory write operation modifies the value stored in the cache's data block, but does \textit{not} update main memory. Instead, the cache sets a \textbf{dirty bit} in the metadata to indicate that the cache block has been modified. The modified block is only written back to memory when the block is replaced in the cache. 
+
+          \begin{figure}[H]
+            \centering 
+            \includegraphics[scale=0.4]{img/dirty_bit.png}
+            \caption{A dirty bit is a one bit flag that indicates whether the data stored in a cache line has been modified. When set, the data in the cache line is out o sync with main memory and must be written back (flushed) back to memory before eviction. } 
+            \label{fig:dirty_bit}
+          \end{figure}
+        \end{enumerate}
+        As usual, the difference between the designs reveals a trade-off. Write-through caches are less complex than write-back caches, and they avoid storing extra metadata in the form of a dirty bit for each line. On the other hand, write-back caches reduce the cost of repeated writes to the same location in memory.
+      \end{definition}
+
+      \begin{theorem}[Replacement]
+        Replacement occurs exactly the same way as if we just did a placement and is trivial. We retrieve the data block from the memory and store it in the cache. Direct-mapping conveniently determines which cache line to evict when loading new data. Given new memory $M = (T, I, O)$, you \textit{must} evict the cache line at $H(I)$. 
+      \end{theorem}
+
+    \subsubsection{N way Set-Associative Cache}
+
+      Note that for both examples, given a fixed hashmap $H$ it is not possible to store data in two memory addresses $M_1$ and $M_2$ where both $H(I_1) = H(I_2)$. Therefore, the choice of hashing must be done so that it minimizes the number of collisions. So far, we have only considered memory read operations for which a CPU performs lookups on the cache. Caches must also allows programs to store values. However, there is a better way to do this: just construct it so that each set has more than one cache line, and so data in index portions of different memory addresses can be stored in different cache lines.
+
+      In here, we deal with $E \neq 1$, and so there are multiple set each with multiple lines. This means that the cache is more like a 2D array, and when we want to retrieve an index, we must look through the $H(I)$th line in \textit{each} set to see if the tag matches. 
+
+      \begin{theorem}[Lookup]
+        To see whether a requested memory address is in the cache, we do the following. 
+        \begin{enumerate}
+          \item The CPU requests a memory address $M = (T, I, O)$. 
+          \item We iterate through each of the $S$ sets in the cache, looking at cache line $M(I)$. 
+          \item For each line, we check if it is valid and if so, whether the line tag matches the memory tag. If we get a hit, then we have found the data in the cache. 
+        \end{enumerate}
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.4]{img/retrieve_set_associative.png}
+          \caption{Diagram of a 2 set-associative cache.} 
+          \label{fig:retrieve_set_associative}
+        \end{figure}
+      \end{theorem}
+
+      If you have a \textbf{fully associative cache}, then you have one set with $E = C/B$ lines. Therefore, you can really put any memory address data in any cache line. There is a clear tradeoff here. As we increase $N$, we can get more flexibility in using all of our cache space, but the time complexity of retrieving and writing data scales linearly. In fact, this linear scan is too slow for a cache, which is why you need to implement some parallel tag search, but this turns out to be quite expensive to build.\footnote{You have to copy the request tag with a circuit and compare it to all the tags in the cache, which turns out to be a much larger circuit.}
+    
+      Though we have a more robust implementation with associative mapping, placement and replacement now face the problem of \textit{which} set to place the data in or evict existing data. 
+
+      \begin{theorem}[Placement]
+        To load data from memory into the cache this is trivial since we can just go through the sets, find one where the valid bit is $0$, and just place the data there.  
+      \end{theorem}
+
+      In replacement, this is a bit trickier, but using the principle of temporal locality, we can try and replace the least recently used cache. This tries to minimize cache misses, but not slow down the lookup too much. 
+
+      \begin{theorem}[Replacement]
+        To replace data on the cache, we use the \textbf{least recently used (LRU)} algorithm. This matches temporal locality, but it also requires some additional state to be kept. 
+      \end{theorem}
+
+    \subsubsection{Types of Cache Misses} 
+
+      There are three types of cache misses. 
+
+      \begin{definition}[Cold (Compulsory) Miss]
+        A \textbf{cold miss} occurs when the cache is empty and the CPU requests a memory address. This is the first time the CPU is requesting this memory address, and so it must go to the memory to retrieve the data.
+      \end{definition}
+      
+      \begin{definition}[Capacity Miss]
+        A \textbf{capacity miss} occurs when the cache is full and the CPU requests a memory address that is not in the cache. This is because the cache is full and so the CPU must evict some data to make space for the new data.
+      \end{definition}
+
+      \begin{definition}[Conflict Miss]
+        A \textbf{conflict miss} occurs from premature eviction of a warm block. 
+      \end{definition}
+
+    Valgrind's cachegrind mode. 
+
+\section{Operating Systems}
+
+    Up until now, we've seen the dynamics of how one program works in a computer system. The code, which first resides in the disk, is fetched (through blocks) into memory, and after compiling (precomiling, compiling, assembling, linking), we have a binary. The binary is then loaded into memory in the stack frame, and the CPU executes the instructions. The CPU also has a cache, which stores the most frequently accessed data during the process, taking advantage of locality for efficiency. 
+
+    Our computer obvious does not just run one program. It runs several, and to run several, we need some control mechanism to manage how these programs interact with the CPU, memory, and disk. For example, one problem is that if we download application A and application B and run their binaries, how do we know whether they share memory addresses and consequently overwrite each other's data?\footnote{This is different from linking, where we have relocation tables to ensure that \textit{object files} do not conflict with each other.} The operating system takes care of these, which manages \textit{processes} that each have their own \textit{virtual memory space}. 
+
+    Furthermore, consider some of the components of the computer: the RAM, disk, and IO devices like your keyboard and monitor. For security reasons, it is not wise to let the user applications (e.g. Chrome or Slack) control these devices completely. Their power must be restricted in some way. 
+    \begin{enumerate}
+      \item When you have a Chrome window and resize it, Chrome should not be able to modify the pixels outside that window. 
+      \item When you want to print some statement using \texttt{printf}, 
+      \item When you're editing a code file with VSCode, you want to limit the application to save to certain parts of the disk. 
+      \item When you are running Chrome and Slack together, you don't want them to read each other's data directly. 
+    \end{enumerate}
+    This is also for convenience. Say that if you are creating an application that has the option to save files to disk, you don't want to write the hardware backend to write to the disk. You want to just call a function that writes to the disk, and the OS will take care of the rest. 
+
+    \begin{definition}[Operating System]
+      A common confusion is that people think that the \textbf{operating system} describes the computer itself, but it is really just another piece of software. What makes this piece of software so special is that it manages every other software in the computer. It provides generally three services: 
+      \begin{enumerate}
+        \item It \textbf{multiplexes} the hardware resources. Since there are many applications/programs with finite CPU resources (number of cores) and shared access to storage devices, the OS schedules some sharing mechanism for execution time on CPU cores and manages access to storage devices.
+        \item It \textbf{abstracts} the hardware platform. Since each CPU core simply executes a sequence of instructions, the OS introduces processes and thread abstractions. Furthermore, it introduces \textit{filesystems} (file/directories) on top of raw storage devices. 
+        \item It \textbf{protects} software principals from each other. Since many applications from various users are using the CPU, the OS provides isolation between them. It enforces user access permission (read/write) for files. 
+      \end{enumerate}
+    \end{definition}
+
+    The OS is booted by the system firmware (BIOS or UEFI), which lives in ROM (sRAM and therefore non-volatile) and copies the OS from a fixed part of the disk, called the \textbf{bootloader}, into the RAM, which itself then loads the OS into memory. Once the OS starts running, it loads the rest of itself from disk, discovers and initializes hardware resources, and initializes its data structures and abstractions to make the system ready for users.
+
+    \begin{definition}[Kernel]
+      The \textbf{kernel} is the actual binary that is loaded into RAM that runs the OS. The kernel code and data resides in a fixed and protected range of addresses, called the \textbf{kernel space}, and user programs cannot access kernel space. 
+    \end{definition}
+
+  \subsection{Control Flow}
+
+    When we worked with jumps (conditional and unconditional), calls, and returns in assmebly, all of these operations were with respect to the \textbf{program state}, which is the isolated environment that the program is in. One program doesn't have any clue of what is going on anywhere else, such as other programs or input/output signals. This means that given what we have learned, 
+    \begin{enumerate}
+      \item programs cannot to write files to the disk (since that is outside the program). 
+      \item programs cannot be terminated by pressing \texttt{CTRL + C} on the keyboard. 
+      \item programs cannot receive data that arrives from the disk. 
+      \item programs cannot send data to the monitor to display. 
+      \item programs cannot react accordingly when there is an instruction to divide by $0$.\footnote{I guess you can use a conditional jump to check if the divisor is $0$ and then jump to a different part of the code.}
+    \end{enumerate}
+    To do all these things, we need to have access to the global \textbf{system state}, which the OS has access to. 
+
+    It turns out that it is impossible for jumps and procedure calls to achieve this, and rather the system needs mechanisms for \textbf{exceptional control flow} (i.e. control flow that is not within the regular program state), or commonly referred to as \textbf{exceptions}. This requires the CPU to enter into a more powerful state than its current place in the program state, called the kernel state. The actual thing that triggers this is called an \textbf{interrupt}, which can come from both the hardware and software. In the kernel state, the CPU can access the hardware and perform operations that the program state cannot to handle these exceptions. 
+
+    \begin{example}[Interrupts]
+      Some examples of how the OS can be interrupted is: 
+      \begin{enumerate}
+        \item when one's WiFi card detects a signal. 
+        \item a hard disk drive may interrupt the OS if a read fails due to a bad sector. 
+        \item an application may request a system call to open a file. 
+        \item If you have 10 applications running on 1 CPU core, you may want the CPU core to run to the next application every 10 milliseconds. So, there may be a system call every 10 milliseconds in each program to the OS to switch to the next application. 
+      \end{enumerate}
+    \end{example}
+
+    \begin{definition}[Execution Modes]
+      The CPU helps with this by providing two execution modes, which is determined by a special bit in the CPU called the \textbf{mode bit}. 
+      \begin{enumerate}
+        \item In \textbf{user mode}, the CPU executes only user-level instructions and accesses only the memory locations that the OS makes available to it. It also restricts which hardware components the CPU can directly access. 
+        \item In \textbf{kernel mode}, the CPU executes any instructions and accesses any memory location (including those that store OS instructions and data). It can also directly access hardware components and execute special instructions. 
+      \end{enumerate}
+      Note that the execution mode is \textit{property of the CPU}!  
+    \end{definition}
+
+    \begin{example}[Monitor]
+      A monitor is really just some device that scans a certain portion of memory at a certain frequency that is higher than the human eye can detect. In user mode, if you try to access this memory buffer, you get an exception. No user mode can access this memory buffer. 
+    \end{example}
+
+    \begin{example}[Amazon.com]
+      When you are on Amazon to search up some product, you want to type in some keyword in the search bar. The web browser, say Chrome, that you are running it on, runs in user mode. When you type in the keyword, Chrome sends a system call to the OS, triggering the kernel mode which retrieves the keys that you pressed, and redirects it to Chrome. The same goes with the location of your mouse. When you move and click on a product, Chrome sends a system call to the OS, which then receives the mouse location and sends it back to Chrome. The application has no way to directly access the hardware. 
+    \end{example}
+
+    Now specifically, how does one enter in this kernel mode? We've already hinted at it before, but to elaborate, there are 4 types of exceptions. 
+
+    \begin{definition}[Types of Exceptions/Interrupts]
+      As we have mentioned, we go into kernel mode through exceptional control flows. To go back from the kernel mode to the user mode after the exception handling is done, the kernel must explicitly give back the control to the user program, which is done with a special instruction, which changes the CPU to the user mode again. At this point, it can return back to user mode at the current instruction, next instruction, or abort it. 
+      \begin{enumerate}
+        \item These control flows can either by \textbf{synchronous} (caused by an instruction) or \textbf{asynchronous} (caused by some other event external to the processor). Asynchronous interrupts are indicated by setting the processor's interrupt pins. 
+        \item Furthermore, \textbf{intentional} exceptions transfer control to the OS to perform some function, and \textbf{unintentional} exceptions happen when there is a bug. 
+      \end{enumerate}
+      This gives us 4 categories of exceptions. 
+      \begin{enumerate}
+        \item Intentional synchronous exceptions are \textbf{system calls}, aka \textbf{traps} (e.g. \texttt{printf}, \texttt{open}, \texttt{close}, \texttt{write}, breakpoint traps, special instructions). It returns control to the next instruction. 
+        \item Unintentional synchronous exceptions are \textbf{faults} (possibly recoverable) or \textbf{aborts} (unrecoverable) (e.g. invalid or protected address or opcode, page fault, overflow, divide by zero). This automatically triggers the kernel mode which then uses an exception handler to kill the process.  
+        \item Intentional asynchronous exceptions are \textbf{software interrupts}, which is when software requests an interrupt to be delivered at a later time (e.g. there's some task you want the kernel to do later). 
+        \item Unintentional asynchronous exceptions are \textbf{hardware interrupts} caused by an external event (e.g. IO such as \texttt{CTRL + C}, op completed, timers which may switch to another application every 10ms, power fail, keyboard, mouse click, disk, receiving a network packet). Unlike system calls, which come from executing program instructions, hardware interrupts are delivered to the CPU on an \textbf{interrupt bus}. 
+      \end{enumerate}
+      Once a system call or hardware interrupt is finished, the program continues to resume back in user mode. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/interrupt.png}
+        \caption{The CPU and interrupts. User code running on the CPU is interrupted (at time X on the time line), and OS interrupt handler code runs. After the OS is done handling the interrupt, user code execution is resumed (at time Y on the time line).} 
+        \label{fig:interrupt}
+      \end{figure}
+    \end{definition}
+
+    Now the question arises: how does the CPU know where to go when an system call or interrupt occurs? These are done through tables that map some unique ID number to some functionality. These tables are stored in a protected memory space reserved by the kernel. 
+
+    \begin{definition}[System Call Table]
+      This is done through the \textbf{system call table}, which is a table of addresses in memory that the CPU can jump to when a system call occurs. Each system call has a unique number $k$, and the handler function $k$ is called each time system call $k$ occurs. 
+    \end{definition}
+
+    \begin{example}[Common System Calls]
+      Some common system calls, or \textbf{syscalls}, are shown below with their unique ID number (in Linux x64). 
+      \begin{table}[H]
+        \centering
+        \caption{System Call Functions}
+        \begin{tabular}{|c|l|l|}
+        \hline
+        \textbf{Number} & \textbf{Name} & \textbf{Description} \\ \hline
+        0 & read & Read file \\ \hline
+        1 & write & Write file \\ \hline
+        2 & open & Open file \\ \hline
+        3 & close & Close file \\ \hline
+        4 & stat & Get info about file \\ \hline
+        57 & fork & Create process \\ \hline
+        59 & execve & Execute a program \\ \hline
+        60 & \_exit & Terminate process \\ \hline
+        62 & kill & Send signal to process \\ \hline
+        \end{tabular}
+      \end{table}
+    \end{example}
+
+    \begin{example}[Syscalls of Open] 
+      Look at the following objdump file below. The corresponding C code just calls \texttt{open(filename, options)} and the corresponding syscall ID is \texttt{0x2}. We are simply loading the syscall ID into the \texttt{\%eax} register (only needs last 32 bits since the syscall IDs are quite small), which is then executed by the \texttt{syscall} instruction to go into the kernel mode. 
+      \begin{lstlisting}
+        00000000000e5d70 <__open>: 
+        ...
+        e5d79:  b8 02 00 00 00       mov    $0x2,%eax     # 2 is the open syscall number
+        e5d7e:  0f 05                syscall              # return value in %rax
+        e5d80:  48 3d 01 f0 ff ff   cmp    $0xfffffffffffff001,%rax 
+        ... 
+      \end{lstlisting}
+      A negative number in \texttt{\%eax} gives an error corresponding to negative \texttt{errorno}. It is also worth mentioning that \texttt{\%eax} is used rather than \texttt{\%rdi} or \texttt{\%rsi} because we need these two parameter registers as arguments for the \texttt{open} function itself. 
+    \end{example}
+
+    Note that whether we are in the program stack or the kernel stack, we always have stack pointers and other registers to navigate them. In fact, for every CPU core, it has its own set of registers and its own kernel stack. 
+
+    \begin{example}[Syscall of Read]
+      If we have read syscall, then 
+      \begin{enumerate}
+        \item We use the syscall table to go to the trap handler for the read syscall. 
+        \item The handler identifies the block and allocates a buffer. 
+        \item Then it reads the block from the disk, which may take a while (in CPU time) since it is extremely slow for all IO tasks. The CPU, while waiting, can be put to sleep for other processes to run on the CPU. When the disk is done reading, it (the hardware) can send a hardware interrupt to the CPU, telling it that it is done. 
+        \item Then it copies the block to the user buffer and returns from the syscall back into the user mode in the program state. 
+      \end{enumerate}
+    \end{example}
+
+    \begin{definition}[Exception Table]
+      This is done through the \textbf{exception table}, which is a table of addresses in memory that the CPU can jump to when an exception occurs. Each type of event has a unique exception number $k$, and the handler function $k$ is called each time exception $k$ occurs.\footnote{This is similar to a hardware implementation of a switch statement in C.}
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/exception_table.png}
+        \caption{System call table is stored in a protected memory space reserved by the kernel.} 
+        \label{fig:system_call_table}
+      \end{figure}
+    \end{definition}
+
+    \begin{example}[Common Exception Numbers]
+      Some common exception numbers are listed below. 
+      \begin{table}[H]
+        \centering
+        \caption{Exception Summary}
+        \begin{tabular}{|c|l|l|}
+        \hline
+        \textbf{Exception Number} & \textbf{Description} & \textbf{Exception Class} \\ \hline
+        0 & Divide Error & Fault \\ \hline
+        13 & General protection fault & Fault \\ \hline
+        14 & Page fault & Fault \\ \hline
+        18 & Machine check & Abort \\ \hline
+        32-255 & OS-defined & Interrupt or trap \\ \hline
+        \end{tabular}
+      \end{table}
+    \end{example}
+
+    From the application's point of view, even if an interrupt happens, it just thinks it is running line by line. 
+
+    \begin{definition}[Process Address Space]
+      Interrupts can happen at any time, and one way to efficiently support this execution context switch from user mode to kernel mode is to do the following. At boot time, the OS loads its kernel code at a fixed location in RAM. Every time you create a new program state, the OS initializes a CPU register with the starting address of the OS handler function. On an interrupt, the CPU switches to kernel mode and executes OS interrupt handler code instructions that are accessible at the top addresses in every process’s address space. Because every process has the OS mapped to the same location at the top of its address space, the OS interrupt handler code is able to execute quickly in the context of any process that is running on the CPU when an interrupt occurs. This OS code can be accessed only in kernel mode, protecting the OS from user-mode accesses; during regular execution a process runs in user mode and cannot read or write to the OS addresses mapped into the top of its address space.\footnote{However, due to security reasons where the user space can read kernel space data, this is obsolete.}
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/process_address_space.png}
+        \caption{Process address space: the OS kernel is mapped into the top of every process’s address space.} 
+        \label{fig:process_address_space}
+      \end{figure}
+    \end{definition}
+
+    In summary, a good visual is that each program runs as independent processes, with its own virtual address space (elaborated next) and the OS mediates access to shared resources.  
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.3]{img/os_multiple_programs.png}
+      \caption{Multiple programs running and controlled by an operating system.} 
+      \label{fig:os_multiple_programs}
+    \end{figure}
+
+    Each process can be in one of three states. It can either be currently running on the state, ready to run, or if there is a long IO operation, it can be blocked, which is then unblocked with a hardware interrupt. Usually anything that involves IO puts the state to blocked (e.g. reading data from disk, the keyboard, or the internet). The pool of processes that are concurrently running is the running and ready states. 
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/3_process_states.png}
+      \caption{Three states that a single process can be in. The pool of processes that are concurrently running is the running and ready states. The blocked state is waiting to be put back into this pool by a hardware interrupt.} 
+      \label{fig:3_process_states}
+    \end{figure}
+
+    \begin{example}[Running a Binary]
+      Therefore, to run a binary file \texttt{a.out}, 
+      \begin{enumerate}
+        \item The kernel first loads the binary file from disk into RAM.
+        \item Then the OS kernel creates a new process with its own virtual memory stack and its global variables, etc. 
+        \item Then the CPU's \texttt{\%rip} register point to the address of the \texttt{main} function. 
+        \item The kernel's virtual memory space is mapped to the top of the process's virtual memory space, where it is not visible to the user mode. 
+      \end{enumerate}
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/process_space.png}
+        \caption{The kernel's virtual memory space is mapped to the top of the process's virtual memory space.} 
+        \label{fig:process_space}
+      \end{figure}
+    \end{example}
+
+  \subsection{Virtual Memory}
+
+    We have mentioned that there is a problem where two different application developers, who have linked their own C files to create binaries, can be installed on one computer and run at the same time. However, the linking has already been finished and the memory addresses of the symbols in each executable are fixed. This can be a problem if there are overlaps in the memory addresses. 
+
+    \begin{definition}[Virtual Memory]
+      The actual main memory of our system is referred to as the \textbf{physical memory}. To prevent such overlaps, the kernel and each user process has its own \textbf{virtual memory}. That is, there exists a \textbf{memory management unit (MMU)} in the CPU that translates virtual addresses to physical addresses through a hashmap. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/mmu.png}
+        \caption{Memory management unit maps each virtual address to a physical address.} 
+        \label{fig:mmu}
+      \end{figure}
+      This allows the kernel to map the virtual memory of each process to the physical memory.
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/vm_map.png}
+        \caption{Each process has its own virtual memory space, which is mapped by the MMU to the physical memory space. } 
+        \label{fig:vm_map}
+      \end{figure}
+    \end{definition}
+
+    \begin{example}[Virtual and Physical Memory Size]
+      Given a $n$-bit machine with $2^m$-bytes of memory, $n > m$ and so there are more virtual addresses than physical addresses. If we have a 64-bit machine with 16GB of memory, then there are $2^{64}$ virtual addresses and $2^{3} \cdot 2^{34} = 2^{37}$ bits of physical memory. If there are 8 processes running then there are $8 \cdot 2^{64} = 2^{67}$ bits of virtual memory. 
+    \end{example}
+
+    There are many properties of virtual memory that solves a lot of problems and makes things more convenient. The main property is called \textbf{indirection} which means that the virtual memory is not the actual physical memory. 
+    \begin{enumerate}
+      \item The first problem is that there are much more virtual addresses than physical addresses. Even storing a table for one process would take up more than all of your RAM. Therefore, for every byte in main memory, there exists one physical address (PA) and 0, 1, or more virtual addresses (VA). We will elaborate on the specifics of this implementation later. 
+      \item We also need to have memory management. Every process has its own stack, heap, \texttt{.text}, and \texttt{.data} sections. We must be able to allocate and deallocate memory and fit this accordingly. 
+      \item We also need to have protection. We need to ensure that one process cannot read or write to another process's memory.
+      \item While we want isolation, we also want sharing between processes if needed (e.g. signing into Slack using Google on a browser). Furthermore, if there are multiple calls of the \texttt{printf} function, we can just have a single copy of the \texttt{printf} function in memory rather than having multiple copies for each process. This can be done through the concept of permissions. 
+    \end{enumerate}
+
+    Let's talk about how we should actually map these addresses. One property of this mapping is that we want contiguous addresses both in the virtual and the physical level so that we can store arrays, exploit locality, etc. Therefore, we can use larger blocks known as \textit{pages}. Just like how we have divided memory addresses into sections that can be used to map to caches, we can divide the memory addresses into sections that can be used to map to the physical memory. Note that this also takes care of the first problem partially since now we can fit this table in the memory. 
+      
+    \begin{definition}[Page]
+      Both in virtual and physical memory, an $n$-bit address can be divided into a \textbf{page number} and an \textbf{offset}. The page number is $n - 12$ and the offset is $12$ bits. The page number is used to index into a \textbf{page table} that maps the page number to a physical address. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/page.png}
+        \caption{A page is a contiguous block of memory addresses.} 
+        \label{fig:page}
+      \end{figure}
+      While the entire page table is stored in memory (at memory stored by a protected CPU register), a portion of the page table is stored in the CPU cache. 
+      \begin{enumerate}
+        \item The virtual page number (VPN) is equivalent to the block number. 
+        \item The page offset is equivalent to the block offset. 
+      \end{enumerate}
+    \end{definition}
+
+    \begin{example}[Page Number]
+      In a 64-bit machine with 16GB of RAM, you have $2^{64} / 2^{12} = 2^{52}$ virtual pages and $2^{37} / 2^{12} = 2^{25}$ physical pages. 
+    \end{example}
+
+    Therefore, our translation table is really a map from a virtual page number to a physical page number, rather than a virtual address to a physical address. This is created at runtime. Therefore, 
+    \begin{enumerate}
+      \item The virtual page number $VP$ is mapped through some map $M$ to get the physical page number $PP$. 
+      \item The virtual offset is the same as the physical offset. 
+    \end{enumerate}
+
+    \begin{definition}[Page Table]
+      The \textbf{page table} is a hashmap that maps the virtual page number to the physical page number defined as the mapping 
+      \begin{equation}
+        H: \underbrace{(VP,m)}_{\text{64 bits}} \longrightarrow PP
+      \end{equation}
+      Each input-output pair is called a \textbf{page table entry (PTE)}, and virtual memory is \textbf{fully associative}, meaning that any virtual page can be placed in any physical page, though it requires a large mapping function (the PT), which is different from CPU caches. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/page_table.png}
+        \caption{The page table only needs the virtual page number plus the metadata to map to the physical page number. The offset is provided by the virtual memory address itself. } 
+        \label{fig:page_table}
+      \end{figure}
+      Note that while we want to store the 52-bit VP in the page table, the actual input is still 64-bits, with 12 bits of metadata $m$. This metadata contains some information about the following 
+      \begin{enumerate}
+        \item A bit that indicates whether the page is a read, write, or executable piece of code (3 bits). 
+        \item A bit that indicates whether the page is valid or not. 
+      \end{enumerate}
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/permissions_vm.png}
+        \caption{The page table entry contains the physical page number and some metadata.} 
+        \label{fig:permissions_vm}
+      \end{figure}
+    \end{definition}
+
+    Therefore, if you malloc, you are really just allocating some virtual memory addresses, which then get mapped to physical memory addresses in one or more pages. 
+
+    \begin{definition}[Page Fault]
+      It is clear that not every virtual page number can be mapped to a physical page number. If it turns out that a \textbf{page fault} happens if 
+      \begin{enumerate}
+        \item the virtual page number maps to no physical page (i.e. is not in the page table) in the RAM
+        \item if some user program tries to access a physical page owned by the kernel
+        \item if the page number maps to some place in the disk (but it is not in physical RAM)
+      \end{enumerate}
+      Page faults can be used in a lot of creative ways, but to reduce the risk of a page fault, e.g. when running out of physical memory, we can move some physical pages into disk and allocate memory by creating a new entry in our page table that maps this application's virtual page into the now empty physical page. 
+    \end{definition}
+
+    Note that by this construction, instructions that are contiguous in virtual memory may not be contiguous in physical memory. This may seem like it defeats the purpose of locality, but for most purposes, the 4KB page size will be enough to exploit it. We also see that malloced addresses in the heap (while we have learned that they were higher on the stack on higher addresses), are not necessarily in higher addresses in physical memory. Therefore, physical memory is scattered, and this is good since you don't need a giant contiguous block of memory to run large programs; you can divide it up into multiple physical pages. 
+
+    \begin{definition}[Swap Space]
+      Sometimes, the memory might not be in physical memory. Since memory is constrained (e.g. only 16GB), if we initialize a large array in the stack or global data, we may run out of memory. Therefore, the OS can flush out some physical pages in memory to disk, which is called \textbf{swapping}. The portion of the disk space that can be used in swapping is called the \textbf{swap space}. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/swap.png}
+        \caption{Swapping out physical pages to disk.} 
+        \label{fig:swap}
+      \end{figure}
+      This allows us to abstract software into having almost infinite memory. Another important property is that swapping is \textbf{write-back} rather than write-through. We really don't want to write to disk every time we modify memory, so some thing may never end up on the disk (e.g. stack for short-lived processes). This is why when we open a file in C or Python, you may have to call \texttt{close()} since that will flush the memory to disk. 
+    \end{definition}
+
+    \begin{example}[Page Fault] 
+      When we swap out a physical page to disk, the physical page is now empty and accessing the virtual memory at this page table will cause a page fault. Say, when we want to write to a memory address that is swapped into the disk. The following will happen. 
+      \begin{enumerate}
+        \item You execute code normally in user mode. 
+        \item Then you try to write to a memory address that is swapped out, say through a \texttt{mov} operation. Say it is the following assembly code. 
+
+          \begin{lstlisting}
+            80483b7: c7 05 10 9d 04 08 0d          movl $0x0,0x8049d10  
+          \end{lstlisting}
+          This raises a page fault, an exception, and so the OS goes into kernel mode. 
+        \item The kernel then finds the location of this physical page in the disk. The implementation is OS-specific (e.g. you can store some metadata). 
+        \item Then it must copy the page back from disk into memory, and it may also have to swap out some other physical page to disk to make space if needed.  
+        \item Then the OS goes back into user mode, which now has access to the relevant memory in disk. 
+      \end{enumerate}
+      Ultimately, the moving operation is called twice. The first time it fails in user mode, and the second time (after the kernel mode, but now back to user mode) it succeeds. Note that this is different from a system call, which returns back to the \textit{next} instruction. This call returns to the current instruction. 
+    \end{example}
+
+    \begin{definition}[Page Sharing]
+      This also makes protection and sharing to be quite nice. Given two virtual pages $VP_1$ and $VP_2$, owned by two different processes, we can have them share information by mapping to the same physical page $PP$. 
+      \begin{table}[H] 
+        \centering 
+        \begin{tabular}{|c|c|c|c|}
+        \hline
+        \textbf{Section} & \textbf{Read} & \textbf{Write} & \textbf{Execute} \\
+        \hline
+        Stack & 1 & 1 & 0 \\
+        \hline
+        Heap & 1 & 1 & 0 \\
+        \hline
+        Static Data & 1 & 1 & 0 \\
+        \hline
+        Literals/const & 1 & 0 & 0 \\
+        \hline
+        Instructions & 1 & 0 & 1 \\
+        \hline
+        \end{tabular}
+        \caption{Permissions for different sections of virtual memory.}
+      \end{table}
+    \end{definition}
+
+    \begin{example}[Page Sharing Between Two Applications]
+      Furthermore, we can set process 1 to have only read permissions and process 2 to have read/write permissions. Therefore, say Google Chrome (process 2) can write your password into some memory, and then Slack (process 1) can read it, copy it into the CPU, and do stuff with it. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/vm_sharing.png}
+        \caption{Sharing of data between two processes.} 
+        \label{fig:vm_sharing}
+      \end{figure}
+    \end{example}
+
+    Now that we see how memory is swapped in the backend, we can see why larger memory can sometimes mean faster programs and why thrashing occurs. 
+
+    \begin{definition}[Thrashing]
+      The set of virtual pages that a program is ``actively'' accessing at any point in time is called its \textbf{working set}. 
+      \begin{enumerate}
+        \item If the working set of one process is less than physical memory, then there is good performance for one process. 
+        \item If the working set of all processes is greater than physical memory, then we have \textbf{thrashing}, which is a performance meltdown where pages are swapped between memory and disk continuously, and the CPU is always waiting or paging. 
+      \end{enumerate}
+    \end{definition}
+
+    \begin{example}[Computation Exercise]
+      Suppose that you have 16 KiB pages, 48-bit virtual addresses, and 16 GiB physical memory. How many bits wide are the following fields? 
+      \begin{enumerate}
+        \item Virtual page number : $48 - 14 = 34$ bits.
+        \item Virtual page offset : 16 KiB is $2^{14}$ bytes, so we need $14$ bits.
+        \item Physical page number : 16 GiB is $2^{34}$ bytes, so we need $34 - 14 = 20$ bits.
+        \item Physical page offset : 16 KiB is $2^{14}$ bytes, so we need $14$ bits.
+      \end{enumerate}
+      Furthermore, we have 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/page_example.png}
+        \caption{Given the virtual address, we can figure out the physical address, VPN, and PPN easily. } 
+        \label{fig:page_example}
+      \end{figure}
+    \end{example}
+
+\section{Shared Memory and Concurrency}
+
+  \subsection{Threads}
+
+    So far, we've talked about everything as a sequential process of instructions. In practicality, we have improved this from the memory perspective by implementing caches, virtual memory, and swapping, but in the CPU perspective. In CPUs, we can't just simply increase the clock frequency indefinitely since there are physical limitations.\footnote{It turns out that power consumption increases faster than clock frequency, so it scales badly.} The current trend is to increase parallelism to compute faster, which is implemented with cores and threads. Simply, a CPU has multiple cores, each with its own L1/L2 cache, and possibly even a shared L3 cache. There are actually two types of parallelism: at the \textit{process level} and at the \textit{thread level}. 
+
+    \begin{definition}[Context Switch]
+      Each core can run a single process, and if there are more processes than cores, then the OS can schedule them by implementing \textbf{context switches} which passes control of executing on a CPU core from one execution context to another. 
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/context_switch.png}
+        \caption{Context switches allow the OS to schedule multiple processes on a single CPU core.Every time context switching happens, the CPU must enter into kernel mode to switch. } 
+        \label{fig:context_switch}
+      \end{figure}
+    \end{definition}
+
+    However, context switching is simply too expensive since every time you switch, you must load the entire page table of the new process into memory. Let's think about which parts of the process represent an execution context. 
+
+    \begin{definition}[Thread and Processes]
+      We want to distinguish between the two: 
+      \begin{enumerate}
+        \item A program simply needs registers (e.g. a \texttt{rsp} stack pointer) and a stack to run, which is known as a \textbf{thread}. 
+        \item A thread, plus the virtual address space and a file table, is called a \textbf{process}. 
+      \end{enumerate}
+      Multiple threads of one process can a therefore share an address spaces. This enables us to divide large tasks across several cooperative threads, and threads can communicate with each other through the shared address space. 
+    \end{definition}
+
+    \begin{example}[Mobile Application]
+      If we have a single threaded messaging mobile app, then this is painfully slow since if we want to scroll down our messages while also sending and receiving messages, then we would have to wait for the message to receive from the server, into our disk, and into our memory, before the app responds when scrolling. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/single_threaded_app.png}
+        \caption{Single threaded app.} 
+        \label{fig:single_threaded_app}
+      \end{figure}
+      However, if we have a multithreaded app with one thread for the app UI and the other one for the server through a background thread, then we can have good UI response time. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/multithreaded_app.png}
+        \caption{Multithreaded app. Methods on the UI thread must be fast to ensure user satisfaction while anything slow can run on a background thread. } 
+        \label{fig:multithreaded_app}
+      \end{figure}
+    \end{example}
+
+    \begin{theorem}[Implementation in C]
+      This is implemented in C with the \texttt{pthread.h} library, which is included in the standard library directory. 
+
+      \begin{figure}[H]
+        \centering 
+        \begin{lstlisting}
+          #include <stdio.h> 
+          #include <assert.h>
+          #include <pthread.h>
+
+          void* mythread(void* args) {
+            printf("%s\n", (char*) args); 
+            return NULL; 
+          }
+
+          int main(int argc, char *argv[]) {
+            pthread_t p1, p2; 
+            int rc; 
+            printf("main: begin\n"); 
+
+            // thread creation 
+            rc = pthread_create(&p1, NULL, mythread, "A"); assert(rc == 0); 
+            rc = pthread_create(&p2, NULL, mythread, "B"); assert(rc == 0); 
+
+            // join waits for the threads to finish 
+            rc = pthread_join(p1, NULL); assert(rc == 0); 
+            rc = pthread_join(p2, NULL); assert(rc == 0); 
+            printf("main : end\n");  
+            return 0; 
+          }
+        \end{lstlisting}
+        \caption{We have a function \texttt{mythread} that we want to run on multiple threads. We first start off by creating a few threads with each function. Since this is running on multiple cores at the same time, it can either print AB or BA. }
+        \label{fig:thread_example}
+      \end{figure}
+
+      The two main functions needed is \texttt{pthread\_create} and \texttt{pthread\_join}. For \texttt{pthread\_create}, it essentially runs the function on each thread with some specific arguments. It returns $0$ on success, and an error number otherwise. It has the following arguments. 
+      \begin{enumerate}
+        \item 1: A pointer to a \texttt{pthread\_t} struct
+        \item 2: Attributes of the thread, such as stack size (to prevent it from taking too much stack), scheduling priority (\texttt{NULL} for default)
+        \item 3: this is the pointer to the start function the thread starts running in. Note that if we declare a function name, then that function name is a pointer to the actual function. 
+        \item 4: Pointer to the sole argument to the start function. 
+      \end{enumerate}
+      Then, for the \texttt{pthread\_join} function, it essentially waits for the thread to finish and returns the return value of the thread. It has the following arguments.
+      \begin{enumerate}
+        \item 1: A pointer to a \texttt{pthread\_t} struct. 
+        \item 2: A pointer to the return value of the thread.
+      \end{enumerate}
+      Note that after the create functions are called, there are 3 threads in this program (the main thread, plus the two threads that were created). Then after the join function, then there is only 1 thread (the main thread). 
+    \end{theorem}
+
+    \begin{example}[MWS of Thread Implementation]
+      Take a look the sequential C code for summing up the elements in an array. 
+      \begin{lstlisting}
+        // seq.c
+        #define N 1000 
+        int sum_array (int a[], int len) {
+          int sum = 0; 
+          for (int i = 0; i < len; i++) {
+            sum += a[i]; 
+          }
+          return sum;
+        }
+
+        int main() {
+          int array[N] = {}; 
+          for (int i = 0; i < N; i++) {
+            array[i] = i; 
+          }
+          clock_t start, end; 
+          double timing; 
+          start = clock(); 
+          int sum = sum_array(array, N);
+          end = clock();
+          timing = (double)(end - start) / CLOCKS_PER_SEC; 
+          printf("Sum of array is %d computed in %f\n", sum, timing);
+          return 0; 
+        }
+      \end{lstlisting}
+      which gives a runtime of $0.008$ seconds. Now let's parallelize it over 4 threads. 
+      \begin{lstlisting}
+        // par.c 
+        #include <stdio.h>
+        #include <time.h>
+        #include <pthread.h>
+
+        #define N 1000
+        #define NUM_THREADS 4
+
+        typedef struct {
+            int *array;
+            int start;
+            int len;
+            int partial_sum;
+        } ThreadData;
+
+        void* sum_array(void* arg) {
+            ThreadData *data = (ThreadData *)arg;
+            data->partial_sum = 0;
+            for (int i = data->start; i < data->start + data->len; i++) {
+                data->partial_sum += data->array[i];
+            }
+            return NULL;
+        }
+
+        int main() {
+            int array[N] = {};
+            for (int i = 0; i < N; i++) {
+                array[i] = i;
+            }
+
+            pthread_t threads[NUM_THREADS];
+            ThreadData data[NUM_THREADS];
+            int segment_length = N / NUM_THREADS;
+
+            clock_t start, end;
+            double timing;
+
+            start = clock();
+            
+            // Creating threads
+            for (int i = 0; i < NUM_THREADS; i++) {
+                data[i].array = array;
+                data[i].start = i * segment_length;
+                data[i].len = (i == NUM_THREADS - 1) ? (N - data[i].start) : segment_length;
+                pthread_create(&threads[i], NULL, sum_array, &data[i]);
+            }
+
+            int total_sum = 0;
+            // Joining threads and summing up results
+            for (int i = 0; i < NUM_THREADS; i++) {
+                pthread_join(threads[i], NULL);
+                total_sum += data[i].partial_sum;
+            }
+
+            end = clock();
+            timing = (double)(end - start) / CLOCKS_PER_SEC;
+
+            printf("Sum of array is %d computed in %f seconds.\n", total_sum, timing);
+
+            return 0;
+        }
+      \end{lstlisting}
+      which gives a runtime of $0.000284$ seconds, which is approximately 4 times faster. 
+    \end{example}
+
 
 \end{document}
