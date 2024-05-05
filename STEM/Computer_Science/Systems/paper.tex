@@ -4583,7 +4583,7 @@ We first go over some basic theoretical properties of basic data types, focusing
 
     There are many properties of virtual memory that solves a lot of problems and makes things more convenient. The main property is called \textbf{indirection} which means that the virtual memory is not the actual physical memory. 
     \begin{enumerate}
-      \item The first problem is that there are much more virtual addresses than physical addresses. Even storing a table for one process would take up more than all of your RAM. Therefore, for every byte in main memory, there exists one physical address (PA) and 0, 1, or more virtual addresses (VA). We will elaborate on the specifics of this implementation later. 
+      \item The first problem is that there are much more virtual addresses than physical addresses. Even storing a table for one process would take up more than all of your RAM. Therefore, for every byte in main memory, there exists one physical address (PA) and zero, one, or more virtual addresses (VA). We will elaborate on the specifics of this implementation later. 
       \item We also need to have memory management. Every process has its own stack, heap, \texttt{.text}, and \texttt{.data} sections. We must be able to allocate and deallocate memory and fit this accordingly. 
       \item We also need to have protection. We need to ensure that one process cannot read or write to another process's memory.
       \item While we want isolation, we also want sharing between processes if needed (e.g. signing into Slack using Google on a browser). Furthermore, if there are multiple calls of the \texttt{printf} function, we can just have a single copy of the \texttt{printf} function in memory rather than having multiple copies for each process. This can be done through the concept of permissions. 
@@ -4745,31 +4745,145 @@ We first go over some basic theoretical properties of basic data types, focusing
 
 \section{Shared Memory and Concurrency}
 
-  \subsection{Threads}
+    So far, we've talked about everything as a sequential process of instructions. In practicality, we have improved this from the memory perspective by implementing caches, virtual memory, and swapping, but in the CPU perspective. In CPUs, we can't just simply increase the clock frequency indefinitely since there are physical limitations.\footnote{It turns out that power consumption increases faster than clock frequency, so it scales badly.} The current trend is to increase parallelism to compute faster, which is implemented with cores and threads. Let's clear some of these definitions up. 
 
-    So far, we've talked about everything as a sequential process of instructions. In practicality, we have improved this from the memory perspective by implementing caches, virtual memory, and swapping, but in the CPU perspective. In CPUs, we can't just simply increase the clock frequency indefinitely since there are physical limitations.\footnote{It turns out that power consumption increases faster than clock frequency, so it scales badly.} The current trend is to increase parallelism to compute faster, which is implemented with cores and threads. Simply, a CPU has multiple cores, each with its own L1/L2 cache, and possibly even a shared L3 cache. There are actually two types of parallelism: at the \textit{process level} and at the \textit{thread level}. 
+    \begin{definition}[Processors, Cores]
+      In almost every consumer computer, there exists one \textbf{processor} (CPU) in it. The CPU can have multiple \textbf{cores}. Each core has its own set of registers, L1/L2 cache, and possibly even a shared L3 cache. 
+    \end{definition}
+
+    Now these cores must run a certain program. Let's define what this means exactly. 
+
+    \begin{definition}[Program, Process]
+      A \textbf{program} can be thought of as a binary executable produced after linking. A \textbf{process} is a running instance of some program. 
+      \begin{enumerate}
+        \item It is identified by a \textbf{process ID (PID)} number. 
+        \item It is run on a CPU core, with its own registers. 
+        \item It has its own virtual address space, containing the code (instructions), heap, and pagetable that maps it to physical memory. 
+      \end{enumerate}
+    \end{definition}
+
+    \begin{example}[Where to look for PIDs]
+      We can see the PIDs either by using \texttt{htop} (for UNIX systems) or by looking at the \texttt{/proc} directory in Linux systems. Each directory name represents the PID of the process. 
+      \begin{figure}[H]
+        \centering
+        \begin{subfigure}[b]{0.95\textwidth}
+        \centering
+          \begin{lstlisting}
+            ubuntu@passionate-blesbok:/proc$ ls
+            1     118   1368  26   44   590  762        cpuinfo      modules
+            10    119   1369  27   448  599  763        crypto       mounts
+            101   12    1370  28   45   6    764        devices      net
+            1012  120   1371  29   46   605  765        diskstats    pagetypeinfo
+            102   1232  138   3    467  608  769        driver       partitions
+            103   1234  139   30   468  611  796        execdomains  pressure
+            1031  1261  14    309  47   612  8          fb           sched_debug
+            1037  129   15    31   471  613  801        filesystems  schedstat
+            1038  13    16    32   473  629  810        fs           scsi
+            104   132   17    33   474  638  822        interrupts   self
+            1043  1342  18    34   475  651  836        iomem        slabinfo
+            105   1353  180   35   48   666  850        ioports      softirqs
+            106   1354  19    356  49   696  872        irq          stat
+          \end{lstlisting}
+          \caption{You can see the PIDs of the process by looking at the \texttt{/proc} directory. This changes quite often as processes are destroyed and created often, so to maybe track this in real time you might want to run \texttt{watch -n 0.1 'ls'}. }
+          \label{fig:proc}
+        \end{subfigure}
+
+        \begin{subfigure}[b]{0.95\textwidth}
+        \centering
+          \includegraphics[width=\textwidth]{img/htop.png}
+          \caption{You can see the PID number of each process (binary) running on the left column when running \texttt{htop} on UNIX systems. }
+          \label{fig:htop}
+        \end{subfigure}
+        \caption{Two different ways to see the PIDs of all current processes. }
+        \label{fig:}
+      \end{figure}
+      There is a specific numbering to each process. 
+      \begin{enumerate}
+        \item The process with PID 1 is always the kernel process. 
+        \item The smaller PIDs (perhaps less than 300) are also reserved for the kernel, so don't kill it. 
+      \end{enumerate}
+
+      If you go into each process, you can see a few things.  
+      
+      \begin{figure}[H]
+        \centering 
+        \begin{lstlisting}
+          ubuntu@passionate-blesbok:/proc/750$ sudo ls
+          attr	    comm	     fd        map_files   net		  pagemap      sessionid     statm	    uid_map
+          autogroup   coredump_filter  fdinfo    maps	   ns		  personality  setgroups     status	    wchan
+          auxv	    cpuset	     gid_map   mem	   numa_maps	  projid_map   smaps	     syscall
+          cgroup	    cwd		     io        mountinfo   oom_adj	  root	       smaps_rollup  task
+          clear_refs  environ	     limits    mounts	   oom_score	  sched        stack	     timers
+          cmdline     exe		     loginuid  mountstats  oom_score_adj  schedstat    stat	     timerslack_ns
+        \end{lstlisting}
+        \caption{There are many files in each PID folder that tells you about the process. } 
+        \label{fig:pid_info}
+      \end{figure}
+      \begin{enumerate}
+        \item To get information about the status of this process, you can \texttt{cat status}. 
+
+        \item The virtual address space is stored in \texttt{pagemap}. If you're on an 64-bit machine, this file will be extremely big, so just \texttt{cat pagemap} won't work. Therefore you should try \texttt{cat maps}, which shows you something like the following. 
+
+        \begin{lstlisting}
+          ubuntu@passionate-blesbok:/proc/750$ sudo cat maps
+          aaaac673c000-aaaac67e3000 r-xp 00000000 08:01 2576                       /usr/sbin/rsyslogd
+          aaaac67f3000-aaaac67f6000 r--p 000a7000 08:01 2576                       /usr/sbin/rsyslogd
+          aaaac67f6000-aaaac67fd000 rw-p 000aa000 08:01 2576                       /usr/sbin/rsyslogd
+          aaaac67fd000-aaaac67fe000 rw-p 00000000 00:00 0 
+          aaaadfe94000-aaaadfed7000 rw-p 00000000 00:00 0                          [heap] 
+        \end{lstlisting}
+        In here, you can see that the lefthand column represents the range of virtual memory address. The next column gives us the permissions (read, write, executable, shared/private). 
+      \end{enumerate}
+    \end{example}
+
+  \subsection{Process Level Concurrency}
 
     \begin{definition}[Context Switch]
-      Each core can run a single process, and if there are more processes than cores, then the OS can schedule them by implementing \textbf{context switches} which passes control of executing on a CPU core from one execution context to another. 
+      Let us first start off with a single core system. At this point, everything is sequential, and to run all these processes at once\footnote{not programs, since there can be multiple instances of one program, like two Chrome instances. In fact, Chrome produces multiple processes to help run each part of the browser, so one program may translate to multiple processes. } we want to use system calls to transition between these processes. This is called a \textbf{context switch}. 
 
       \begin{figure}[H]
         \centering 
-        \includegraphics[scale=0.4]{img/context_switch.png}
-        \caption{Context switches allow the OS to schedule multiple processes on a single CPU core.Every time context switching happens, the CPU must enter into kernel mode to switch. } 
+        \includegraphics[scale=0.4]{img/seq_ex.png}
+        \caption{5 processes may be executed as such on a single core. } 
         \label{fig:context_switch}
       \end{figure}
+      Note that due to context switches, the \textbf{CPU time}, which is the time is takes to run a process on a CPU, is much shorter than the \textbf{wall-clock time}, which is the time a human perceives a process takes to complete. 
     \end{definition}
 
-    However, context switching is simply too expensive since every time you switch, you must load the entire page table of the new process into memory. Let's think about which parts of the process represent an execution context. 
+    Note that context switches are expensive. To do one, you must essentially replace two things. 
+    \begin{enumerate}
+      \item First, you need to clear out all the register values. This can be done by storing them in the current stack at the VAS, which then gets mapped through the page table into the physical address space. 
+      \item Now the register values (like the instruction and stack pointers) are stored safely in the stack in the VAS, the actual page table must be swapped out too since each process must have its own virtual address space. 
+    \end{enumerate}
+    Since it is quite expensive to context switch all the time, the simplest thing to do is add more cores, which gives us the double benefit of distributing the process workload \textit{and} having to do less context switches. This is called \textbf{physical concurrency}, and given the same workload, it speeds up our computation absolutely. However, this can physically take us so far due to the limited number of cores, and we must go further and use \textbf{logical concurrency}. 
 
-    \begin{definition}[Thread and Processes]
-      We want to distinguish between the two: 
+  \subsection{Thread Level Concurrency}
+
+    It turns out that it is much more expensive to reload the page table of a new process rather than clearing out the register values. So, perhaps maybe we can try to implement multiple related ``processes'' that \textit{share} the same VAS, but have their own execution stream (i.e. own stack and registers). This is precisely the concept of a \textit{thread}. 
+
+    \begin{definition}[Threads]
+      \textbf{Threads} are multiple execution streams within a single process. To summarize them, a thread is an execution context within a process that has a... 
       \begin{enumerate}
-        \item A program simply needs registers (e.g. a \texttt{rsp} stack pointer) and a stack to run, which is known as a \textbf{thread}. 
-        \item A thread, plus the virtual address space and a file table, is called a \textbf{process}. 
+        \item thread ID 
+        \item its own stack frame 
+        \item its own register context\footnote{This does not mean that each process has its own physical registers. It has its own \textit{value} that is loaded into the registers. The physical number of registers is determined by the number of CPU cores. }
       \end{enumerate}
-      Multiple threads of one process can a therefore share an address spaces. This enables us to divide large tasks across several cooperative threads, and threads can communicate with each other through the shared address space. 
+      This is all that is really needed to execute some computation. Now, given that there are some number of threads in process $K$, they \textit{share} the same virtual address space (VAS), are all under the same PID, share the same code, static data, heap, and file table. The individual stacks living within the VAS are protected from each other to avoid stack overflow. 
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.35]{img/2_threads.png}
+        \caption{When there are two threads of a single process, the threads share the same virtual memory space. However, they each have their own set of registers. For example, they each have their own instruction pointer that points to the next line of code, along with their own stack pointer. Furthermore, to prevent stack overflow, there are protection mechanisms that prevent one stack from growing past a certain limit into another stack owned by a different thread. } 
+        \label{fig:2_threads}
+      \end{figure}
+      Therefore, we can speed up our program in two ways. 
+      \begin{enumerate}
+        \item If we have one core, we can do context switching faster between each thread (since we only have to load the register values). 
+        \item If we have multiple cores, we can take thread 1 and have it run on one core while taking thread 2 and running it on another core. This is really analogous to having two separate processes on two cores, but these two processes simply share the same VAS, with the same code, data, and heap. 
+      \end{enumerate}
     \end{definition}
+
+    Threads are advantageous for multiple reasons. First, by utilizing multiple cores we can speed up our program to reduce our \textit{CPU time}. However, if we are sharing threads between one core, we're not actually speeding up anything at all but rather reducing our \textit{wall-clock time}. The main speedup that we will feel is that latency heavy tasks will get offloaded to other threads, while more relevant programs can be run on the main thread. This is explained more in the following example. 
 
     \begin{example}[Mobile Application]
       If we have a single threaded messaging mobile app, then this is painfully slow since if we want to scroll down our messages while also sending and receiving messages, then we would have to wait for the message to receive from the server, into our disk, and into our memory, before the app responds when scrolling. 
@@ -4788,150 +4902,845 @@ We first go over some basic theoretical properties of basic data types, focusing
       \end{figure}
     \end{example}
 
-    \begin{theorem}[Implementation in C]
-      This is implemented in C with the \texttt{pthread.h} library, which is included in the standard library directory. 
+    The following law gives us a certain bound on how much parallelization can help us. Note that this does not talk about the responsiveness of an application due to clever thread sharing. It just says given a certain amount of computational task, how much can we reduce the CPU time with parallelization? 
 
+    \begin{theorem}[Amdahl's Law]
+      Say that we have code that runs in 1 second. Given that proportion $f$ of our code can be parallelized, and the speedup for that portion is $N$, then the new time that our program will take is 
+      \begin{equation}
+        T_{\mathrm{new}} = (1 - f) + f/N
+      \end{equation}
+      since the sequential part $1 - f$ cannot be sped up, and the remaining parallel part $f$ can be sped up by distributing over $N$ cores. Therefore, defining the speedup as $T_{\mathrm{new}} / T_{\mathrm{old}}$, we get our total parallelized speedup is 
+      \begin{equation}
+        \frac{1}{(1 - f) + f/N}
+      \end{equation}
+      Note that it is bounded by the sequential portion as $N \rightarrow \infty$. 
       \begin{figure}[H]
         \centering 
-        \begin{lstlisting}
-          #include <stdio.h> 
-          #include <assert.h>
-          #include <pthread.h>
+        \includegraphics[scale=0.5]{img/amdahl.png}
+        \caption{Amdahl's law for different $f$'s over multiple number of processors $N$.} 
+        \label{fig:amdahl}
+      \end{figure}
+    \end{theorem}
 
-          void* mythread(void* args) {
-            printf("%s\n", (char*) args); 
+
+    This is implemented in C with the \texttt{pthread.h} library, which is included in the standard library directory and follows the POSIX (Portable Operating System Interface) standard. Essentially, we want to do the following: 
+    \begin{enumerate}
+      \item Define a function that will be called for each thread. It must return a void pointer \texttt{void *} and its arguments must also be a void pointer \texttt{void *}. Think of this as our new main function for each stack that will be created from each thread.\footnote{Called a function pointer?} Since we are only restricted to a function taking in one void pointer argument, it is common to define a new struct like \texttt{arg\_t} that contains all the parameters you need to run each thread. The void pointer can be typecast into the struct pointer at the beginning of each thread function. 
+
+      \item We create \texttt{pthread\_t} objects, which are the thread objects. 
+      \item We call the \texttt{pthread\_create} function that takes in the pointer of the thread object, some settings, the function to be called, and its arguments. At this point, the operating system will determine how these threads will be run, so you can't make any sequential assumptions about them. 
+      \item Then we join them using \texttt{pthread\_join}, which basically waits until all the threads are complete before \texttt{main} continues. 
+    \end{enumerate}
+
+    We will show two examples that go over this process. But more importantly, the concurrency of these two examples will show unpredictable behavior. 
+
+    \begin{example}[Simply Print out Thread Number]
+      We can make threads to print out the number. But these aren't really in the same order. 
+      \begin{figure}[H]
+        \centering 
+        \noindent\begin{minipage}{.8\textwidth}
+        \begin{lstlisting}[]{Code}
+          #include <stdio.h> 
+          #include <pthread.h>
+          #include <stdlib.h>
+
+          void* thread(void* args) {
+            printf("Thread %d\n", *(int*)args); 
             return NULL; 
           }
 
           int main(int argc, char *argv[]) {
-            pthread_t p1, p2; 
-            int rc; 
-            printf("main: begin\n"); 
+            int size = 10; 
+            pthread_t threads[size]; 
+            int rc, i;
 
             // thread creation 
-            rc = pthread_create(&p1, NULL, mythread, "A"); assert(rc == 0); 
-            rc = pthread_create(&p2, NULL, mythread, "B"); assert(rc == 0); 
+            for (i = 0; i < size; i++) {
+              rc = pthread_create(&threads[i], NULL, thread, &i); 
+            }
 
             // join waits for the threads to finish 
-            rc = pthread_join(p1, NULL); assert(rc == 0); 
-            rc = pthread_join(p2, NULL); assert(rc == 0); 
-            printf("main : end\n");  
+            for (i = 0; i < size; i++) {
+              rc = pthread_join(threads[i], NULL); 
+            }
+          return 0; 
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.19\textwidth}
+        \begin{lstlisting}[]{Output}
+          Thread 1
+          Thread 2
+          Thread 6
+          Thread 3
+          Thread 8
+          Thread 5
+          Thread 2
+          Thread 4
+          Thread 3
+          Thread 3
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+        \end{lstlisting}
+        \end{minipage}
+        \caption{Threads output shows that the order in which the functions are called cannot be predicted. } 
+        \label{fig:threads}
+      \end{figure}
+    \end{example}
+
+  \subsection{Atomicity Violation Bugs and Mutex Locks} 
+
+    We see that there are some parts of the code that are not meant to be parallelized. 
+
+    \begin{definition}[Atomicity-Violation Bugs] 
+      This bug happens when the desired \textbf{atomicity} (indivisibility) among multiple memory accesses is violated. 
+    \end{definition}
+
+    \begin{example}[Atomicity-Violation in SQL]
+      For example, if we have two threads doing the following (in MySQL): 
+      \begin{lstlisting}
+        Thread1:: 
+        if (thd-> proc_info) {
+          ...
+          fputs(thd->proc_info); 
+          ...
+        }
+
+        Thread2::
+        thd->proc_info = NULL; 
+      \end{lstlisting}
+      If we pass the if statement but within it, \texttt{thd->proc\_info} becomes \texttt{NULL}, then this would be very bad. Therefore, we should put locks around. 
+      \begin{lstlisting}
+      pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; 
+
+        Thread1:: 
+        pthread_mutex_lock(&lock); 
+        if (thd-> proc_info) {
+          ...
+          fputs(thd->proc_info); 
+          ...
+        }
+        pthread_mutex_unlock(&lock); 
+
+        Thread2::
+        pthread_mutex_lock(&lock); 
+        thd->proc_info = NULL; 
+        pthread_mutex_unlock(&lock); 
+      \end{lstlisting}
+    \end{example}
+
+    \begin{example}[Incrementing Shared Counter between Two Threads]
+      The volatile keyword for \texttt{counter} means that it can be changed by all threads. 
+
+      \begin{figure}[H]
+        \centering 
+        \noindent\begin{minipage}{.75\textwidth}
+        \begin{lstlisting}[]{Code}
+          #include <stdio.h> 
+          #include <pthread.h>
+          #include <stdlib.h>
+
+          static volatile int counter = 0; 
+
+          void* thread(void* args) {
+            printf("%s : Start \n", (char*)args); 
+
+            for (int i = 0; i < 10 * 1000 * 1000; i++) {
+              counter += 1; 
+            }
+
+            printf("%s : End \n", (char*)args); 
+            return NULL; 
+          }
+
+          int main(int argc, char *argv[]) {
+            pthread_t thread1, thread2; 
+
+            int rc; 
+            rc = pthread_create(&thread1, NULL, thread, "A"); 
+            rc = pthread_create(&thread2, NULL, thread, "B"); 
+
+            rc = pthread_join(thread1, NULL); 
+            rc = pthread_join(thread2, NULL); 
+
+            printf("Counter : %d\n", counter); 
+            return 0; 
+          }
+                      
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.24\textwidth}
+        \begin{lstlisting}[]{Output}
+          A : Start 
+          B : Start 
+          A : End 
+          B : End 
+          Counter : 10229646
+          .
+          .
+          A : Start 
+          B : Start 
+          B : End 
+          A : End 
+          Counter : 14965289
+          .
+          .
+          A : Start 
+          B : Start 
+          A : End 
+          B : End 
+          Counter : 10086690
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+        \end{lstlisting}
+        \end{minipage}
+        \caption{From looking at the behavior, we can see that the start and end times of thread A and thread B is complete unpredictable. It is only within the sequential nature within each thread (i.e. \texttt{X : start} must come before \texttt{X : End} that is predictable. More so, after all the increments, the total sum collected by counter isn't even 20 million!). The actual speed and ordering of this is determined at runtime. } 
+        \label{fig:unpredictable}
+      \end{figure}
+
+      To really see what's going on here, we must look into the assmebly code behind this. If we focus on line 11 when the counter is incremented and look at its assembly, we see 
+      \begin{lstlisting}
+        7a7: 8b 05 0a 0b 20 00       mov    0x200b0a(%rip),%eax        # 200c1c <counter> 
+        7ad: 83 c0 01                add    $0x1,%eax 
+        7b0: 89 05 01 0b 20 00       mov    %eax,0x200b01(%rip)        # 200c1c <counter> 
+      \end{lstlisting}
+      What this means is that every thread consists of loading the \texttt{counter} value from the instruction pointer plus an offset into \texttt{\%eax}, then adding $1$ to it, and then storing it back to the same memory location (the rip changes, so the memory address between the 1st and 3rd line will be slightly different, but they are the same address). If we have threads $1$ and $2$, we can have the following possible interweavings: 
+      \begin{enumerate}
+        \item (1 loads, 1 adds, 1 stores, 2 loads, 2 adds, 2 stores). This would result in a $+2$. 
+        \item (1 loads, 1 adds, 2 loads, 2 adds, 2 stores, 1 stores). This would result in a $+1$ since thread 2 loads before 1 could store the incremented version. 
+        \item (1 loads, 2 loads, 1 adds, 2 adds, 1 stores, 2 stores). This would also result in a $+1$ for the same reasons as before. 
+      \end{enumerate}
+    \end{example}
+
+
+    There is a big problem here: it seems that these things overwrite each other. 
+
+    \begin{definition}[Data Race]
+      We have just seen an example of a \textbf{data race}, which occurs if two or more threads concurrently accesses the same memory location with at least one write. The section of code where a data race can occur is called the \textbf{critical section}. 
+    \end{definition}
+
+    So how do we address this challenge of concurrency? This is where locks and mutexes come in. 
+
+    \begin{definition}[Lock]
+      A \textbf{lock} is a construct to enforce mutual exclusion in conflicting code sections (critical sections). It is implemented as a special data object in memory. We can use the API methods
+      \begin{enumerate}
+        \item \texttt{acquire()} or \texttt{lock()} is called when going into a critical section. 
+        \item and \texttt{release()} or \texttt{unlock()} is called when going out of a critical section. 
+      \end{enumerate}
+      If the lock is already acquired by a thread and not released yet, then other threads will not be able to acquire the lock and execute the next instructions. There are two ways this is implemented. First, an incoming thread can wait if another thread holds the lock, called a \textbf{spinlock},\footnote{This is mainly implemented through kernel and used almost exclusively for OS development, not application development.} or it can be blocked, called a \textbf{mutex} (mutual exclusion).\footnote{This is mainly implemented in user space. }\footnote{This has a FIFO queue. }
+    \end{definition}
+
+    To implement this in C, there's a few things that we have to do. 
+    \begin{enumerate}
+      \item First, make a \texttt{pthread\_mutex\_t} global variable. 
+      \item Then, make initialize the mutex before you create the threads and destroy the mutex after you join the threads in the \texttt{main} function. 
+      \item Finally, put the specific locks and unlocks in the locations of the functions that the thread calls. 
+    \end{enumerate}
+
+    There are few strategies to correct the counter example above, which all produce the correct output \texttt{Counter: 20000000}. 
+    \begin{enumerate}
+      \item We can put the lock around the entire for loop of the \texttt{thread} function. However, this essentially takes us back to the sequential regime. 
+
+      \begin{figure}[H]
+        \centering 
+        \begin{lstlisting}
+          static volatile int counter = 0; 
+          pthread_mutex_t mutex; // global declaration of mutex
+
+          void* thread(void* args) {
+            pthread_mutex_lock(&mutex); //acquire the mutex lock
+            for (int i = 0; i < 10 * 1000 * 1000; i++) {
+              counter += 1; 
+            }
+            pthread_mutex_unlock(&mutex); //release the mutex lock
+            return NULL; 
+          }
+
+          int main(int argc, char *argv[]) {
+            pthread_t thread1, thread2; 
+            int rc; 
+            rc = pthread_mutex_init(&mutex, NULL); //initialize the mutex
+            rc = pthread_create(&thread1, NULL, thread, "A"); 
+            rc = pthread_create(&thread2, NULL, thread, "B"); 
+            rc = pthread_join(thread1, NULL); 
+            rc = pthread_join(thread2, NULL); 
+            pthread_mutex_destroy(&mutex); //destroy (free) the mutex
+            printf("Counter : %d\n", counter); 
             return 0; 
           }
         \end{lstlisting}
-        \caption{We have a function \texttt{mythread} that we want to run on multiple threads. We first start off by creating a few threads with each function. Since this is running on multiple cores at the same time, it can either print AB or BA. }
-        \label{fig:thread_example}
+        \caption{Putting the mutex locks around the entire for loop. } 
+        \label{fig:first_try}
       \end{figure}
 
-      The two main functions needed is \texttt{pthread\_create} and \texttt{pthread\_join}. For \texttt{pthread\_create}, it essentially runs the function on each thread with some specific arguments. It returns $0$ on success, and an error number otherwise. It has the following arguments. 
-      \begin{enumerate}
-        \item 1: A pointer to a \texttt{pthread\_t} struct
-        \item 2: Attributes of the thread, such as stack size (to prevent it from taking too much stack), scheduling priority (\texttt{NULL} for default)
-        \item 3: this is the pointer to the start function the thread starts running in. Note that if we declare a function name, then that function name is a pointer to the actual function. 
-        \item 4: Pointer to the sole argument to the start function. 
-      \end{enumerate}
-      Then, for the \texttt{pthread\_join} function, it essentially waits for the thread to finish and returns the return value of the thread. It has the following arguments.
-      \begin{enumerate}
-        \item 1: A pointer to a \texttt{pthread\_t} struct. 
-        \item 2: A pointer to the return value of the thread.
-      \end{enumerate}
-      Note that after the create functions are called, there are 3 threads in this program (the main thread, plus the two threads that were created). Then after the join function, then there is only 1 thread (the main thread). 
-    \end{theorem}
+      \item A better idea to actually implement parallelization is to put the locks around the line that says \texttt{counter += 1;}. This is the critical code that loads the counter value from the stack into the register, increments it by $1$, and sends it back to the stack. We should isolate this so that no other threads can execute during these 3 assembly lines. 
 
-    \begin{example}[MWS of Thread Implementation]
-      Take a look the sequential C code for summing up the elements in an array. 
-      \begin{lstlisting}
-        // seq.c
-        #define N 1000 
-        int sum_array (int a[], int len) {
-          int sum = 0; 
-          for (int i = 0; i < len; i++) {
-            sum += a[i]; 
+      \begin{figure}[H]
+        \centering 
+        \begin{lstlisting}
+          static volatile int counter = 0; 
+          pthread_mutex_t mutex; // global declaration of mutex
+
+          void* thread(void* args) {
+            for (int i = 0; i < 10 * 1000 * 1000; i++) {
+              pthread_mutex_lock(&mutex); //acquire the mutex lock
+              counter += 1; 
+              pthread_mutex_unlock(&mutex); //release the mutex lock
+            }
+            return NULL; 
           }
-          return sum;
+
+          int main(int argc, char *argv[]) {
+            pthread_t thread1, thread2; 
+            int rc; 
+            rc = pthread_mutex_init(&mutex, NULL); //initialize the mutex
+            rc = pthread_create(&thread1, NULL, thread, "A"); 
+            rc = pthread_create(&thread2, NULL, thread, "B"); 
+            rc = pthread_join(thread1, NULL); 
+            rc = pthread_join(thread2, NULL); 
+            pthread_mutex_destroy(&mutex); //destroy (free) the mutex
+            printf("Counter : %d\n", counter); 
+            return 0; 
+          }
+        \end{lstlisting}
+        \caption{Now we put the locks within the counter. However, this is much slower since locking and unlocking are relatively expensive. It runs in 0.274s. } 
+        \label{fig:second_try}
+      \end{figure}
+
+      \item The first two tries are not ideal, but what we can do is have each thread store its local work all within each of its stack, and then when it communicates with the shared memory on \texttt{counter}, this is where the locks should come in place. This has the double benefit of locking/unlocking very few times, along with protecting the critical section of the code. 
+
+      \begin{figure}[H]
+        \centering 
+        \begin{lstlisting}
+          static volatile int counter = 0; 
+          pthread_mutex_t mutex; // global declaration of mutex
+
+          void* thread(void* args) {
+            int my_counter = 0; 
+            for (int i = 0; i < 10 * 1000 * 1000; i++) {
+              my_counter += 1; 
+            }
+            pthread_mutex_lock(&mutex); //acquire the mutex lock
+            counter += my_counter; 
+            pthread_mutex_unlock(&mutex); //release the mutex lock
+            return NULL; 
+          }
+
+          int main(int argc, char *argv[]) {
+            pthread_t thread1, thread2; 
+            int rc; 
+            rc = pthread_mutex_init(&mutex, NULL); //initialize the mutex
+            rc = pthread_create(&thread1, NULL, thread, "A"); 
+            rc = pthread_create(&thread2, NULL, thread, "B"); 
+            rc = pthread_join(thread1, NULL); 
+            rc = pthread_join(thread2, NULL); 
+            pthread_mutex_destroy(&mutex); //destroy (free) the mutex
+            printf("Counter : %d\n", counter); 
+            return 0; 
+          }
+        \end{lstlisting}
+        \caption{In here, we have each thread increment its own local version of the counter and store it in \texttt{my\_counter}. Then, we increment the global \texttt{counter} by the total \texttt{my\_counter}, which will require one mutex lock. It runs in 0.049s. }  
+        \label{fig:third_try}
+      \end{figure}
+    \end{enumerate}
+
+    \begin{example}[Inserting into Linked List]
+      Inserting into a linked list is a sequential process, but what if we want to parallelize it with multiple threads? Consider the following code. 
+      \begin{lstlisting}
+        typedef struct __node_t {
+          int key; 
+          struct __node_t *next; 
+        } node_t; 
+
+        typedef struct __list_t {
+          node_t *head; 
+        } list_t; 
+
+        void List_Init(list_t *L) {
+          L -> head = NULL; 
         }
 
-        int main() {
-          int array[N] = {}; 
-          for (int i = 0; i < N; i++) {
-            array[i] = i; 
+        void List_Insert(list_t *L, int key) {
+          // insert a new node with the key value at the beginning of the list 
+          node_t *new = malloc(sizeof(node_t)); 
+          assert(new); 
+          new -> key = key; 
+          new -> next = L -> head; 
+          L -> head = new; 
+        }
+
+        int main(void) {
+          list_t L; 
+          list_t *Lp = &L; 
+          List_Init(Lp); 
+          for (int i = 0; i < 10; i++) {
+            List_Insert(Lp, i); 
           }
-          clock_t start, end; 
-          double timing; 
-          start = clock(); 
-          int sum = sum_array(array, N);
-          end = clock();
-          timing = (double)(end - start) / CLOCKS_PER_SEC; 
-          printf("Sum of array is %d computed in %f\n", sum, timing);
           return 0; 
         }
       \end{lstlisting}
-      which gives a runtime of $0.008$ seconds. Now let's parallelize it over 4 threads. 
+      Say that we want to parallelize the creation of the length 10 linked list. Simply initializing some threads and calling \texttt{List\_Insert} 10 times won't properly create this linked list. This is because two threads may overwrite where \texttt{L -> head} points to. The most naive thing to do is to put locks around the whole function, but now we are back to the sequential regime! If we think about it, the \texttt{malloc} calls, asserting that there is viable memory, and assigning the input key value to \texttt{new -> key} does not overwrite anything else. It is only when we assign \texttt{new -> next} to the head value of \texttt{L} that things may get overwritten, so we put the locks shown below, while slightly modifying the \texttt{list} struct to have the \texttt{pthread\_mutex\_t} attribute. 
       \begin{lstlisting}
-        // par.c 
-        #include <stdio.h>
-        #include <time.h>
-        #include <pthread.h>
+        typedef struct __list_t {
+          node_t *head; 
+          pthread_mutex_t lock; 
+        } list_t; 
 
-        #define N 1000
-        #define NUM_THREADS 4
-
-        typedef struct {
-            int *array;
-            int start;
-            int len;
-            int partial_sum;
-        } ThreadData;
-
-        void* sum_array(void* arg) {
-            ThreadData *data = (ThreadData *)arg;
-            data->partial_sum = 0;
-            for (int i = data->start; i < data->start + data->len; i++) {
-                data->partial_sum += data->array[i];
-            }
-            return NULL;
+        void List_Init(list_t *L) {
+          L -> head = NULL; 
+          pthread_mutex_init(&L -> lock, NULL); 
         }
 
-        int main() {
-            int array[N] = {};
-            for (int i = 0; i < N; i++) {
-                array[i] = i;
-            }
-
-            pthread_t threads[NUM_THREADS];
-            ThreadData data[NUM_THREADS];
-            int segment_length = N / NUM_THREADS;
-
-            clock_t start, end;
-            double timing;
-
-            start = clock();
-            
-            // Creating threads
-            for (int i = 0; i < NUM_THREADS; i++) {
-                data[i].array = array;
-                data[i].start = i * segment_length;
-                data[i].len = (i == NUM_THREADS - 1) ? (N - data[i].start) : segment_length;
-                pthread_create(&threads[i], NULL, sum_array, &data[i]);
-            }
-
-            int total_sum = 0;
-            // Joining threads and summing up results
-            for (int i = 0; i < NUM_THREADS; i++) {
-                pthread_join(threads[i], NULL);
-                total_sum += data[i].partial_sum;
-            }
-
-            end = clock();
-            timing = (double)(end - start) / CLOCKS_PER_SEC;
-
-            printf("Sum of array is %d computed in %f seconds.\n", total_sum, timing);
-
-            return 0;
+        void List_Insert(list_t *L, int key) {
+          // insert a new node with the key value at the beginning of the list 
+          node_t *new = malloc(sizeof(node_t)); 
+          assert(new); 
+          new -> key = key; 
+          pthread_mutex_lock(&L->lock)
+          new -> next = L -> head; 
+          L -> head = new; 
+          pthrea_mutex_unlock(&L->lock)
         }
       \end{lstlisting}
-      which gives a runtime of $0.000284$ seconds, which is approximately 4 times faster. 
     \end{example}
 
+  \subsection{Deadlock Bugs}
+
+    Locks are extremely useful to segment out a portion of code that should be uninterrupted. However, there are many consequences of misusing it. 
+
+    \begin{definition}[Deadlock Bugs]
+      A \textbf{deadlock bug} happens when you make locks such that the program cannot run anymore. These aren't specific to threads, but also processes as well. They require the four preconditions: 
+      \begin{enumerate}
+        \item Mutual exclusion: you must have a lock to begin with to have a deadlock, so this is trivial. 
+        \item Hold and Wait: Threads must have the ability to hold resources (e.g. the philosophers must hold forks which prevent others from taking them) . 
+        \item No Preemption: Preemption refers to the ability to take the fork out of someone else's hand. So if you have a thread, you can first take lock A, then look at whether lock B is available. If not, then unlock A and try again. However, this can lead to a bunch of threads just simply picking up and putting down forks, causing a \textit{livelock}. 
+        \item Circular Wait: That is, there exists a circular chain of threads such that each thread holds a resource needed by the next thread. A strategy is too define a fixed acquisition order for locks (e.g. lock A always before lock B). 
+      \end{enumerate}
+      You shouldn't try to hold multiple locks at once, but if you must, you should have a strategy to avoid deadlock. Choosing a lock order is the recommended way. 
+    \end{definition}
+
+    \begin{example}[Bank Accounts]
+      Let's go through an example. Suppose we had the following code below. 
+      \begin{lstlisting}
+        struct account {
+          pthread_mutex_t lock; 
+          int balance; 
+        }; 
+
+        struct arg_t {
+          struct account fromAcct; 
+          struct account toAcct; 
+          int amt; 
+        }; 
+
+        pthread_mutex_t mutex; // global declaration of mutex
+
+        void* Transfer(void* args) {
+
+          struct arg_t* data = (struct arg_t*)args; 
+
+          struct account* fromAcct = &(data -> fromAcct); 
+          struct account* toAcct = &(data -> toAcct); 
+          int amt = data -> amt; 
+
+
+          pthread_mutex_lock(&fromAcct->lock);
+          pthread_mutex_lock(&toAcct->lock);
+
+          fromAcct->balance -= amt;
+          toAcct->balance += amt;
+
+          pthread_mutex_unlock(&fromAcct->lock);
+          pthread_mutex_unlock(&toAcct->lock);
+
+          return NULL; 
+        }
+      \end{lstlisting}
+      Suppose that Threads 0 and 1 are executing concurrently and represent users A and B, respectively. Now consider the situation in which A and B want to transfer money to each other: A wants to transfer 20 dollars to B, while B wants to transfer 40 to A.
+
+      Both threads concurrently execute the \texttt{Transfer} function. Thread 0 acquires the lock of acctA while Thread 1 acquires the lock of acctB. Now consider what happens. To continue executing, Thread 0 needs to acquire the lock on acctB, which Thread 1 holds. Likewise, Thread 1 needs to acquire the lock on acctA to continue executing, which Thread 0 holds. Since both threads are blocked on each other, they are in deadlock.
+
+      This can be simply fixed by rearranging the locks so that each lock/unlock pair surrounds only the balance update statement associated with it. 
+      \begin{lstlisting}
+      void *Transfer(void *args){
+        //argument passing removed to increase readability
+        //...
+
+        pthread_mutex_lock(&fromAcct->lock);
+        fromAcct->balance -= amt;
+        pthread_mutex_unlock(&fromAcct->lock);
+
+        pthread_mutex_lock(&toAcct->lock);
+        toAcct->balance += amt;
+        pthread_mutex_unlock(&toAcct->lock);
+
+        return NULL;
+      } 
+      \end{lstlisting}
+    \end{example}
+
+    \begin{example}[Dining Philosopher's Problem]
+      There are 5 philosophers at a roundtable with 5 plates of food with 5 forks. Each philosopher needs two forks (both on their left and on their right) to start eating their plate. However, there can be a deadlock if every philosopher takes the fork on their right and is always waiting for the left fork (this happens due to a circular dependency). 
+      \begin{enumerate}
+        \item One way to resolve this issue is to set an ID to every fork and have the philosophers always take the lower ID fork first before trying to take the higher ID. Then this resolves and at least one philosopher can eat. 
+      \end{enumerate}
+    \end{example}
+
+    \begin{example}[Set-Intersection Problem]
+      Again, like the bank account section, we have the following code that can create deadlocks if there is a code that attempts to compute $A \cap B$ and $B \cap A$ at similar times. 
+      \begin{lstlisting}
+        set_t *set_intersection(set_t *s1, set_t *s2) {
+          set_t *result = set_create(); 
+          pthread_mutex_lock(&s1->lock); 
+          pthread_mutex_lock(&s2->lock); 
+
+          for (int i = 0; i < s1->size; i++) {
+            if (set_contains(s2, s1->data[i])) {
+              set_add(result, s1->data[i]); 
+            }
+          }
+
+          pthread_mutex_unlock(&s2->lock); 
+          pthread_mutex_unlock(&s1->lock); 
+          return result; 
+        }
+      \end{lstlisting}
+      Like using the IDs and ordering, we can resolve this by grabbing locks in a defined order, say from high to low. Therefore, we replace the locks as such.
+      \begin{lstlisting}
+        if (&m1 > &m2) {
+          pthread_mutex_lock(&m1); 
+          pthread_mutex_lock(&m2); 
+        } else {
+          pthread_mutex_lock(&m2); 
+          pthread_mutex_lock(&m1); 
+        }
+      \end{lstlisting}
+      However, this still creates a deadlock if we compute $A \cap A$, so we should place a deadlock. 
+    \end{example}
+
+    It turns out that we can make logically equivalent code without locks! By using atomic primitives that have implementations in C, we can create wait-free algorithms. For example, consider the \texttt{int CompAndSwap(int* addr, int expected, int new)} function. If \texttt{*addr == expected}, then we set \texttt{*addr} to \texttt{new} and return $1$. Otherwise, we do nothing and return $0$. Then, the two pieces of code are equivalent, but the advantage of the RHS is that there is never a deadlock. \begin{enumerate}
+      \item In the left, we pass by pointer to increment a variable. 
+      \item In the right, we first set \texttt{old} to the value of \texttt{val}, and if the value of \texttt{val} is equal to \texttt{old} (which may not always be true if some other thread modifies this value), then we set \texttt{old = *val} again and increment it by \texttt{amt}. 
+    \end{enumerate}
+    \noindent\begin{minipage}{.5\textwidth}
+    \begin{lstlisting}[]{Code}
+      void add(int *val, int amt) {
+        pthread_mutex_lock(&m); 
+        *val += amt; 
+        pthread_mutex_unlock(&m); 
+      }
+      .
+    \end{lstlisting}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{.49\textwidth}
+    \begin{lstlisting}[]{Output}
+      void add(int *val, int amt) {
+        do {
+          int old = *val;    
+        }
+        while(!CompAndSwap(val, old, old+amt)); 
+      }
+    \end{lstlisting}
+    \end{minipage}
+    However, the left hand, despite the risk of deadlocks, is still recommended. The mutex API allows for better distribution of CPU. 
+
+       
+  \subsection{Order Violation Bugs and Condition Variables} 
+
+    \begin{definition}[Order Violation Bugs]
+      An \textbf{order violation bug} happens when the desired order between two memory accesses is flipped, i.e. A should always be executed before B, but the order is not enforced during execution. 
+      \begin{enumerate}
+        \item For example, one thread that acts on a linked list may already assume that the linked list is initialized when it is not. Therefore, we should have these threads wait until initialization. 
+        \item Another example is if there is a set of producers and consumers that manage the flow of items through a buffer. If there is no good, then consumers cannot consume and they must wait. If the supply is full then the producers must wait. This also requires some process of waiting. 
+      \end{enumerate}
+    \end{definition}
+
+    We can use a regular conditional to check, but this may not be efficient due to the following example. 
+
+    \begin{example}[Condition Checks with Vanilla While Loops]
+      Say that you want to call the following function on a linked list, but you must wait until the list is not \texttt{NULL}. 
+      \begin{lstlisting}
+        int getItem(list_t *list) {
+          pthread_mutex_lock(&list -> m); 
+          // TODO: wait until list is non-empty
+          int item = list -> head -> item; 
+          list -> head = list -> head -> next; 
+          pthread_mutex_unlock(&list -> m);  
+          return item; 
+        }
+      \end{lstlisting}
+
+      To check whether \texttt{list} is not a null pointer, we can simply use a while loop to check. 
+
+      \begin{figure}[H]
+        \centering 
+        \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          int tryGetItem(list_t *list, int *out) {
+            int success = 0; 
+            ptherad_mutex_lock(&list -> m); 
+            if (list -> head) {
+              success = 1; 
+              *out = list -> head -> item;
+              list -> head = list -> head -> next; 
+            }
+            pthread_mutex_unlock(&list -> m); 
+            return success; 
+          }
+          .
+          .
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          int getItem( list_t *list) {
+            pthread_mutex_lock(&list -> m); 
+            // TODO: wait until list is non-empty 
+            while (list -> head == NULL) {
+              pthread_mutex_unlock(&list -> m); 
+              yield();        // optional 
+              pthread_mutex_lock(&list -> m); 
+            }
+            int item = list -> head -> item; 
+            list -> head = list -> head -> next; 
+            pthread_mutex_unlock(&list -> m);  
+            return item; 
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \caption{On the LHS, this returns $0$ if the retrieval is not successful, and so you must wrap this function within some while loop to check if it is actually successful. On the RHS, we can use the \texttt{yield()} function which gives control to the OS to schedule another thread. }
+        \label{fig:cpu_waste}
+      \end{figure}
+
+      This constant checking through a while loop leads to a waste of CPU resources. Therefore, we want to put the thread to sleep while there is no element in \texttt{list} so other processes can use the CPU core. This is the motivation behind \textit{conditional variables}. 
+    \end{example}
+
+    \begin{definition}[Condition Variables]
+      \textbf{Condition Variables} force a thread to be blocked until a particular condition is reached. This construct is useful for scenarios in which a condition must be met before the thread does some work.
+      \begin{enumerate}
+        \item Every CV is bound to exactly one mutex. This is because the state of a condition, even if true on one thread, can be changed immediately by another thread, so some sort of locking is needed. 
+        \item Condition variables have the type \texttt{pthread\_cond\_t}. 
+        \item To initialize a condition variable, use the \texttt{pthread\_cond\_init} function. 
+        \item To destroy it, use \texttt{pthread\_cond\_destroy}. 
+        \item \texttt{pthread\_cond\_wait(\&cond, \&mutex)} takes the address of a condition variable \texttt{cond} and a mutex \texttt{mutex} as its arguments. It causes the calling thread to block on the condition variable cond until another thread signals it (or "wakes" it up).
+        \item The \texttt{pthread\_cond\_signal(\&cond)} function causes the calling thread to unblock (or signal) another thread that is waiting on the condition variable \texttt{cond} (based on scheduling priority). If no threads are currently blocked on the condition, then the function has no effect. Unlike \texttt{pthread\_cond\_wait}, the \texttt{pthread\_cond\_signal} function can be called by a thread regardless of whether or not it owns the mutex in which \texttt{pthread\_cond\_wait} is called.
+      \end{enumerate}
+    \end{definition}
+
+    It is important to know about the states that a thread can be in. It can either be currently running/active, ready to run (perhaps through a syscall), or blocked. 
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/states.png}
+      \caption{Note that the only way a thread can be blocked is if it is waiting for a condition to happen. If that condition happened and a signal arrives at the thread, then it ``wakes up.'' Condition variables allow these thread to go in and out of the blocked state.} 
+      \label{fig:states}
+    \end{figure}
+
+    With this, the general design pattern is as such. 
+
+    \begin{theorem}[Condition Variable Design Pattern]
+      To implement this effectively, we must first identify a state that will be accessed by 2+ threads concurrently and add locks to protect the shared state. If we need to wait on some condition, we use condition variables.  
+
+      \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        methodThatWaits() {
+          pthread_mutex_lock(&m); 
+
+          // Read/write shared state 
+
+          while (!checkSharedState()) {
+            pthread_cond_wait(&cv, &m); 
+          }
+
+          // Read/write shared state 
+
+          pthread_mutex_unlock(&m); 
+        }
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        methodThatSignals() {
+          ptherad_mutex_lock(&m); 
+
+          // Read/write shared state 
+
+          // If checkSharedState() is now true 
+          pthread_cond_signal(&cv); 
+
+          // Read/write shared state 
+
+          pthread_mutex_unlock(&m); 
+        }
+        .
+      \end{lstlisting}
+      \end{minipage}
+    \end{theorem}
+
+    The implementation is quite complex at first, so let's go through an example. 
+
+    \begin{example}[Soda Machine]
+      Say that we want to model a soda machine, with consumers taking soda from the machine and producers filling the machine up. 
+      \begin{enumerate}
+        \item We'd like to create some variables that encode the state of the soda machine. This is the \textbf{shared state}. 
+          \begin{lstlisting}
+            static volatile int numSodas; 
+            #define MaxSodas 100; 
+          \end{lstlisting}
+
+        \item We also want to implement \textit{one} lock to protect all shared states, say 
+          \begin{lstlisting}
+            pthread_mutex_t sodaLock; 
+          \end{lstlisting}
+          This allows us to implement mutual exclusion so that only one thread can manipulate the machine (state) at a time. 
+
+        \item The \textbf{ordering constraints} are that the consumer must wait if the machine is empty (CV \texttt{hasSoda}), and the producer must wait if the machine is full (CV \texttt{hasRoom}). 
+
+        \item The first thing we must do is make sure that the consumer and producer function has a lock and unlock over its body since both functions modify the vending machine. 
+
+          \noindent\begin{minipage}{.5\linewidth}
+          \begin{lstlisting}[]{Code}
+            consumer() {
+              pthread_mutex_lock(&sodaLock); 
+
+              // take a soda from machine
+
+              pthread_mutex_unlock(&sodaLock); 
+            }
+          \end{lstlisting}
+          \end{minipage}
+          \hfill
+          \begin{minipage}{.49\linewidth}
+          \begin{lstlisting}[]{Output}
+            producer() {
+              pthread_mutex_lock(&sodaLock); 
+
+              // add a soda to machine
+
+              pthread_mutex_unlock(&sodaLock); 
+            }
+          \end{lstlisting}
+          \end{minipage}
+
+        \item Moreover, the consumer and producer's actions of taking or adding soda is dependent on the state already. For the consumer, it should \textbf{wait} if the machine is empty for a signal that notifiies that it is not empty. Once the consumer receives the signal, it takes a soda and can send a signal that the machine is not full to the producer function. 
+
+          \noindent\begin{minipage}{.5\linewidth}
+          \begin{lstlisting}[]{Code}
+            consumer() {
+              pthread_mutex_lock(&sodaLock); 
+              // wait if empty
+              // take a soda from machine
+              // notify that it is not full 
+              pthread_mutex_unlock(&sodaLock); 
+            }
+          \end{lstlisting}
+          \end{minipage}
+          \hfill
+          \begin{minipage}{.49\linewidth}
+          \begin{lstlisting}[]{Output}
+            producer() {
+              pthread_mutex_lock(&sodaLock); 
+              // wait if full 
+              // add a soda to machine
+              // notify that it is not empty 
+              pthread_mutex_unlock(&sodaLock); 
+            }
+          \end{lstlisting}
+          \end{minipage}
+
+        \item To put this into code, we finally have 
+
+          \noindent\begin{minipage}{.5\linewidth}
+          \begin{lstlisting}[]{Code}
+            consumer() {
+              pthread_mutex_lock(&sodaLock); 
+
+              while (numSodas == 0) {   
+                // while empty 
+                wait(sodaLock, hasSoda); 
+              }
+              numSodas -= 1;    // take soda 
+              signal(hasRoom); 
+              pthread_mutex_unlock(&sodaLock); 
+            }
+          \end{lstlisting}
+          \end{minipage}
+          \hfill
+          \begin{minipage}{.49\linewidth}
+          \begin{lstlisting}[]{Output}
+            producer() {
+              pthread_mutex_lock(&sodaLock); 
+
+              while (numSodas == MaxSodas) {
+                wait(sodaLock, hasRoom); 
+              }
+
+              numSodas += 1;    // add soda 
+              signal(hasSoda);  
+              pthread_mutex_unlock(&sodaLock); 
+            }
+          \end{lstlisting}
+          \end{minipage}
+      \end{enumerate}
+      Let's go through this. From the consumer function, we have: 
+      
+      \begin{enumerate}
+        \item The consumer function starts by acquiring a lock on the \texttt{sodaLock} mutex using \texttt{pthread\_mutex\_lock()}. This ensures that only one consumer thread can access the shared resources (e.g., \texttt{numSodas}) at a time.
+
+        \item It then enters a while loop\footnote{We want this to be a while loop since we want to reevaluate the condition even after reacquiring the lock. } that checks if \texttt{numSodas} is zero. If \texttt{numSodas} is zero, it means there are no sodas available for consumption. In this case, the consumer thread calls the \texttt{wait()} function, which unlocks the \texttt{sodaLock} mutex and waits for a signal on the \texttt{hasSoda} condition variable. This allows other threads to acquire the lock and proceed.
+
+        \item When the consumer thread receives a signal indicating that sodas are available (\texttt{hasSoda} condition variable), it wakes up and reacquires the lock on \texttt{sodaLock}.
+
+        \item The consumer thread then decrements \texttt{numSodas} by 1, indicating the consumption of a soda.
+
+        \item After consuming a soda, the consumer thread signals the \texttt{hasRoom} condition variable using the \texttt{signal()} function. This notifies any waiting producer threads that there is now room available in the soda buffer.
+
+        \item Finally, the consumer thread unlocks the \texttt{sodaLock} mutex using \texttt{pthread\_mutex\_unlock()}, allowing other threads to access the shared resources.
+      \end{enumerate}
+      
+      From the producer function, we have: 
+
+      \begin{enumerate}
+        \item The producer function starts by acquiring a lock on the \texttt{sodaLock} mutex using \texttt{pthread\_mutex\_lock()}. This ensures that only one producer thread can access the shared resources at a time.
+
+        \item It then enters a while loop that checks if \texttt{numSodas} is equal to \texttt{MaxSodas}. If \texttt{numSodas} is equal to \texttt{MaxSodas}, it means the soda buffer is full, and the producer cannot add more sodas. In this case, the producer thread calls the \texttt{wait()} function, which unlocks the \texttt{sodaLock} mutex and waits for a signal on the \texttt{hasRoom} condition variable. This allows other threads to acquire the lock and proceed.
+
+        \item When the producer thread receives a signal indicating that there is room available in the soda buffer (\texttt{hasRoom} condition variable), it wakes up and reacquires the lock on \texttt{sodaLock}.
+
+        \item The producer thread then increments \texttt{numSodas} by 1, indicating the production of a new soda.
+
+        \item After producing a soda, the producer thread signals the \texttt{hasSoda} condition variable using the \texttt{signal()} function. This notifies any waiting consumer threads that a soda is now available for consumption.
+
+        \item Finally, the producer thread unlocks the \texttt{sodaLock} mutex using \texttt{pthread\_mutex\_unlock()}, allowing other threads to access the shared resources.
+
+      \end{enumerate}
+      Note that we must have a while loop since if the producer ended up broadcasting the \texttt{hasSoda} condition to say 10 threads when there are 5 sodas, then 5 of those threads will get a soda while 5 may not, and this possibility should be detected by the while loop. 
+    \end{example}
 
 \end{document}
