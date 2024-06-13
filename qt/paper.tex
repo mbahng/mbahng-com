@@ -2648,14 +2648,29 @@
 
     \begin{definition}[Black-Scholes Option Pricing Formula]
       Given a call option, the \textbf{Black-Scholes} pricing formula states that 
-      \begin{equation}
-        V_K (t, T) = \mathcal{B}_t (K, T - t, S_t, r, \sigma) = \Phi(d_1) S_t - \Phi (d_2) K e^{-r (T - t)}
-      \end{equation}
+      \begin{enumerate}
+        \item For a European call option, its price is 
+        \begin{equation}
+          C_K (t, T) = \Phi(d_1) S_t - \Phi (d_2) K e^{-r (T - t)}
+        \end{equation}
+
+        \item For a European put option, its price is 
+        \begin{equation}
+          P_K (t, T) = -\Phi(-d_1) S_t + \Phi (-d_2) K e^{-r (T - t)}
+        \end{equation}
+      \end{enumerate}
       where $r$ is some risk-free applicable interest rate, $\Phi$ is the normal CDF, $\sigma$ is the volatility of the underlying, and 
       \begin{equation}
         d_1 = \frac{\ln (S_t / K) + \big( r + \frac{\sigma^2}{2}\big) (T - t)}{\sigma \sqrt{T - t}} \text{ and } d_2 = d_1 - \sigma \sqrt{T - t}
       \end{equation}
     \end{definition}
+
+    These formulas make sense with PCP, since we can use the identity for a normal $\Phi(x) = 1 - \Phi(-x)$, derived from $\mathbb{P}(X \geq x) = \mathbb{P}(X \leq -x) = 1 - \mathbb{P}(X \geq -x)$ to take the difference and see that 
+    \begin{align*}
+          C_K (t, T) & = \Phi(d_1) S_t - \Phi (d_2) K e^{-r (T - t)} \\ 
+          P_K (t, T) & = -\Phi(-d_1) S_t + \Phi (-d_2) K e^{-r (T - t)} \\
+          C_K  - P_k & = S_t - K e^{-r (T - t)}
+    \end{align*}
 
     Black-scholes also allows us to draw payoff diagrams for time $t$ that is not necessarily at expiry, known as \textit{risk diagrams}. This allows us to see the value of these options both at different spot prices of the underlying and at different points in time. 
 
@@ -2887,17 +2902,23 @@
       If you buy an option, you have positive gamma, and if you sell an option, you have negative gamma.
     \end{definition}
 
+    Now let's talk about a trading called \textbf{gamma scalping}. Since all long options have positive gamma, a net long portfolio will be \textbf{long gamma}. Say that you have 100 $30$-delta call option with a gamma of $0.02$.
+    You must short $30$ futures to get delta-neutral (the futures have $0$ gamma since there's no curvature).
     \begin{enumerate}
-      \item Assume you buy 10 call options with a 50 delta. Then, you hedge by selling 5 futures.
-      \item If the underlying goes up, then
+      \item Now if the future moves up 1 point, we gain $2$ delta, and so we must sell $2$ more futures to be delta neutral.
+      \item If the futures move down 1 point, we lose $2$ delta, and so we must buy $2$ more futures to be delta neutral.
     \end{enumerate}
+    Therefore, we will profit no matter what. We sell high and buy low, and the rate at which we transact is the \textbf{path}.
+    We can choose to buy or sell every day, every week, or when the price reaches a certain threshold.
+    Our profits will depend on this path that we take, called \textbf{path dependency}. Clearly, the higher volatility is, the more opportunities we have to gamma scalp. We have just talked about a riskless profit, so is this arbitrage? No, because this balances out with our theta.
 
-    This is gamma scalping.
-
-    If we perform delta hedging strategy continuously, we would have 
-    \begin{equation}
-      \text{PnL} = \int_0^T \frac{S_t^2}{2} \Gamma_t (\sigma_{\text{implied}}^2 - \sigma_{\text{realized}}^2 )\, dt
-    \end{equation}
+    \begin{theorem}[2nd Order Approximation of PnL]
+      Given a portfolio with initial cash delta $\Tilde{\Delta}$ and cash gamma $\Tilde{\Gamma}$, we have a second order approximation of the PnL as
+      \begin{equation}
+        \mathrm{PnL} = \frac{x}{100} \cdot \Tilde{\Delta} + \frac{x^2}{200} \cdot \Tilde{\Gamma}
+      \end{equation}
+      At this point, we can recalculate the cash delta/gamma to model the instantaneous change.
+    \end{theorem}
 
     \begin{lemma}[Gamma Across Underlying Price]
       The gamma is simply the derivative of the delta, so we have the following.
@@ -2956,6 +2977,10 @@
     our PnL is really
     \begin{equation}
       \mathcal{P}(S_t + A) - \mathcal{P} (S_t) = \big( C(S_t + A) - C(S_t) \big) M N = \Delta (S_t) M N A + \frac{1}{2} \Gamma (S_t) M N A^2
+    \end{equation}
+    If we already have a PnL and we want to model the change of it, we can assume that we start at $S_0$, and then we are at $S_t$ now, and so 
+    \begin{equation}
+      \mathcal{P}(S_t + A) - \mathcal{P} (S_t) = \big( \mathcal{P}(S_t) - \mathcal{P}(S_0) \big) \big( C(S_t + A) - C(S_t) \big) M N = \Delta (S_t) M N A + \frac{1}{2} \Gamma (S_t) M N A^2
     \end{equation}
 
     \begin{definition}[Portfolio Delta, Gamma]
@@ -3075,6 +3100,12 @@
         \nu_t & = \frac{\partial C_t}{\partial \sigma} = \frac{\partial P_t}{\partial \sigma} = S_0 \sigma \sqrt{T - t} \frac{1}{\sqrt{2\pi}} e^{-d_1^2 / 2} = \sigma^2 (T - t) \Gamma_t 
       \end{align*}
     \end{theorem}
+
+    If we perform delta hedging strategy continuously, we would have 
+    \begin{equation}
+      \text{PnL} = \int_0^T \frac{S_t^2}{2} \Gamma_t (\sigma_{\text{implied}}^2 - \sigma_{\text{realized}}^2 )\, dt
+    \end{equation}
+
 
   \subsection{Rho}
 
