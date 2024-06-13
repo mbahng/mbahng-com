@@ -1864,6 +1864,41 @@
 
   \subsection{Futures on Interest Rates}
 
+\section{Intro to Market Making}
+
+  Say that I have an estimate of $100$ on the true price of some security.
+  I want to quote a market around it, say $90$ and $110$.
+  I want to make sure that you have enough edge.
+  Say that my edge is $5$.
+  Then I don't want to make a market that is tighter than $10$, i.e. $95$ at $105$.
+
+  What happens if someone (A) buys from me?
+  Then I sell at $110$ and he \textbf{lifts} my offer.
+  He thinks that the price is higher and buys.
+  Therefore, I should adjust my markets \textit{up}.
+  My new theo is now say $110$, and my new market is $110$ at $120$.
+
+  Now someone (B) sells to me and \textbf{hits} my bid.
+  She thinks that the price is lower and sells.
+  Therefore, I should adjust my markets \textit{down}.
+  My new theo is now say $105$, and my new market is $95$ at $105$.
+
+  Let's consider a few things.
+
+  Say someone buys from me and I lift my offer too much, to say $120$ at $130$.
+  A can then sell to me at $120$ and I buy at $120$.
+  A has essentially made an arbitrage trade since he bought at $110$ and sold at $120$.
+  I just lost money, but on the bright side, I got more information.
+
+  Replaying this scenario, A can buy from me and I lift my market to $120$ at $130$.
+  He can buy from me again, essentially lifting my market even more.
+  I can keep on selling, making directional bets.
+  This now becomes a game of whose theos are correct since I now accumulate a short position.
+  However, this gives me more information.
+
+  If someone sells to me on my market of $90$ at $110$, she hits my bid at $90$.
+  Her theo is lower than 90, and I should lower my market.
+
 \section{Options}
 
     \begin{definition}[Options]
@@ -2288,7 +2323,29 @@
       \end{equation}
     \end{corollary}
 
+    \begin{example}[C-SP Market Making]
+      To make a market in a $X/Y$ C-SP ($X < Y$), you simply calculate the theo, which must be positive.
+      \begin{equation}
+        C_X - C_Y
+      \end{equation}
+    \end{example}
+
+    \begin{example}[P-SP Market Making]
+      To make a market in a $X/Y$ P-SP ($X < Y$), you simply calculate the theo, which must be negative, and turn it positive.
+      \begin{equation}
+        -(-P_Y + P_X) = P_Y - P_X
+      \end{equation}
+    \end{example}
+
     Using the theorem above, along with put call parity, we can use this to approximate options prices on an option chain, a process known as \textbf{rough opening}. 
+
+    \begin{example}[Rough Opening with Bounds on Spreads]
+       Say that the underlying price is $1460$ and the prices of a $1450$-strike call and put is $60$ and $50$. Then, let's try to estimate the call and put prices of a 1500-strike call and put.
+       \begin{enumerate}
+         \item If we buy a 1450/1500 call spread, you are paying $60 - C$, it should be worth half the difference in the strikes when the underlying price is halfway, i.e. $1475$. So if the underlying is $1475$, the CS is worth $25$.
+         \item However, the underlying price is $1460$, which is slightly less, so the CS should be worth a little less, say $20$. Then we solve $60 - C = 20 \implies C = 40$ and by put call parity $P = 80$.
+       \end{enumerate}
+    \end{example}
 
     \begin{definition}[Box Spread, ]
       A \textbf{long box spread} consists of a synthetic long at a lower strike $K_1$ and a synthetic short at a higher strike $K_2$. It has the following properties. 
@@ -2301,6 +2358,7 @@
       \begin{center}
         \includegraphics[scale=0.3]{img/box_spread.png}
       \end{center}
+      The box is worth a little less than the difference of the strikes. It is a ZCB (zero coupon bond).
     \end{definition}
 
   \subsection{Butterfly Spreads}
@@ -2333,6 +2391,13 @@
       \end{align*} 
       and since it is symmetrical, the strikes vanish.
     \end{proof}
+
+    \begin{example}[BS Market Making]
+      To make a market in a $X/Y/Z$ fly spread ($X < Y < Z$) whether they are calls or puts, we can simply compute
+      \begin{equation}
+        C_X - 2 C_Y + C_Z \text{ or } P_X - 2 P_Y + P_Z
+      \end{equation}
+    \end{example}
 
     \begin{theorem}[Value of Fly]
       The value of a symmetrical fly spread can never be less than $0$. 
@@ -2372,6 +2437,29 @@
 
     To make markets on risk reversals, you take theos of lower strike puts and higher strike calls. 
 
+    \begin{example}[RR Market Making]
+      To make a market in a X/Y RR ($X < Y$) we are always shorting a put and longing a call. We first compute the theos of the lower strike $P_X$ and higher strike $C_Y$.
+      \begin{enumerate}
+        \item If $C_Y > P_X$, then the price is $-P_X + C_Y$, call over, also shown as $P_X - C_Y$.
+        \item If $P_X > C_Y$, then the price is $P_X - C_Y$, put over.
+      \end{enumerate}
+      Somtimes, they may show the position of the legs, e.g. $X (-1) / Y (1)$. If this is put over, then the theo is negative and if it is call over, then the theo is positive.
+    \end{example}
+
+    \begin{example}[Estimating Underlying Price from Risk Reversal]
+      Say that risk reversal \texttt{RR (-1) 178 (1) 185, 78} (short $178$-put long $185$-call, call over, 78 delta) has a price of $-1.873$. You are trying to estimate the price of the underlying. Let's see how we would do this.
+      \begin{enumerate}
+        \item If the future is below $178$, say $178 - \epsilon$, then the put will be ITM and call OTM. Also the put will have more extrinsic value (since it's closer to ATM). So the price of the risk reversal must fall between $(-\infty, -\epsilon]$. \footnote{On the other hand, if the risk reversal is worth less than $-\epsilon$, then the future is at least $178 - \epsilon$. } If the future is worth $185 + \epsilon$, then the RR price must fall between $(\epsilon, +\infty)$. So, we can see that it must be either between the strikes, or it can be at least $178 - 1.873 = 176.167$. However, we should account for a nontrivial difference in extrinsic value (say $1$) so it must fall somewhere between say $[177.167, 184]$.
+
+        \item Assume that the future is at the midpoint, i.e. at $181.5$. Then, the distance to ATM is the same, and the options both have the same time to expiry and volatility of the underlying. This means that their extrinsic value must be the same. They both do not have intrinsic value so the value of this contract should be $0$. However, it is negative, meaning that it is slightly closer to the put strike than the call strike. Therefore, we can estimate it to be $179.5$.
+
+        \item We know that when the underlying price is $\pm \infty$, then the delta of the RR is $+1$ (for both cases). It bottoms out in between\footnote{Look at the function $f(x) = e^{x} + e^{-x}$.} so we can see that the delta should be lowest at $181.5$, which is less than $78$.
+
+        \item We can make an even tighter bound. The value of the RR is $0$ at $S_t = 181.5$. If we shift the price to $S_t = 181.5 - x$, then since the delta is lower than $78$, say $70$, the value (assuming $0$ gamma) must move to $0 - 0.78 x = -1.873$. But since we know from before that the delta is increasing (positive gamma), let's estimate the average delta over this interval to be slightly higher, say $0.85$. Then, we solve $x = 1.873 / 0.85 \approx 2.20$. Therefore, we can estimate the price to be $181.5 - 2.20 = 179.3$.
+      \end{enumerate}
+      The answer is $179.55$.
+    \end{example}
+
     \begin{definition}[Conversion, Reversal]
       A \textbf{reversal} (reversing the underlying so short it) consists of a short underlying, a long call, and a short put. A \textbf{conversion} is simply the opposing position: a long underlying, a short call, and a short put. 
       \begin{center}
@@ -2379,6 +2467,13 @@
       \end{center}
       The reason we have these positions is that a reversal is really just a synthetic long put (short underlying and long call) plus a short put. This should equal out to $0$, but by trading these three instruments, either separately or as a combo, a MM can quote a market around this theo to gain edge.\footnote{However, in an no-arbitrage scenario, this is impossible.} 
     \end{definition}
+
+    \begin{example}[Reversal Convesion Market Making]
+      To make a market in the $X$ Rev/Con, you take the difference between the underlying price and the synthetic underlying price (constructed from the put and the call). Therefore, by put call parity, the market is
+      \begin{equation}
+        \hat{S} = C_X - P_X + K
+      \end{equation}
+    \end{example}
 
   \subsection{Ratio Spreads and Ladders}
 
@@ -2713,6 +2808,14 @@
 
 \section{Risk Measurement}
 
+    The intrinsic value is really always fixed, so when we are looking at Greeks, we are focusing on measuring the change in extrinsic value. As said before, this is dependent on volatility, distance to ATM, and time to expiry. The delta and gamma actually measures this change in intrinsic value (by changing the underlying value), which also changes the extrinsic value since the distance to ATM also changes. Therefore,
+
+    \begin{enumerate}
+      \item Delta and Gamma are concerned with the change in both intrinsic and extrinsic value. Vanna is $d Del / d Vol$. Charm is $d Del / d t$.
+      \item Theta and Vega are concerned with the change in extrinsic value.
+      \item Rho is concerend with the change in interest rate, which is negligible in most cases.
+    \end{enumerate}
+
   \subsection{Delta}
 
     \begin{definition}[Delta]
@@ -2722,8 +2825,9 @@
       \end{equation}
       meaning that for every \$1 increase in stock price, the option price increases roughly by \$$\Delta$, with all else being equal. It indicates how many options contracts are needed to hedge a long or short position in the underlying asset. Note that the delta for a call must be in $[0, 1]$ and of a put must be in $[-1, 0]$, but traders tend to describe it in $[0, 100]$ and $[-100, 0]$. 
       
+      The delta will look like the following. The delta of an ATM call is always $50$ and ATM put is $-50$.
       \begin{center}
-%        \includegraphics[scale=0.3]{img/}
+        \includegraphics[scale=0.4]{img/delta.png}
       \end{center}
     \end{definition}
 
@@ -2738,26 +2842,27 @@
       Given the BS formula, we have 
       \begin{align}
         \text{Call } \Delta_t & = \frac{\partial C_t}{\partial S_t} = \Phi(d_1) \\
-        \text{Put } \Delta_t & = \frac{\partial P_t}{\partial S_t} = 1 - \Phi(d_1) \\
+        \text{Put } \Delta_t & = \frac{\partial P_t}{\partial S_t} = - 1 + \Phi(d_1) \\
       \end{align}
       Therefore, we can interpret the first CDF term as the probability that the call delta finishes ITM. 
     \end{theorem}
 
-    \begin{theorem}[Delta Effects with Volatility]
+    \begin{theorem}[Delta Across Time]
+      As time passes, the delta will be more concentrated. It will be either $\pm 100$ for ITM calls and puts, and $0$ for OTM calls and puts.
+      \begin{center}
+        \includegraphics[scale=0.4]{img/delta_across_time.png}
+      \end{center}
+    \end{theorem}
+
+    It is interesting to see what happens to the delta if the option is exactly ATM. In this case, the delta can really be what you want. When options expire on some day, owners still have the optinality to exercise for the rest of the day. Expiry is before delivery (a few days). If you buy 100 ATM calls and sell 50 futures, and the futures are $100$ at expiry, then $\Delta$ is undefined.
+
+    \begin{theorem}[Delta Across Volatility]
       As $\sigma \rightarrow +\infty$ for both ITM and OTM calls and puts, their $\Delta \rightarrow +\infty$. This makes sense because the probability of finishing either ITM or OTM is equal. As $\sigma \rightarrow 0$, 
       \begin{enumerate}
         \item ITM calls: $\Delta \rightarrow +100$. 
         \item ITM puts: $\Delta \rightarrow -100$. 
         \item OTM calls/puts: $\Delta \rightarrow 0$. 
       \end{enumerate}
-    \end{theorem}
-
-    \begin{theorem}[Delta Effects with Time]
-
-    \end{theorem}
-
-    \begin{theorem}[Delta Effects with Interest Rate]
-
     \end{theorem}
 
     \begin{definition}[Delta Hedging]
@@ -2772,31 +2877,178 @@
       \end{enumerate}
     \end{definition}
 
+  \subsection{Gamma}
+
+    \begin{definition}[Gamma]
+      The \textbf{gamma} is the sensitivity of $\Delta$ w.r.t. $S$, i.e. the double derivative. The gamma is also referred to as the change in delta for a 1 point move. 
+      \begin{equation}
+        \Gamma_t \coloneqq \frac{\partial^2 V_K (t, T)}{\partial S_t^2}
+      \end{equation}
+      If you buy an option, you have positive gamma, and if you sell an option, you have negative gamma.
+    \end{definition}
+
+    \begin{enumerate}
+      \item Assume you buy 10 call options with a 50 delta. Then, you hedge by selling 5 futures.
+      \item If the underlying goes up, then
+    \end{enumerate}
+
+    This is gamma scalping.
+
     If we perform delta hedging strategy continuously, we would have 
     \begin{equation}
       \text{PnL} = \int_0^T \frac{S_t^2}{2} \Gamma_t (\sigma_{\text{implied}}^2 - \sigma_{\text{realized}}^2 )\, dt
     \end{equation}
 
-  \subsection{Gamma}
+    \begin{lemma}[Gamma Across Underlying Price]
+      The gamma is simply the derivative of the delta, so we have the following.
+      \begin{center}
+%        \includegraphics[scale=0.4]{img/}
+      \end{center}
+    \end{lemma}
 
-    \begin{definition}[Gamma]
-      The \textbf{gamma} is the sensitivity of $\Delta$ w.r.t. $S$, i.e. the double derivative. 
+    \begin{theorem}[Integral of Gamma]
+      The integral of gamma is always $1$.
       \begin{equation}
-        \Gamma_t \coloneqq \frac{\partial^2 V_K (t, T)}{\partial S_t^2}
+        \int_{-\infty}^{+\infty} \Gamma \,dS_t = 1 \text{ for all } t
       \end{equation}
-    \end{definition}
-
-    \textbf{Gamma scalping.}
-
-    \begin{theorem}[Delta and Gammas as Time Passes]
-      
     \end{theorem}
+    \begin{proof}
+      By the fundamental theorem of calculus.
+      \begin{equation}
+        \Delta (+\infty) = \Delta(-\infty) + \int_{-\infty}^{+\infty} \Gamma \,dS_t
+      \end{equation}
+      where $\Delta(+\infty) = 1, 0$ and $\Delta(-\infty) = 0, -1$ for a call and put, respectively.
+    \end{proof}
+
+    \begin{theorem}[Gamma Across Time]
+      As time goes on, we can again take the derivative and see that the gamma becomes more an more peaked around ATM.
+      \begin{center}
+%        \includegraphics[scale=0.4]{img/}
+      \end{center}
+    \end{theorem}
+
+    \begin{theorem}[Gamma Across Volatility]
+      It is the case that
+      \begin{enumerate}
+        \item As volatility decreases, delta is more sensitive
+      \end{enumerate}
+    \end{theorem}
+
+    If you hedge gamma, you are hedging accumulated deltas due to gamma. Hedging is a $0$ EV decision, but it still costs to hedge (since we have to cross the spread). If we can hedge and break even, we are very happy.
 
     \begin{theorem}
       \begin{equation}
         \Gamma_t = \frac{\partial^2 C_t}{\partial S_t^2} = \frac{\partial^2 P_t}{\partial S_t^2} = \frac{1}{S_0 \sigma \sqrt{T - t}} \frac{1}{\sqrt{2\pi}} e^{- d_1^2 / 2} \\
       \end{equation}
     \end{theorem}
+
+  \subsection{Cash Delta, Gamma and Portfolios}
+
+    Let $C(S)$ denote the price of a call option at time $t$. From Black-Scholes, we can see that it is a smooth function with well-defined first and second derivatives. Say that we have an option at time $t$ priced $C(S_t)$ and later at time $T$, it is worth $C(S_T)$. Then, we can construct a second order Taylor approximation\footnote{Traders mostly use the second order, which provides a good enough approximate. }
+    \begin{equation}
+      C(S_T) - C(S_t) = C^\prime (S_t) (S_T - S_t) + \frac{1}{2} C^{\prime\prime} (S_t) (S_T - S_t)^2
+    \end{equation}
+    which represents our PnL in terms of value. But note that the first and second derivatives are simply the delta and gamma (at price $S_t$), so we write
+    \begin{equation}
+      C(S_T) - C(S_t) = \Delta (S_t) (S_T - S_t) + \frac{1}{2} \Gamma (S_t) (S_T - S_t)^2
+    \end{equation}
+    But however, this isn't our actual PnL. The price is only for a single underlying security of a single options contract, so if we have $N$ options with multiplier $M$, our position is really the portfolio $\mathcal{P}(S_T)$. By substituting $S_T = S_t + A$, we have
+    our PnL is really
+    \begin{equation}
+      \mathcal{P}(S_t + A) - \mathcal{P} (S_t) = \big( C(S_t + A) - C(S_t) \big) M N = \Delta (S_t) M N A + \frac{1}{2} \Gamma (S_t) M N A^2
+    \end{equation}
+
+    \begin{definition}[Portfolio Delta, Gamma]
+      The \textbf{portfolio delta} and \textbf{portfolio gamma} are the delta and gamma of the contract, scaled up by $MN$.
+    \end{definition}
+
+    We have thought of this in absolute terms, but this can be quite disadvantageous when comparing securities of different products. For example, a \$1 change in an underlying worth \$2 is much different than a \$1 change in an underlying worth \$100. Therefore, we must normalize this in terms of percentage terms. If we want to model a PnL of a product with a x\% increase, then
+    \begin{equation}
+      x\% = \frac{x}{100} = \frac{A}{S_t} \implies A = \frac{x \cdot S_t}{100}
+    \end{equation}
+    Substituting this into the equation above gives
+    \begin{equation}
+      \mathcal{P}\Big(S_t + \frac{x \cdot S_t}{100} \Big) - \mathcal{P} (S_t) = \Delta (S_t) M N \frac{x \cdot S_t}{100} + \frac{1}{2} \Gamma (S_t) M N \bigg( \frac{x \cdot S_t}{100} \bigg)^2
+    \end{equation}
+    This gives us a nice form to work with. Let's reorganize this so that it is in a simpler form to work with in terms of the percent change $x/100$.
+    \begin{align}
+      \mathcal{P}\Big(S_t + \frac{x \cdot S_t}{100} \Big) - \mathcal{P} (S_t) & = \frac{x}{100} \cdot \underbrace{\Delta (S_t) M N S_t}_{\text{cash delta}} + \frac{1}{2} \frac{x}{100} \underbrace{\frac{\Gamma (S_t) S_t^2 M N}{100}}_{\text{cash gamma}}  \\
+      & = \frac{x}{100} \cdot \Tilde{\Delta} + \frac{1}{2} \frac{x^2}{100} \Tilde{\Gamma}
+    \end{align}
+
+    This motivates the following definitions. Therefore, the first and second order derivatives w.r.t. an absolute change in $S_t$ is your \textit{portfolio delta} and \textit{portfolio gamma}, while the same taylor expansion \textit{in percentage change basis} is your \textit{cash delta} and \textit{cash gamma}.
+
+    \begin{definition}[Cash Delta]
+      The \textbf{cash delta} of  fa portfolio represents the change in the portfolio's value w.r.t. the percent change, i.e. the PnL potential at this time.\footnote{You can think of this as the local linear approximation of the PnL after a change of basis into percent change space. }
+
+      \begin{align}
+        \frac{d \mathcal{P}}{d x} & = \frac{d \mathcal{P}}{d S_t} \cdot \frac{d S_t}{d x} \\  
+                                  & = \frac{d}{d S_t} \big\{ M N \cdot C(S_t) \big\} \cdot \frac{d S_t}{d x} \\
+                                  & = M \cdot N \cdot \Delta (S_t) \cdot \frac{S_t}{100}
+      \end{align}
+      However, by convention, we drop the $100$ and simply define 
+      \begin{equation}
+        \Tilde{\Delta} = \Delta \cdot M \cdot N \cdot S_t
+      \end{equation}
+      which represents
+      \begin{enumerate}
+        \item The first order change in PnL with a 100\% increase in the underlying. Therefore, a $x\%$ increase in our underlying $S_t$ means a
+          \begin{equation}
+            \text{Change in PnL} = \frac{x}{100} \cdot \Tilde{\Delta}
+          \end{equation}
+        \item The cash needed to delta hedge the underlying contracts of this portfolio. The delta of this portfolio is $\Delta(S_t) M N$ and you would want to buy/sell this many underlying contracts at price $S_t$.
+      \end{enumerate}
+    \end{definition}
+
+    \begin{example}[Portfolio vs Cash Delta]
+      Take a look at two portfolios  
+      \begin{enumerate}
+        \item $\mathcal{P}_1$ of one oil future trading \$65 per barrel, multiplier 1000. 
+        \item $\mathcal{P}_2$ of two corn futures trading at \$3.50, multiplier 5000. 
+      \end{enumerate}
+      The portfolio delta are 
+      \begin{align}
+        \Delta_{\mathcal{P}_1} & = 1 \cdot 1000 \cdot 1 = 1000 \\ 
+        \Delta_{\mathcal{P}_2} & = 1 \cdot 5000 \cdot 2 = 10,000 \\ 
+      \end{align}
+      This looks like the corn future has much more exposure, since a \$1 move in the underlying can change the value of the portfolio by $10,000$, while it can only change the oil by $1,000$. However, note that a \$1 change from $3.50$ to $4.50$ is a 28\% change, while $65$ to $66$ is a 1.5\% change. Therefore, it is better to compare the change in the portfolios with the \textit{percent} change in the underlying. The cash deltas are 
+      \begin{align}
+        \Delta_{\mathcal{P}_1} & = 1 \cdot 1000 \cdot 1 \cdot 65 = 65,000 \\ 
+        \Delta_{\mathcal{P}_2} & = 1 \cdot 5000 \cdot 2 \cdot 3.50 = 35,000 \\ 
+      \end{align}
+      This means that the oil portfolio is riskier, since a 1\% change in underlying will shift the portfolio by \$650 compared to \$350 for the corn. 
+    \end{example}
+
+    \begin{definition}[1 Percent Cash Gamma]
+      The \textbf{1\% cash gamma} is the second derivative of a portfolio w.r.t. the percent change, or the rate of change in the cash delta (PnL potential) w.r.t. the percent change. 
+      \begin{align}
+        \Tilde{\Gamma} = \frac{d \Tilde{\Delta}}{d x} & = \frac{d \Tilde{\Delta}}{d S_t} \cdot \frac{d S_t}{d x} \\
+                                                        & = \frac{d}{d S_t} \big\{ M N \cdot \Delta (S_t) \cdot S_t \big\} \cdot \frac{d S_t}{d x} \\
+                                                        & = M N \big\{ \Gamma (S_t) \cdot S_t + \Delta(S_t) \big\} \cdot \frac{S_t}{100}
+      \end{align}
+      But the delta term is ignored? 
+      \begin{equation}
+        \Tilde{\Gamma} = \frac{\Gamma \cdot S_t^2 \cdot M \cdot N}{100}
+      \end{equation}
+    \end{definition}
+
+    \begin{theorem}
+      It should be pretty clear from definition that the percent change in the underlying times the cash gamma is the change in cash delta. We can also write this in terms of regular delta as well. 
+      \begin{equation}
+        \text{Change in } \Tilde{\Delta} \text{ for } x\% = M N S_t (\text{Change in } \Delta \text{ for } x\%) = \Tilde{\Gamma} \cdot x
+      \end{equation}
+      By setting $x = 1$, we can derive a normalized form of gamma w.r.t. the percentage change. This makes it easier to compare deltas over different portfolios with different underlyings. 
+      \begin{equation}
+        \text{Change in } \Delta \text{ for } 1\% = \frac{\Tilde{\Gamma}}{M N S_t} = \frac{\Tilde{\Gamma}}{\text{Cash delta of D1 contract}}
+      \end{equation}
+      The D1 contract in our case is a future. 
+    \end{theorem}
+
+    \begin{example}
+      Suppose that you own 1 oil future, where the underlying price of oil is $50$ a barrel, with a multiplier of $1000$. Say that you pick up 4 deltas when the underlying goes up by 2\%. This is equivalent to picking up 2 deltas when the underlying goes up by 1\%, i.e. picking up $2 \cdot 1 \cdot 1000 \cdot 50 = 100,000$ cash deltas. So your cash gamma is $100,000$. 
+
+      You can also figure this out by calculating the vanilla gamma. A 2\% change of $50$ is \$1, so the gamma is $4$. Therefore, the cash gamma is $4 \cdot 50^2 \cdot 1000 \cdot 1 / 100 = 100,000$. 
+    \end{example}
 
   \subsection{Theta}
 
@@ -2805,6 +3057,7 @@
       \begin{equation}
         \Theta_t \coloneqq \frac{\partial V_t}{\partial t}
       \end{equation}
+      Theta is also referred to as the change in the value of an option over a 24-hour period (1 business day). It is always negative but we write positive. We don't say long or short theta. We say if we bleed/lose theta or gain theta.
     \end{definition}
 
   \subsection{Vega}
