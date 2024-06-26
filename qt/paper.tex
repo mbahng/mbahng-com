@@ -2872,7 +2872,7 @@
 
     We can check that this also satisfies PCP. 
 
-\section{Basic Risk Measurement}
+\section{Primary Greeks}
 
     The intrinsic value is really always fixed, so when we are looking at Greeks, we are focusing on measuring the change in extrinsic value. As said before, this is dependent on volatility, distance to ATM, and time to expiry. The delta and gamma actually measures this change in intrinsic value (by changing the underlying value), which also changes the extrinsic value since the distance to ATM also changes. Therefore,
 
@@ -3004,7 +3004,7 @@
       \item Now if the future moves up 1 point, we gain $2$ delta, and so we must sell $2$ more futures to be delta neutral.
       \item If the futures move down 1 point, we lose $2$ delta, and so we must buy $2$ more futures to be delta neutral.
     \end{enumerate}
-    Therefore, we will profit no matter what. This process is called \textbf{hedging gamma}, which means you are hedging accumulated deltas due to gamma.\footnote{Hedging is a $0$ EV decision, but it still costs to hedge (since we have to cross the spread). If we can hedge and break even, we are very happy.}
+    Therefore, we will profit no matter what. This process is called \textbf{hedging gamma}, which means you are hedging accumulated deltas due to gamma.\footnote{Hedging is a $0$ EV decision, but it still costs to hedge (since we have to cross the spread). If we can hedge and break even, we are very happy.} Essentially, whether a trader is long or short gamma determines a trader's bet on the \textit{realized volatility} (as opposed to implied volatility as in vega, more on this later) of the underlying
 
     We sell high and buy low, and the rate at which we transact is the \textbf{path}. We can choose to buy or sell every day, every week, or when the price reaches a certain threshold. Our profits will depend on this path that we take, called \textbf{path dependency}. Clearly, the higher volatility is, the more opportunities we have to gamma scalp. We have just talked about a riskless profit, so is this arbitrage? No, because this balances out with our theta. Generally, new traders should avoid large gamma positions due to the speed at which the delta, i.e. the directional risk, can change. 
 
@@ -3239,6 +3239,18 @@
 
     Therefore, an option with a theo of $0.93$ and a rho of $0.02$ will increase in price to $0.95$ if the interest rates increased from $3.5\%$ to $4.5\%$.  
 
+    The rho is presented as a change in option price per 1\% change in rates. We also talk about the rho of a portfolio by multiplying it by the option multiplier and the number of options. Note that we don't input in a flat rate to every expiry date, but rather we parameterize the rate over time $r_T$ and input the expected rho at time $T$ into our calculation of $C_K (t, T)$.
+
+    If you're borrowing money, you make money if rates go up, so it is equivalent to a long rho position.
+    If you're lending money, you lose money if rates go up, so it is equivalent to a short rho position.
+    Therefore, market makers would lend or borrow money based on their rho position.
+
+    \begin{example}[Box Spread]
+      A box spread has no greek exposure except for rho. If we buy a box, we're lending money so we short rho (interest rates).
+    \end{example}
+
+    Rhos can be summed up across products and managed at the firm level, since interest rates are universal across all products.
+
 \section{Volatility}
 
   \subsection{Realized Volatility}
@@ -3439,35 +3451,52 @@
 
 \section{Practical Trading}
 
-  \subsection{Basics} 
+  \subsection{Basics Properties of Markets} 
 
     Take a look at the following options chain and notice the following: 
 
     \begin{figure}[H]
       \centering 
-      % \includegraphics[scale=0.4]{img/}
+       \includegraphics[scale=0.4]{img/violet.png}
       \caption{Options chain shown in Violet. } 
       \label{fig:violet}
     \end{figure}
 
-    OTM options have much more orders since they have lower delta so less risky when you have sudden moves in underlying. Therefore, calls mostly refer to OTM calls and puts refer to OTM puts. 
-
-    The pink means that Akuna is on \textbf{top of the book}. Akuna may still be quoting for other prices.
-
-    Total position = |total call position| + |total put position|
-
-    Convos are requested and then quoted upon RFQ (request for quote). We and other parties can rfq. 
-
-  \subsection{Theos and Edge}
-
-    You don't buy for 0.08 something that's worth theo 0.082 since edge is too small. 
+    Let's see what these columns mean: 
     \begin{enumerate}
-      \item blue means someone is offering under our theo
-      \item red means someone is bidding above our theo
+      \item The leftmost yellow column is the delta. 
+      \item The total quantity is the dark grey, where it is defined as 
+        \begin{equation}
+          \textbf{Total position} = |\textbf{total call position}| + |\textbf{total put position}|
+        \end{equation}
+      \item The next 5 columns refer to the blue theo in the middle, surrounded by the call bid and ask prices and their quantities. 
+      \item The black refers to the strike price, with the ATM highlighted in yellow. 
+      \item The pink refers to our total position. 
+      \item The next 5 are the same for put options. 
+      \item The rightmost pink column is the vega. 
+      \item The rightmost blue column is our minimum edge required. 
     \end{enumerate}
-    If you see a bunch of quotes across strikes that crosses our theo, this is prob another market maker. If there are isolated ones, it is a prob a paper.   
 
-  \subsection{Crossing the Spread}
+
+    Let's note a few general properties of the market. 
+    \begin{enumerate}
+      \item OTM options have much more orders since they have lower delta so less risky when you have sudden moves in underlying. Therefore, calls mostly refer to OTM calls and puts refer to OTM puts. 
+
+      \item The pink means that we are on \textbf{top of the book}. Akuna may still be quoting for other prices.
+
+      \item Our total position, marked in the pink refers to 
+      \item Combos are requested and then quoted upon RFQ (request for quote). We and other parties can rfq. 
+    \end{enumerate}
+
+  \subsection{Edge and Slippage}
+  
+    When we market make, we want to have some minimum edge to reduce risk. If our minimum edge is $0.10$ for a theo of $4.00$, then we make a market of $3.90$ at $4.10$. If someone puts up a bid at $4.08$ we do not trade since this is too little edge. Therefore, we do not always sell above our theo or buy below our theo. There has to be a threshold to cross. 
+
+    Often, we will see that our current theo is not within the bid/ask price. This can happen for many reasons. For example, if there are papers or block trades that drastically move the market. Other times, there is a second market marker with their own markets (you may see that a whole chunk of strike prices then have mismatches with our own theos). 
+    \begin{enumerate}
+      \item If the $(b, o)$ is below our theo, then someone is offering under our theo, which may be a good time to buy. The price will be marked blue. 
+      \item If the $(b, o)$ is above our the, then someone is bidding above our theo, which may be a good time to sell. This price will be marked red. 
+    \end{enumerate}
 
     \begin{example}
       Say that if you are trying to trade (not market make) a 80-85-90 call fly, you may see that 
@@ -3485,7 +3514,88 @@
         \label{fig:call_fly_cross_spread}
       \end{figure}
     \end{example}
+    
+    Now we'll discuss some strategies from the perspective of a market maker. These are quoting, option move, and base move, which provide the foundations for all other types of strategies.
 
-  \subsection{Slippage}
+    If we have an instrument for which our theo is $1.25$, say that we make a market of $0.75$ at $1.75$.\footnote{Established market makers have \textbf{quoting obligations} that require them to quote a ceratin percentage of the markets in a day.} In this case, we have $0.50$ of edge. There are cases where if a bid of $1.70$ comes in, we will slightly lower our offer price to match it to execute that trade since we still think that a $0.45$ edge is good enough. Note that when quoting, we should always round our edge thresholds to the nearest tick. Therefore, if the tick is $0.10$, then our quote would be $0.7$ at $1.8$.
+
+    \begin{definition}[Quotes (AQ)]
+      Say we have an option of a theo of $4.00$, in which we plan to make a market of $3.93$ at $4.07$. However, if we are in front of the order queue, we have bigger exposure since people can trade against us instantly. Therefore, we would usually want a bit more edge, say $3.90$ at $4.10$, $50$ up. These parameters, such as minimum edge, the quantity of our market, etc. are all held by a database called \textbf{Parametron}, which contains hundreds of parameters that need to be fine-tuned to the market.
+    \end{definition}
+
+    \begin{definition}[Option Move (OM)]
+      If someone hits our bid (or lifts our offer), then we want to adjust our markets down (up). This is classical market making logic. We must amend our quote, but often deleting the quote altogether and then reposting it is faster. The fastest market maker to do this gets the best queue priority and therefore execute whatever resting bid or offer that crosses their new market. To achieve this speed, all the math for all possible moves are precalculated and stored (cached) in memory. Other parameter calculations also take time, so we usually send default ones (e.g. quantity of $50$ in order to trade accuracy for speed.
+    \end{definition}
+
+    \begin{definition}[Base Move (BM)]
+      If the underlying future moves, then we would want to shift our theo accordingly. Perhaps if the underlying future price goes up \$1, then our quotes for an ATM call (50 delta) must go up by $0.50$. Our new market is $4.40$ at $4.60$, and suddenly resting offers at say $4.25$ becomes very attractive to us. There are ways to prepopulate orders so that we can execute trades in advance.
+    \end{definition}
+
+  \subsection{Systems Architecture}
+
+    First, \textbf{Solace} is a third party architecture that delivers fast data throughout the company. The data is in the \textbf{protocol} format, which underlies all data that goes through the company. It is extremely good for live data, while \textbf{Databricks} is used to store historical data for analysis and backtesting (stored from 2020).
+
+    Akuna has two trading engines, \textbf{Blackbird} (the old trading engine) and \textbf{Jupiter} (the new one built on top of \textbf{Juno} framework). These engines drive the automated trading strategies and talk directly to exchanges (by either posting quotes or receiving trade data) and often have FPGAs for hardware acceleration. There are other optimizations on the hardware and software levels as well, e.g. cable lengths, overclocking servers, etc. Solace often interacts with these engines such as updating parameters.
+
+    The theos (such as those calculated by Black-Scholes) and other computationally-heavy tasks are done on our GPU \textbf{calc-node/farm} which sends out theoretical prices and other greeks for each option, again through Solace. The \textbf{conductor} is the main software overseeing all of the calc-nodes. \textbf{Razor} calculates how much edge you need per instrument, which also does calculations but not nearly as complex, so no GPUs are needed. Ultimately it sends out the calculated edge per option/instrument. Finally, \textbf{Voltron} (a C++ program) is a trading service which handles vol-spline updates. This can be the result of a manual action (i.e. trader ticking vols in Spline Dashboard) or an automated update.
+
+    We also have publishers (currently Jupiter MD and Val Publishers) that take in exchange data (like market prices) and forward them to our company through Solace, which distributes the data so that traders can see real time pricing using the trading software called \textbf{Violet}. Violet is our primary trading UI, which allows traders to view/interact with market data, valuation and theoretical prices/greeks/offsets/quantities, positions, parameters, etc. \textbf{Pitbull} on the other hand, is the primary trading UI used by our floor traders, which runs on a tablet device.
+
+    \textbf{Parametron} is a database of trading parameters (e.g. limits, volatility, fees) while \textbf{Instrumental} is a database of everything we trade, such as security types (options, futures, stocks), expiration dates, strike price, and exchange info.
+
+    Going away from our trading engine applications are our middle/back office applications built with Python. \textbf{ORC} is a 3rd party trader application that was used by our company in the early days. These applications collect data, stored in the \textbf{Bunker database} from ABN such as trades, transactions, positions, accounts, etc.
+
+    The data infrastruce consists of \textbf{Hubble}. \textbf{HDAL} and \textbf{ddo} are fundamental Python packages for retrieving data, and \textbf{knex\_data}, another package, uses these two to package the data in a nicer format. \textbf{Photon} is a Python API to the trading engines that allows traders to send out orders and modify/delete them. \textbf{Black Mamba} is a C++ package for analyzing this data.
+
+  \subsection{Gamma vs Vega}
+
+    Say that we buy a call option and we delta hedge. Now what are we exposed to? Gamma, theta, vega, and rho. To understand the dependencies, let's distinguish the following:
+    \begin{enumerate}
+      \item \textit{Historical realized vol (HRV)} is the historical volatility, which is backward looking.
+      \item \textit{Future realized vol (FRV)} is the actual realized volatility that will happen in the future. Nobody knows this.
+      \item \textit{Implied vol (IV)} is a forward looking measure on what the market thinks the FRV will be. It is also the breakeven vol at which the expectation of profits off of gamma scalping will equal the theta decay, resulting in net $0$ profit.
+    \end{enumerate}
+    All three are correlated, yet distinct measures. The vega bets solely on the implied vol (not directly on the FRV) and the gamma bets solely on the FRV with respect to the IV. Let's look at scenarios where we would want to long one but not the other.
+
+    \begin{example}[Gamma Scapling]
+      The gamma bets on the FRV with respect to the IV. By looking at whether the FRV is above (below) the IV, we can determine whether there is (isn't) enough volatility to justify gamma scalping.
+      \begin{enumerate}
+        \item If you're betting that FRV > IV, then you long gamma, which will give you more profits than bleeding theta.
+        \item If you're betting that IV > FRV, then you short gamma, where you reap theta.
+      \end{enumerate}
+    \end{example}
+
+    \begin{example}[Long Short Vega]
+      Say that there is a difference between the HRV and the IV. If IV > HRV, then the market thinks that the realized voltility will go up in relation to the historical. There are two scenarios.
+      \begin{enumerate}
+        \item HRV is mispriced.\footnote{This can be due to elections or some other event that will bolster the volatility in the near future, but the HRV hasn't priced this in yet. } We can't bet on HRV here, so we do nothing.
+        \item IV is mispriced.\footnote{The market may think that something big will happen, but it doesn't happen and volatility stays at consistent levels. } We want to short this IV and thus short vega.
+      \end{enumerate}
+
+      If HRV > IV, then the market thinks that the realized volatility will go down in relation to the historical. There are two scenarios.
+      \begin{enumerate}
+        \item HRV is mispriced.\footnote{We could have just gotten out of some event that caused a lot of volatility.} We can't bet on HRV here, so we do nothing.
+        \item IV is mispriced.\footnote{The market may think that we are out of volatile times, but turns out we aren't.} We want to long this IV and thus long vega.
+      \end{enumerate}
+      Every trader will hope that the implied vol will reevaluate asap to their vol target. It not only enables him to realize his profits more quickly, but it eliminates the risk of holding a position for an extended period of time. The longer a position is held, the greater the possibility of error.
+    \end{example}
+
+    It may seem a bit odd that gamma and vega are traded separately. In most cases, if you long gamma you also want to long vega. This is because since FRV is going up, the IV must follow the FRV and rise with it. Longing gamma but shorting vega must mean that you are betting that the market will be even more wrong about its estimation of the FRV, which may not make sense. However, if you long vega, then you may think that the IV in the future will surpass the FRV, meaning that you want to short gamma. These predictions also depends on which information you have, so let's consider a few cases where you would want opposing gamma/vega positions.
+
+    \begin{example}[IV Crush]
+      An IV crush happens when the IV of an option drops abruptly. For example, leading up to an earnings announcement, options prices often rise due to increased uncertainty about the stock's future price movement. After the earnings release, uncertainty typically dissipate, triggering a decline in implied vol. Therefore, you want to short vega, but since the stock moves heavily, this is indeed realized vol and you want to long gamma.
+    \end{example}
+
+
+    In fact, buying an option gives us long gamma and long vega, so how would you construct a portfolio with opposing gamma and vega positions?
+
+    \begin{example}[Opposite Gamma and Vega Positions]
+      We construct a diagonal (across strike and expiry) put spread.
+      \begin{enumerate}
+        \item Buy an ATM put with a week left to expiry. This has high positive gamma and little positive vega.
+        \item Sell a OTM put with a year left to expiry. This has low negative gamma and high negative vega.
+      \end{enumerate}
+      We have just created a long gamma short vega position.
+    \end{example}
 
 \end{document}
