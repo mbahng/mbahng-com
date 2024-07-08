@@ -3743,32 +3743,99 @@
     Now we delve into how the actual theos are computed. This is really through our \textit{volatility spline}. 
 
     \begin{definition}[Volatility Spline]
-      Given a certain underlying, we pick about 11 deltas across the strikes, usually centered at ATM (50 delta) and 5 on each side ($\pm 0.2, \pm 0.4, \pm 0.45, \pm 0.48)$. Let them be denoted $d_{-5}, \ldots, d_0, \ldots, d_5$. We take their corresponding strikes $K_{-5}, \ldots, K_0, \ldots, K_5$ and try to fit a cubic spline\footnote{More specifically, a natural cubic spline that is a $C^2$ piecewise function that interpolates the nodes.} predicting the implied volatilities $\mathrm{IV}_{i}$. Essentially, this is a manually tuned cubic spline fitting $(K_i, \mathrm{IV}_i)$, called our \textbf{volatility spline}. 
+      Given a certain underlying, we pick about 11 deltas across the strikes, usually centered at ATM (50 delta) and 5 on each side ($\pm 0.2, \pm 0.4, \pm 0.45, \pm 0.48)$.\footnote{Depending on the product, there may be more or less nodes on each side.} Let them be denoted $d_{-5}, \ldots, d_0, \ldots, d_5$. We take their corresponding strikes $K_{-5}, \ldots, K_0, \ldots, K_5$ and try to fit a \textbf{volatility spline}\footnote{More specifically, a natural cubic spline that is a $C^2$ piecewise function that interpolates the nodes.} predicting the implied volatilities $\mathrm{IV}_{i}$. We can view the spline in multiple axis: 
+      \begin{enumerate}
+        \item \textit{Strike Space}. The strikes to the right represent OTM calls. The strikes to the left represent OTM puts. 
+        \item \textit{Log Moneyness Space}. This is similar to what we have done before. 
+        \item \textit{Probability Space}. This is again analogous (but not exactly) to delta space, but we can view each node as the location where the probability of the option will finish past the strike.  
+      \end{enumerate}
+      
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/vol_spline.png}
+        \caption{Best cubic fit of our vol spline.} 
+        \label{fig:vol_spline}
+      \end{figure}
+      We usually do not have this nice figure when working with vol splines. Rather, we just have a list of numbers. They can be in one of three forms: 
+      \begin{enumerate}
+        \item It is simply a list of volatilities. 
+          \begin{lstlisting}
+            [45.64, 42.13, 36.15, ..., 24.78, ..., 32.11, 36.74, 39.44]
+          \end{lstlisting}
+        \item Most commonly, the ATM volatility is listed, and multiples of the ATM is listed for the rest. 
+          \begin{lstlisting}
+            [1.89, 1.67, 1.43, ..., 24.78, ...., 1.23, 1.43, 1.55]
+          \end{lstlisting}
+        \item The ATM volatility is listed and the difference of the ATM is listed for the rest. 
+          \begin{lstlisting}
+            [20.86, 17.35, 11.37, ..., 24.78, ..., 7.33, 11.96, 14.66]
+          \end{lstlisting}
+      \end{enumerate}
     \end{definition} 
 
-    A few things to note about the vol spline. In our vol spline dashboard, we have 
-    \begin{enumerate}
-      \item The best fit IV of the ATM option is the predicted IV, e.g. $36.45$. 
-      \item The rest of the fit IVs are multiples of the ATM predicted IV. 
-    \end{enumerate}
+    It is worth going through how this derivation is fit. The general idea is that between each points, we want to fit a cubic function s.t. the whole piecewise cubic function is $C^2$, i.e. has coinciding continuous 2nd derivatives. This, along with the fact that it has to interpolate the nodes, and finally the fact that the second derivative (concavity) at the end nodes must be $0$, gives us a unique cubic spline that fits the points. 
 
-    To change in the vol spline. 
-    \begin{enumerate}
-      \item Changing the 50 node will shift the entire spline up or down. 
-      \item Changing any other node will shift all nodes outside of it as well. 
-    \end{enumerate}
-    
+    \begin{definition}[Skew]
+      Depending on the shape of this spline, we can determine if there is a skew. 
+      \begin{enumerate}
+        \item A \textbf{put skew} indicates that there is a right skew to the chart, i.e. the ATM vol is slightly to the left of the minimum. This indicates that there is a higher premium for put options.\footnote{This usually happens in indices or stocks, since they usually go up slowly but crash down suddenly. }
+
+        \item A \textbf{call skew} indicates that there is a left skew to the chart, i.e. the ATM vol is slightly to the right of the minimum. This indicates that there is a higher premium for call options.\footnote{This usually happens for commodities, where a sudden supply crash can send prices soaring. }
+
+        \item A \textbf{symmetric skew} indicates that there is a smile, i.e. the ATM vol is the minimum. This indicates that there isn't a preference for OTM calls or puts.\footnote{This usually happens for currencies, since slow/fast rises in one currency correspond to slow/fast falls in another, so it is symmetric by definition. }
+      \end{enumerate}
+    \end{definition}
+
+    The reason we want a vol spline is that it allows us to visually see where the market is predicting its theos. When we usually enter a new market, we want to make sure that our nodes are properly adjusted so that our vol spline stays approximately in between the spreads of the market. This requires us to manually change our vol spline, which we can control with our \textit{tick only matrix}. 
+
     \begin{definition}[Tick Only Matrix]
-      
+      The \textbf{tick only matrix} represents the amount we would change if we ticked up or down. 
+      \begin{enumerate}
+        \item At the 50 node, the value shows how much absolute vol we would change for 1 tick. 
+        \item At every other node, the value shows how much we would change the \textit{multiplier} for 1 tick. 
+      \end{enumerate}
     \end{definition}
 
     \begin{definition}[Cotick Matrix]
-      
+      The \textbf{cotick none} matrix shows us how the vol spline would change if we adjusted only that node. 
+
+      However, this isn't a very realistic representation of the dynamics of a vol spline. Rather, the \textbf{cotick normal} matrix gives us a better representation of how other nodes will change smoothly with a change in one node.  
+      \begin{enumerate}
+        \item Changing the 50 node will shift the entire spline up or down. 
+        \item Changing any other node will shift all nodes outside of it as well, represented by a multiplier. 
+      \end{enumerate}
     \end{definition}
 
-    From the two, the ATM vols of both the tick only and cotick matrices will be the same. 
+    \begin{example}[Tick Matrix Examples]
+      Say that our vol spline (for the $50 \pm 20 \pm 40 \pm 45$ deltas) is  
+      \begin{lstlisting}
+        [1.2, 1.15, 1.1, 20, 1.1, 1.15, 1.2]
+      \end{lstlisting}
+      and our tick only matrix was 
+      \begin{lstlisting}
+        [0.03, 0.02, 0.01, 0.1, 0.01, 0.02, 0.03]
+      \end{lstlisting}
+      This means that a tick in the 70 delta node corresponds to a $0.01$ increase from $1.1$ to $1.11$, i.e. a $22$ to $22.2$. To calculate the change and the subsequent changes of adjusting this 70 node, we would get the row corresponding to the probability node, which looks like this. 
+      \begin{lstlisting}
+        [0.0, 0.0, 0.0, 0.0, 1.0, 1.067, 1.100]
+      \end{lstlisting}
+      and multiply the effects. So by raising the 70 node $0.01$, we raise the 90 node $0.01067$ and the 95 node $0.011$. Note that we are taking multiples of the 70 tick and not those defined our tick only matrix. 
+    \end{example}
 
-    Generally, if we enter a new market, we would use the market's bid ask prices as a good indicator. 
+    \begin{definition}[Up/Down Slope]
+      When interpolating between the nodes, we can use the cubic spline, but it is not so well when we want to extrapolate the nodes. Therefore, we simply use a line with some predetermined upslope (for past the biggest node) and downslope to extrapolate implied volatilities.\footnote{This is important since without it, we would have nonsensical theos. }
+    \end{definition}
+
+    \begin{definition}[PnL Matrix]
+      The \textbf{PnL} matrix represents the change in PnL with an uptick, which can be shown as both cotick none or cotick normal matrix.  
+      Between the two, the ATM vols of both the tick only and cotick matrices will be the same since both ATM ticks represent a shift of the entire vol spline up. 
+    \end{definition}
+
+    Therefore, the PnL matrix is very informative in showing us our vega positions. Lots of positive numbers in the PnL matrix indicate long vega. 
+
+    \begin{definition}[Correlation Matrix]
+      Just like how it wouldn't make sense to isolate one node from the rest, we want a tick to affect nearby nodes across time (expiry) as well. The correlation matrix tells us how (we look at columns). 
+    \end{definition}
 
   \subsection{Slope and VCR}
 
@@ -3776,6 +3843,42 @@
 
 \section{Second Order Greeks}
 
-  \subsection{Vomma}
+  \subsection{Vanna}
+
+    \begin{definition}[Vanna]
+      \textbf{Vanna} is defined to be 
+      \begin{equation}
+        \text{vanna} \coloneqq e^{-r (T - t)} \phi(d_1) \frac{d_2}{\sigma} = \frac{\nu}{S_t} \bigg[ 1 - \frac{d_1}{\sigma \sqrt{T - t}} \bigg]
+      \end{equation}
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/vanna.png}
+        \caption{Vanna} 
+        \label{fig:vanna}
+      \end{figure}
+    \end{definition}
+
+  \subsection{Weezu/Vomma}
+
+    \begin{definition}[Weezu/Vomma]
+      \textbf{Weezu} is the derivative of the vol w.r.t. vol. 
+      \begin{equation}
+        \text{weezu} \coloneqq S_t e^{-r (T - t)} \phi(d_1) \sqrt{T - t} \frac{d_1 d_2}{\sigma} = \nu \frac{d_1 d_2}{\sigma}
+      \end{equation}
+    \end{definition}
+
+    Raising weezu means making the vol spline more convex, i.e. raising the 30 70 nodes. 
+
+    Also related to vol of vol? 
+
+  \subsection{Charm}
+
+    \begin{definition}[Charm]
+      \textbf{Charm} is the derivative of the vol w.r.t. time. 
+      \begin{equation}
+        \text{Charm} = \frac{\partial \Delta}{\partial t} = -\frac{\partial^2 V}{\partial S \partial t} 
+      \end{equation}
+    \end{definition}
 
 \end{document}
