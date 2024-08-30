@@ -197,7 +197,7 @@
   \lstset{
     autogobble,
     frame=ltbr,
-    language=C,                           % the language of the code
+    language=SQL,                           % the language of the code
     aboveskip=3mm,
     belowskip=3mm,
     showstringspaces=false,
@@ -238,9 +238,7 @@
 \tableofcontents
 \pagebreak
 
-This is a course on database languages (SQL), database systems (Postgres, SQL server, Oracle, MongoDB), and data analysis. 
-
-\section{Relational Databases}
+  This is a course on database languages (SQL), database systems (Postgres, SQL server, Oracle, MongoDB), and data analysis. 
 
   \begin{definition}[Data Model]
     A \textbf{data model} is a notation for describing data or information, consisting of 3 parts. 
@@ -251,6 +249,10 @@ This is a course on database languages (SQL), database systems (Postgres, SQL se
     \end{enumerate}
   \end{definition}
 
+  There are two general types: relational databases, which are like tables, and semi-structured data models, which follow more of a tree or graph structure (e.g. JSON, XML).  
+
+\section{Relational Databases}
+
   The most intuitive way to store data is with a \textit{table}, which is called a relational data model, which is the norm since the 1990s. 
 
   \begin{definition}[Relational Data Model]
@@ -258,22 +260,143 @@ This is a course on database languages (SQL), database systems (Postgres, SQL se
     \begin{enumerate}
       \item \textbf{relations}, which are two-dimensional tables. 
       \item Each relation has a set of \textbf{attributes}, or columns, which consists of a name and the data type (e.g. int, float, string, which must be primitive).\footnote{The attribute type cannot be a nonprimitive type, such as a list or a set. }
-      \item Each relation contains a set\footnote{Note that since this is a set, the ordering of the rows doesn't matter , even though the output is always in some order.} of \textbf{tuples} (rows), which each tuple having a value for each attribute of the relation. Duplicate (agreeing on all attributes) tuples are not allowed. 
+      \item Each relation is a set\footnote{Note that since this is a set, the ordering of the rows doesn't matter , even though the output is always in some order.} of \textbf{tuples} (rows), which each tuple having a value for each attribute of the relation. Duplicate (agreeing on all attributes) tuples are not allowed. 
     \end{enumerate}
     So really, relations are tables, tuples are rows, attributes are columns. 
   \end{definition}
 
-  \begin{definition}[Schema and Instance]
+  \begin{definition}[Schema]
     The \textbf{schema} of a relational database just describes the form of the database, with the name of the database followed by the attributes and its types. 
     \begin{lstlisting}
       Beer (name string, brewer string)
       Serves (bar string, price float)
       ...
     \end{lstlisting}
-    The \textbf{instance} is the actual table, like the collection of tuples. 
   \end{definition}
 
-  SQL (Structured Query Language) is the standard query language supported by most DBMS. It is \textbf{declarative}, where the programmer specifies what answers a query should return,but not how the query should be executed. The DBMS picks the best execution strategy based on availability of indices, data/workload characteristics, etc. (i.e. provides physical data independence). It contrasts to a \textbf{procedural} or an \textbf{operational} language like C++ or Python. 
+  \begin{definition}[Instance]
+    The entire set of tuples for a relation is called an \textbf{instance} of that relation. If a database only keeps track of the instance now, the instance is called the \textbf{current instance}, and \textbf{temporal databases} also keep track of the history of its instances. 
+  \end{definition}
+
+  Finally, we talk about an important constraint. 
+
+  \begin{definition}[Key]
+    A set of attributes form a \textbf{key} for a relation if we do not allow two tuples in any relation instance to have the same values in all attributes of the key. 
+  \end{definition}
+
+  While we can make a key with a set of attributes, many databases use artificial keys such as unique ID numbers for safety. 
+
+  SQL (Structured Query Language) is the standard query language supported by most DBMS. It is \textbf{declarative}, where the programmer specifies what answers a query should return,but not how the query should be executed. The DBMS picks the best execution strategy based on availability of indices, data/workload characteristics, etc. (i.e. provides physical data independence). It contrasts to a \textbf{procedural} or an \textbf{operational} language like C++ or Python. One thing to note is that keywords are usually written in uppercase by convention. 
+
+  \begin{definition}[Primitive Types]
+    The primitive types are listed. 
+    \begin{enumerate}
+      \item \textit{Characters}. \texttt{CHAR(n)} represents a string of fixed length $n$, where shorter strings are padded, and \texttt{VARCHAR(n)} is a string of variable length up to $n$, where an endmarker or string-length is used. 
+      \item \textit{Bit Strings}. \texttt{BIT(n)} represents bit strings of length $n$. \texttt{BIT VARYING(n)} represents variable length bit strings up to length $n$. 
+      \item \textit{Booleans}. \texttt{BOOLEAN} represents a boolean, which can be \texttt{TRUE}, \texttt{FALSE}, or \texttt{UNKNOWN}. 
+      \item \textit{Integers}. \texttt{INT} or \texttt{INTEGER} represents an integer. 
+      \item \textit{Floating points}. \texttt{FLOAT} or \texttt{REAL} represents a floating point number, with a higher precision obtained by \texttt{DOUBLE PRECISION}. 
+      \item \textit{Datetimes}. \texttt{DATE} types are of form \texttt{'YYYY-MM-DD'}, and \texttt{TIME} types are of form \texttt{'HH:MM:SS.AAAA'} on a 24-hour clock. 
+    \end{enumerate}
+  \end{definition}
+
+  \subsection{Tables, Attributes, and Keys}
+
+    Before we can even query or modify relations, we should know how to make or delete one. 
+
+    \begin{theorem}[\texttt{CREATE TABLE}, \texttt{DROP TABLE}]
+      We can create and delete a relation using \texttt{CREATE TABLE} and \texttt{DROP TABLE} keywords and inputting the schema. 
+      \begin{lstlisting}
+        CREATE TABLE Movies(
+          name CHAR(30), 
+          year INT, 
+          director VARCHAR(50), 
+          seen DATE
+        ); 
+
+        DROP TABLE Movies; 
+      \end{lstlisting}
+    \end{theorem}
+
+    What if we want to add or delete another attribute? This is quite a major change. 
+
+    \begin{theorem}[\texttt{ALTER TABLE}]
+      We can add or drop attributes by using the \texttt{ALTER TABLE} keyword followed by 
+      \begin{enumerate}
+        \item \texttt{ADD} and then the attribute name and then its type. 
+        \item \texttt{DROP} and then the attribute name. 
+      \end{enumerate}
+      \begin{lstlisting}
+        ALTER TABLE Movies ADD rating INT; 
+        ALTER TABLE Movies DROP director; 
+      \end{lstlisting}
+    \end{theorem}
+
+    \begin{theorem}[\texttt{DEFAULT}]
+      We can also determine default values of each attribute with the \texttt{DEFAULT KEYWORD}. 
+      \begin{lstlisting}
+        ALTER TABLE Movies ADD rating INT 0; 
+        ...
+        CREATE TABLE Movies(
+          name CHAR(30) DEFAULT 'UNKNOWN', 
+          year INT DEFAULT 0, 
+          director VARCHAR(50), 
+          seen DATE DEFAULT '0000-00-00'
+        ); 
+      \end{lstlisting}
+      
+    \end{theorem}
+
+
+    \begin{theorem}[\texttt{PRIMARY KEY}, \texttt{UNIQUE}]
+      There are multiple ways to identify keys. 
+      \begin{enumerate}
+        \item Use the \texttt{PRIMARY KEY} keyword to make \texttt{name} the key. It can be substituted with \texttt{UNIQUE}. 
+        \begin{lstlisting}
+          CREATE TABLE Movies(
+            name CHAR(30) PRIMARY KEY,
+            year INT, 
+            director VARCHAR(50), 
+            seen DATE
+          ); 
+        \end{lstlisting}
+
+        \item Use the \texttt{PRIMARY KEY} keyword, which allows you to choose a combination of attributes as the key. It can be substituted with \texttt{UNIQUE}. 
+        \begin{lstlisting}
+          CREATE TABLE Movies(
+            name CHAR(30),
+            year INT, 
+            director VARCHAR(50), 
+            seen DATE, 
+            PRIMARY KEY (name, year)
+          ); 
+        \end{lstlisting}
+      \end{enumerate}
+    \end{theorem}
+
+  \subsection{Relational Algebra}
+
+    We've talked about the structure of the data model, but we still have to talk about operations and constraints. We will focus on the operations here, which can be introduced with \textit{relational algebra}, which gives a powerful way to construct new relations from given relations. Really, SQL is a syntactically sugared form of relational algebra. 
+
+    The reason we need this specific query language dependent on relational algebra is that it is \textit{less} powerful than general purpose languages like C or Python. These things can all be stored in structs or arrays, but the simplicity allows the compiler to make huge efficiency improvements. 
+
+    An algebra is really just an algebraic structure with a set of operands (elements) and operators.  
+
+    \begin{definition}[Relational Algebra]
+      A relational algebra consists of the following operands. 
+      \begin{enumerate}
+        \item Relations $R$, with attributes $A_i$. 
+        \item 
+      \end{enumerate}
+
+      It has the following operations. 
+      \begin{enumerate}
+        \item \textit{Set Operations}. Union, intersection, and difference. 
+        \item \textit{Removing}. Selection removes tuples and projection removes attributes. 
+        \item \textit{Combining}. Cartesian products, join operations. 
+        \item \textit{Renaming}. Doesn't affect the tuples, but changes the name of the attributes or the relation itself. 
+      \end{enumerate}
+    \end{definition}
 
 
 \end{document}
