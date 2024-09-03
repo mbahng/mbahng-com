@@ -22,7 +22,7 @@
   \usepackage{listings}         % to include code
   \usepackage{lstautogobble}    % helper package for code
   \usepackage{parcolumns}       % for side by side columns for two column code
-  
+  \usepackage{array} 
 
   % page layout
   \usepackage{fancyhdr}         % for headers and footers 
@@ -31,6 +31,7 @@
   \usepackage[T1]{fontenc}      % to include \textbackslash
   \usepackage{footnote}
   \usepackage{etoolbox}
+  \usepackage[table]{xcolor}
 
   % for custom environments
   \usepackage{tcolorbox}        % for better colored boxes in custom environments
@@ -386,9 +387,8 @@
       A relational algebra consists of the following operands. 
       \begin{enumerate}
         \item Relations $R$, with attributes $A_i$. 
-        \item 
+        \item Operations. 
       \end{enumerate}
-
       It has the following operations. 
       \begin{enumerate}
         \item \textit{Set Operations}. Union, intersection, and difference. 
@@ -397,6 +397,157 @@
         \item \textit{Renaming}. Doesn't affect the tuples, but changes the name of the attributes or the relation itself. 
       \end{enumerate}
     \end{definition}
+
+    Let's take a look at each of these operations more carefully, using the following relation. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{tabular}{|l|l|r|}
+      \hline
+      \rowcolor[HTML]{E26B0A} 
+      \textcolor{white}{\textbf{bar}} & \textcolor{white}{\textbf{beer}} & \textcolor{white}{\textbf{price}} \\ \hline
+      \rowcolor[HTML]{FBCEB1}
+      The Edge & Budweiser & 2.50 \\ \hline
+      \rowcolor[HTML]{FBCEB1}
+      The Edge & Corona & 3.00 \\ \hline
+      \rowcolor[HTML]{FBCEB1}
+      Satisfaction & Budweiser & 2.25 \\ \hline
+      \end{tabular}
+      \caption{The example relation, which we will denote \texttt{serves}, which we will use to demonstrate the following operations.} 
+      \label{fig:serves}
+    \end{figure}
+    
+    \begin{definition}[Set Operations]
+      Given relations $R$ and $S$ which must have the same schema (if not, just apply a projection), we can do the following set operations. 
+      \begin{enumerate}
+        \item Union. $R \cup S$. 
+        \item Intersection. $R \cap S$, which can be written also as $R - (R - S), S - (S - R)$, and surprisngly $R \bowtie S$.\footnote{The natural join will check for all attributes in each schema, but sine we assumed that they had the same schema, it must check for equality over all attributes.}
+        \item Difference. $R - S$. 
+      \end{enumerate}
+    \end{definition}
+
+    \begin{definition}[Selection]
+      The \textbf{selection} operator $\sigma_p$ filters the tuples of a relation $R$ by some condition $p$. It must be the case that $p$ is deducible by looking only at that row. 
+      \begin{equation}
+        \sigma_p R
+      \end{equation}
+      This is analogous to the \texttt{WHERE} keyword. 
+      \begin{lstlisting}
+        SELECT * 
+        FROM relation 
+        WHERE 
+          p_1 AND p_2 AND ... ; 
+      \end{lstlisting}
+    \end{definition}
+
+    \begin{definition}[Projection]
+      The \textbf{projection} operator $\pi_L$ filters the attributes of a relation $R$, where $L$ is a subset of $R$'s attributes. 
+      \begin{equation}
+        \pi_L R
+      \end{equation}
+      Note that since this operates on sets, if the projection results in two tuples mapping to the same projected tuple, then this repeated element is deleted. This is simply the \texttt{SELECT} keyword. 
+      \begin{lstlisting}
+        SELECT 
+          bar,
+          beer
+        FROM beers; 
+      \end{lstlisting}
+    \end{definition}
+
+    Now let's talk about operations between two relations. 
+
+    \begin{definition}[Cartesian Product]
+      The \textbf{cartesian product} $S \times R$ of two relations is the relation 
+      \begin{equation}
+        S \times R = \{(s \in S, r \in R)\} 
+      \end{equation}
+      which has a length of $|S| \times |R|$. It is commutative (so tuples are not ordered, despite its name), and if $S$ and $R$ have the same attribute name $n$, then we usually prefix it by the relation to distinguish it: $S.n, R.n$. In SQL, we can do it in one of two ways. 
+      \begin{lstlisting}
+        SELECT *
+        FROM table1
+        CROSS JOIN table2; 
+
+        SELECT *
+        FROM table1, table2; 
+      \end{lstlisting}
+    \end{definition}
+
+    \begin{definition}[Theta-Join]
+      The \textbf{theta-join} with \textbf{join condition/predicate} $p$ gives 
+      \begin{equation}
+        R \bowtie_p S = \sigma_p (R \times S)
+      \end{equation}
+      \begin{enumerate}
+        \item If $p$ consists of only equality conditions, then it is called an \textbf{equi-join}. 
+        \item If $p$ is not specified, i.e. we write $R \bowtie S$, called a \textbf{natural join}. The $p$ is automatically implied to be 
+          \begin{equation}
+            R.A = S.A
+          \end{equation}
+          for all $A \in R.att \cap S.att$. Duplicate columns are always equal by definition and so one is removed, unlike equijoin, where duplicate columns are kept. 
+      \end{enumerate}
+    \end{definition}
+
+    There are other types of joins that we will use. 
+
+    \begin{example}[Simple Filter]
+      Find all the addresses of the bars that Ben goes to. 
+      \begin{table}[H]
+        \centering
+        \begin{tabular}{|>{\columncolor[HTML]{92AFDC}}l|>{\columncolor[HTML]{92AFDC}}l|}
+        \hline
+        \textbf{name} & \textbf{address} \\ \hline
+        \rowcolor[HTML]{DCE6F2}
+        The Edge & 108 Morris Street \\ \hline
+        \rowcolor[HTML]{DCE6F2}
+        Satisfaction & 905 W. Main Street \\ \hline
+        \end{tabular}
+        \caption{Bar Information}
+        \label{tab:bar-info}
+        \end{table}
+
+        % Frequents table
+        \begin{table}[H]
+        \centering
+        \begin{tabular}{|>{\columncolor[HTML]{4472C4}}l|>{\columncolor[HTML]{4472C4}}l|>{\columncolor[HTML]{4472C4}}c|}
+        \hline
+        \textbf{drinker} & \textbf{bar} & \textbf{times\_a\_week} \\ \hline
+        \rowcolor[HTML]{DCE6F2}
+        Ben & Satisfaction & 2 \\ \hline
+        \rowcolor[HTML]{DCE6F2}
+        Dan & The Edge & 1 \\ \hline
+        \rowcolor[HTML]{DCE6F2}
+        Dan & Satisfaction & 2 \\ \hline
+        \end{tabular}
+        \caption{Frequents Information}
+        \label{tab:frequents-info}
+      \end{table} 
+      We do the following. 
+      \begin{equation}
+        \pi_{\mathrm{address}} \big( \mathrm{Bar} \bowtie_{\mathrm{name = bar}} \sigma_{\mathrm{drinker = Dan}} (\mathrm{Frequents} ) \big)
+      \end{equation}
+    \end{example}
+
+    Finally, we look at renaming. 
+
+    \begin{definition}[Renaming]
+      Given a relation $R$, 
+      \begin{enumerate}
+        \item $\rho_S R$ means that you are chaning the relation name to $S$. 
+        \item $\rho_{(A_1, \ldots, A_n)} R$ renames the attribute names to $(A_1, \ldots, A_n)$. 
+        \item $\rho_{S(A_1, \ldots, A_n)} R$ renames the relation name to $S$ and the attribute names to $(A_1, \ldots, A_n)$. 
+      \end{enumerate}
+      It does not really adding any processing power. It is only used for convenience. 
+    \end{definition}
+
+  \subsection{Additional Operations}
+    
+    \begin{definition}[Monotone Operators]
+      An operator $O(R, S, \ldots)$ is monotone with respect to input $R$ if increasing the size (number of rows/tuples) of $R$ does not decrease the output relation $O$. 
+    \end{definition}
+
+    \begin{example}
+      Every operator we went through is monotone, except for the set minus $R - S$, which is monotone w.r.t. $R$ but not monotone w.r.t. $S$. 
+    \end{example}
 
 
 \end{document}
