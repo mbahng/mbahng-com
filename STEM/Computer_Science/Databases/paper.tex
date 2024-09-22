@@ -44,6 +44,7 @@
   \usepackage{tikz}
   \usepackage{tikz-cd}
   \usepackage{circuitikz}
+  \usetikzlibrary{shapes,arrows,positioning}
   \usetikzlibrary{arrows}
   \usetikzlibrary{positioning}
   \usetikzlibrary{calc}
@@ -252,7 +253,7 @@
 
   There are two general types: relational databases, which are like tables, and semi-structured data models, which follow more of a tree or graph structure (e.g. JSON, XML).  
 
-\section{Relational Databases}
+\section{Relational Algebra}
 
   The most intuitive way to store data is with a \textit{table}, which is called a relational data model, which is the norm since the 1990s. 
 
@@ -278,19 +279,6 @@
   \begin{definition}[Instance]
     The entire set of tuples for a relation is called an \textbf{instance} of that relation. If a database only keeps track of the instance now, the instance is called the \textbf{current instance}, and \textbf{temporal databases} also keep track of the history of its instances. 
   \end{definition}
-
-  Finally, we talk about an important constraint. 
-
-  \begin{definition}[Key]
-    A set of attributes $\mathcal{K}$ form a \textbf{primary key} for a relation 
-    \begin{enumerate}
-      \item if we do not allow two tuples in any relation instance to have the same values in all attributes of the key. 
-      \item no proper subset of $\mathcal{K}$ can also be a key for \textit{any} relation instance. 
-    \end{enumerate}
-    This may not be unique, but once we have chosen one, we can underline all its attributes in the schema, e.g. Address(\underline{street}, city, state, \underline{zip}). 
-  \end{definition}
-
-  While we can make a key with a set of attributes, many databases use artificial keys such as unique ID numbers for safety. 
 
   SQL (Structured Query Language) is the standard query language supported by most DBMS. It is \textbf{declarative}, where the programmer specifies what answers a query should return,but not how the query should be executed. The DBMS picks the best execution strategy based on availability of indices, data/workload characteristics, etc. (i.e. provides physical data independence). It contrasts to a \textbf{procedural} or an \textbf{operational} language like C++ or Python. One thing to note is that keywords are usually written in uppercase by convention. 
 
@@ -352,6 +340,26 @@
       \end{lstlisting}
       
     \end{theorem}
+
+    \begin{definition}[Key]
+      A set of attributes $\mathcal{K}$ form a \textbf{key} for a relation 
+      \begin{enumerate}
+        \item if we do not allow two tuples in any relation instance to have the same values in \textit{all} attributes of the key (i.e. in general). 
+        \item no proper subset of $\mathcal{K}$ can also be a key for \textit{any} relation instance, that is, $\mathcal{K}$ is \textit{minimal}. 
+      \end{enumerate}
+      A relation may have multiple keys, but we typically pick one as the \textbf{primary key} and underline all its attributes in the schema, e.g. Address(\underline{street}, city, state, \underline{zip}). 
+    \end{definition}
+
+    While we can make a key with a set of attributes, many databases use artificial keys such as unique ID numbers for safety. 
+
+    \begin{example}[Keys of User Relation]
+      Given the schema \textit{User(uid, name, age)}, 
+      \begin{enumerate}
+        \item \textit{uid} is a key of \textit{User} 
+        \item \textit{age} is not a key (not an identifier) even if the relation at the current moment all have different ages. 
+        \item \{\textit{uid, name}\} is not a key (not minimal)
+      \end{enumerate}
+    \end{example}
 
 
     \begin{theorem}[\texttt{PRIMARY KEY}, \texttt{UNIQUE}]
@@ -547,25 +555,556 @@
   \subsection{Additional Operations}
     
     \begin{definition}[Monotone Operators]
-      An operator $O(R, S, \ldots)$ is monotone with respect to input $R$ if increasing the size (number of rows/tuples) of $R$ does not decrease the output relation $O$. 
+      An operator $O(R)$ is monotone with respect to input $R$ if increasing the size (number of rows/tuples) of $R$ does not decrease the output relation $O$.  
+      \begin{equation}
+        R \subset R^\prime \implies O(R) \subset O(R^\prime)
+      \end{equation}
     \end{definition}
 
     \begin{example}
-      Every operator we went through is monotone, except for the set minus $R - S$, which is monotone w.r.t. $R$ but not monotone w.r.t. $S$. 
+      Let's go through to see if each operator is monotone. 
+      \begin{enumerate}
+        \item \textit{Selection is monotone}. 
+        \item \textit{Projection is monotone}. 
+        \item \textit{Cross Product is monotone}. 
+        \item \textit{Join is monotone}. 
+        \item \textit{Natural Join is monotone}. 
+        \item \textit{Union is monotone}. 
+        \item \textit{Intersection is monotone}. 
+        \item \textit{Difference $R - S$ is monotone} w.r.t. $R$ but not monotone w.r.t. $S$.
+      \end{enumerate}
     \end{example}
 
-  \subsection{Relationships}
+  \subsection{Derived Operations}
 
-    One application of keys are its way to link key IDs for one relation to another key ID of a different relation. 
+    \begin{example}[Getting maximum of an attribute]
+      Lec 1 6 min. 
+    \end{example}
+
+    Notice that the $\max_{att}$ operator is \textit{not} monotone, since the old answer is overwritten. Generally, whenever we want to construct a non-monotone operator, we want to use the set difference since the composition of monotones is monotone. 
+
+    You should determine when to project, before or after the difference. 
+
+  \subsection{Constraints}
+
+    Like mathematical structures, relational databases would not be very useful if they didn't have any structure on them. One important structure are \textit{constraints}, which can also be written in relational algebra. 
+
+    \begin{definition}[Set Constraints]
+      There are two ways in which we can use relational algebra to express constraints. If $R$ and $S$ are relations, then 
+      \begin{enumerate}
+        \item $R = \emptyset$ constrains $R$ to be empty.
+        \item $R \subset S$ constrains $R$ to be a subset of $S$.\footnote{Note that this is technically unnecessary, since we can write $R - S = \emptyset$. We can also write $R = \emptyset \iff R \subset \emptyset$.}
+      \end{enumerate}
+    \end{definition} 
+
+    \begin{definition}[Referential Integrity Constraints]
+      One way that we can use this is through \textit{referential integrity} constraints, which asserts that a value appearing as an attribute $r$ in relation $R$ also should appear in a value of an attribute $s$ in relation $S$. That is, 
+      \begin{equation}
+        \pi_r (R) \subset \pi_s (S)
+      \end{equation}
+    \end{definition}
+
+    \begin{definition}[Key Constraints]
+      If we have the key $\mathbf{k} = (k_1, \ldots, k_m) \subset \mathbf{r}$ of a relation $R$, we can express this constraint as 
+      \begin{equation}
+        \sigma_{R_1.\mathbf{k} = R_2.\mathbf{k} \text{ and } R_1.\mathbf{k}^\prime \neq R_2.\mathbf{k}^\prime} (R_1 \times R_2) = \emptyset
+      \end{equation}
+      where $\mathbf{k}^\prime = \mathbf{r} - \mathbf{k}$. That is, if we took the cross of $R$ with itself, we shouldn't find any tuple that match in the keys but doesn't match in the non-key attributes. 
+    \end{definition}
+
+    \begin{definition}[Domain Constraints]
+      We can also constrain the domain of a certain attribute $r$ of relation $R$. Let $C(r)$ be the constraint. Then, 
+      \begin{equation}
+        \sigma_{\text{not } C(r)} (R) = \emptyset
+      \end{equation}
+    \end{definition}
+
+\section{Design Theory for Relational Databases}
+
+  \subsection{Functional Dependencies}
+
+    Now we introduce the concept of functional dependencies (FD), which will transition nicely into keys.  
+
+    \begin{definition}[Functional Dependency]
+      Given a relation $R$ with attributes $\mathbf{r}$, let $\mathbf{a} = (a_1, \ldots, a_n), \mathbf{b} = (b_1, \ldots, b_m) \subset \mathbf{r}$. Then, the constraint 
+      \begin{equation}
+        \mathbf{a} \mapsto \mathbf{b}
+      \end{equation}
+      also called $\mathbf{a}$ \textbf{functionally determines} $\mathbf{b}$, means that if two tuples agree on $\mathbf{a}$, then they must agree on $\mathbf{b}$. We say that $R$ satisfies a FD $f$ or a set of FDs $F$ if this constraint is satisfied. 
+    \end{definition}
+
+    From this, we can see that the term ``functional'' comes from a literal function being defined on the input $\mathbf{a}$. 
+
+    \begin{lemma}[FDs as Key Constraints]
+      Note that the functional dependency $\mathbf{a} \mapsto \mathbf{b}$ also implies the key constraint 
+      \begin{equation}
+        \sigma_{R_1.\mathbf{a} = R_2.\mathbf{a} \text{ and } R_1.\mathbf{b} \neq R_2.\mathbf{b}^\prime} (R_1 \times R_2) = \emptyset
+      \end{equation}
+    \end{lemma}
+
+    \begin{definition}[Superkey]
+      A set of attributes $\mathbf{k}$ of a relation $R$ is called a \textbf{superkey} if 
+      \begin{equation}
+        \mathbf{k} \mapsto \mathbf{r} - \mathbf{k}
+      \end{equation}
+      If no $\mathbf{k}^\prime \subset \mathbf{k}$ functionally determines $\mathbf{r}$, then it is a key. 
+    \end{definition}
+
+    \subsubsection{Structure on Spaces of Functional Dependencies}
+
+      To introduce additional structure, we will introduce two spaces. 
+      \begin{enumerate}
+        \item Given a relation $R$, let us consider the set of all FDs $F = F(R)$ on $R$. This is clearly a large set, which increases exponentially w.r.t. the number of attributes in $R$. 
+        \item Let us denote the set of all relations $R$ satisfying $F$ as $R_F$, which is an infinite set. 
+      \end{enumerate}
+
+      \begin{theorem}[Axioms]
+        Let's prove a few properties of FDs, which have nice structure. 
+        \begin{enumerate}
+          \item \textit{Splitting and Combining}. The two sets of FDs are equal. 
+            \begin{equation}
+              \{\mathbf{a} \mapsto \mathbf{b}\} \iff \{ \mathbf{a} \mapsto b_i \mid i = 1, \ldots, m\}
+            \end{equation}
+
+          \item \textit{Trivial FDs}. Clearly elements of $\mathbf{a}$ uniquely determines its own attributes. 
+            \begin{equation}
+              \mathbf{a} \mapsto \mathbf{b} \implies \mathbf{a} \mapsto \mathbf{b} - \mathbf{a}
+            \end{equation}
+            or can also be written as 
+            \begin{equation}
+              \mathbf{b} \subset \mathbf{a} \implies \mathbf{a} \mapsto \mathbf{b}
+            \end{equation}
+
+          \item \textit{Augmentation}. 
+            \begin{equation}
+              \mathbf{a} \mapsto \mathbf{b} \implies \mathbf{a}, \mathbf{c} \mapsto \mathbf{b}, \mathbf{c}
+            \end{equation}
+
+          \item \textit{Transitivity}. If $\mathbf{a} \mapsto \mathbf{b}, \mathbf{b} \mapsto \mathbf{c}$, then 
+            \begin{equation}
+              \mathbf{a} \mapsto \mathbf{c}
+            \end{equation}
+        \end{enumerate}
+      \end{theorem}
+      \begin{proof}
+        Trivial. 
+      \end{proof}
+
+      It is also possible to put a partial order on $F$. 
+
+      \begin{definition}[Partial Order]
+        Given two FDs $f$ and $g$, consider the set of all relations $R$ satisfying $f$ and $g$, denoted as $R_f$ and $R_g$. 
+        \begin{enumerate}
+          \item Then $f \implies g$ iff $R_f \subset R_g$. 
+          \item $f \iff g$ iff $R_f = R_g$. 
+        \end{enumerate}
+      \end{definition}
+
+      Moreover, we can use this structure on $F$ to induce structure on the set of attributes $\mathbf{r}$. 
+
+      \begin{definition}[Closure of Attributes]
+        The \textbf{closure} of $\mathbf{r}$ under a set of FDs $F$ is the set of attributes $\mathbf{b}$ s.t. 
+        \begin{equation}
+          R_F = R_\mathbf{b}
+        \end{equation}
+        We denote this as $\mathbf{b} = \mathbf{r}^+$. 
+      \end{definition}
+
+      To actually compute the closure, we take a greedy approach by starting with $\mathbf{r}$ and incrementally adding attributes satisfying $F$ until we cannot add any more. If we want to know where one FD $f: \mathbf{a} \mapsto \mathbf{b}$ follows from a set $F$, we can always just compute the closure of $\mathbf{a}$ w.r.t. $F$. Alternatively, we can also use the axioms above to derive all implications. 
+    
+    \subsubsection{Projections of Functional Dependencies} 
+
+      If we have a relation $R$ with a set of FDs $F$, and we project $R^\prime = \pi_{\mathbf{r}^\prime} (R)$, then the set of FDs $F^\prime$ that hold for $R^\prime$ consists of 
+      \begin{enumerate}
+        \item The FDs that follow from $F$, and 
+        \item involve only attributes of $R$. 
+      \end{enumerate}
+
+  \subsection{Anomalies and Decomposition}
+
+    \begin{definition}[Anomaly]
+      Beginners often try to cram too much into a relation, resulting in \textbf{anomalies} of three forms. 
+      \begin{enumerate}
+        \item \textit{Redundancies}. Information repeated unnecessarily in several tuples. 
+        \item \textit{Updates}. Updating information in one tuple can leave the same information unchanged in another. 
+        \item \textit{Deletion}. If a set of values becomes empty, we may lose other information as a side effect. 
+      \end{enumerate}
+    \end{definition}
+
+    To eliminate these anomalies, we want to \textbf{decompose} relations, which involve splitting \textbf{r} to schemas of two new relations $R_1, R_2$. 
+
+    \begin{definition}[Decomposition]
+      Given relation $R(\mathbf{r})$, we can decompose $R$ into two relations $R_1 (\mathbf{r}_1)$ and $R_2 (\mathbf{r}_2)$ such that 
+      \begin{enumerate}
+        \item $\mathbf{r} = \mathbf{r}_1 \cup \mathbf{r}_2$ 
+        \item $R_1 = \pi_{r_1} (R)$
+        \item $R_2 = \pi_{r_2} (R)$
+      \end{enumerate}
+    \end{definition}
+
+    \begin{example}
+      
+    \end{example}
+
+    Notice how this decomposition eliminated all 3 anomalies. Now, let's formalize the conditions needed to decompose such a relation, and how we should actually decompose it. 
+
+  \subsection{Boyce-Codd Normal Form}
+
+    Here is a simple condition under which the anomalies above are guaranteed not to exist. 
+
+    \begin{definition}[BNCF]
+      A relation $R$ is in \textbf{BNCF} iff whenever there is a nontrivial FD $\mathbf{a} \mapsto \mathbf{b}$, it is the case that $\mathbf{a}$ is a superkey for $R$. 
+    \end{definition}
+
+    \begin{example}[Non-BNCF Form]
+      
+    \end{example}
+
+    \begin{example}[BNCF Form]
+      
+    \end{example}
+
+    \begin{theorem}[Any 2-Attribute Relation Satisfies BNCF]
+      Any 2-attribute relations is in BCNF. Let's label the attributes $a, b$ and go through the cases. 
+      \begin{enumerate}
+        \item There are no nontrivial FDs, meaning that $\{A, B\}$ is the only key. Then BCNF must hold since only a nontrivial FD can violate this condition. 
+        \item $a \mapsto b$ holds but not $b \mapsto a$, meaning that $a$ is the only key. Thus there is no violation since $a$ is a superkey. 
+        \item $b \mapsto a$ holds but not $a \mapsto b$. This is symmetric as before. 
+        \item Both hold, meaning that both $a$ and $b$ are keys. Since any FD has at least one of $a, b$ on the left, this is satisfied.\footnote{Note that BCNF only requires \textit{some} key to be contained on the left side, not that all keys are. } 
+      \end{enumerate}
+    \end{theorem}
+
+    Therefore, we want to decompose a relation $R$ into a set of relations $R_1, \ldots, R_n$ where each $R_i$ is in BNCF \textit{and} the data in the original relation can be reconstructed from the set of $R_i$'s, i.e. there is \textit{lossless decomposition}. It is this second condition that prevents us from just trivially decomposing every relation into 2-attribute relations, which we will elaborate later. 
+
+    Given that we have found a FD $\mathbf{a} \mapsto \mathbf{b}$ that doesn't satisfy BCNF (i.e. $\mathbf{a}$ is not a superkey) of relation $R$, we decompose it into the following $R_1$ and $R_2$. 
+    \begin{enumerate}
+      \item We want $\mathbf{a}$ to be a superkey for one of the subrelations, say $R_1$. Therefore, we have it satisfy $\mathbf{a} \mapsto \mathbf{a}^+$, which is satisfied by definition, and set 
+        \begin{equation}
+          R_1 = \pi_{\mathbf{a}, \mathbf{a}^+} (R)
+        \end{equation}
+      \item We don't want any loss in data, so we take the rest of the attributes not in the closure and define  
+        \begin{equation}
+          R_2 = \pi_{\mathbf{a}, \mathbf{r} - \mathbf{a}^+} (R)
+        \end{equation}
+    \end{enumerate}
+    We keep doing this until every subrelation satisfies BCNF. This is guaranteed to terminate since we are decreasing the size of the relations until all attributes are superkeys.  
+
+\section{Design Models}
+
+    Now we will talk about the design of databases from scratch. Recall that 
+    \begin{enumerate}
+      \item A database is a collection of relations. 
+      \item Each relation schema has a set of attributes. 
+      \item Each attribute has a name and domain (type) 
+      \item Each relation instance contains a set of tuples. 
+    \end{enumerate}
+
+    Let's reintroduce everything now in the language of ER diagrams. 
+
+  \subsection{The Entity-Relationship Model and Cons} 
+
+    The first step is to designate a primary key for each relation. The most obvious application of keys is allowing lookup of a row by its key value. A more practical application of keys are its way to link key IDs for one relation to another key ID of a different relation. For example, we may have two schemas \textit{Member(uid, gid)} and \textit{Group(gid)}, and we can join these two using the condition \texttt{Member.gid = Group.gid}. 
 
     \begin{definition}[Entity-Relationship Model]
       This is done through an \textbf{E/R diagram}. 
-      
+      \begin{enumerate}
+        \item An \textbf{entity} is an object. An \textbf{entity set} is a collection of things of the same type, like a relation of tuples of a class of objects, represented as a \textit{rectangle}. 
+        \item A \textbf{relationship} is an association among entities. A \textbf{relationship set} is a set of relationships of the same type (among same entity sets), represented as a \textit{diamond}. 
+        \item \textbf{Attributes} are properties of entities or relationships, like attributes of tuples or objects, represented as \textit{ovals}. Key attributes are underlined. 
+      \end{enumerate}
     \end{definition}
 
     \begin{example}[E/R Diagram]
-      
+      Let us model a social media database with the relations 
+      \begin{enumerate}
+        \item \textit{Users(\underline{uid}, name, age, popularity)} recording information of a user. 
+        \item \textit{Member(\underline{uid}, \underline{gid}, from)} recording whether a user is in a group and when they first joined. 
+        \item \textit{Groups(\underline{gid}, name)} recording information of group. 
+      \end{enumerate}
+      The ER diagram is shown below, where we can see that the Member relation shows a relationship between the two entities Users and Groups. 
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.2]{img/social_media.png}
+        \caption{Social media database ER diagram.} 
+        \label{fig:social_media}
+      \end{figure}
+
+      Note that the \textit{from} attribute must be a part of the Member relation since it isn't uniquely associated with a user (a user can join multiple groups on different dates) or a group (two users can join a group on different dates). 
     \end{example}
+
+    Therefore, we can associate an entity set and a relationship as relations. A minor detail is that relationships aren't really relations since the tuples in relations connect two entities, rather than the keys themselves, so some care must be taken to convert the entities into a set of attributes. 
+
+    Therefore, we must determine if a relation models an entity or a relationship. There could also be multiple relationship sets between the same entity sets, e.g. if \textit{Member} and \textit{Likes} associates between \textit{Users} and \textit{Groups}. However, within a relationship set, there is an important set. 
+
+    \begin{theorem}
+      In a relationship set, each relationship is uniquely identified by the entities it connects. 
+    \end{theorem}
+
+    If there is an instance that someone joins, leaves, and rejoins a group, then we can modify our design by either: 
+    \begin{enumerate}
+      \item overwritting the first date joined 
+      \item making another relation \textit{MembershipRecords} which has a date also part of the key, which will capture historical membership.  
+    \end{enumerate}
+
+    \subsubsection{Multiplicity of Binary Relationships}
+
+      \begin{definition}[Multiplicity of Relationships]
+        Given that $E$ and $F$ are entity sets, 
+        \begin{enumerate}
+          \item \textit{Many-many}: Each entity in E is related to $0$ or more entities in $F$ and vice versa. There are no restrictions, and we have \textit{IsMemberOf(\underline{uid}, \underline{gid})}. 
+
+          \begin{figure}[H]
+            \centering 
+            \includegraphics[scale=0.3]{img/ismember.png}
+            \caption{} 
+            \label{fig:ismember}
+          \end{figure}
+
+
+          \item \textit{Many-One}: Each entity in $E$ is related to $0$ or $1$ entity in $F$, but each entity in $F$ is related to $0$ or more in $E$. If $E$ points to $F$, then you can just think that this is an injective function, and we have \textit{IsOwnedBy(\underline{gid}, uid)}. If we have a rounded arrow, this means that for each group, its owner \textit{must} exist in \textit{Users} (so no $0$). 
+
+          \begin{figure}[H]
+            \centering 
+            \includegraphics[scale=0.3]{img/isowned.png}
+            \caption{} 
+            \label{fig:isowned}
+          \end{figure}
+
+
+        \item \textit{One-One}: Each entity in $E$ is related to $0$ or $1$ entity in $F$ and vice versa. We have \textit{IsLinkedTo(\underline{uid}, twitter\_uid)} or \textit{IsLinkedTo(uid, \textit{twitter\_uid})}. 
+
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.3]{img/islinked.png}
+          \caption{} 
+          \label{fig:islinked}
+        \end{figure}
+
+        \end{enumerate}
+      \end{definition}
+
+
+      You may notice that multiplicity and functional dependence are very similar that is. If we have two relations $R, S$ and have a relationship pointing from $R$ to $S$, then this states the FD $\mathbf{r} \mapsto \mathbf{s}$! Say that the keys are $\mathbf{k}_R, \mathbf{k}_S$, respectively. Then, we have 
+      \begin{equation}
+        \mathbf{k}_R \mapsto \mathbf{r} \mapsto \mathbf{s} \mapsto \mathbf{k}_S
+      \end{equation} 
+
+      \begin{example}[Movie Stars]
+        Given the relations 
+        \begin{enumerate}
+          \item \textit{Movies(\underline{title, year}, length, name)}
+          \item \textit{Stars(\underline{name}, address)} of a movie star and their address. 
+          \item \textit{Studios(\underline{name}, address)} 
+          \item \textit{StarsIn(\underline{star\_name}, \underline{movie\_name}, \underline{movie\_year})} 
+          \item \textit{Owns(studio\_name, \underline{movie\_name}, \underline{movie\_year})}
+        \end{enumerate}
+        We have the following ER diagram 
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.3]{img/movie_stars.png}
+          \caption{Movie stars. } 
+          \label{fig:movie_stars}
+        \end{figure}
+      \end{example}
+
+      \begin{example}[Relationship within Itself]
+        Sometimes, there is a relationship of an entity set with itself. This gives the relations 
+        \begin{enumerate}
+          \item \textit{Users(\underline{uid}, ...)} 
+          \item \textit{IsFriendOf(\underline{uid1}, \underline{uid2})} 
+          \item \textit{IsChildOf(\underline{child\_uid}, parent\_uid)}
+        \end{enumerate}
+        This can be modeled by the following. Note that 
+        \begin{enumerate}
+          \item users have no limitations on who is their friend. 
+          \item assuming that all parents are single, a person can have at most one parent, so we have an arrow.  
+        \end{enumerate}
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.3]{img/within_itself.png}
+          \caption{} 
+          \label{fig:within_itself}
+        \end{figure}
+      \end{example}
+
+    \subsubsection{Multiplicity of Multiway Relationships}
+
+      Sometimes, it is necessary to have a relationship between 3 or more entity sets. It can be confusing to contruct the relations with the necessary keys. A general rule of thumb for constructing the relation of a relationship is 
+      \begin{enumerate}
+        \item Everything that the arrows point into are not keys.   
+        \item Everything else are keys. So the arrow stumps are keys. 
+      \end{enumerate}
+
+      \begin{example}[Movie Stars]
+        Suppose that we wanted to model \textit{Contract} relationship involving a studio, a star, and a movie. This relationships represents that a studio had contracted with a particular star to act in a particular movie. We want a contract to be owned by one studio, but one studio can have multiple contracts for different combinations of stars and movies. This gives the relations 
+        \begin{enumerate}
+          \item \textit{Stars(\underline{name}, address)} 
+          \item \textit{Movies(\underline{title, year}, length, name)} 
+          \item \textit{Studios(\underline{name}, address)} 
+          \item \textit{Contracts(\underline{star\_name}, \underline{movie\_name}, studio\_name)}
+        \end{enumerate}
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.4]{img/contracts.png}
+          \caption{} 
+          \label{fig:contracts}
+        \end{figure}
+        We can make this even more complex by modifying contracts to have a studio of the star and the producing studio. 
+        \begin{enumerate}
+          \item \textit{Contracts(\underline{star\_name}, \underline{movie\_name}, produce\_studio\_name, star\_studio\_name)}
+        \end{enumerate}
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.4]{img/four_ary.png}
+          \caption{} 
+          \label{fig:four_ary}
+        \end{figure}
+        Note that contracts can also have attributes, e.g. salary or time period. 
+      \end{example}
+
+      \begin{example}[Social Media]
+        In a 3-ary relationship a user must have an initiator in order to join a group. In here, the \textit{isMemberOf} relation has an initiator, which must be unique for each initiated member, for a given group. 
+        \begin{enumerate}
+          \item \textit{User(\underline{uid}, ...)} 
+          \item \textit{Group(\underline{gid}, ...)} 
+          \item \textit{IsMemberOf(\underline{member}, initiator, \underline{gid})} since a member must have a unique pair of initiator/group that they are in. 
+        \end{enumerate}
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.3]{img/three_ary.png}
+          \caption{} 
+          \label{fig:three_ary}
+        \end{figure}
+      \end{example}
+
+      But can we model n-ary relationships with only binary relationships? Our intuition says we can't, for the same reasons that we get lossy decomposition into 2-attribute schemas when we try to satisfy BCNF. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/nary_vs_binary.png}
+        \caption{Attempt at reducing nary to binary ER relationships. } 
+        \label{fig:}
+      \end{figure}
+      \begin{enumerate}
+        \item u1 is in both g1 and g2, so \textit{IsMemberOf} contains both (u1, g1) and (u2, g2)
+        \item u2 served as both an initiator in both g1 and g2, so \textit{InitiatesFor} contains both (g1, u2) and (g2, u2). 
+        \item But in reality, u1 was initiated by u2 for g1 but not u2 for g2. This contradicts the information that you would get when joining the \textit{IsMemberOf} and \textit{InitiatesFor} relations. 
+      \end{enumerate}
+      Therefore, combining binary relations may generate something spurious that isn't included in the n-ary relationship. 
+
+    \subsubsection{Subclasses of Entity Sets}
+
+      Sometimes, an entity set contains certain entities that have special properties not associated with all members of the set. We model this by using a \textbf{isa} relationship with a triangle. 
+      
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/isa.png}
+        \caption{There are two types of movies: cartoons and murder-mysteries, which can have their own sub-attributes and their own relationships.} 
+        \label{fig:isa}
+      \end{figure}
+
+      Suppose we have a tree of entity sets, connected by \textit{isa} relationships. A single entity consists of \textit{components} from one or more of these entity sets, and each component is inherited from its parent. 
+
+  \subsection{Design Principles} 
+
+    The first thing we should consider is the multiplicity, which is really context dependent. The second thing is redundancy, which we have mentioned through anomalies before.  
+
+  \subsection{Weak Entity Sets}
+
+    It is possible for an entity set's key to be composed of attributes, some or all of which belong to another entity set. There are two reasons why we need weak entity sets. 
+    \begin{enumerate}
+      \item Sometimes, entity sets fall into a hierarchy based on classifications unrelated to the \textit{isa} hierarchy. If entities of set $R$ are subunits of entities in set $F$, it is possible that the names of $R$-entities are not unique until we take into account the name of its $S$-entity.\footnote{Think of university rooms in different buildings.}
+      \item The second reason is that we want to eliminate multiway relationships, which are not common in practice anyways. These weak entity sets have no attributes and have keys purely from its supporting sets. 
+    \end{enumerate}
+
+    \begin{definition}[Weak Entity Set]
+      A \textbf{weak entity set} $R$ (double rectangles) depends on other sets. It is an entity set that 
+      \begin{enumerate}
+        \item has a key consisting of 0 or more of its own attributes, and 
+        \item has key attributes from \textbf{supporting entity sets} that are reached by many-one \textbf{supporting relationships} (double diamonds) from it to other sets $S$. 
+      \end{enumerate}
+      It must satisfy the following. 
+      \begin{enumerate}
+        \item The relationship $T$ must be binary and many-one from $R$ to $S$. 
+        \item $T$ must have referential integrity from $R$ to $S$ (since these are keys and therefore must exist in supporting sets), which is why we have a rounded arrow. 
+        \item The attributes that $S$ supplies for the key of $R$ must be key attributes of $S$, unless $S$ is also weak, and it will get keys from its supporting entity set. 
+        \item If there are several different supporting relationships from $R$ to the same $S$, then each relationship is used to supply a copy of the key attributes of $S$ to help form the key of $R$. 
+      \end{enumerate}
+      If an entity set supplies any attributes for its own key, then those attributes will be underlined. 
+    \end{definition}
+
+    \begin{example}
+      To specify a location, it is not enough to specify just the seat number. The room number, and the building name must be also specified to provide the exact location. There are no extra attributes needed for this subclass, which is why a \textit{isa} relationship doesn't fit into this. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/weak_entity.png}
+        \caption{Specifying a seat is not enough to determine the exact location in a university. We must know the room number and the building to fully identify it. Note that we must keep linking until we get to a regular, non-weak entity. } 
+        \label{fig:weak_entity}
+      \end{figure}
+    \end{example}
+
+  \subsection{Translating ER Diagrams to Relational Designs}
+
+    One a simple level, converting an ER diagram to a relational database schema is straightforward. Here are some rules we list. 
+
+    \begin{theorem}[Converting Entity Sets]
+      Turn each entity set into a relation with the same set of attributes. 
+    \end{theorem}
+
+    \begin{theorem}[Converting Relationships]
+      Replace a relationship by a relation whose attributes are the keys for the connected entity sets along with its own attributes. If an entity set is involved several times in a relationship, then its key attributes are repeated, so you must rename them to avoid duplication.
+    \end{theorem}
+
+    \begin{theorem}[Reduce Repetition for Many-One Relationships]
+      We can actually reduce repetition for many-one relationships. For example, if there is a many-one relationship $T$ from relation $R$ to relation $S$, then $\mathbf{r}$ functionally determines $\mathbf{s}$, so we can combine them into one relation consisting of 
+      \begin{enumerate}
+        \item all attributes of $R$. 
+        \item key attributes of $S$. 
+        \item Any attributes belonging to relationship $T$. 
+      \end{enumerate}
+    \end{theorem}
+    
+    \begin{theorem}[Handling Weak Entity Sets]
+      To build weak entity sets, we must do three things. 
+      \begin{enumerate}
+        \item The relation for weak entity set $W$ must include its own attributes, all key (but not non-key) attributes of supporting entity sets, and all attributes for supporting relationships for $W$. 
+        \item The relation for any relationship where $W$ appears must use the entire set of keys gotten from $W$ and its supporting entity sets. 
+        \item Supporting relationships should not be converted since they are many-one, so we can use the reduce repetition for many-one relationships rule above. 
+      \end{enumerate}
+    \end{theorem}
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/movie_hierarchy.png}
+      \caption{A figure of the movie hierarchy for convenience. } 
+      \label{fig:movie_hierarchy}
+    \end{figure}
+
+    \begin{theorem}[Converting Subclass Structures]
+      To convert subclass structure with a \textit{isa} hierarchy, there are multiple ways we can convert them. 
+      \begin{enumerate}
+        \item \textit{E/R Standard}. For each entity set $R$ in the hierarchy, create a relation that includes the key attributes from the root and any attributes belonging to $R$. This gives us 
+          \begin{enumerate}
+            \item \textit{Movies(title, year, length, genre)}
+            \item \textit{MurderMysteries(title, year, weapon)}
+            \item \textit{Cartoons(title, year)}
+          \end{enumerate}
+        \item \textit{Object Oriented}. For each possible subtree that includes the root, create one relation whose schema includes all the attributes of all entity sets in the subtree.
+          \begin{enumerate}
+            \item \textit{Movies(title, year, length, genre)} 
+            \item \textit{MoviesC(title, year, length, genre)} 
+            \item \textit{MoviesMM(title, year, length, genre, weapon)}
+            \item \textit{MoviesCMM(title, year, length, genre, weapon)}
+          \end{enumerate}
+          Additionally, the relationship would be \textit{Voices(title, year, starName)}. 
+        \item \textit{Null Values}. Create one relation for the entire hierarchy containing all attributes of all entity sets. Each entity is one tuple, and the tuple has null values for attributes the entity does not have. We would in here always have a single schema. 
+          \begin{enumerate}
+            \item \textit{Movie(title, year, length, genre, weapon)}
+          \end{enumerate}
+      \end{enumerate}
+    \end{theorem}
+
+    As you probably notice, each standard has pros and cons. The nulls approach uses only one relation, which is simple and nice. To filter out over all movies, E/R is nice since we only filter through \textit{Movies}, whilst in OO we have to go through all relations. However, when we want to filter movies that are both Cartoons and Murder Mysteries, then OO is better since we can only select from \textit{MoviesCMM} rather than having to go through multiple relations for ER or filter out with further selections in Null. Also, OO uses the least memory, since it doesn't waste space on null values on attributes.  
 
 
 \end{document}
