@@ -75,7 +75,11 @@
   \newcommand{\bra}[1]{\ensuremath{\left\langle#1\right|}}
   \newcommand{\braket}[2]{\langle #1 | #2 \rangle}
   \newcommand{\qed}{\hfill$\blacksquare$}     % I like QED squares to be black
-
+  \def\ojoin{\setbox0=\hbox{$\bowtie$}%
+    \rule[-.02ex]{.25em}{.4pt}\llap{\rule[\ht0]{.25em}{.4pt}}}
+  \def\lojoin{\mathbin{\ojoin\mkern-5.8mu\bowtie}}
+  \def\rojoin{\mathbin{\bowtie\mkern-5.8mu\ojoin}}
+  \def\fojoin{\mathbin{\ojoin\mkern-5.8mu\bowtie\mkern-5.8mu\ojoin}}
 % Custom Environments
   \newtcolorbox[auto counter, number within=section]{question}[1][]
   {
@@ -437,6 +441,25 @@
         \item Intersection. $R \cap S$, which can be written also as $R - (R - S), S - (S - R)$, and surprisngly $R \bowtie S$.\footnote{The natural join will check for all attributes in each schema, but sine we assumed that they had the same schema, it must check for equality over all attributes.}
         \item Difference. $R - S$. 
       \end{enumerate}
+      This is implemented as the \texttt{UNION}, \texttt{EXCEPT}, \texttt{INTERSECT} operations in SQL. Given that 
+      \begin{enumerate}
+        \item $\mathrm{Bag1} = \{1, 2, 3\}$
+        \item $\mathrm{Bag2} = \{2, 3, 4\}$
+      \end{enumerate}
+      We have 
+      \begin{lstlisting}
+        (SELECT * FROM Bag1) 
+        UNION 
+        (SELECT * FROM Bag2);     // {1, 2, 3, 4}
+
+        (SELECT * FROM Bag1) 
+        EXCEPT 
+        (SELECT * FROM Bag2);     // {1} 
+
+        (SELECT * FROM Bag1) 
+        INTERSECT 
+        (SELECT * FROM Bag2);     // {2, 3}
+      \end{lstlisting}
     \end{definition}
 
     \begin{definition}[Selection]
@@ -451,6 +474,18 @@
         WHERE 
           p_1 AND p_2 AND ... ; 
       \end{lstlisting}
+    \end{definition}
+
+    This also allows us to define the in and not in keywords. 
+
+    \begin{definition}[\texttt{IN} and \texttt{NOT IN}]
+      The \texttt{IN} and \texttt{NOT IN} gives you filters that restrict the domain of a certain attribute. 
+      \begin{lstlisting}
+        SELECT * 
+        FROM relation 
+        WHERE sex in ['male', 'female']; 
+      \end{lstlisting}
+      Equals is denoted with \texttt{=}, and not equals is denoted with \texttt{<>}. 
     \end{definition}
 
     \begin{definition}[Projection]
@@ -574,8 +609,6 @@
         \item \textit{Difference $R - S$ is monotone} w.r.t. $R$ but not monotone w.r.t. $S$.
       \end{enumerate}
     \end{example}
-
-  \subsection{Derived Operations}
 
     \begin{example}[Getting maximum of an attribute]
       Lec 1 6 min. 
@@ -872,7 +905,7 @@
           \end{figure}
 
 
-        \item \textit{One-One}: Each entity in $E$ is related to $0$ or $1$ entity in $F$ and vice versa. We have \textit{IsLinkedTo(\underline{uid}, twitter\_uid)} or \textit{IsLinkedTo(uid, \textit{twitter\_uid})}. 
+        \item \textit{One-One}: Each entity in $E$ is related to $0$ or $1$ entity in $F$ and vice versa. We can have either \textit{IsLinkedTo(\underline{uid}, twitter\_uid)} or \textit{IsLinkedTo(uid, \textit{twitter\_uid})} and must choose a primary key from these two possible keys.  
 
         \begin{figure}[H]
           \centering 
@@ -1043,6 +1076,49 @@
       \end{figure}
     \end{example}
 
+    We generally want to use a weak entity set if an entity does not have attributes to define itself. 
+    
+    \begin{example}
+      Say that we want to make a database with the constraints. 
+      \begin{enumerate}
+        \item For states, record the name and capital city. 
+        \item For counties, record the name, area, and location (state) 
+        \item For cities, record the name, population, and location (county and state) 
+        \item Names of states should be unique. 
+        \item Names of counties are unique within a state. 
+        \item Names of cities are unique within a county. 
+        \item A city is always located in a single county. 
+        \item A county is always located in a single state. 
+      \end{enumerate}
+      Then, our ER diagram may look like 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.3]{img/city1.png}
+        \caption{A weakness is that this doesn't prevent a city in state $X$ from being the capital of another state $Y$.} 
+        \label{fig:city1}
+      \end{figure}
+    \end{example}
+
+    \begin{example}
+      Design a database with the following. 
+      \begin{enumerate}
+        \item A station has a unique name and address, and is either an express station or a local station. 
+        \item A train has a unique number and engineer, and is either an express or local train. 
+        \item A local train can stop at any station. 
+        \item An express train only stops at express stations. 
+        \item A train can stop at a station for any number of times during a train. 
+        \item Train schedules are the same every day. 
+      \end{enumerate}
+      Then, our ER diagram may look like 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/train1.png}
+        \caption{} 
+        \label{fig:train1}
+      \end{figure}
+      
+    \end{example}
+
   \subsection{Translating ER Diagrams to Relational Designs}
 
     One a simple level, converting an ER diagram to a relational database schema is straightforward. Here are some rules we list. 
@@ -1073,9 +1149,26 @@
       \end{enumerate}
     \end{theorem}
 
+    \begin{example}
+      To translate the seat, rooms, and buildings diagram, 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/seat.png}
+        \caption{} 
+        \label{fig:seat}
+      \end{figure}
+      we have 
+      \begin{enumerate}
+        \item \textit{Building(\underline{name}, year)} 
+        \item \textit{Room(\underline{building\_name}, \underline{room\_num}, capacity)}
+        \item \textit{Seat(\underline{building\_name}, \underline{room\_num}, \underline{seat\_num}, left\_or\_right)}
+      \end{enumerate}
+      Note that we do not need to convert the relationships since they are contained within the entity set relations. So ignore double diamonds. 
+    \end{example}
+
     \begin{figure}[H]
       \centering 
-      \includegraphics[scale=0.4]{img/movie_hierarchy.png}
+      \includegraphics[scale=0.3]{img/movie_hierarchy.png}
       \caption{A figure of the movie hierarchy for convenience. } 
       \label{fig:movie_hierarchy}
     \end{figure}
@@ -1083,7 +1176,7 @@
     \begin{theorem}[Converting Subclass Structures]
       To convert subclass structure with a \textit{isa} hierarchy, there are multiple ways we can convert them. 
       \begin{enumerate}
-        \item \textit{E/R Standard}. For each entity set $R$ in the hierarchy, create a relation that includes the key attributes from the root and any attributes belonging to $R$. This gives us 
+        \item \textit{E/R Standard}. An entity is in all superclasses and only contains the attributes its own subclass. For each entity set $R$ in the hierarchy, create a relation that includes the key attributes from the root and any attributes belonging to $R$. This gives us 
           \begin{enumerate}
             \item \textit{Movies(title, year, length, genre)}
             \item \textit{MurderMysteries(title, year, weapon)}
@@ -1104,7 +1197,650 @@
       \end{enumerate}
     \end{theorem}
 
+    Note that the difference between the first two is that in ER, \textit{MurderMysteries} does not contain the attributes of its superclass, while in OO, it does. 
+
     As you probably notice, each standard has pros and cons. The nulls approach uses only one relation, which is simple and nice. To filter out over all movies, E/R is nice since we only filter through \textit{Movies}, whilst in OO we have to go through all relations. However, when we want to filter movies that are both Cartoons and Murder Mysteries, then OO is better since we can only select from \textit{MoviesCMM} rather than having to go through multiple relations for ER or filter out with further selections in Null. Also, OO uses the least memory, since it doesn't waste space on null values on attributes.  
 
+
+    \begin{example}
+      Let's put this all together to revisit the train station example. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/final_station.png}
+        \caption{For convenience} 
+        \label{fig:final_station}
+      \end{figure}
+      We can use the ER standard to define the first 6 regular relations in single rectangles.  
+      \begin{enumerate}
+        \item \textit{Train(\underline{number}, engineer)}
+        \item \textit{LocalTrain(\underline{number}}
+        \item \textit{ExpressTrain(\underline{number}}
+        \item \textit{Station(\underline{name}, address)}
+        \item \textit{LocalStation(\underline{name})}
+        \item \textit{ExpressStation(\underline{name})}
+      \end{enumerate}
+      Then we can construct the weak entity sets. 
+      \begin{enumerate}
+        \item \textit{LocalTrainStops(\underline{local\_train\_num}, \underline{time})}
+        \item \textit{ExpressTrainStops(\underline{express\_train\_num}, \underline{time})}
+      \end{enumerate}
+      Then we can construct the relationships (marked with the arrows).  
+      \begin{enumerate}
+        \item \textit{LocalTrainStopsAtStation(\underline{local\_train\_number}, \underline{time}, station\_name)}
+        \item \textit{ExpressTrainStopsAtStation(\underline{express\_train\_number}, \underline{time}, express\_station\_name)}
+      \end{enumerate}
+      Note that we can simplify these 10 relations to 8. For example, the \textit{LocalTrain} and \textit{LocalStation} relations are redundant since it can be computed as 
+      \begin{align}
+        LocalTrain & = \pi_{number} (Train) - ExpressTrain \\
+        LocalStation & = \pi_{number} (Station) - ExpressStation
+      \end{align}
+      There is a tradeoff since it's an extra computation when checking. However, if we had used the Null Value strategy, this would be a lot simpler, and we can use value constraints on the train and station type, which can be implemented in the DBMS (though not directly in the ER diagram). 
+    \end{example}
+
+\section{Intermediate SQL} 
+
+    We have went over the basic SQL queries that were directly translations of relational algebra. 
+
+  \subsection{Bags}
+
+    We were used to working with sets, which don't allow duplicate elements, but let's talk about \textit{multisets}, or \textbf{bags}, which do. Why is this advantageous? 
+    \begin{enumerate}
+      \item To take the union of two bags, we can just add everything into the other without going through to check for duplicates. 
+      \item When we project relations as bags, we also don't need to search through all pairs to find duplicates. 
+    \end{enumerate}
+    This allows for efficiency at the cost of memory. 
+
+    Recall that the \texttt{UNION}, \texttt{EXCEPT}, and \texttt{INTERSECT} are set semantics that removes duplicates in the input tables first and then removes duplicates in the result. 
+
+    \begin{definition}[Bag Operations]
+      However, we can also use bag semantics. We can think of each row $a$ having an implicit count of times $c_a$ it appears in the table.  
+      \begin{enumerate}
+        \item \textbf{Bag union} sums up the counts from two tables. 
+        \item \textbf{Bag difference} does a proper-subtract\footnote{Subtracts the counts and truncates counts to $0$ if negative. So $\{a, a\} - \{a, a, a\} = \{\}$.} 
+        \item \textbf{Bag intersection} takes the minimum of the two counts. 
+      \end{enumerate}
+      This is analogous to the \texttt{UNION ALL}, \texttt{EXCEPT ALL}, and \texttt{INTERSECT ALL} operations in SQL. Given that 
+      \begin{enumerate}
+        \item $\mathrm{Bag1} = \{1, 1, 2\}$
+        \item $\mathrm{Bag2} = \{1, 2, 2\}$
+      \end{enumerate}
+      We have 
+      \begin{lstlisting}
+        (SELECT * FROM Bag1) 
+        UNION ALL 
+        (SELECT * FROM Bag2);     // {1, 1, 1, 2, 2, 2}
+
+        (SELECT * FROM Bag1) 
+        EXCEPT ALL 
+        (SELECT * FROM Bag2);     // {1}
+
+        (SELECT * FROM Bag1) 
+        INTERSECT ALL 
+        (SELECT * FROM Bag2);     // {1, 2}
+      \end{lstlisting}
+    \end{definition}
+
+    \begin{example}
+      Look at these two operations on the schema \texttt{Poke(uid1, uid2, timestamp)}. 
+
+      \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        (SELECT uid1 FROM Poke) 
+        EXCEPT 
+        (SELECT uid2 FROM Poke); 
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        (SELECT uid1 FROM Poke) 
+        EXCEPT ALL
+        (SELECT uid2 FROM Poke); 
+      \end{lstlisting}
+      \end{minipage}
+      The first operation returns all users who poked others but were never poked, while the second returns all users who poked others more than they were poked. 
+    \end{example}
+
+  \subsection{Nested Queries and Subqueries} 
+
+    We have so far worked with a single query consisiting of a single select statement. However, we can extend this. 
+
+    \begin{definition}[\texttt{EXISTS}]
+      The \texttt{EXISTS}(subquery) keyword checks if a subquery is empty or not, and \texttt{NOT EXISTS} checks the negation. 
+    \end{definition}
+
+    \begin{example}[Ages]
+      Given \textit{User(name, age)}, say that we want to get all users whose age is equal to a person named Bart. Then, we want to select all users from the relation. For each user, we perform the subquery where this original tuple age coincides the others age and the others name is Bart. The outer query only returns those rows for which the \texttt{EXISTS} subquery returned true. Then we can write the two equivalent queries. 
+
+      \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        SELECT * 
+        FROM User as u
+        WHERE EXISTS(SELECT * FROM User
+                      WHERE name = "Bart" 
+                      AND age = u.age); 
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        SELECT * 
+        FROM User 
+        WHERE age IN(SELECT age 
+                      FROM User 
+                      WHERE name = 'Bart'); 
+      \end{lstlisting}
+      \end{minipage}
+
+      The left is a \textbf{correlated subquery}, which is a query that needs a parameter from the main query and are generally slower. To understand this, you should always look in the following order. 
+      \begin{enumerate}
+        \item \texttt{FROM}. Look at where we are querying from. 
+        \item \texttt{WHERE}. Find out if this condition is satisfied. 
+        \item \texttt{SELECT}. Return all tuples that satisfies this condition. 
+      \end{enumerate}
+      However, this is not actually how the database system will do this. It will do it in an equivalent but more efficient way. 
+    \end{example}
+
+    Here is a very useful keyword that simplifies complex nested queries, one example of a \textbf{common table expression (CTEs)}. 
+    
+    \begin{definition}[\texttt{WITH}]
+      The \texttt{WITH} clause aliases many relations returned from queries. 
+      \begin{lstlisting}
+        WITH Temp1 AS (SELECT ...), 
+             Temp2 AS (SELECT ...) 
+        SELECT X, Y 
+        FROM Temp1, Temp2 
+        WHERE ...
+      \end{lstlisting}
+    \end{definition}
+
+    \begin{example}
+      To extend the Bart age example, we can think of temporarily storing a query of only Bart's ages, and then comparing it when doing the main query over \textit{User}. 
+      \begin{lstlisting}
+        WITH BartAge AS 
+          (SELECT age 
+          FROM User 
+          WHERE name = 'Bart') 
+        SELECT U.uid, U.name, U.pop, 
+        FROM User U, BartAge B 
+        WHERE U.age = B.age; 
+      \end{lstlisting}
+    \end{example}
+
+  \subsection{Aggregate Functions} 
+
+    \begin{definition}[Standard SQL Aggregate Functions]
+      The aggregate functions offered are 
+      \begin{enumerate}
+        \item \texttt{COUNT} counts the number of rows in a query. \texttt{COUNT(DISTINCT att)} counts the distinct count of an attribute in a query. 
+        \item \texttt{SUM} counts the sum of the values of an attribute in a query. 
+        \item \texttt{AVG} is the average. 
+        \item \texttt{MIN} is the minimum of an attribute. 
+        \item \texttt{MAX} is the maximum of an attribute. 
+      \end{enumerate}
+    \end{definition}
+
+    \begin{example}
+      If we want to find the number of users under 18 and their average popularity, then we can write 
+      \begin{lstlisting}
+        SELECT COUNT(*), AVG(pop) 
+        FROM User 
+        WHERE age < 18; 
+      \end{lstlisting}
+    \end{example}
+
+  \subsection{Group By} 
+
+    \begin{definition}[\texttt{GROUP BY}]
+      \texttt{GROUP BY att} is used when you want to group the query by equal values of the attributes. The syntax is 
+      \begin{lstlisting}
+        SELECT ... FROM ... WHERE ... 
+        GROUP BY age; 
+      \end{lstlisting}
+      To parse this, first form the groups based on the same values of all attributes in the group by clause. Then, output only one row in the select clause per group. We can look at the following order
+      \begin{enumerate}
+        \item \texttt{FROM}. Look at where we are querying from. 
+        \item \texttt{WHERE}. Find out if this condition is satisfied to filter the main query. 
+        \item \texttt{GROUP BY}. Group rows according to the values of the GROUP BY columns. 
+        \item \texttt{SELECT}. Compute the select query for each group. The number of groups should be equal to the number of rows in the final output. 
+      \end{enumerate}
+      Note that if a query uses aggregation/group by, every column referenced in select must be either aggregated or a group by column. 
+    \end{definition}
+
+    \begin{example}
+      If we want to find the number of users in a certain age and their average popularity, for all ages, then we can write 
+      \begin{lstlisting}
+        SELECT age, AVG(pop) 
+        FROM Usere
+        GROUP BY age; 
+      \end{lstlisting}
+      You don't necessarily have to report the group by attribute in the select. The two following examples are perfectly fine, though in the right query, \texttt{age} may not functionally determine \texttt{AVG(pop)}. 
+
+      \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        SELECT AVG(pop) 
+        FROM User
+        GROUP BY age; 
+        
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        SELECT age, AVG(pop)  
+        FROM User 
+        GROUP BY age, name; 
+      \end{lstlisting}
+      \end{minipage}
+
+      However, this left query is not syntactically correct since \texttt{name} is not in the group by clause or aggregated. This is true even if \texttt{age} functionally determines \texttt{name}. Neither is the right since the lack of a group by clause means that the aggregate query is over the entire relation, which has multiple uid values. 
+
+      \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        SELECT age, name, AVG(pop) 
+        FROM User
+        GROUP BY age; 
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        SELECT uid, MAX(pop) 
+        FROM User; 
+        .
+      \end{lstlisting}
+      \end{minipage}
+    \end{example}
+
+    As you can see, this is great to use for aggregate functions. If there is no group by clause, this is equivalent to grouping everything together.  
+
+    \begin{example}
+      Given the relation 
+
+      \begin{table}[H]
+        \centering
+        \begin{tabular}{|c|c|c|}
+          \hline
+          \textbf{A} & \textbf{B} & \textbf{C} \\
+          \hline
+          1 & 1 & 10 \\ 
+          2 & 1 & 8 \\ 
+          1 & 1 & 10 \\ 
+          2 & 3 & 8 \\ 
+          2 & 1 & 6 \\ 
+          2 & 2 & 2 \\ 
+          \hline
+        \end{tabular}
+        \caption{Original relation. }
+        \label{tab:groupby}
+      \end{table}
+    
+      Running the query 
+      \begin{lstlisting}
+        SELECT A, B, SUM(C) AS S 
+        FROM R 
+        GROUP BY A, B; 
+      \end{lstlisting}
+      gives 
+      
+      \begin{table}[H]
+        \centering
+        \begin{tabular}{|c|c|c|}
+          \hline
+          \textbf{A} & \textbf{B} & \textbf{S} \\
+          \hline
+          1 & 1 & 20 \\ 
+          2 & 1 & 14 \\ 
+          2 & 3 & 8 \\ 
+          2 & 2 & 2 \\ 
+          \hline
+        \end{tabular}
+        \caption{Our query. }
+        \label{tab:groupby_output}
+      \end{table}
+    \end{example}
+
+  \subsection{Having} 
+
+    \begin{definition}[\texttt{HAVING}]
+      If you want to filter out groups having certain conditions, you must use the \texttt{HAVING} keyword rather than \texttt{WHERE}. The syntax is 
+      \begin{lstlisting}
+        SELECT A, B, SUM(C) FROM ... WHERE ... 
+        GROUP BY ... 
+        HAVING SUM(C) < 10; 
+      \end{lstlisting}
+      You should look at the \texttt{HAVING} clause after you look at the \texttt{GROUP BY} but before \texttt{SELECT}. 
+    \end{definition}
+
+    \begin{example}
+      Given the relation 
+
+      \begin{table}[H]
+        \centering
+        \begin{tabular}{|c|c|c|}
+          \hline
+          \textbf{A} & \textbf{B} & \textbf{C} \\
+          \hline
+          1 & 1 & 10 \\ 
+          2 & 1 & 8 \\ 
+          1 & 1 & 10 \\ 
+          2 & 3 & 8 \\ 
+          2 & 1 & 6 \\ 
+          2 & 2 & 2 \\ 
+          \hline
+        \end{tabular}
+        \caption{Original relation. }
+        \label{tab:groupby2}
+      \end{table}
+    
+      Running the query 
+      \begin{lstlisting}
+        SELECT A, B, SUM(C) AS S 
+        FROM R 
+        GROUP BY A, B 
+        HAVING SUM(C) > 8; 
+      \end{lstlisting}
+      gives 
+      
+      \begin{table}[H]
+        \centering
+        \begin{tabular}{|c|c|c|}
+          \hline
+          \textbf{A} & \textbf{B} & \textbf{S} \\
+          \hline
+          1 & 1 & 20 \\ 
+          2 & 1 & 14 \\ 
+          \hline
+        \end{tabular}
+        \caption{Our query. }
+        \label{tab:groupby2_output}
+      \end{table}
+    \end{example}
+
+    \begin{example}
+      Given the schema \texttt{Sailor(sid, name, age, rating)}, to find the age of the youngest sailor with age at least 18, for each rating with at least 2 sailors, we can run the query. 
+      \begin{lstlisting}
+        SELECT S.rating, MIN(S.age) AS minage 
+        FROM Sailors S 
+        WHERE S.age >= 18
+        GROUPBY S.rating 
+        HAVING COUNT(*) > 1; 
+      \end{lstlisting}
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/sailors.png}
+        \caption{The thought process.} 
+        \label{fig:thought}
+      \end{figure}
+    \end{example}
+
+    \begin{definition}[Scalar Subqueries]
+      Sometimes, if a query returns 1 scalar, then you can use it in your \texttt{WHERE} clause. You must be sure that a query will return exactly 1 scalar (not $0$ and not more than $1$), or there will be a runtime error.  
+    \end{definition}
+
+    \begin{example}
+      If we want to compute users with the same age as Bart, we can write 
+      \begin{lstlisting}
+        SELECT * FROM User 
+        WHERE age = (SELECT age from User WHERE name = 'Bart'); 
+      \end{lstlisting}
+      However, we may not know if Bart functionally determines age, so we must be careful. 
+    \end{example}
+
+  \subsection{Quantified Subqueries}
+
+    \begin{definition}[\texttt{ALL}, \texttt{ANY}]
+      We have the following \textbf{quantified subqueries}, which performs a broadcasting condition and checks if all (\texttt{ALL}) or any (\texttt{ANY}) are true. 
+    \end{definition}
+
+    \begin{example}[Popular Users]
+      Which users are the most popular? We can write this in two ways. 
+
+      \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        SELECT * 
+        FROM User 
+        WHERE pop >= ALL(SELECT pop from User); 
+        .
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        SELECT * 
+        FROM User 
+        WHERE NOT 
+          (pop < ANY(SELECT pop from User)); 
+      \end{lstlisting}
+      \end{minipage}
+
+      To review, here are more ways you can do the same query. 
+
+      \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        SELECT * 
+        FROM User AS u 
+        WHERE NOT EXISTS  
+          (SELECT * FROM User
+          WHERE pop > u.pop); 
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        SELECT * FROM User 
+        WHERE uid NOT IN 
+          (SELECT u1.uid
+          FROM User as u1, User as u2 
+          WHERE u1.pop < u2.pop); 
+      \end{lstlisting}
+      \end{minipage}
+    \end{example}
+
+  \subsection{Incomplete Information}
+
+    We are not guaranteed that we will have all data. What if there are some null values? We need some way to handle unknown or missing attribute values. 
+
+    One way is to use a default value (like $-1$ for age), but this can mess with other operations, such as getting average values of certain groups of users, or can make computations harder since we have to first filter out users with \texttt{age=-1} before querying. 
+
+    Another way is to use a valid bit for every attribute. For example, \textit{User(uid, name, age)} could map to \textit{User(uid, name, name\_valid, age, age\_valid)}, but this is not efficient as well. 
+
+    A better solution is to decompose the table into multiple relations such that a missing value indicates a missing row in one of the subrelations. For example, we can decompose \texttt{User(uid, name, age, pop)} to 
+    \begin{enumerate}
+      \item \textit{UserID(uid)}
+      \item \textit{UserName(uid, name)}
+      \item \textit{UserAge(uid, age)}
+      \item \textit{UserPop(uid, pop)}
+    \end{enumerate}
+    This is conceptually the cleanest solution but also complicates things. Firstly, the natural join wouldn't work, since compared to a single table with null values, the natural join of these tables would exclude all tuples that have at least one null value in them. 
+
+
+    \begin{definition}[\texttt{NULL}]
+      SQL's solution is to have a special value \texttt{NULL} indicating an unknown but not empty value. It has the following properties. 
+      \begin{enumerate}
+        \item It holds for every domain (null is the same for booleans, strings, ints, etc.). 
+        \item Any operations like $+, -, \times, >$... leads to a \texttt{NULL} value. 
+        \item All aggregate functions except \texttt{COUNT} return a \texttt{NULL}. \texttt{COUNT} also counts null values. 
+      \end{enumerate}
+    \end{definition}
+
+    \begin{theorem}[Three-Valued Logic]
+      Here is another way to implement the unknown logic with \textit{three-valued logic}. Suppose we set True=1, False=0. Then we can see that given statements $x, y$ which evaluate to $0, 1$, 
+      \begin{enumerate}
+        \item $x$ and $y$ is equivalent to $\min(x, y)$
+        \item $x$ or $y$ is equivalent to $\max(x, y)$ 
+        \item not $x$ is equivalent to $1 - x$
+      \end{enumerate}
+      It turns out that if we set unknown=0.5, then this logic also works out very nicely. Check it yourself. Therefore, \texttt{WHERE} and \texttt{HAVING} clauses only select rows for which the condition is True, not False or Unknown. 
+    \end{theorem}
+
+    \begin{example}[Warnings]
+      Note that null breaks a lot of equivalences, leading to unintended consequences. 
+      \begin{enumerate}
+        \item The two are not equivalent since if we have nulls, the average ignores all nulls, while the second query will sum up all non-nulls and divide by the count including the nulls. 
+        \begin{lstlisting}
+          SELECT AVG(pop) FROM User; 
+          SELECT SUM(pop) / COUNT(*) FROM User; 
+        \end{lstlisting}
+
+        \item The two are also not equivalent since \texttt{pop = pop} is not True, but Unknown, for nulls, so it would not return nulls. The first query would return all tuples, even nulls. 
+        \begin{lstlisting}
+          SELECT * from User; 
+          SELECT * from User WHERE pop = pop; 
+        \end{lstlisting}
+
+        \item Never compare equality with null, since this never outputs True. Rather, you should use the special keywords \texttt{IS NULL} and \texttt{IS NOT NULL}. 
+          \begin{lstlisting}
+            SELECT * FROM User WHERE pop = NULL; // never returns anything 
+            SELECT * FROM User WHERE pop IS NULL; // correct 
+          \end{lstlisting}
+      \end{enumerate}
+    \end{example}
+
+
+  \subsection{Joins} 
+    
+    Take a look at the following motivating example. Suppose we want to find all members and their respective groups from \textit{Group(gid, name)}, \textit{Member(uid, gid)}, \textit{User(uid, name)}. Then we can write the query 
+    \begin{lstlisting}
+      SELECT g.gid, g.name AS gname, 
+          u.uid, u.name AS uname 
+      FROM Group g, Member m, User u 
+      WHERE g.gid = m.gid AND m.uid = u.uid; 
+    \end{lstlisting}
+    This looks fine, but what happens if \textit{Group} is empty? That is, there is a group in the \textit{Group} relation but does not appear in the \textit{Member} relation. Then, \texttt{m.gid} will evaluate to False and would not appear in the joined table, which is fine, but what if we wanted to make sure all groups appeared in this master membership table? If a group is empty, we may want it to just have null values for \texttt{uid} and \texttt{uname}. In this case, we want to use outer join. 
+
+    \begin{definition}[Outer Joins]
+      An outer join guarantees that we have all elements in one or more tables. 
+      \begin{enumerate}
+        \item \texttt{(INNER) JOIN}: Returns records that have matching values in both tables, with the notation $R \bowtie S$. 
+        \item \texttt{LEFT (OUTER) JOIN}: Returns all records from the left table, and the matched records from the right table with potential NULLs, with notation $R \lojoin S$. 
+        \item \texttt{RIGHT (OUTER) JOIN}: Returns all records from the right table, and the matched records from the left table with potential NULLs, with notation $R \rojoin S$. 
+        \item \texttt{FULL (OUTER) JOIN}: Returns all records when there is a match in either left or right table with potential NULLs, with notation $R \fojoin S$. 
+      \end{enumerate}
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/outerjoin.png}
+        \caption{Nice diagram from W3Schools.} 
+        \label{fig:outerjoin}
+      \end{figure}
+
+      The SQL syntax is below. 
+      \begin{lstlisting}
+        // inner joins, you can use ON rather than WHERE
+        SELECT * FROM Group JOIN Member
+          ON Group.gid = Member.gid; 
+
+        SELECT * FROM Group LEFT OUTER JOIN Member
+          ON Group.gid = Member.gid; 
+
+        SELECT * FROM Group RIGHT OUTER JOIN Member
+          ON Group.gid = Member.gid; 
+
+        SELECT * FROM Group RIGHT OUTER JOIN Member
+          ON Group.gid = Member.gid; 
+      \end{lstlisting}
+    \end{definition}
+
+    \begin{example}[Complex Example with Beers]
+      Given the schemas 
+      \begin{enumerate}
+        \item \textit{Frequents(drinker, bar, times\_a\_week)}, 
+        \item \textit{Serves(bar, beer, price)}, 
+        \item \textit{Likes(drinker, beer)}, 
+      \end{enumerate}
+      say that we want to select drinkers and bars that visit the bars at least 2 times a week and the bars serves at least 2 beers liked by the drinker and count the number of beers served by the bars that are liked by the drinker. The query is shown below. 
+
+      \begin{lstlisting}
+        SELECT F.drinker, F.bar, COUNT(L.beer) 
+        FROM Frequents F, Serves S, Likes L 
+        WHERE F.drinker = L.drinker
+          AND F.bar = S.bar 
+          AND L.beer = S.beer 
+          AND F.times_a_week >= 2 
+        GROUP BY F.drinker, F.bar 
+        HAVING COUNT(L.beer) >= 2 
+      \end{lstlisting}
+    \end{example}
+
+  \subsection{Inserting, Deleting, and Updating Tuples}
+
+    We have briefly saw how to create and drop tables. To update a table, we can do the following. 
+
+    \begin{definition}[\texttt{INSERT}]
+      You can either 
+      \begin{enumerate}
+        \item insert one row  
+          \begin{lstlisting}
+            INSERT INTO Member VALUES (789, "Muchang")
+          \end{lstlisting} 
+        \item or you can insert the output of a query. 
+          \begin{lstlisting}
+            INSERT INTO Member 
+            (SELECT uid, name FROM User); 
+          \end{lstlisting}
+      \end{enumerate}
+    \end{definition}
+
+    \begin{definition}[\texttt{DELETE}]
+      You can either 
+      \begin{enumerate}
+        \item delete everything from a table (but not the schema, unlike \texttt{DROP TABLE}). 
+          \begin{lstlisting}
+            DELETE FROM Member; 
+          \end{lstlisting}
+
+        \item Delete according to a \texttt{WHERE} condition 
+          \begin{lstlisting}
+            DELETE FROM Member 
+            WHERE age < 18; 
+          \end{lstlisting}
+
+        \item Delete according to a \texttt{WHERE} condition extracted from another query. 
+          \begin{lstlisting}
+            DELETE FROM Member 
+            WHERE uid IN (SELECT uid FROM User WHERE age < 18); 
+          \end{lstlisting}
+          
+      \end{enumerate}
+    \end{definition}
+
+    \begin{definition}[\texttt{UPDATE}]
+      You can either 
+      \begin{enumerate}
+        \item Update a value of an attribute for all tuples. 
+          \begin{lstlisting}
+            UPDATE User 
+            SET pop = (SELECT AVG(pop) from User); 
+          \end{lstlisting}
+
+        \item Update a value of an attribute for all tuples satisfying a \texttt{WHERE} condition.\footnote{Note that this does not incrementally update the values. It updates all at once from the average of the old table from the subquery.}
+          \begin{lstlisting}
+            UPDATE User 
+            SET name = 'Barney' 
+            WHERE uid = 182; 
+          \end{lstlisting}
+      \end{enumerate}
+    \end{definition}
+
+  \subsection{Views}
+
+    \begin{definition}[View]
+      A \textbf{view} is a virtual table that can be used across other queries. Tables used in defining a view are called \textbf{base tables}. 
+    \end{definition}
+
+    \begin{example}[Jessica's Circle]
+      You can create a temporary table that can be used for future queries. 
+      \begin{lstlisting}
+        CREATE VIEW JessicaCircle AS 
+        SELECT * FROM User 
+        WHERE uid in (SELECT uid FROM Member WHERE gid = 'jes'); 
+      \end{lstlisting}
+      Once you are done, you can drop this view with 
+      \begin{lstlisting}
+        DROP VIEW JessicaCircle; 
+      \end{lstlisting}
+    \end{example}
 
 \end{document}
