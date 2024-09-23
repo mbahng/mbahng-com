@@ -428,6 +428,10 @@
       
     \end{definition}
 
+  \subsection{Stack, Queues, Heaps}
+
+    A heap is sort of in between a sorted array and an unsorted array. 
+
   \subsection{Cryptography} 
 
     \begin{example}[GCD of Two Numbers]
@@ -972,6 +976,144 @@
     \end{algo}
 
   \subsection{Shortest Path}
+
+    In the shortest path, you are given a \textit{weighted} (positive integer) directed graph and your goal is to find a path from $s$ to $t$ with the smallest length. This is where we use Dijkstra's. What we can do to brute force is just replace a edge with length $k$ to $k$ edges of length $1$, and we run BFS on this. However, this is not efficient. 
+
+    \begin{algo}[Dijkstra's Algorithm]
+      The general idea is to run a graph traversal like BFS but when you reach a new vertex $v$, you can store the accumulated time it took to get to $v$ and store for all neighbors the accumulated time it will take to get to each of those neighbors. If it is less than what we have currently, then we have found a shorter path and we should update this. 
+      \begin{algorithm}[H]
+        \label{alg:dijkstra}
+        \begin{algorithmic}
+          \Require{Nodes $V$, Edges $E$}
+          \Function{Dijkstra}{s}
+            \State dist $\gets$ list() of very large initial numbers 
+            \State dist[$s$] $\gets$ 0
+            \State predecessors $\gets$ $\{v : None \mid v \in V \}$
+            \State toExplore $\gets$ minheap() // priority queue
+            \State add $(0, s)$ to toExplore
+
+            \While{toExplore} 
+              \State (curr\_dist, curr\_node) $\gets$ pop from toExplore 
+              \If{curr\_dist > dist[curr\_node]} 
+                \State continue 
+              \EndIf 
+
+              \For{neighbor, weight $\in E[curr]$} 
+                \State new\_dist $\gets$ curr\_dist + weight
+                \If{new\_dist < dist[neighbor]} 
+                  \State dist[neighbor] = new\_dist
+                  \State predecessors[neighbor] = curr\_node
+                  \State push (new\_dist, neighbor) onto toExplore
+                \EndIf
+              \EndFor
+            \EndWhile
+            \State \Return{distances, predecessors}
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+
+      You essentially push $n$ times and pop $m$ times, and the time per push and pop is $\log_2 (n)$. Therefore, the total time to push is $n \log(n)$ and to pop is $m \log (n)$, making the total runtime $O(log(n) (n+m))$. 
+
+    \end{algo}
+
+    The first example gotten in class ignores the distances and just attempts to modify the distances in the heap itself (through the decrease key operation). This takes $2 \log_2 (n)$, but if we use a heap with $d$ children, we can modify the runtime to $d \log_d (n)$. Therefore, the total runtime with tunable parameter $d$ is 
+    \begin{equation}
+      O\big( (m + nd) \log_d (n)\big)
+    \end{equation}
+    which can be minimized if we set $d = m/n$, so $O(m \log_{m/n} n)$, where for dense graphs $m/n$ is large and so it can behave roughly in linear time $\Theta(m)$. 
+
+  \subsection{Negative Weighted Graphs} 
+
+    Now let's extend this problem to find the shortest path in negative weighted graphs. Before we think of a solution, we must make sure that there is no cycle that has a negative accumulated path. Otherwise, this problem becomes ill-defined, so we first assume that such a shortest path exists. 
+
+    At first glance, we may just think of adding $\min(v)$, the minimum value to every node so that this now just becomes a regular positive graph and run BFS on it. However, this does not work since we are not adding a constant number over all paths (it is proportional to the number of nodes in the path). 
+
+    Another way we can think of is just run Dijkstra. However, if it is looking at two paths. We can have $s \xrightarrow{2} b$ and $s \xrightarrow{5} a \xrightarrow{-4} b$. Dijkstra will immediately go to $b$ thinking that it is the shortest path, since that's how far it see. So we need to look far into the future. Therefore, after an arbitrarily long path length, you could get a negative length that just kills your accumulator.  
+
+    Another way we can do is to use dynamic programming. 
+
+    \begin{theorem}[Bellman Equations]
+      We write the \textbf{Bellman equations}. 
+      \begin{align}
+        d[v] & = \min_{w} \{ d[w] + l_{w v}\}
+      \end{align}
+      with $d[s] = 0$ for the starting vertex. The solution has a unique solution that finds the shortest path from $s$ to any $v \in V$.    
+    \end{theorem}
+    \begin{proof}
+      Note that $d[w] + l_{wv}$ is the length from some path from $s \mapsto v$ that goes through $w$. The minimum of it must be the shortest path over all $w \in V$. Suppose the shortest path goes through fixed $x$. If there exists a shorter path from $s \mapsto x$, then replace $d[x]$ by this shortest path. Therefore, 
+      \begin{equation}
+        d[v] = d[x] + l_{xv} \leq d[w] + l_{wv} \implies d[v] = \min_{w} \{d[w] + l_{w v}\}
+      \end{equation}
+      To prove uniqueness, suppose there are some other solutions $\pi$ where $\pi[v] \neq d[v]$ for some $v$. But this cannot be the case by definition since $d[v] <= \pi[v]$ for all $v$. 
+    \end{proof}
+
+    \begin{theorem}
+      Given the shortest paths, we can lay out this graph like a tree where $l_{ab} = l_{a a_1} + l_{a_1 a_2} + \ldots + l_{a_l b}$. 
+    \end{theorem}
+
+    So how do we actually implement this? 
+
+    \begin{algo}[Shortest Path in Possibly Negative Weighted Graph]
+      
+      \begin{algorithm}[H]
+        \label{alg:neg_weighted_short_path}
+        \begin{algorithmic}
+          \Require{Nodes $V$, Edges $E$}
+          \Function{ShortPath}{V, E}
+            \State res $\gets$ list(0) of large numbers of size $|V|$. 
+            \State res[$s$] = 0
+            \State predecessors $\gets \{v : None | v \in V\}$
+
+            \While{$\exists (u, v)$ s.t. res[v] > res[u] + $l_{u v}$ } 
+              \State res[$v$] $\gets$ res[u] + $l_{uv}$
+              \State predecessor[v] $\gets$ u
+            \EndWhile
+
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+      This is guaranteed to converge and stop after a finite number of steps since at every iteration, a path will either 
+      \begin{enumerate}
+        \item get updated from infinity to a path length 
+        \item get reduced from a path length to a shorter path length
+      \end{enumerate} 
+      And we will have to reach the shortest path length at which point we can't reduce it further.\footnote{This algorithm is also called \textit{policy iteration} in reinforcement learning and is analogous to gradient descent.} 
+
+      Computing the runtime is a bit tricky, since we can look at the same edge twice since minimum paths may have been updated in the middle. Therefore this list \texttt{res} may reduce very slowly. For example, let the length of each edge $|l_e| \leq L$. Then in the worst case, res[s] can be initialized to $(n-1) L$ representing the max path across all nodes, and we can decrease by $1$ in each step. So over all nodes, we can decrease so that each res[s] becomes $-(n-1)L$, meaning that we are doing on the order of $2 n^2 L$ iterations. This is too slow, especially for non-distributed settings. 
+
+    \end{algo}
+
+    A better way is to not be so random about how we choose the $(u, v)$ in the while loop. Notice how we can lay out the shortest paths like a tree, so we can work in layers. The next algorithm implements this. 
+
+    \begin{algo}[Bellman-Ford Algorithm]
+      We think of going in rounds indexed by $t$, and at every round, we are iterating through all the nodes and updating the shortest path of $v$ using the shortest path of $w$ included in all in-neighbors of $v$. At most, we will need to update this at most $n$ times, which will guarantee convergence.  
+      \begin{algorithm}[H]
+        \label{alg:bellman_ford}
+        \begin{algorithmic}
+          \Require{Nodes $V$, Edges $E$}
+          \State $\pi \gets$ list(0) of large numbers of size $|V|$. 
+          \State $\pi[s] = 0$
+
+          \Function{BellmanFord}{x}
+            \For{$t = 1, \ldots, n-1$}
+              \For{$v \in V$} 
+                \State $\pi^{(t)} [v] \gets \min_w \{ \pi^{(k-1)} [v], \pi^{(k-1)}[w] + l_{wv}\}$
+              \EndFor 
+            \EndFor
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+      The runtime is easier to see. 
+      \begin{enumerate}
+        \item The step in the inner loop looks over the set of nodes of size $\mathrm{indeg}(v)$. 
+        \item Looping over all the nodes in the inner for loop means that we are going over all edges, so $O(m)$. 
+        \item The outer for loop goes through $n-1$ times, so the total runtime is $O(nm)$. 
+      \end{enumerate}
+    \end{algo}
+
+    At first glance, this problem seems like it isn't too different from Dijkstra, but there is a 50-year conjecture that this cannot be improved to linear time. 
+    
+
 
 \section{Approximation Algorithms}
 
