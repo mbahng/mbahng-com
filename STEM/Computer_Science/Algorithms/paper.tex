@@ -194,7 +194,9 @@
   \definecolor{dkgreen}{rgb}{0,0.6,0}
   \definecolor{gray}{rgb}{0.5,0.5,0.5}
   \definecolor{mauve}{rgb}{0.58,0,0.82}
+  \definecolor{darkblue}{rgb}{0,0,139}
   \definecolor{lightgray}{gray}{0.93}
+  \renewcommand{\algorithmiccomment}[1]{\hfill$\triangleright$\textcolor{blue}{#1}}
 
   % default options for listings (for code)
   \lstset{
@@ -520,7 +522,7 @@
       \begin{enumerate}
         \item The \textbf{degree} $d_v$ of a vertex $v$ is the number of edges incident to it. 
         \item A \textbf{path} is a sequence of vertices where adjacent vertices are connected by a path in $E$. It's \textbf{length} is the number of edges in the path. 
-        \item A \textbf{cycle} is a path that has the same start and end. 
+        \item A \textbf{cycle/circuit} is a path that has the same start and end. 
         \item A graph is \textbf{connected} if for every pair of vertices $e_i, e_j \in E$, there is a path from $e_i$ to $e_j$. 
         \item A \textbf{connected component} is a maximal subset of connected vertices. 
       \end{enumerate}
@@ -531,7 +533,7 @@
       \begin{enumerate}
         \item The \textbf{in/out degree} $d_{v, i}, d_{v, o}$ of a vertex $v$ is the number of edges going in to or out from $v$. 
         \item A \textbf{path} is a sequence of vertices where adjacent vertices are connected by a path in $E$. It's \textbf{length} is the number of edges in the path. 
-        \item A \textbf{cycle} is a path that has the same start and end. 
+        \item A \textbf{cycle/circuit} is a path that has the same start and end. 
         \item A directed graph is \textbf{strongly connected} if for every pair of vertices $e_i, e_j \in E$, there is a path from $e_i$ to $e_j$.\footnote{Obviously, a connected undirected graph is also strongly connected.}
         \item A \textbf{strongly connected component} is a maximal subset of connected vertices. 
       \end{enumerate}
@@ -755,7 +757,7 @@
 
       \begin{algorithm}[H]
         \label{alg:iterative_top_sort}
-        \begin{algorithmic}
+        \begin{algorithmic}[1]
           \Require{Nodes $V$, adjacency list $E$}
           \State visited $\gets$ set()
           \State res $\gets$ stack() 
@@ -800,7 +802,7 @@
       \end{enumerate}
       \begin{algorithm}[H]
         \label{alg:recursive_top_sort}
-        \begin{algorithmic}
+        \begin{algorithmic}[1]
           \Require{Nodes $V$, Edges $E$}
           \State $q \gets$ queue() 
           \State indeg $\gets$ list() 
@@ -842,7 +844,7 @@
       To construct a BFS tree, we just need to slightly modify the original BFS code.
       \begin{algorithm}[H]
         \label{alg:bfs_tree}
-        \begin{algorithmic}
+        \begin{algorithmic}[1]
           \Require{Nodes $V$, adjacency list $E$}
           \State visited = set() 
           \State layers = $\{v : 0 \mid v \in V \}$
@@ -899,7 +901,7 @@
 
       \begin{algorithm}[H]
         \label{alg:determine_bipartite}
-        \begin{algorithmic}
+        \begin{algorithmic}[1]
           \Require{Nodes $V$, adjacency list $E$}
           \State visited = set() 
           \State layers = $\{v : 0 \mid v \in V \}$
@@ -954,7 +956,7 @@
       Using the theorem above, we can run BFS/DFS twice: one on the original graph and one on the reversed graph, consisting of all edges directed in the opposite direction. 
       \begin{algorithm}[H]
         \label{alg:strongly_connected}
-        \begin{algorithmic}
+        \begin{algorithmic}[1]
           \Require{Nodes $V$, Adjacency list $E$}
           \Function{StronglyConnected}{$s \in V$}
             \State visited $\gets$ set() 
@@ -977,19 +979,43 @@
 
   \subsection{Shortest Path}
 
-    In the shortest path, you are given a \textit{weighted} (positive integer) directed graph and your goal is to find a path from $s$ to $t$ with the smallest length. This is where we use Dijkstra's. What we can do to brute force is just replace a edge with length $k$ to $k$ edges of length $1$, and we run BFS on this. However, this is not efficient. 
+    In the shortest path, you are given a \textit{weighted} (positive integer) directed graph and your goal is to find a path from $s$ to $t$ with the smallest length. This is where we use Dijkstra's. What we can do to brute force is just replace a edge with length $k$ to $k$ edges of length $1$, and we run BFS on this. However, this is not efficient. This is where we introduce Dijkstra. The following is how it is introduced in class. 
+
+    \begin{algo}[Primitive Dijkstra]
+      We can keep a temporarily list $\pi$ of the shortest path we have found so far, and a permanent list \texttt{dist} keeping track of all paths we know are for sure the shortest path. 
+      \begin{algorithm}[H]
+        \label{alg:dik_in_class}
+        \begin{algorithmic}[1]
+          \Require{Graph $G(E, V)$}
+          \State $S \gets \{s\}$  \Comment{set of nodes that we know for sure is shortest}
+          \State dist[s] = 0 and the rest very large numbers \Comment{our final list}
+          \State $\pi[v] = w_{sv}$ for all $v \in V$ \Comment{initialize list with neighboring nodes from start $s$}
+          \Function{Dijkstra}{s}
+            \State $u = \mathrm{argmin}_{v \notin S} \pi[v]$ \Comment{Find node having minimum accum weight so far}
+            \State add $u$ to $S$ \Comment{This node must be shortest so add to $S$}
+            \State $\mathrm{dist}[u] = \pi[u]$ \Comment{Now we can update its shortest path in dist}
+            
+            \For{$v \not\in S$} \Comment{Look at all neighbors of $u$ and update those not in}
+              \State $\pi[v] \gets \min\{\pi[v], d[u] + w_{wv}\}$ \Comment{$S$ since those in $S$ are all guaranteed to be shortest}
+            \EndFor
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+    \end{algo}
+
+    The problem is line 5 above. We don't want this linear search time since it makes the whole thing quadratic, so rather than a list, we can implement a heap, resulting in the code below. 
 
     \begin{algo}[Dijkstra's Algorithm]
       The general idea is to run a graph traversal like BFS but when you reach a new vertex $v$, you can store the accumulated time it took to get to $v$ and store for all neighbors the accumulated time it will take to get to each of those neighbors. If it is less than what we have currently, then we have found a shorter path and we should update this. 
       \begin{algorithm}[H]
         \label{alg:dijkstra}
-        \begin{algorithmic}
+        \begin{algorithmic}[1]
           \Require{Nodes $V$, Edges $E$}
           \Function{Dijkstra}{s}
-            \State dist $\gets$ list() of very large initial numbers 
-            \State dist[$s$] $\gets$ 0
+            \State dist $\gets$ list of size $|V|$ with $+\infty$ \Comment{Initialize a list of large numbers}
+            \State dist[$s$] $\gets$ 0 \Comment{The starting node has dist $0$}
             \State predecessors $\gets$ $\{v : None \mid v \in V \}$
-            \State toExplore $\gets$ minheap() // priority queue
+            \State toExplore $\gets$ minheap() \Comment{A priority queue of (weight, node)}
             \State add $(0, s)$ to toExplore
 
             \While{toExplore} 
@@ -1057,7 +1083,7 @@
       
       \begin{algorithm}[H]
         \label{alg:neg_weighted_short_path}
-        \begin{algorithmic}
+        \begin{algorithmic}[1]
           \Require{Nodes $V$, Edges $E$}
           \Function{ShortPath}{V, E}
             \State res $\gets$ list(0) of large numbers of size $|V|$. 
@@ -1089,7 +1115,7 @@
       We think of going in rounds indexed by $t$, and at every round, we are iterating through all the nodes and updating the shortest path of $v$ using the shortest path of $w$ included in all in-neighbors of $v$. At most, we will need to update this at most $n$ times, which will guarantee convergence.  
       \begin{algorithm}[H]
         \label{alg:bellman_ford}
-        \begin{algorithmic}
+        \begin{algorithmic}[1]
           \Require{Nodes $V$, Edges $E$}
           \State $\pi \gets$ list(0) of large numbers of size $|V|$. 
           \State $\pi[s] = 0$
@@ -1112,8 +1138,226 @@
     \end{algo}
 
     At first glance, this problem seems like it isn't too different from Dijkstra, but there is a 50-year conjecture that this cannot be improved to linear time. 
-    
+   
+  \subsection{Spanning Trees} 
 
+    \begin{definition}[Spanning Tree]
+      Given an undirected graph $G(V, E)$, a \textbf{spanning tree} is a subgraph $T(V, E^\prime \subset E)$ that is 
+      \begin{enumerate}
+        \item a tree, and 
+        \item spans the graph, i.e. is connected 
+      \end{enumerate}
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.3]{img/spanning_tree.png}
+        \caption{A spanning tree on a $4 \times 4$ grid graph. } 
+        \label{fig:spanning_tree}
+      \end{figure}
+    \end{definition}
+
+    Note that an unconnected graph will never have a spanning tree, but what about a connected graph? 
+
+    \begin{theorem}[Spanning Trees of Connected Graphs]
+      A connected graph will always have at least one spanning tree, not necessarily unique. 
+    \end{theorem}
+
+    Given a connected undirected weighted graph, we may want to find the \textbf{minimum spanning tree (MST)}, i.e. the spanning tree with edges $E^\prime$ such that the sum of the weights of all $e \in E^\prime$ is minimized.\footnote{An application of this is when we generally want to make sparse graphs. In a datacenter, wires can be expensive, so how I can minimize the length of wires to buy to construct a spanning subgraph?} How do we do this? 
+
+    Let's try to apply what we already know: Dijkstra. If we run Dijkstra on the graph starting at $s \in V$, we can get the shortest path from $s$ to every other node in the graph. This will give us a tree, but it may not be minimum. 
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.6]{img/dik_mst_prob.png}
+      \caption{If we run Dijkstra on $s$, then our output will be a tree of cost $300$, even when the actual MST can be of cost $102$ starting from $a$.} 
+      \label{fig:dik_mst_prob}
+    \end{figure}
+
+    It may seem like this is just a problem of where we start, but even this is not the case. 
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.6]{img/dik_mst_prob2.png}
+      \caption{No matter where we start from, we will never output the MST. The MST has cost $12$. If  we start from $b$ or $d$, we will get a tree of cost $13$. If we start from $a$ or $c$, we will get a tree of cost $16$.}
+      \label{fig:dik_mst_prob2}
+    \end{figure}
+
+    \begin{definition}[Cuts]      
+      Given graph $G(V, E)$, a \textbf{cut} is a partitioning of $V$ into $(S, V \setminus S)$. Furthermore, let $\mathrm{Cut}(S)$ be the number of edges with exactly one endpoint in $S$ and the other in $V \setminus S$. 
+    \end{definition}
+
+    \begin{theorem}[Cycles and Cuts]
+      Given cycle $C \subset E$ in a graph and a cut $S \subset V$, 
+      \begin{equation}
+        | C \cap \mathrm{Cut}(S) | 
+      \end{equation}
+      is even. We can intuit this by visualizing the cycle as a long piece of looped string and a cut is a circle. The intersection between this circle and the string must be even since every time the cycle crosses through the cut, it must return back across the cut to the initial point.  
+    \end{theorem}
+
+    Now time for a bizarre theorem. 
+
+    \begin{theorem}[Cut Property of MSTs]
+      For all cuts $S \subset V$ of an undirected graph, the minimum cost edge in $\mathrm{Cut}(S)$ belongs to the MST. Furthermore, the converse is true: if we take all cuts and find all their minimum cost edges, these edges is precisely the MST! Therefore, an edge $e \in \mathrm{MST}$ iff $e$ is a min-cost edge for some cut. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/mst_cut_prop.png}
+        \caption{In the left cut, the edges are $(a,d), (b, c), (a, c)$. The minimum weight is $5$ on the $(a, d)$ edge, so it must be in the MST. For the right cut, $(c, d)$ must be in the MST. } 
+        \label{fig:mst_cut_prop}
+      \end{figure}
+      The final part is that if we have all edge costs different, then we will have a \textit{unique} MST. 
+    \end{theorem}
+    \begin{proof}
+      We use a greedy approach and prove by contradiction. Suppose that this is not true, i.e. there exists a cut $S$ with minimum cost edge $e$, and $e \not\in \mathrm{MST}$. Then, there exists some other edge $e^\prime \in \mathrm{Cut}(S)$ that is in the MST, since the MST is spanning and it must cross over to connect the whole graph. Well if we just put $e$ in and take $e^\prime$ out, we will still have a spanning tree since it connects the left spanning tree to the right spanning tree, and we now have a cheaper tree. So the original cannot be the MST in the first place. 
+
+      To prove the converse, consider some edge $e$ in the MST and we must prove that it is the minimum cost edge in some cut. Note that if we take $e$ out, then it divides the MST into two connected components, and we can just define the cut as these subsets of nodes. So this is in $\mathrm{Cut}(S)$ for some $S \subset V$. We can also prove that this is minimal since if it wasn't the minimum cost edge for some cut, we could have taken it out and inserted a cheaper edge $e^\prime$ to begin with, getting a cheaper spanning tree.   
+    \end{proof}
+
+    \begin{algo}[Primitive Prim's Algorithm]
+      We can just brute force this logic into an algorithm, which is not efficient. 
+      \begin{algorithm}[H]
+        \label{alg:primitive_prim}
+        \begin{algorithmic}
+          \Require{Graph $G(V, E)$}
+          \State $r \gets \{\}$ 
+          \Function{Solve}{x} 
+            \For{all $S \subset V$} 
+              \State add min-cost edge in $\mathrm{Cut}(S)$ to $r$
+            \EndFor
+            \State \Return{$r$}
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+    \end{algo}
+
+    It is clear that a cut is defined by a subset of $S$, so really the number of cuts a graph can have is $2^{|S| - 1}$, which is exponential in $n$. However, the minimum spanning tree isn't exponential since it must have $n-1$ edges, so there must be many cuts with the same minimum edge. 
+
+    One way is to start with one vertex $a$ that contains the minimum cost edge $(a, b)$ across all edges.  This edge must be minimal and must be in the MST. Then we can look at the cut $S = \{a, b\}$ and look at that cut. We keep doing this, keeping track of the set of edges we need to look at after adding a new node to our cut. So the number of cuts I consider is equal to the number of edges in the spanning tree.
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.45]{img/prim.png}
+      \caption{Step by step process of the method we mention above.} 
+      \label{fig:prim}
+    \end{figure}
+
+    \begin{algo}[Prim's Algorithm to Find MST]
+      It turns out that we can modify Dijkstra to solve it. 
+      \begin{algorithm}[H]
+        \label{alg:prim}
+        \begin{algorithmic}[1]
+          \Require{Graph $G(E, V)$}
+
+          \Function{Prim}{s}
+            \State $S \gets \{s\}$  \Comment{Our initial cut}
+            \State $\pi[v] \gets$ list of size $|V|$ of $+\infty$ \Comment{$\pi[u]$ is min cost of getting from $u$ into the $S$}
+            \State $\pi[v] = w_{sv}$ for all $v \in V$ \Comment{initialize list with neighboring nodes from start $s$}
+
+            \While{$S \neq V$}
+              \State $u = \mathrm{argmin}_{v \notin S} \pi[v]$ \Comment{Find node having minimum cost to reach from $S$}
+              \State $S \gets S \cup \{u\}$ \Comment{Adding this node to $S$ to expand our cut}
+              \For{$u \not\in S$} \Comment{Since we expanded $S$, our min reach distances}
+                \State $\pi[u] \gets \min\{\pi[u], w_{wu}\}$ \Comment{must be updated. It can only get shorter} 
+              \EndFor \Comment{through a path from new $u$, so compare them}
+            \EndWhile
+            
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+
+      However, this is not efficient, so we can introduce a minheap to get the argmin step faster. 
+      \begin{algorithm}[H]
+        \caption{Not completely finished, need to update}
+        \label{alg:prim_final}
+        \begin{algorithmic}[1]
+          \Require{Graph $G(E, V)$}
+
+          \Function{Prim}{s}
+            \State $S \gets \{s\}$  \Comment{Our initial cut}
+            \State $T \gets \mathrm{heap}(\{(u, v, w) \in E \mid u = s\})$ \Comment{Our heap of edges connected to $S$}
+            \State $\pi[v] \gets$ list of size $|V|$ of $+\infty$ \Comment{$\pi[u]$ is min cost of getting from $u$ into the $S$}
+            \State $\pi[v] = w_{sv}$ for all $v \in V$ \Comment{initialize list with neighboring nodes from start $s$}
+
+            \While{$S \neq V$}
+              \State $u = \mathrm{argmin}_{v \notin S} \pi[v]$ \Comment{Find node having minimum cost to reach from $S$}
+              \State $S \gets S \cup \{u\}$ \Comment{Adding this node to $S$ to expand our cut}
+              \State update $T$
+              \For{$v \in$ neighbors of $u$} \Comment{Since we expanded $S$, our min reach distances}
+                \State $\pi[v] \gets \min\{\pi[v], w_{uv}\}$ \Comment{must be updated. It can only get shorter} 
+              \EndFor \Comment{through a path from new $u$, so compare them}
+            \EndWhile
+            
+          \EndFunction
+        \end{algorithmic}
+        Note that we run through all the nodes in line 6, and in line 10, we run through the neighbors of each edge, making this $O(n+m)$. However, to compute the argmin in line 7, it is a $O(\log{n})$ operation, so the total runtime is $O(m + n \log{n})$ operation. In class, it says running time is $\Theta(m \log_{m/n} {n})$. 
+      \end{algorithm}
+    \end{algo}
+
+    If we were to try and construct this algorithm from scratch, we may take a greedy approach by incrementally adding the minimum cost edge from your cut. However, there is one thing to check: have we entered a cycle? Checking whether the next added node $a$ completes a cycle in $S \cup \{a\}$ is nontrivial. 
+
+    \begin{theorem}[Cycle Property]
+      For all cycles $C$, the max cost edge of $C$ does not belong to MST. 
+    \end{theorem}
+
+    Therefore, you can take $S$ and either add to it using the cut property or delete candidates from it using the cycle property. What is the best order to do this in? 
+
+    \begin{algo}[Kruskal's Algorithm]
+      This algorithm is faster and can be run faster than $O(m \log{n})$ time. The general idea is that we sort $e \in E$ in increasing cost, and for each $e \in E$, we use either the cut or cycle property to decide whether $e$ goes in or out. 
+      \begin{algorithm}[H]
+        \label{alg:kruskal}
+        \begin{algorithmic}
+          \Require{Graph $G(V, E)$}
+          \Function{Kruskal}{V, E}
+            \State sort $E$ in increasing cost 
+            \State $T \gets \{\}$
+            \For{$e \in E$}
+              \If{$T \cup \{e\}$ does not have cycle} 
+                \State $T \gets T \cup \{e\}$ \Comment{Cut property}
+              \Else \Comment{Cycle property} 
+                \State continue \Comment{discard $e$ since from sorting, this edge is heaviest in cycle}
+              \EndIf
+            \EndFor
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+      The way to prove that this is correct is to show that every step you do is correct either because of one of the two properties. Say that so far, we have some edges in $V$ which forms a partition of $V = \sqcup_i T_i$ of disjoint trees (can be trees, one edge, or just single nodes). We are looking at the next biggest edge $e = (a, b)$. There are two possibilities. 
+
+      \begin{enumerate}
+        \item If $a, b$ are both in a single $T_i$, then this forms a cycle and can be thrown away since this is the max cost edge in the cycle by the cycle property. 
+        \item If $a, b$ connect $T_i$ and $T_j$ for $i \neq j$, then this edge is in $\mathrm{Cut}(T_i)$ and is the minimum cost edge since the rest of the edges in $\mathrm{Cut}(T_i)$ come next in the sorted $E$. Therefore this must be included by the cut property. 
+      \end{enumerate}
+    \end{algo}
+
+    \begin{algo}[Traveling Salesman Problem (TSP)]
+
+      It's not like finding a tree, but we want to find a path that visits everything. 
+      
+      \begin{algorithm}[H]
+        \caption{}
+        \label{alg:tsp}
+        \begin{algorithmic}[1]
+          \Require{}
+          \State 
+          \Function{tsp}{x}
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+    \end{algo}
+
+    Here is a way to cluster data, a surprising way to apply MSTs. It is the most widely used application, esp in data science. 
+
+    \begin{algo}[Clustering Data]
+      
+      \begin{algorithm}[H]
+        \caption{}
+        \label{alg:clustering}
+        \begin{algorithmic}[1]
+          \Require{}
+          \State 
+          \Function{Func}{x}
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+    \end{algo}
 
 \section{Approximation Algorithms}
 
