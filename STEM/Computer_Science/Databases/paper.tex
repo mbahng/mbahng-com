@@ -162,13 +162,13 @@
     breakable, 
     title = \textbf{Example \thetcbcounter ~(#1)}
   } 
-  \newtcolorbox[auto counter, number within=section]{code}[1][]
+  \newtcolorbox[auto counter, number within=section]{algo}[1][]
   {
     colframe = green!25,
     colback  = green!10,
     coltitle = green!20!black,  
     breakable, 
-    title = \textbf{Code \thetcbcounter ~(#1)}
+    title = \textbf{Algorithm \thetcbcounter ~(#1)}
   } 
 
   \BeforeBeginEnvironment{example}{\savenotes}
@@ -587,7 +587,7 @@
       It does not really adding any processing power. It is only used for convenience. 
     \end{definition}
 
-  \subsection{Additional Operations}
+  \subsection{More on Operators}
     
     \begin{definition}[Monotone Operators]
       An operator $O(R)$ is monotone with respect to input $R$ if increasing the size (number of rows/tuples) of $R$ does not decrease the output relation $O$.  
@@ -596,7 +596,7 @@
       \end{equation}
     \end{definition}
 
-    \begin{example}
+    \begin{example}[Monotone Operators]
       Let's go through to see if each operator is monotone. 
       \begin{enumerate}
         \item \textit{Selection is monotone}. 
@@ -611,10 +611,23 @@
     \end{example}
 
     \begin{example}[Getting maximum of an attribute]
-      Lec 1 6 min. 
+      Given a schema $R(a, b, c)$, how do we find the maximum of $a$? This is hard to come up in the first time since we are not allowed to compare across lines. However, we can do the following: 
+      \begin{enumerate}
+        \item Take the cross product of $R_1 (a_1, b_1, c_1) \times R_2 (a_2, b_2, c_2)$. 
+        \item Select all tuples that are not maxes by selecting all rows where $a_1 < a_2$. The resulting rows will contain only those that are not maximums. 
+      \end{enumerate}
+      Therefore, we do the following 
+      \begin{equation}
+        \max_a (R) = [\pi_a (R) \times \pi_a (R)] - \sigma_{a_1 < a_2} [\pi_{a \mapsto a_1} (R) \times \pi_{a \mapsto a_2} (R)]
+      \end{equation}
+      The minimum can be solved analogously. 
     \end{example}
 
-    Notice that the $\max_{att}$ operator is \textit{not} monotone, since the old answer is overwritten. Generally, whenever we want to construct a non-monotone operator, we want to use the set difference since the composition of monotones is monotone. 
+  Notice that the $\max_{att}$ operator is \textit{not} monotone, since the old answer is overwritten. 
+  \begin{equation}
+    \{\mathrm{old max}\} \not\subset \{\mathrm{new max}\}
+  \end{equation}
+  Generally, whenever we want to construct a non-monotone operator, we want to use the set difference since the composition of monotones is monotone. 
 
     You should determine when to project, before or after the difference. 
 
@@ -691,7 +704,7 @@
         \item Let us denote the set of all relations $R$ satisfying $F$ as $R_F$, which is an infinite set. 
       \end{enumerate}
 
-      \begin{theorem}[Axioms]
+      \begin{theorem}[Armstrong Axioms]
         Let's prove a few properties of FDs, which have nice structure. 
         \begin{enumerate}
           \item \textit{Splitting and Combining}. The two sets of FDs are equal. 
@@ -740,18 +753,25 @@
         \begin{equation}
           R_F = R_\mathbf{b}
         \end{equation}
-        We denote this as $\mathbf{b} = \mathbf{r}^+$. 
+        We denote this as $\mathbf{b} = \mathbf{r}^+$. To actually compute the closure, we take a greedy approach by starting with $\mathbf{r}$ and incrementally adding attributes satisfying $F$ until we cannot add any more. 
       \end{definition}
 
-      To actually compute the closure, we take a greedy approach by starting with $\mathbf{r}$ and incrementally adding attributes satisfying $F$ until we cannot add any more. If we want to know where one FD $f: \mathbf{a} \mapsto \mathbf{b}$ follows from a set $F$, we can always just compute the closure of $\mathbf{a}$ w.r.t. $F$. Alternatively, we can also use the axioms above to derive all implications. 
+      \begin{theorem}
+        If we want to know where one FD $f: \mathbf{a} \mapsto \mathbf{b}$ follows from a set $F$ of functional dependencies, 
+        \begin{enumerate}
+          \item We compute the closure $\mathbf{a}^+$ w.r.t. $F$. 
+          \item If $\mathbf{b} \subset \mathbf{a}^+$, then $f$ follows from $F$. 
+        \end{enumerate}
+        Alternatively, we can also use the \textit{Armstrong axioms} above to derive all implications. 
+      \end{theorem}
     
-    \subsubsection{Projections of Functional Dependencies} 
+  \subsection{Projections of Functional Dependencies} 
 
-      If we have a relation $R$ with a set of FDs $F$, and we project $R^\prime = \pi_{\mathbf{r}^\prime} (R)$, then the set of FDs $F^\prime$ that hold for $R^\prime$ consists of 
-      \begin{enumerate}
-        \item The FDs that follow from $F$, and 
-        \item involve only attributes of $R$. 
-      \end{enumerate}
+    If we have a relation $R$ with a set of FDs $F$, and we project $R^\prime = \pi_{\mathbf{r}^\prime} (R)$, then the set of FDs $F^\prime$ that hold for $R^\prime$ consists of 
+    \begin{enumerate}
+      \item The FDs that follow from $F$, and 
+      \item involve only attributes of $R$. 
+    \end{enumerate}
 
   \subsection{Anomalies and Decomposition}
 
@@ -773,6 +793,7 @@
         \item $R_1 = \pi_{r_1} (R)$
         \item $R_2 = \pi_{r_2} (R)$
       \end{enumerate}
+      There are two types of decomposition: lossy and lossless. 
     \end{definition}
 
     \begin{example}
@@ -790,12 +811,81 @@
     \end{definition}
 
     \begin{example}[Non-BNCF Form]
-      
+      The table below is not in BCNF form since 
+      \begin{equation}
+        (\texttt{title}, \texttt{year}) \mapsto (\texttt{length}, \texttt{genre}, \texttt{studioName}) 
+      \end{equation}
+      Is a functional dependency where the LHS is not a superkey (the key is \texttt{title}, \texttt{year}). 
+      \begin{table}[H]
+        \centering
+        \begin{tabular}{|l|c|c|l|l|l|}
+        \hline
+        \textbf{title} & \textbf{year} & \textbf{length} & \textbf{genre} & \textbf{studioName} & \textbf{starName} \\
+        \hline
+        Star Wars & 1977 & 124 & SciFi & Fox & Carrie Fisher \\
+        Star Wars & 1977 & 124 & SciFi & Fox & Mark Hamill \\
+        Star Wars & 1977 & 124 & SciFi & Fox & Harrison Ford \\
+        Gone With the Wind & 1939 & 231 & drama & MGM & Vivien Leigh \\
+        Wayne's World & 1992 & 95 & comedy & Paramount & Dana Carvey \\
+        Wayne's World & 1992 & 95 & comedy & Paramount & Mike Meyers \\
+        \hline
+        \end{tabular}
+        \caption{Movie Data}
+        \label{tab:moviedata}
+      \end{table} 
     \end{example}
 
     \begin{example}[BNCF Form]
-      
+      However, if we decompose this into the following tables, both satisfy BCNF. 
+
+      \begin{table}[H]
+        \centering
+        \begin{tabular}{|l|c|c|l|l|}
+        \hline
+        \textbf{title} & \textbf{year} & \textbf{length} & \textbf{genre} & \textbf{studioName} \\
+        \hline
+        Star Wars & 1977 & 124 & sciFi & Fox \\
+        Gone With the Wind & 1939 & 231 & drama & MGM \\
+        Wayne's World & 1992 & 95 & comedy & Paramount \\
+        \hline
+        \end{tabular}
+        \caption{Simplified Movie Data}
+        \label{tab:simplemoviedata}
+      \end{table}
+
+      \begin{table}[H]
+        \centering
+        \begin{tabular}{|l|c|l|}
+        \hline
+        \textbf{title} & \textbf{year} & \textbf{starName} \\
+        \hline
+        Star Wars & 1977 & Carrie Fisher \\
+        Star Wars & 1977 & Mark Hamill \\
+        Star Wars & 1977 & Harrison Ford \\
+        Gone With the Wind & 1939 & Vivien Leigh \\
+        Wayne's World & 1992 & Dana Carvey \\
+        Wayne's World & 1992 & Mike Meyers \\
+        \hline
+        \end{tabular}
+        \caption{Movie Titles, Years, and Stars}
+        \label{tab:moviestars}
+      \end{table}
     \end{example}
+
+    \begin{algo}[Constructing BCNF of a Relation]
+      To actually construct this, we act on BCNF violations. Given that we have found a FD $\mathbf{a} \mapsto \mathbf{b}$ that doesn't satisfy BCNF (i.e. $\mathbf{a}$ is not a superkey) of relation $R$, we decompose it into the following $R_1$ and $R_2$. 
+      \begin{enumerate}
+        \item We want $\mathbf{a}$ to be a superkey for one of the subrelations, say $R_1$. Therefore, we have it satisfy $\mathbf{a} \mapsto \mathbf{a}^+$, which is satisfied by definition, and set 
+          \begin{equation}
+            R_1 = \pi_{\mathbf{a}, \mathbf{a}^+} (R)
+          \end{equation}
+        \item We don't want any loss in data, so we take the rest of the attributes not in the closure and define  
+          \begin{equation}
+            R_2 = \pi_{\mathbf{a}, \mathbf{r} - \mathbf{a}^+} (R)
+          \end{equation}
+      \end{enumerate}
+      We keep doing this until every subrelation satisfies BCNF. This is guaranteed to terminate since we are decreasing the size of the relations until all attributes are superkeys.  
+    \end{algo}
 
     \begin{theorem}[Any 2-Attribute Relation Satisfies BNCF]
       Any 2-attribute relations is in BCNF. Let's label the attributes $a, b$ and go through the cases. 
@@ -809,18 +899,6 @@
 
     Therefore, we want to decompose a relation $R$ into a set of relations $R_1, \ldots, R_n$ where each $R_i$ is in BNCF \textit{and} the data in the original relation can be reconstructed from the set of $R_i$'s, i.e. there is \textit{lossless decomposition}. It is this second condition that prevents us from just trivially decomposing every relation into 2-attribute relations, which we will elaborate later. 
 
-    Given that we have found a FD $\mathbf{a} \mapsto \mathbf{b}$ that doesn't satisfy BCNF (i.e. $\mathbf{a}$ is not a superkey) of relation $R$, we decompose it into the following $R_1$ and $R_2$. 
-    \begin{enumerate}
-      \item We want $\mathbf{a}$ to be a superkey for one of the subrelations, say $R_1$. Therefore, we have it satisfy $\mathbf{a} \mapsto \mathbf{a}^+$, which is satisfied by definition, and set 
-        \begin{equation}
-          R_1 = \pi_{\mathbf{a}, \mathbf{a}^+} (R)
-        \end{equation}
-      \item We don't want any loss in data, so we take the rest of the attributes not in the closure and define  
-        \begin{equation}
-          R_2 = \pi_{\mathbf{a}, \mathbf{r} - \mathbf{a}^+} (R)
-        \end{equation}
-    \end{enumerate}
-    We keep doing this until every subrelation satisfies BCNF. This is guaranteed to terminate since we are decreasing the size of the relations until all attributes are superkeys.  
 
 \section{Design Models}
 
