@@ -365,33 +365,6 @@
       \end{enumerate}
     \end{example}
 
-
-    \begin{theorem}[\texttt{PRIMARY KEY}, \texttt{UNIQUE}]
-      There are multiple ways to identify keys. 
-      \begin{enumerate}
-        \item Use the \texttt{PRIMARY KEY} keyword to make \texttt{name} the key. It can be substituted with \texttt{UNIQUE}. 
-        \begin{lstlisting}
-          CREATE TABLE Movies(
-            name CHAR(30) PRIMARY KEY,
-            year INT, 
-            director VARCHAR(50), 
-            seen DATE
-          ); 
-        \end{lstlisting}
-
-        \item Use the \texttt{PRIMARY KEY} keyword, which allows you to choose a combination of attributes as the key. It can be substituted with \texttt{UNIQUE}. 
-        \begin{lstlisting}
-          CREATE TABLE Movies(
-            name CHAR(30),
-            year INT, 
-            director VARCHAR(50), 
-            seen DATE, 
-            PRIMARY KEY (name, year)
-          ); 
-        \end{lstlisting}
-      \end{enumerate}
-    \end{theorem}
-
   \subsection{Relational Algebra}
 
     We've talked about the structure of the data model, but we still have to talk about operations and constraints. We will focus on the operations here, which can be introduced with \textit{relational algebra}, which gives a powerful way to construct new relations from given relations. Really, SQL is a syntactically sugared form of relational algebra. 
@@ -796,6 +769,22 @@
       \end{enumerate}
     \end{definition}
 
+    Let's try to see where these anomalies came from. Consider a non-trivial FD $\mathbf{a} \mapsto \mathbf{b}$ where $\mathbf{a}$ is not a superkey. Since $\mathbf{a}$ is not a superkey, there are attributes, say $\mathbf{c}$ that are not functionally determined by $\mathbf{x}$. Therefore, there are multiple combinations of $\mathbf{a, b, c}$ which have the same $\mathbf{a, b}$ but not $\mathbf{c}$, leading to redundancy. 
+
+    \begin{table}[H]
+      \centering
+      \begin{tabular}{|c|c|c|}
+        \hline
+        \textbf{a} & \textbf{b} & \textbf{c} \\
+        \hline
+        $x$ & $y$ & $z_1$ \\ 
+        $x$ & $y$ & $z_2$ \\
+        \hline
+      \end{tabular}
+      \caption{Redundant information in \textbf{a} and \textbf{b} attributes. }
+      \label{tab:redundant}
+    \end{table}
+
     To eliminate these anomalies, we want to \textbf{decompose} relations, which involve splitting \textbf{r} to schemas of two new relations $R_1, R_2$. 
 
     \begin{definition}[Decomposition]
@@ -805,9 +794,158 @@
         \item $R_1 = \pi_{r_1} (R)$
         \item $R_2 = \pi_{r_2} (R)$
       \end{enumerate}
-      There are two types of decomposition: lossy and lossless. 
+      There are two types of decomposition: 
+      \begin{enumerate}
+        \item \textbf{lossy} decomposition of $R$ to $R_1, R_2$ means that joining $R_1, R_2$ does not give us $R$. 
+        \item \textbf{lossless} decomposition indeed gives us back $R$. 
+      \end{enumerate}
     \end{definition}
 
+    \begin{theorem}[Decomposition]
+      Any decomposition $R_1, R_2$ of $R$ satisfies 
+      \begin{equation}
+        R \subset R_1 \bowtie R_2
+      \end{equation}
+    \end{theorem}
+
+    \begin{example}[Lossy]
+      Consider the table 
+
+      \begin{table}[H]
+        \centering
+        \begin{tabular}{|c|c|c|}
+          \hline
+          \textbf{uid} & \textbf{gid} & \textbf{name} \\
+          \hline
+          857 & abc & Bob \\ 
+          857 & gov & Brent \\
+          \hline
+        \end{tabular}
+        \label{tab:ex1}
+      \end{table}
+      Suppose we decompose this into the schemas. 
+
+      \begin{table}[H]
+        \centering
+        \begin{minipage}{.5\textwidth}
+          \centering
+          \begin{tabular}{|c|c|}
+            \hline
+            \textbf{uid} & \textbf{gid} \\
+            \hline
+            857 & abc \\
+            857 & gov \\
+            \hline
+          \end{tabular}
+          \caption{First Table}
+          \label{tab:ex2}
+        \end{minipage}%
+        \begin{minipage}{.5\textwidth}
+          \centering
+          \begin{tabular}{|c|c|}
+            \hline
+            \textbf{uid} & \textbf{name}\\
+            \hline
+            857 & Alice \\ 
+            857 & Anna \\
+            \hline
+          \end{tabular}
+          \caption{Second Table}
+          \label{tab:ex3}
+        \end{minipage}
+      \end{table}
+      Then, if we natural joined based on the uid, then we would have the following table, which is not the original one. 
+      \begin{table}[H]
+        \centering
+        \begin{tabular}{|c|c|c|}
+          \hline
+          \textbf{uid} & \textbf{gid} & \textbf{name} \\
+          \hline
+          857 & abc & Bob \\ 
+          857 & abc & Brent \\
+          857 & gov & Bob \\ 
+          857 & gov & Brent \\
+          \hline
+        \end{tabular}
+        \label{tab:ex4}
+      \end{table}
+    \end{example}
+
+    \begin{example}[Lossy and Lossless Decomposition]
+      Consider the relation 
+      \begin{table}[H]
+        \centering
+        \begin{tabular}{|c|c|c|}
+          \hline
+          \textbf{X} & \textbf{Y} & \textbf{Z} \\
+          \hline
+          $a$ & $b$ & $c_1$ \\
+          $a$ & $b$ & $c_2$ \\
+          $a_1$ & $b$ & $c_2$ \\
+          \hline
+        \end{tabular}
+        \label{tab:ex5}
+      \end{table}
+      Projecting to $(X, Y)$ and $(X, Z)$ gives us a lossless decomposition. 
+      \begin{table}[H]
+        \centering
+        \begin{minipage}{.5\textwidth}
+          \centering
+          \begin{tabular}{|c|c|}
+            \hline
+            \textbf{X} & \textbf{Y} \\
+            \hline
+            $a$ & $b$ \\
+            $a_1$ & $b$ \\
+            \hline
+          \end{tabular}
+          \label{tab:ex6}
+        \end{minipage}
+        \begin{minipage}{.5\textwidth}
+          \centering
+          \begin{tabular}{|c|c|}
+            \hline
+            \textbf{X} & \textbf{Y} \\
+            \hline
+            $a$ & $c_1$ \\
+            $a$ & $c_2$ \\
+            $a_1$ & $c_2$ \\
+            \hline
+          \end{tabular}
+          \label{tab:ex7}
+        \end{minipage}
+      \end{table}
+      While projecting to $(X, Y)$ and $(Y, Z)$ gives us a lossy one since we get $(a_1, b, c_1)$ when joining the decompositions, which is not in the original relation. 
+      \begin{table}[H]
+        \centering
+        \begin{minipage}{.5\textwidth}
+          \centering
+          \begin{tabular}{|c|c|}
+            \hline
+            \textbf{X} & \textbf{Y} \\
+            \hline
+            $a$ & $b$ \\
+            $a_1$ & $b$ \\
+            \hline
+          \end{tabular}
+          \label{tab:ex8}
+        \end{minipage}
+        \begin{minipage}{.5\textwidth}
+          \centering
+          \begin{tabular}{|c|c|}
+            \hline
+            \textbf{Y} & \textbf{Y} \\
+            \hline
+            $b$ & $c_1$ \\
+            $b$ & $c_2$ \\
+            \hline
+          \end{tabular}
+          \label{tab:ex9}
+        \end{minipage}
+      \end{table}
+      Generally, the intuition behind trying to find a lossless decomposition is for a value of a certain attribute $X$ that is in both decompositions $R_1$ and $R_2$, we want only one instance of a value on one side. For example, notice how we have two $b$'s on the left and two $b$'s on the right for the lossy decomposition. Rather, we want something like 1 $b$ vs k $b$'s.
+    \end{example}
+  
     \begin{example}
       
     \end{example}
@@ -898,6 +1036,21 @@
       \end{enumerate}
       We keep doing this until every subrelation satisfies BCNF. This is guaranteed to terminate since we are decreasing the size of the relations until all attributes are superkeys.  
     \end{algo}
+
+    \begin{theorem}[Lossless Guarantee for BCNF]
+      If we decompose on a BCNF violation as stated above, then our decomposition is guaranteed to be a lossless join decomposition. 
+    \end{theorem}
+    \begin{proof}
+      An outline of the proof means that given a BCNF violation $\mathbf{a} \mapsto \mathbf{b}$, we must show that anything we project always comes back in the join
+      \begin{equation}
+        R \subset \pi_{\mathbf{a}^+} (R) \bowtie \pi_{\mathbf{a}, \mathbf{r} - \mathbf{a}} (R)
+      \end{equation}
+      and anything that comes back in the join must be in the original relation 
+      \begin{equation}
+        \pi_{\mathbf{a}^+} (R) \bowtie \pi_{\mathbf{a}, \mathbf{r} - \mathbf{a}} (R) \subset R
+      \end{equation}
+      using the fact that $\mathbf{a} \mapsto \mathbf{b}$. 
+    \end{proof}
 
     \begin{theorem}[Any 2-Attribute Relation Satisfies BNCF]
       Any 2-attribute relations is in BCNF. Let's label the attributes $a, b$ and go through the cases. 
@@ -1931,5 +2084,98 @@
         DROP VIEW JessicaCircle; 
       \end{lstlisting}
     \end{example}
+
+  \subsection{Constraints}
+
+    We mainly use constraints to protect the data integrity and relieve the coder from responsibility. It also tells the DBMS about the data so it can optimize better. 
+
+    \begin{definition}[\texttt{NOT NULL} Constraints]
+      This tells that an attribute cannot be entered as null (this is already enforced for keys). 
+      \begin{lstlisting}
+        CREATE TABLE User 
+        (uid INTEGER NOT NULL, 
+        name VARCHAR(30) NOT NULL, 
+        twitterid VARCHAR(15) NOT NULL, 
+        age INTEGER, 
+        pop FLOAT); 
+      \end{lstlisting}
+    \end{definition}
+
+    \begin{definition}[\texttt{PRIMARY KEY}, \texttt{UNIQUE} Key Constraints]
+      There are multiple ways to identify keys. 
+      \begin{enumerate}
+        \item Use the \texttt{PRIMARY KEY} keyword to make \texttt{name} the key. It can be substituted with \texttt{UNIQUE}. You can include at most one primary key, but any number of \texttt{UNIQUE}. This means that either name or id can be used as a key, but we must choose one primary key, so we are restricted to at most one. 
+        \begin{lstlisting}
+          CREATE TABLE Movies(
+            name CHAR(30) NOT NULL PRIMARY KEY,
+            id CHAR(30) NOT NULL UNIQUE,
+            year INT NOT NULL, 
+            director VARCHAR(50), 
+            seen DATE
+          ); 
+        \end{lstlisting}
+
+        \item Use the \texttt{PRIMARY KEY} keyword, which allows you to choose a combination of attributes as the key. It can be substituted with \texttt{UNIQUE}. 
+        \begin{lstlisting}
+          CREATE TABLE Movies(
+            name CHAR(30),
+            year INT, 
+            director VARCHAR(50), 
+            seen DATE, 
+            PRIMARY KEY (name, year)
+          ); 
+        \end{lstlisting}
+      \end{enumerate}
+    \end{definition}
+
+    \begin{definition}[Referential Integrity]
+      Like we said before, a referential integrity means that if an attribute $a$ appears in $R$, then $a$ must appear in some other $T$. That is, there are no \textbf{dangling pointers}, where $R.a$ does exists but $T.a$ does not. There are names for these: 
+      \begin{enumerate}
+        \item \textbf{Foreign keys} is like $R.a$, where it must point to a valid primary key, e.g. \texttt{User.uid} or \texttt{Group.gid}, which are like entity sets. 
+        \item \textbf{Primary keys} are like $T.a$, where it must exist if $R.a$ exists, e.g. \texttt{Member.uid} or \texttt{Member.gid}, which are relationships. 
+      \end{enumerate}
+      In SQl, we must make sure that the referenced columns must be the primary key and the referencing columns form a foreign key. There are two ways to do it. 
+      \begin{lstlisting}
+        CREATE TABLE Member (
+        uid INT NOT NULL 
+          REFERNECES User(uid),  // 1. put the references as you define it
+        gid CHAR(10) NOT NULL,   // 2. define the attribute first
+        PRIMARY KEY(uid, gid), 
+        FOREIGN KEY (gid) REFERENCES Group(gid)); // 2. then reference it
+      \end{lstlisting}
+      If you have multi-attribute referential integrity, the second method is better. 
+      \begin{lstlisting}
+        ...
+        FOREIGN KEY (gid, time) REFERENCES Group(gid, time)); 
+      \end{lstlisting}
+    \end{definition}
+
+    \begin{example}[Handling Referential Integrity Violations]
+      Say that you have a referential integrity constraint as above. Then there are two scenarios. If we insert or update a Member row so it refers to a non-existent User.uid, the DBMS will not allow this. If we delete or update a User row whose uid is referenced by some Member row, then there are certain scenarios. 
+      \begin{enumerate}
+        \item \textit{Reject}. The DBMS will reject this. 
+        \item \textit{Cascade}. It will ripple changes (on an update) to all referring rows. 
+        \item \textit{Set null}. It will set all references to NULL. 
+      \end{enumerate}
+      These options can be specified in SQL. 
+    \end{example}
+
+    \begin{definition}[Tuple/Attribute-Based Checks]
+      These checks are only associated with a single table and are only checked when a tuple/attribute is inserted/updated. It rejects if the condition evaluates to False, but \textit{True/Unknown are fine} (unlike only True in \texttt{WHERE} conditions!). There are two ways to write this in SQL. 
+      \begin{lstlisting}
+        CREATE TABLE User(
+          ... // 1. Directly put the check constraint in definition
+          age INTEGER CHECK(age IS NULL OR age > 0), 
+          ...
+        ); 
+
+        CREATE TABLE Member(
+          uid INTEGER NOT NULL,           // 2. First define attribute 
+          CHECK(uid IN (SELECT uid FROM User)),  // 2. Then check it 
+        ...
+        )
+      \end{lstlisting}
+      Note that in the second example, this is sort of like a referential integrity constraint. However, this is weaker since it only checks for changes in the Member relation, while the referential integrity constraint is checked for every change in both the Member and User relations. If a check evaluates to False, then the DBMS rejects the insertions/updates. 
+    \end{definition}
 
 \end{document}
