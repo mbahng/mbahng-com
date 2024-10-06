@@ -1062,7 +1062,7 @@
 
     In the shortest path, you are given a \textit{weighted} (positive integer) directed graph and your goal is to find a path from $s$ to $t$ with the smallest length. This is where we use Dijkstra's. What we can do to brute force is just replace a edge with length $k$ to $k$ edges of length $1$, and we run BFS on this. However, this is not efficient since the weights can be unbounded. This is where we introduce Dijkstra. The following is how it is introduced in class. 
 
-    \begin{algo}[Primitive Dijkstra]
+    \begin{algo}[General Dijkstra]
       We can keep a temporarily list $\pi$ of the shortest path we have found so far, and a permanent list \texttt{dist} keeping track of all paths we know are for sure the shortest path. 
       \begin{algorithm}[H]
         \label{alg:dik_in_class}
@@ -1105,7 +1105,7 @@
                 \State continue \Comment{I already have then not worth exploring}
               \EndIf 
 
-              \For{neighbor, weight $\in E[curr]$} \Comment{Look at each neighbor}
+              \For{neighbor, weight $\in$ E[curr\_node]} \Comment{Look at each neighbor}
                 \State new\_dist $\gets$ curr\_dist + weight \Comment{The distance to getting to neighbor from now}
                 \If{new\_dist < dist[neighbor]} \Comment{If this new dist is shorter than what we have}
                   \State dist[neighbor] = new\_dist \Comment{Update best distance}
@@ -1383,33 +1383,9 @@
         To prove the converse, consider some edge $e$ in the MST and we must prove that it is the minimum cost edge in some cut. Note that if we take $e$ out, then it divides the MST into two connected components, and we can just define the cut as these subsets of nodes. So this is in $\mathrm{Cut}(S)$ for some $S \subset V$. We can also prove that this is minimal since if it wasn't the minimum cost edge for some cut, we could have taken it out and inserted a cheaper edge $e^\prime$ to begin with, getting a cheaper spanning tree.   
       \end{proof}
 
-      \begin{algo}[Primitive Prim's Algorithm]
-        We can just brute force this logic into an algorithm, which is not efficient. 
-        \begin{algorithm}[H]
-          \label{alg:primitive_prim}
-          \begin{algorithmic}
-            \Require{Graph $G(V, E)$}
-            \State $r \gets \{\}$ 
-            \Function{Solve}{x} 
-              \For{all $S \subset V$} 
-                \State add min-cost edge in $\mathrm{Cut}(S)$ to $r$
-              \EndFor
-              \State \Return{$r$}
-            \EndFunction
-          \end{algorithmic}
-        \end{algorithm}
-      \end{algo}
-
-      It is clear that a cut is defined by a subset of $S$, so really the number of cuts a graph can have is $2^{|S| - 1}$, which is exponential in $n$. However, the minimum spanning tree isn't exponential since it must have $n-1$ edges, so there must be many cuts with the same minimum edge. 
+      We can just brute force this logic into an algorithm by going through all possible cuts and adding the minimum cost edge to our MST set. It is clear that a cut is defined by a subset of $S$, so really the number of cuts a graph can have is $2^{|S| - 1}$, which is exponential in $n$. However, the minimum spanning tree isn't exponential since it must have $n-1$ edges, so there must be many cuts with the same minimum edge. 
 
       One way is to start with one vertex $a$ that contains the minimum cost edge $(a, b)$ across all edges.  This edge must be minimal and must be in the MST. Then we can look at the cut $S = \{a, b\}$ and look at that cut. We keep doing this, keeping track of the set of edges we need to look at after adding a new node to our cut. So the number of cuts I consider is equal to the number of edges in the spanning tree.
-
-      \begin{figure}[H]
-        \centering 
-        \includegraphics[scale=0.45]{img/prim.png}
-        \caption{Step by step process of the method we mention above.} 
-        \label{fig:prim}
-      \end{figure}
 
       \begin{algo}[Prim's Algorithm to Find MST]
         It turns out that we can modify Dijkstra to solve it. 
@@ -1435,32 +1411,47 @@
           \end{algorithmic}
         \end{algorithm}
 
+        \begin{figure}[H]
+          \centering 
+          \includegraphics[scale=0.6]{img/prim.png}
+          \caption{Step by step process of the method we mention above.} 
+          \label{fig:prim}
+        \end{figure}
+      \end{algo}
+
+      \begin{algo}[Prim's Algorithm]
         However, this is not efficient, so we can introduce a minheap to get the argmin step faster. 
         \begin{algorithm}[H]
-          \caption{Not completely finished, need to update}
-          \label{alg:prim_final}
+          \label{alg:prims}
           \begin{algorithmic}[1]
-            \Require{Graph $G(E, V)$}
+            \Require{Nodes $V$, Edges $E$}
+            \Function{Prim}{V, E}
+              \State mst $\gets$ [] \Comment{Initialize mst array to return}
+              \State s $\gets$ 0 \Comment{Choose any starting node}
+              \State visited $\gets$ set() \Comment{Our expanding set of cuts.}
+              \State edges $\gets$ minheap() \Comment{The set of low-weight edges that we can explore from}
+              \State add (weight, s, next\_node) for edges in E \Comment{Look for edges from s to expand our cut from.}
 
-            \Function{Prim}{s}
-              \State $S \gets \{s\}$  \Comment{Our initial cut}
-              \State $T \gets \mathrm{heap}(\{(u, v, w) \in E \mid u = s\})$ \Comment{Our heap of edges connected to $S$}
-              \State $\pi[v] \gets$ list of size $|V|$ of $+\infty$ \Comment{$\pi[u]$ is min cost of getting from $u$ into the $S$}
-              \State $\pi[v] = w_{sv}$ for all $v \in V$ \Comment{initialize list with neighboring nodes from start $s$}
+              \While{|visited| < |V|} \Comment{Until we have visited all cuts,}
+                \State weight, frm, to $\gets$ pop from edges \Comment{Get the cheapest edge to explore}
+                \If{to $\not\in$ visited} \Comment{If this isn't already in our cut, }
+                  \State add to $\rightarrow$ visited \Comment{Add it to our cut. From cut}
+                  \State add (frm, to, weight) to mst \Comment{property, this must be added to mst}
 
-              \While{$S \neq V$}
-                \State $u = \mathrm{argmin}_{v \notin S} \pi[v]$ \Comment{Find node having minimum cost to reach from $S$}
-                \State $S \gets S \cup \{u\}$ \Comment{Adding this node to $S$ to expand our cut}
-                \State update $T$
-                \For{$v \in$ neighbors of $u$} \Comment{Since we expanded $S$, our min reach distances}
-                  \State $\pi[v] \gets \min\{\pi[v], w_{uv}\}$ \Comment{must be updated. It can only get shorter} 
-                \EndFor \Comment{through a path from new $u$, so compare them}
-              \EndWhile
-              
+                  \For{next\_to, next\_weight $\in$ E[to]} \Comment{After expanding, add newly discovered}
+                    \If{next\_to $\not\in$ visited} \Comment{edges for future exploration}
+                      \State push (next\_weight, to, next\_to) to edges
+                    \EndIf
+                  \EndFor
+                \EndIf
+              \EndWhile 
+
+              \State \Return{mst} \Comment{of form (from, to, weight)}
             \EndFunction
           \end{algorithmic}
-          Note that we run through all the nodes in line 6, and in line 10, we run through the neighbors of each edge, making this $O(n+m)$. However, to compute the argmin in line 7, it is a $O(\log{n})$ operation, so the total runtime is $O(m + n \log{n})$ operation. In class, it says running time is $\Theta(m \log_{m/n} {n})$. 
         \end{algorithm}
+
+        You essentially push $n$ times and pop $m$ times, and the time per push and pop is $\log_2 (n)$. Therefore, the total time to push is $n \log(n)$ and to pop is $m \log (n)$, making the total runtime $O(log(n) (n+m))$. 
       \end{algo}
 
     \subsubsection{Kruskal's Algorithm}
@@ -1473,15 +1464,8 @@
 
       Therefore, you can take $S$ and either add to it using the cut property or delete candidates from it using the cycle property. What is the best order to do this in? 
 
-      \begin{algo}[Primitive Kruskal's Algorithm]
+      \begin{algo}[General Kruskal's Algorithm]
         This algorithm is faster and can be run faster than $O(m \log{n})$ time. The general idea is that we sort $e \in E$ in increasing cost, and for each $e \in E$, we use either the cut or cycle property to decide whether $e$ goes in or out. 
-
-        \begin{figure}[H]
-          \centering 
-          \includegraphics[scale=0.4]{img/kruskal.png}
-          \caption{Kruskal's algorithm. In the last step, we see that the next minimum cost edge of 6 and 7 forms a cycle, so we add the edge of length 9.} 
-          \label{fig:kruskal}
-        \end{figure}
 
         \begin{algorithm}[H]
           \label{alg:prim_kruskal}
@@ -1500,33 +1484,79 @@
             \EndFunction
           \end{algorithmic}
         \end{algorithm}
-        The way to prove that this is correct is to show that every step you do is correct, known as \textit{structural induction}, either because of one of the two properties. Say that so far, we have some edges in $V$ which forms a partition of $V = \sqcup_i T_i$ of disjoint trees (can be trees, one edge, or just single nodes). We are looking at the next biggest edge $e = (a, b)$. There are two possibilities. 
-        \begin{enumerate}
-          \item If $a, b$ are both in a single $T_i$, then this forms a cycle and can be thrown away since this is the max cost edge in the cycle by the cycle property. 
-          \item If $a, b$ connect $T_i$ and $T_j$ for $i \neq j$, then this edge is in $\mathrm{Cut}(T_i)$ and is the minimum cost edge since the rest of the edges in $\mathrm{Cut}(T_i)$ come next in the sorted $E$. Therefore this must be included by the cut property. 
-        \end{enumerate}
 
         \begin{figure}[H]
           \centering 
-          \includegraphics[scale=0.4]{img/sets.png}
-          \caption{Each $T_i$ is a component formed by the edges chosen so far. For example, $T_1 = \{1, 2, 3, 4, 5, 6\}, \ldots$. We can either discard an edge (red) or include an edge (yellow). } 
-          \label{fig:sets}
+          \includegraphics[scale=0.4]{img/kruskal.png}
+          \caption{Kruskal's algorithm. In the last step, we see that the next minimum cost edge of 6 and 7 forms a cycle, so we add the edge of length 9.} 
+          \label{fig:kruskal}
         \end{figure}
       \end{algo}
 
+      The way to prove that this is correct is to show that every step you do is correct, known as \textit{structural induction}, either because of one of the two properties. Say that so far, we have some edges in $V$ which forms a partition of $V = \sqcup_i T_i$ of disjoint trees (can be trees, one edge, or just single nodes). We are looking at the next biggest edge $e = (a, b)$. There are two possibilities. 
+      \begin{enumerate}
+        \item If $a, b$ are both in a single $T_i$, then this forms a cycle and can be thrown away since this is the max cost edge in the cycle by the cycle property. 
+        \item If $a, b$ connect $T_i$ and $T_j$ for $i \neq j$, then this edge is in $\mathrm{Cut}(T_i)$ and is the minimum cost edge since the rest of the edges in $\mathrm{Cut}(T_i)$ come next in the sorted $E$. Therefore this must be included by the cut property. 
+      \end{enumerate}
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/sets.png}
+        \caption{Each $T_i$ is a component formed by the edges chosen so far. For example, $T_1 = \{1, 2, 3, 4, 5, 6\}, \ldots$. We can either discard an edge (red) or include an edge (yellow). } 
+        \label{fig:sets}
+      \end{figure}
+
       The only bottleneck in here is line 5, where we check if $e$ does not complete a cycle in $T$. It will obviously not be efficient to do BFS, construct a tree, and see if there is a loop by checking if two points in the same layer are connected. It may help to decompose this algorithm into two steps: what is being stored and what is being checked? 
 
-      Explain the general idea. Note that from our visual, we are really just keeping a set of these points that each make a subtree and connecting them together. How do we efficiently search for which cluster a point is a part of and efficiently merge two clusters? We could use a hashmap but this wouldn't work. We need something like a doubly linked list. 
+      Note that from our visual, we are really just keeping a set of these points that each make a subtree and connecting them together. How do we efficiently search for which cluster a point is a part of and efficiently merge two clusters? We could use a hashmap but this wouldn't work. We need something like a doubly linked list. 
 
       \begin{algo}[Kruskal's Algorithm]
-        
+        The implementation uses the Union-Find data structure. For clarity, we will not elaborate it but will show the full pseudocode. 
         \begin{algorithm}[H]
-          \caption{}
-          \label{alg:}
+          \label{alg:kruskal}
           \begin{algorithmic}
-            \Require{}
+            \Require{Nodes V. Edges $E = \{(u, v, w)\}$ where $u, v \in V$ and $w > 0$ is a weight. }
             \State 
-            \Function{Func}{x}
+            \Function{Kruskal}{V, E}
+              \State $n \gets |V|$ 
+              \State sort $E$ in increasing order of weights. \Comment{Needed for Kruskal}
+              \State parent $\gets [0, \ldots, n-1]$ \Comment{Initialize the disjoint cluster each node is in}
+              \State rank $\gets$ list of $0$s of size $n$ 
+
+              \Function{Find}{x} 
+                \If{parent[x] $\neq$ x} 
+                \State parent[x] $\gets$ Find(parent[x]) \Comment{Path compression}
+                \EndIf
+                \State \Return{parent[x]}
+              \EndFunction
+
+              \Function{Union}{x, y} 
+                \State px, py = find(x), find(y) 
+                \If{px = py} 
+                  \State \Return{False}
+                \EndIf
+                \If{rank[px] < rank[py]} 
+                  \State parent[px] $\gets$ py
+                \ElsIf{rank[px] > rank[py]}
+                  \State parent[py] $\gets$ px
+                \Else{}
+                  \State parent[py] $\gets$ px 
+                  \State rank[px] $\gets$ rank[px] + 1
+                \EndIf
+                \State \Return{True}
+              \EndFunction
+
+              \State mst $\gets$ [] 
+              \For{u, v, weight $\in$ edges} 
+                \If{union(u, v)} 
+                  \State add (u, v, weight) to mst
+                \EndIf 
+                \If{len(mst) = n - 1}
+                  \State break
+                \EndIf 
+              \EndFor
+
+              \State \Return{mst}
             \EndFunction
           \end{algorithmic}
         \end{algorithm}
@@ -1556,9 +1586,6 @@
     \subsubsection{Applications}
 
       Here is a way to cluster data, a surprising way to apply MSTs. It is the most widely used application, especially in data science. The problem is that given $n$ data points $x_i \in \mathbb{R}^d$ and an integer $k$, we want to partition the points into $k$ groups $\mathbf{C} = (C_1, \ldots, C_k)$ where $\mathbf{x} = \sqcup_i C_i$. You want to distances between the points within a group to be small and the distances between groups to be large. We can think of finding the objective which takes every pair of clusters and computes the minimum distance between these clusters, and we want to maximize this distance over all pairs of clusters.  
-      \begin{equation}
-        \argmax_{\mathbf{C}} \min_{p \in C_i, q \in C_j} \{ d(p, q) \}
-      \end{equation}
 
       \begin{algo}[Single Linkage/Hierarchical Clustering]
         The general idea is to take this dense graph, find the MST, and cut off the largest edges from this MST, which will give you $k$ components. This is the answer. Or really, you can use Kruskal's algorithm and terminate earlier when $T$ has $k$ sets/components. 
@@ -1567,9 +1594,10 @@
         \begin{algorithm}[H]
           \label{alg:clustering}
           \begin{algorithmic}[1]
-            \Require{}
-            \State 
-            \Function{Func}{x}
+            \Require{Nodes $V = \{v_i\} \subset \mathbb{R}^n$}
+            \Function{Cluster}{V}
+              \State Run Kruskal and at each iteration, check if you have $K$ clusters. 
+              \State If so, terminate and return the \texttt{parent} list. 
             \EndFunction
           \end{algorithmic}
         \end{algorithm}
@@ -1577,6 +1605,9 @@
 
       \begin{theorem}
         The algorithm above minimizes the objective function. 
+        \begin{equation}
+          \argmax_{\mathbf{C}} \min_{p \in C_i, q \in C_j} \{ d(p, q) \}
+        \end{equation}
       \end{theorem}
       \begin{proof}
         Let $\mathbf{C}^\ast$ be the MST clustering. We claim that for any other clustering $\mathbf{C} = \{C_1, \ldots, C_k\}$,  
@@ -1613,7 +1644,189 @@
 
 \section{Greedy Algorithms}
 
-  Greedy algorithms are easy to implement and easy to conceptualize, but they are often not correct. So the only interest in them is proving if they are correct. We have done greedy algorithms like Dijkstra and finding MSTs. Every step, greedy algorithms make an irrevocable decision of what to do and cannot undo it.  
+  Greedy algorithms are easy to implement and easy to conceptualize, but they are often not correct. So the only interest in them is proving if they are correct. We have done greedy algorithms like Dijkstra and finding MSTs. Every step, greedy algorithms make an irrevocable decision of what to do and cannot undo it. That is, we cannot backtrack. In fact, some algorithms like Kruskal's algorithm for MSTs is precisely a greedy algorithm. 
+  
+  \begin{example}[Interval Scheduling]
+    Let there be 1 classroom and $n$ courses, each with a start and end time $(s_i, e_i)$. We want to find the largest subset of courses that can be scheduled in a day such that they don't overlap. There are two things we want to do. How do we code this up? How do we show that a greedy algorithm will give a correct answer? Two greedy approaches are as follows. 
+    \begin{enumerate}
+      \item Sort them by the start times, and add them as long as they do not overlap with what you have. This will not work. 
+      \item Sort them by the time interval lengths and keep adding them as long as they do not overlap with what you have. This will not work either. 
+    \end{enumerate}
+    It turns out that if we sort based on finish time, this will work. So why is this correct? Assume that the first $k$ decisions of this greedy algorithm are correct. Then, to find the next interval that we will include, the optimal algorithm must choose one that does not overlap with what we have. This is good since we do the same. The second part is that the next added interval must have the smallest end time $t$ from all viable left intervals. Assume that it was not and that the optimal next interval had end time $s > t$. Then, the next interval must start after $s$, but this also starts after $t$, so we are sacrificing unnecessary extra space. An optimal solution with the endpoint at $s$ can also be constructed with the same interval ending at $t$ without anything to lose. 
+
+    \begin{algorithm}[H]
+      \label{alg:class1}
+      \begin{algorithmic}
+        \Require{classes $C$, a List[tuple(int, int)]}
+        \State 
+        \Function{Func}{C}
+          \State res $\gets$ []
+          \State sort $C$ by increasing end time
+          \For{$s, e \in C$} 
+            \If{$s <$ res[-1][-1]} \Comment{If start overlaps with previous end time}
+              \State continue
+            \EndIf
+            \State add $(s, e)$ to res
+          \EndFor
+          \State \Return{res}
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+    To get the run time, the sorting takes $O(n \log{n})$ time and iterating is $O(n)$, so a total of $O(n \log{n})$ time. 
+  \end{example}
+
+  \begin{example}[Classroom Scheduling]
+    A slightly more practical example is that you have $n$ classes and you want to minimize the number of classrooms $m$. For this, you can really use any order. The general idea is 
+    \begin{enumerate}
+      \item Consider intervals in increasing start time $s_i$. 
+      \item If it can be scheduled in an existing classroom, then schedule it there. 
+      \item If not, then open a new classroom. 
+    \end{enumerate}
+    Even then, we can conduct a line search through all the time periods, incrementing the current number of classes if an incoming time is a start time and decrementing if it is an end time. We report the max $\Delta$ over all times. 
+
+    This algorithm is correct since by definition, $\Delta$ is the lower bound for the number of classrooms needed and the greedy algorithm attains it. The greedy algorithm reports $\Delta$ since if it reported $\Delta +1$ classroom, then at some time $t$ it opened the $\Delta+1$th classroom. But this is impossible since this must mean that there are $\Delta + 1$ classrooms concurrently in use, contradicting our assumption that $\Delta$ is the optimal solution. 
+
+    \begin{algorithm}[H]
+      \caption{}
+      \label{alg:}
+      \begin{algorithmic}
+        \Require{}
+        \State 
+        \Function{Func}{x}
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+
+    The runtime is $O(n \log{n})$, which is to sort. However, you don't even need to sort since you can go through all intervals in any order and place it in an existing classroom or open a new classroom. 
+  \end{example}
+
+  The next one isn't as trivial, but requires us to devise a custom sorting method by comparing two sequences with a swap difference. 
+
+  \begin{example}[Quiz Problem]
+    Suppose you have $n$ questions with question $i$ having reward $r_i$, but the probability that you get it correct is $p_i$. You keep collecting the reward until you get one question wrong, and the game terminates. What order would you answer the questions in? 
+
+    Suppose we have $q = (10, 5)$ and $r = (0.1, 0.2)$. 
+    \begin{enumerate}
+      \item If you choose the first and then second, then the expected return is 
+        \begin{equation}
+          10 \cdot 0.1 + 5 \cdot 0.1 \cdot 0.2 = 1.1 
+        \end{equation}
+
+      \item If you choose the second and then first, then the expected return is 
+        \begin{equation}
+          5 \cdot 0.2 + 10 \cdot 0.1 \cdot 0.2 = 1.2
+        \end{equation}
+    \end{enumerate}
+    Clearly, finding all possibilities is too computationally expensive since it increases exponentially w.r.t. $n$. Intuitively, if I have a question with a high reward, I want to answer it first, but if I have a low probability of getting it correctly, then I can't answer future questions if I get it wrong. So I have to balance these two forces. So we want to sort the score of each question with some function $f(r_i, p_i)$, which is increasing in both $r_i$ and $p_i$. It is not $r_i p_i$, but this is a good start. 
+    
+    Rather, we can take a different approach. Assume that the tuples were sorted in some order, but this was not the optimal order. Then this indicates that we can swap to adjacent elements and it will get a better order. This is really like bubble sort, and now we need to find out the conditions on which it can be improved.  
+    \begin{enumerate}
+      \item If we answer $q_1 \rightarrow q_2 \rightarrow q_3 \ldots$, our expected reward is 
+        \begin{equation}
+          \mathbb{E}[R] = r_1 p_1 + r_2 p_1 p_2 + r_3 p_1 p_2 p_3 
+        \end{equation}
+      \item If we swap $q_2$ and $q_3$ and answer $q_1 \rightarrow q_3 \rightarrow q_2 \ldots$, then our expected reward is 
+        \begin{equation}
+          \mathbb{E}[R] = r_1 p_1 + r_3 p_1 p_3 + r_2 p_1 p_2 p_3 
+        \end{equation}
+      Note that the swap does not affect higher order terms. Doing some algebra, the swap is better iff 
+      \begin{equation}
+        r_2 p_2 (1 - p_3) < r_3 p_3 (1 - p_2) \implies \frac{r_2 p_2}{1 - p_2} < \frac{r_3 p_3}{1 - p_3}
+      \end{equation}
+      where the final swap saves computational time since we can compute for a single element rather than comparing pairwise elements. So, we sort it (in descending order!) according to these values to maximize this value. Note that the numerator measures your expected reward, while the denominator measures the probability of you screwing up. 
+
+    \end{enumerate}
+  \end{example}
+
+  Not all greedy problems admit to scoring functions however. This was just one example. 
+
+  \begin{example}[Minimizing Max Lateness]
+    Suppose there are $n$ jobs that all come in at once at time $0$, with job $j$ having length $p_j$ and deadline $d_j$. We want to schedule the order of jobs on one machine that can handle one job at a time, where you must minimize the maximum lateness, where the lateness of job $i$ is $\max\{f_i - d_i, 0\} = [f_i - d_i]^+$. 
+
+    For example, given jobs $(p, d) = \{(10, 9), (8, 11)\}$, we can run it in two ways. 
+    \begin{enumerate}
+      \item Running 1 then 2. The first job finishes at $10$ and the second at $18$. The lateness is $10 - 9 = 1$ and $18 - 11 = 7$ respectively, so the maximum lateness is $7$. 
+      \item Running 2 then 1. The first job finishes at $8$ and the second at $18$. The lateness is $0$ and $18 - 9 = 9$, so the maximum lateness is $9$.  
+    \end{enumerate}
+    Therefore, $1 \rightarrow 2$ beats $2 \rightarrow 1$. Clearly, brute forcing this over $N!$ jobs orderings is unfeasible, but there is a greedy approach to this. We can 
+    \begin{enumerate}
+      \item schedule jobs in increasing order of deadlines. 
+      \item try to exchange by taking a sequence, swapping it, and computing the score like we did for previous examples. 
+    \end{enumerate}
+    Both lead to the same score/principle that we should schedule jobs in increasing order of deadlines. Let's prove this by taking jobs $i$ and $j$, where $d_j \leq d_i$. Then, if we schedule $i \rightarrow j$, then we have 
+    \begin{align}
+      l_i & = [t + p_i - d_i]^+ \\
+      l_j & = [t + p_i + p_j - d_j]^+ 
+    \end{align}
+    with $l_j$ being the greatest late time. If we did $j \rightarrow i$, then we have 
+    \begin{align}
+      \hat{l}_j & = [t + p_j - d_j]^+ \\
+      \hat{l}_i & = [t + p_i + p_j - d_i]^+ 
+    \end{align}
+    with $\hat{l}_i$ being the greatest late time. But this is a good sacrifice since we can see that both 
+    \begin{equation}
+      l_j > \hat{l}_j \text{ and } l_j > \hat{l}_i
+    \end{equation}
+    meaning that if we swap, then we will decrease the lateness of $j$ at the smaller cost of increasing that of $i$. Therefore, $j \rightarrow i$ is better. Note that even though the end times of the second job will always be the same between the two choices, starting with $j$ will give a later deadline time. So this means that in the optimal solution, we have to place them in this order of deadlines since we can always improve them by swapping. 
+  \end{example}
+
+  \begin{example}[Gift Wrapping a Convex Hull]
+    Given $n$ points in $\mathbb{R}^2$, we want to find the subset of points on the boundary of its convex hull. We can intuit this by taking the bottom most point and imagine ``wrapping'' a string around the entire region.\footnote{This is called the gift wrapping algorithm.} Here's a basic fact. If we have a point $p_1 = (x_1, y_1)$ and we're looking at $p_2 = (x_2, y_2)$, and then $p_3 = (x_3, y_3)$ shows up, then we can look at the cross product 
+    \begin{equation}
+      P = (x_2 - x_1) (y_3 - y_1) - (y_2 - y_1)(x_3 - x_1) 
+    \end{equation}
+    and if $P > 0$, then $p_3$ is counterclockwise from $p_2$. The algorithm is as such. 
+    \begin{enumerate}
+      \item You choose the bottommost point and label it $p_1$. 
+      \item You construct a vector pointing to the right and start turning it counterclockwise until it hits the first point. This can be done by iterating through all of the $n$ points and computing the angle. 
+        \begin{equation}
+          \tan{ \theta} = \frac{y_i - y_1}{x_i - x_1}
+        \end{equation}
+      and the points with the smallest such tangent value will be the desired point, which will be $\Theta(n)$. We set this point to be $p_2$ and claim that $p_1, p_2$ is in the convex hull. This is true since all point must lie above the line $p_1 p_2$. Now you do the same thing with $p_2$ starting with a vector facing to the right and rotating it left until it hits the first peg. Once you get to the topmost point, you can start the vector from the right and rotate it counterclockwise, but this is an implementation detail. 
+
+      If your convex hull has $L$ vertices, then this algorithm will have $O(n L)$, which will be $O(n^2)$ worst case but if we sample uniformly, then we have $L \approx \log{n}$ and on average it is $O(n \log{n})$. 
+    \end{enumerate}
+    A lot of geometric algorithms is output sensitive. 
+  \end{example}
+
+
+  \begin{example}[Convex Hull with Graham Scan]
+    In fact, we can take a different approach and get $O(n \log{n})$ time. 
+    \begin{enumerate}
+      \item You still start with $p_1$ with the minimum y-coordinate and we sort in increasing $\theta_i = \arctan \frac{y_i - y_1}{x_i - x_1}$. 
+      \item Then it will walk from $p_i$ to $p_{i+1}$ and check at $p_{i+1}$ if it is on the convex hull or not. 
+        \begin{enumerate}
+          \item If you turned counterclockwise to go to $p_{i+1}$ then it's good and you're on the convex hull. 
+          \item If you turned clockwise it is bad, and $p_i$ is not on the convex hull, so remove $p_i$. However, $p_{i-1}$ could also be clockwise as well, so you must backtrack and keep on removing points until you find a point $p_j$ such that the previous turn is counterclockwise. 
+        \end{enumerate}
+        Note that this is implemented as a stack. 
+    \end{enumerate}
+    This can be calculated in $O(1)$ by the previous cross product formula. 
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/graham.png}
+      \caption{Overview of the steps mentioned above. } 
+      \label{fig:graham}
+    \end{figure}
+    \begin{algorithm}[H]
+      \label{alg:graham}
+      \begin{algorithmic}
+        \Require{$p_1, \ldots, p_n \in \mathbb{R}^2$}
+        \Function{Graham}{$\mathbf{p}$} 
+          \State s $\gets$ stack()
+          \State push $p_1, p_2$ onto s 
+          \For{$i = 3, 4, \ldots, n$}
+            \State push $p_i$ onto stack 
+            \While{top 3 on stack are clockwise}
+              \State pop second from top point 
+            \EndWhile
+          \EndFor 
+          \State \Return{s} 
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+    Note that once we have 3 points, the first three in the stack will always be counterclockwise, so we will never need to check if there are enough points in the stack. Even in the beginning, the next point (third) added is guaranteed to be counterclockwise because of ordering. Note that even though we might do a bunch of pushes and pops, the maximum number of pushes we can do is $n$ and pops is $n$, so this is $O(n)$. In fact, the bottleneck is the sorting, which is $O(n \log{n})$, so the total runtime is $O(n \log{n})$. 
+  \end{example}
 
 \section{Linear Programming}
 
