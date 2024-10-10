@@ -484,14 +484,137 @@
 \section{Divide and Conquer} 
 
   \begin{definition}[Divide and Conquer Algorithms]
-    
+    The general idea is two steps: 
+    \begin{enumerate}
+      \item Divide an input into smaller instances of the same problem. The simplest form is merge sort. 
+      \item Conquer/solve these smaller instances, which takes less time. 
+      \item Merge/Combine the smaller solutions into the original, bigger solution. 
+    \end{enumerate}
+    This is usually recursive, but does not need to be. 
   \end{definition}
 
-  \subsection{Karatsuba Algorithm for Multiplication}
+  It has its applications in the most elementary operations, in sorting and multiplication. To prove correctness, we use induction by proving the correctness of the base case and then the inductive step to show that there is an invariant. 
 
-  \subsection{Merge Sort}
+  \subsection{Merge Sort and Counting Inversions}
 
-  \subsection{Strassen Algorithm}
+    \begin{algo}[Merge Sort]
+      Merge sort is the first instance. 
+      \begin{algorithm}[H]
+        \caption{Merge Sort}
+        \label{alg:merge_sort}
+        \begin{algorithmic}
+          \Require{Array \texttt{nums}}
+          \Function{MergeSort}{\texttt{nums}}
+            \State \texttt{n = len(nums)}
+
+            \If{\texttt{n < 2}} \Comment{base case}
+              \State \Return{nums}
+            \EndIf
+            \State \texttt{mid = n // 2} 
+            \State \texttt{left\_sorted = MergeSort(nums[:mid])} \Comment{Divide into left half}
+            \State \texttt{right\_sorted = MergeSort(nums[mid:])} \Comment{Divide into right half}
+
+            \State \texttt{res = [0] * n} 
+            \State \texttt{i = j = k = 0} 
+            \While{\texttt{k < n}} \Comment{Merge the sorted subarrays}
+              \If{\texttt{j == len(right\_sorted) or left\_sorted[i] < right\_sorted[j]}}
+                \State \texttt{res[k] = left\_sorted[i]} \Comment{We should add the next element from left array}
+                \State \texttt{i += 1} \Comment{if it is smaller or if right array is filled already}
+              \Else 
+                \State \texttt{res[k] = right\_sorted[j]}
+                \State \texttt{j += 1}
+              \EndIf 
+              \State \texttt{k += 1}
+            \EndWhile
+
+            \State \Return{\texttt{res}}
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+      The recurrence relation for the runtime is as follows. Let $T(n)$ represent the worst-case runtime of \texttt{MergeSort} of size $n$. Then, we have 
+      \begin{equation}
+        T(n) = 2 \cdot T(n/2) + O(n)
+      \end{equation}
+      Consisting of two recursive calls with input size $n/2$ and then the merge step which is $O(n)$. But if we take a look at this, we have 
+      \begin{align}
+        T(n) & = 2 \cdot T(n/2) + O(n) \\
+             & = 2 \cdot \big( 2 \cdot T(n/4) + O(n/2)) + O(n) \\
+             & = 4 \cdot T(n/4) + O(n) + O(n) 
+      \end{align}
+      and the number of times $O(n)$ is added up is $\log{n}$, meaning that this recurrence relation turns into $O(n \log{n})$. 
+    \end{algo}
+
+    \begin{definition}[Inversions]
+      Given two lists of ranked items, say 
+      \begin{align}
+        \text{Alice}: & a > b > c > d > e \\
+        \text{Bob}: & b > d > a > e > c
+      \end{align}
+      We want to measure the dissimilarity between two rankings by counting the number of \textit{inversions}, which are pairs of items for which open persons orders the opposite of the other (e.g. $a, b$ for above).\footnote{Also known as Kendall-Tau distance in statistics.} So how many inversions are there? We can do this in $\Theta(n^2)$ by explicitly looking at all $n$ pairs. Without loss of generality, we can assume that the first list is sorted simply by bijectively relabeling these elements for both lists. Therefore, the set of inversions is defined to be 
+      \begin{equation}
+        \{(i, j) \text{ s.t. } i < j \text{ and } \texttt{A[i] > A[j]}\}
+      \end{equation}
+    \end{definition}
+
+    \begin{algo}[Counting Inversions]
+      The idea is very similar. By assuming that the first list is sorted, we can simply count the number of inversions in a single list $A$.  
+      \begin{lstlisting}
+        A = 5 6 1 3 4 8 2 7
+      \end{lstlisting}
+      \begin{enumerate}
+        \item In the divide step, we count all inversions in $A_l, A_r$, which are the left and right sides of $A$, \textit{and} we sort $A_l, A_r$ to add additional structure.  
+          \begin{lstlisting}
+            1 3 5 6 | 2 4 7 8
+          \end{lstlisting}
+        \item In the conquer step, we merge them linearly but every time we add an element from $A_r$ into our result, this reveals that there are $k$ additional inversions added where $k$ is the number of elements left in $A_l$ to add.  
+      \end{enumerate}
+      \begin{algorithm}[H]
+        \caption{Counting Inversions}
+        \label{alg:inversions}
+        \begin{algorithmic}
+          \Require{Array \texttt{nums}}
+          \Function{Inversions}{\texttt{nums}}
+            \State \texttt{n = len(nums)}
+
+            \If{\texttt{n < 2}} \Comment{base case}
+              \State \Return{nums}
+            \EndIf
+            \State \texttt{mid = n // 2} 
+            \State \texttt{left\_sorted, left\_invs = Inversions(nums[:mid])} \Comment{Divide into left half}
+            \State \texttt{right\_sorted, right\_invs = Inversions(nums[mid:])} \Comment{Divide into right half}
+
+            \State \texttt{res = [0] * n} 
+            \State \texttt{i = j = k = 0} \Comment{left, right, and combined index}
+            \State \texttt{inv = 0} \Comment{number of inversions}
+            \While{\texttt{k < n}} \Comment{Merge the sorted subarrays}
+              \If{\texttt{j == len(right\_sorted) or left\_sorted[i] < right\_sorted[j]}}
+                \State \texttt{res[k] = left\_sorted[i]} \Comment{We should add the next element from left array}
+                \State \texttt{invs += len(left\_sorted - i)} \Comment{Increment inversions by \# of elems in left array}
+                \State \texttt{i += 1} \Comment{if it is smaller or if right array is filled already}
+              \Else 
+                \State \texttt{res[k] = right\_sorted[j]}
+                \State \texttt{j += 1}
+              \EndIf 
+              \State \texttt{k += 1}
+            \EndWhile
+
+            \State \Return{\texttt{res, inv + left\_invs + right\_invs}}
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+      The recursion relation is still 
+      \begin{equation}
+        T(n) = 2 \cdot T(n/2) + O(1) + O(n) \implies O(n \log{n})
+      \end{equation}
+    \end{algo}
+
+  \subsection{Multiplication and Matrix Multiplication} 
+
+    \subsubsection{Karatsuba Algorithm}
+
+
+    \subsubsection{Strassen Algorithm}
+
 
   \subsection{Fast Fourier Transform}
 
@@ -1627,21 +1750,6 @@
 
       If you define the distance between two clusters to be the distance between the centroids (mean point), then this is called \textit{average linkage} (min avg distance). If we define the cluster distance as the maximum distance between two points, then it is called \textit{complete linkage} (min max distance). Kruskal's algorithm only worked for the single linkage case but may not work for these additional definitions. This is why there is usually a whole suite of clustering algorithms for a particular problem and we just find out which one fits the data the best. Furthermore, we have done \textit{bottom-up clustering}, where we took individual points to make clusters. In \textit{top-down clustering}, we take the whole set and cut it up into clusters.  
 
-      \begin{algo}[Traveling Salesman Problem (TSP)]
-        It's not like finding a tree, but we want to find a path that visits everything. 
-        
-        \begin{algorithm}[H]
-          \caption{}
-          \label{alg:tsp}
-          \begin{algorithmic}[1]
-            \Require{}
-            \State 
-            \Function{tsp}{x}
-            \EndFunction
-          \end{algorithmic}
-        \end{algorithm}
-      \end{algo}
-
 \section{Greedy Algorithms}
 
   Greedy algorithms are easy to implement and easy to conceptualize, but they are often not correct. So the only interest in them is proving if they are correct. We have done greedy algorithms like Dijkstra and finding MSTs. Every step, greedy algorithms make an irrevocable decision of what to do and cannot undo it. That is, we cannot backtrack. In fact, some algorithms like Kruskal's algorithm for MSTs is precisely a greedy algorithm. 
@@ -1655,20 +1763,20 @@
     It turns out that if we sort based on finish time, this will work. So why is this correct? Assume that the first $k$ decisions of this greedy algorithm are correct. Then, to find the next interval that we will include, the optimal algorithm must choose one that does not overlap with what we have. This is good since we do the same. The second part is that the next added interval must have the smallest end time $t$ from all viable left intervals. Assume that it was not and that the optimal next interval had end time $s > t$. Then, the next interval must start after $s$, but this also starts after $t$, so we are sacrificing unnecessary extra space. An optimal solution with the endpoint at $s$ can also be constructed with the same interval ending at $t$ without anything to lose. 
 
     \begin{algorithm}[H]
+      \caption{Find Max Classes to Fit into 1 Room}
       \label{alg:class1}
       \begin{algorithmic}
-        \Require{classes $C$, a List[tuple(int, int)]}
-        \State 
-        \Function{Func}{C}
-          \State res $\gets$ []
+        \Require{classes $C = \{(s_i, e_i)\}_i$ of type \texttt{List[tuple(int, int)]}}
+        \Function{Schedule}{\texttt{C}}
+          \State $\texttt{res} \gets \texttt{[]}$ 
           \State sort $C$ by increasing end time
           \For{$s, e \in C$} 
-            \If{$s <$ res[-1][-1]} \Comment{If start overlaps with previous end time}
+            \If{$s < \texttt{res[-1][-1]}$} \Comment{If start overlaps with previous end time}
               \State continue
             \EndIf
-            \State add $(s, e)$ to res
+            \State add $(s, e)$ to res \Comment{Otherwise add class to final schedule}
           \EndFor
-          \State \Return{res}
+          \State \Return{\texttt{res}}
         \EndFunction
       \end{algorithmic}
     \end{algorithm}
@@ -1687,12 +1795,29 @@
     This algorithm is correct since by definition, $\Delta$ is the lower bound for the number of classrooms needed and the greedy algorithm attains it. The greedy algorithm reports $\Delta$ since if it reported $\Delta +1$ classroom, then at some time $t$ it opened the $\Delta+1$th classroom. But this is impossible since this must mean that there are $\Delta + 1$ classrooms concurrently in use, contradicting our assumption that $\Delta$ is the optimal solution. 
 
     \begin{algorithm}[H]
-      \caption{}
-      \label{alg:}
+      \caption{Minimizing Number of Rooms With $n$ Classes (Leetcode 253, Meeting Rooms II)}
+      \label{alg:class_schedule}
       \begin{algorithmic}
-        \Require{}
-        \State 
-        \Function{Func}{x}
+        \Require{classes $C = \{(s_i, e_i)\}_i$ of type \texttt{List[tuple(int, int)]}}
+        \Function{MeetingRooms}{$C$} 
+          \State $\texttt{start} \gets$ all start times sorted increasing 
+          \State $\texttt{end} \gets$ all end times sorted increasing 
+          \State $\texttt{res} \gets 0$ \Comment{Our max classes count} 
+          \State $\texttt{count} \gets 0$ \Comment{Our curr. classes count} 
+          \State $\texttt{s}, \texttt{e} \gets 0$ \Comment{pointers for \texttt{start}, \texttt{end}} 
+
+          \While{\texttt{s < len(start)}} \Comment{Don't need to check for \texttt{end} since}
+            \If{\texttt{start[s] == \texttt{end[e]}}} \Comment{\texttt{start} will always finish faster.}
+              \State \texttt{s += 1, e += 1} \Comment{One started and one ended, so don't change}
+            \ElsIf{\texttt{start[s] > \texttt{end[e]}}} 
+              \State \texttt{e += 1, count -= 1} \Comment{One ended, so decrement \texttt{count}}
+            \ElsIf{\texttt{start[s] < \texttt{end[e]}}}
+              \State \texttt{s += 1, count += 1} \Comment{One started, so increment \texttt{count}}
+              \State \texttt{res = max(res, count)} \Comment{Update res if we got past it}
+            \EndIf
+          \EndWhile
+
+          \State \Return{res}
         \EndFunction
       \end{algorithmic}
     \end{algorithm}
@@ -1789,7 +1914,6 @@
     A lot of geometric algorithms is output sensitive. 
   \end{example}
 
-
   \begin{example}[Convex Hull with Graham Scan]
     In fact, we can take a different approach and get $O(n \log{n})$ time. 
     \begin{enumerate}
@@ -1809,6 +1933,7 @@
       \label{fig:graham}
     \end{figure}
     \begin{algorithm}[H]
+      \caption{Finding Convex Hull with Graham Scan}
       \label{alg:graham}
       \begin{algorithmic}
         \Require{$p_1, \ldots, p_n \in \mathbb{R}^2$}
@@ -1829,5 +1954,35 @@
   \end{example}
 
 \section{Linear Programming}
+
+\section{Streaming Algorithms}
+
+  \begin{algo}[Boyer-Moore Majority Vote Algorithm]
+    
+    \begin{algorithm}[H]
+      \caption{}
+      \label{alg:majority_vote}
+      \begin{algorithmic}
+        \Require{}
+        \State 
+        \Function{Func}{x}
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
+
+  \begin{algo}[Track Median From Data Stream]
+    
+    \begin{algorithm}[H]
+      \caption{}
+      \label{alg:median_track}
+      \begin{algorithmic}
+        \Require{}
+        \State 
+        \Function{Func}{x}
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
 
 \end{document}
