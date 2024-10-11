@@ -713,59 +713,152 @@ A course on intermediate Python that developers should be aware of. These aren't
 
   Slicing can be done past last index. Slicing creates a copy of the sublist. 
 
-\section{Hash Maps}
-
-  Open addressing. Different data structures. Really take a look at the different data structures available in the collections module. They have defaultdicts and Counters which are good for leetcode. Dicts from Python 3.7 preserve insertion order. 
-
-  It should be clear that anything that is mutable cannot be hashed, so you cannot have a set of lists, etc. A convenient way to bypass this is to convert into tuples. We should also be familiar with some of the dunder methods. 
-
-  \begin{definition}[Get]
-    There are two ways to access from a dictionary. 
-    \begin{enumerate}
-      \item \texttt{dict[key]} retrieves the value and throws a \texttt{KeyNotFoundError} if a key does not exist. 
-      \item \texttt{dict.get(key, def)} retrieves the value and will return \texttt{def} if the key does not exist. 
-    \end{enumerate}
-  \end{definition}
-
-  A nice trick is to initialize a \texttt{collections.defaultdict}, which allow you to use \texttt{dict[key]} and automatically initializes the value to some default value if the key does not exist. 
-
-  \begin{example}
-    Again, when we iterate this with an enhanced for loop, we are just calling \texttt{next} on the keys or values that may be a copy by value or a copy by reference. 
-
-    \noindent\begin{minipage}{.5\textwidth}
-    \begin{lstlisting}[]{Code}
-      # y is copied by value so incrementing 
-      # it reassigns it
-      >>> x = {"a" : 1, "b" : 2, "c" : 3}
-      >>> for k in x: 
-      ...     y = x[k]
-      ...     y += 1
-      ... 
-      >>> x
-      {'a': 1, 'b': 2, 'c': 3} 
-    \end{lstlisting}
-    \end{minipage}
-    \hfill
-    \begin{minipage}{.49\textwidth}
-    \begin{lstlisting}[]{Output}
-      # v is passed by value, so incrementing 
-      # it reassigns it 
-      >>> x = {"a" : 1, "b" : 2, "c" : 3}
-      >>> for v in x.values(): 
-      ...     v += 1
-      ... 
-      >>> x
-      {'a': 1, 'b': 2, 'c': 3} 
-      .
-    \end{lstlisting}
-    \end{minipage}
-  \end{example}
-
-\section{Data Structures in \texttt{Collections}}
-
-  \subsection{Queues} 
+  \subsection{Queues}
 
     A \texttt{collections.deque} (double ended queue) is implemented as a doubly linked list. 
+
+\section{Hash Maps}
+
+    In general, a hashmap can be implemented in the following ways. We take an object and hash its \textit{value}, giving us another memory address. This intuitively implies that this object is immutable, since changing the object will lead to a different memory address. A convenient way to bypass this is to convert lists into tuples.\footnote{However, there are languages where you can hash mutable objects. Again, this is an implementation detail.} The hash function may map two different values to the same memory address, so we can deal with collisions in different ways.\footnote{Good visuals here: \href{https://www.geeksforgeeks.org/open-addressing-collision-handling-technique-in-hashing/}{https://www.geeksforgeeks.org/open-addressing-collision-handling-technique-in-hashing/}.}
+
+    \begin{enumerate}
+      \item \textit{Linked List}. The hashed address actually is a linked list, and every time we add to it we append to the linked list. 
+      \item \textit{Probing}. If we have two objects $x_1$ and $x_2$ which both map to the same $y = h(x_1) = h(x_2)$, then we can predefine another function $f$ that will act on $h(x_2)$ when it sees that $h(x_1)$ is already occupied, effectively mapping it to $f(h(x_2))$. Two common ones is $f(x) = x + 1$, which maps it to the next address, called \textit{linear probing}, or we can scale it in different ways, e.g. \textit{quadratic probing}. 
+      \item \textit{Double Hashing, Open Addressing}. We can hash the hash differently, effectively doing $(h_1(x) + i \cdot h_2(x)) \mathrm{mod} S$, and keep incrementing $i$ from $0$ to whenever it sees a new spot. 
+    \end{enumerate}
+
+    \begin{definition}[Python Dictionaries]
+      Python does indeed implement dictionaries as hash maps/tables and uses open addressing to handle collisions, meaning that it can only store one and only one entry. Python's hash table is also a contiguous block of memory, so you can actually do $O(1)$ lookup by index as well, though the indices aren't stored. 
+
+      \begin{figure}[H]
+        \centering 
+        \begin{lstlisting}
+          -+-----------------+
+          0| <hash|key|value>|
+          -+-----------------+
+          1|      ...        |
+          -+-----------------+
+          .|      ...        |
+          -+-----------------+
+          i|      ...        |
+          -+-----------------+
+          .|      ...        |
+          -+-----------------+
+          n|      ...        |
+          -+-----------------+ 
+        \end{lstlisting}
+        \caption{Logical model of Python Hash table. It consists of the keys, the hash of the keys, and the values that are stored in the hashed memory address. The indices are shown on the left, but they are not stored along with the table. }
+        \label{fig:hash_table}
+      \end{figure}
+
+      When a new dict is initialized, it starts with 8 slots. 
+      \begin{enumerate}
+        \item When adding entries to the table, we take the key $k$, hash it to $h$, and we do an additional mask operation \texttt{i = mask(key) \& mask}, where \texttt{mask = PyDictMINSIZE - 1} (in CPython). 
+        \item If the slot is empty, the entry is added to the slot. If the slot is occupied, CPython (and PyPy) compares the hash and the key (with \texttt{==}, not \texttt{is}) of the entry in the slot against what we are inserting. If \textit{both} match, it thinks the entry already exists and uses open addressing to move onto the next entry. 
+        \item The dict will be resized if it is 2/3 full to avoid slowing down lookups. 
+      \end{enumerate}
+    \end{definition}
+
+    It is well known that the keys and hash tables are not guaranteed to be in sorted order, and this is true in general. However, in Python it is different. 
+
+    \begin{theorem}
+      From Python 3.7+ (for all implementations) and CPython 3.6+, dicts preserve insertion order, so calling \texttt{dict.keys()} will return keys in insertion order
+    \end{theorem}
+
+    \begin{example}[Back to References]
+      As a review, when we iterate over a dict with an enhanced for loop, we are just calling \texttt{next} on the keys or values that may be a copy by value or a copy by reference. 
+
+      \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        # y is copied by value so incrementing 
+        # it rebinds it
+        >>> x = {"a" : 1, "b" : 2, "c" : 3}
+        >>> for k in x: 
+        ...     y = x[k]
+        ...     y += 1
+        ... 
+        >>> x
+        {'a': 1, 'b': 2, 'c': 3} 
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        # v is passed by value, so incrementing 
+        # it rebinds it
+        >>> x = {"a" : 1, "b" : 2, "c" : 3}
+        >>> for v in x.values(): 
+        ...     v += 1
+        ... 
+        >>> x
+        {'a': 1, 'b': 2, 'c': 3} 
+        .
+      \end{lstlisting}
+      \end{minipage}
+    \end{example}
+
+  \subsection{Dict Class}
+
+    We should also be familiar with some of the dunder methods. 
+
+    \begin{definition}[Get]
+      There are two ways to access from a dictionary. 
+      \begin{enumerate}
+        \item \texttt{dict[key]} retrieves the value and throws a \texttt{KeyNotFoundError} if a key does not exist. 
+        \item \texttt{dict.get(key, def)} retrieves the value and will return \texttt{def} if the key does not exist. 
+      \end{enumerate}
+    \end{definition}
+    
+    \begin{definition}[Items]
+      Given a dictionary \texttt{dict}, we can run \texttt{dict.items()} to get a \textit{view} of the dictionary. Since this is a view, it does not copy the entire dictionary, and is presented as a list of tuples. However, this is not an iterator either. T 
+    \end{definition}
+
+  \subsection{Dict-Like Data Structures}
+  
+    Let's look through the different dict-like data structures. 
+
+    \begin{definition}[Defaultdict]
+      A nice trick is to initialize a \texttt{collections.defaultdict}, which is a subclass of \texttt{Dict} that allows you to use \texttt{dict[key]} and automatically initializes the value to some default value if the key does not exist. It is initialized in the following ways. 
+      \begin{enumerate}
+        \item \texttt{defaultdict(int)} 
+        \item \texttt{defaultdict(dict: Dict)} 
+        \item \texttt{defaultdict(log: Function, dict)} runs the function \texttt{log} every time a new key is added. 
+      \end{enumerate}
+    \end{definition}
+
+    \begin{definition}[Counter]
+      \texttt{collections.Counter} is good for finding the count of elements and does not require you to initialize the count to $0$ before incrementing it. 
+
+      \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        data = [1, 1, 2, 3] 
+        counter = {} 
+        for d in data: 
+            if d not in counter: 
+                counter[d] = 0 
+            counter[d] += 1
+        {1: 2, 2: 1, 3: 1}
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        from collections import Counter
+        data = [1, 1, 2, 3] 
+        counter = Counter() 
+        for d in data: 
+            counter[d] += 1 
+        Counter({1: 2, 2: 1, 3: 1})
+        .
+      \end{lstlisting}
+      \end{minipage}
+    \end{definition}
+
+  \subsection{Extending Dictionaries}
+
+\section{Additional Built-In Data Structures}
+
+  \subsection{Heaps} 
 
 \section{Iterators and Loops}
 
@@ -963,6 +1056,296 @@ A course on intermediate Python that developers should be aware of. These aren't
 \section{Positional and Keyword Arguments} 
 
 \section{Decorators}
+
+  Note that in Python, functions are first-class citizens, which means three things: 
+  \begin{enumerate}
+    \item They can be treated as objects. 
+      \begin{lstlisting}
+        def shout(text): 
+          return text.upper() 
+
+        print(shout('Hello'))  # HELLO 
+        yell = shout 
+        print(yell('Hello'))   # HELLO
+      \end{lstlisting}
+    \item They can be passed into another function as an argument. 
+      \begin{lstlisting}
+        def shout(text): 
+          return text.upper() 
+
+        def whisper(text): 
+          return text.lower() 
+
+        def greet(func): 
+          greeting = func("Hi, How are You.")
+          print (greeting) 
+
+        greet(shout)    # HI, HOW ARE YOU.
+        greet(whisper)  # hi, how are you. 
+      \end{lstlisting}
+    \item They can be returned by another function. 
+      \begin{lstlisting}
+        def create_adder(x): 
+          def adder(y): 
+            return x+y 
+
+          return adder 
+
+        add_15 = create_adder(15) 
+        print(add_15(10)) # 25 
+      \end{lstlisting}
+  \end{enumerate}
+
+  Say that you have a function \texttt{f} that does something. I want to modify the behavior so that I do something either before of after \texttt{f} is called automatically, but I don't want to manually add code into the function body. What I can do is simply define another function \texttt{wrapper} and call \texttt{f} inside it. 
+  \begin{lstlisting}
+    def f(): 
+        print("Hello world") 
+
+    def wrapper(): 
+        print("started") 
+        f()
+        print("ended") 
+
+    wrapper() # "started\n Hello world\n ended"
+  \end{lstlisting}
+
+  Great, we can do this for one function. But what if there were thousands of functions I want to do this for? Rather than creating a wrapper function for each function, I can make a third function called \texttt{decorator} that takes in the original function \texttt{f} and outputs the \texttt{wrapper} function. 
+
+  \begin{lstlisting}
+    def decorator(f): 
+      def wrapper(): 
+        print("started") 
+        f()
+        print("ended") 
+
+      return wrapper
+
+    def f(): 
+      print("Hello world") 
+
+    wrapper = decorator(f)
+    wrapper() # "started\n Hello world\n ended"
+
+    decorator(f) # <function decorator.<locals>.wrapper at 0x100b38e00>
+    decorator(f)() # "started\n Hello world\n ended"
+  \end{lstlisting}
+
+  This way, I can modify any function I want with this behavior, and is known as \textit{function aliasing}. This is essentially what a decorator is. 
+
+  \begin{definition}[Decorators]
+    \textbf{Decorators} are used to modify the behavior of your functions without changing its actual code, used with the \texttt{\@} operator. The two are equivalent. 
+
+    \noindent\begin{minipage}{.5\textwidth}
+    \begin{lstlisting}[]{Code}
+      def decorator(f): 
+        def wrapper(): 
+          print("started") 
+          f()
+          print("ended") 
+
+        return wrapper
+
+      def f(): 
+        print("Hello world") 
+
+      f = decorator(f)
+      f() # "started\n Hello world\n ended"
+    \end{lstlisting}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{.49\textwidth}
+    \begin{lstlisting}[]{Output}
+      def decorator(f): 
+        def wrapper(): 
+          print("started") 
+          f()
+          print("ended") 
+
+        return wrapper
+
+      @decorator
+      def f(): 
+        print("Hello world") 
+
+      f() # "started\n Hello world\n ended"
+    \end{lstlisting}
+    \end{minipage}
+
+    This means that every time I call the function \texttt{f}, it really calls the function \texttt{decorator} with \texttt{f} passed into it as an argument. With functions that have arguments, the wrapper function should also have the same arguments. Generically, we can just use the \texttt{\*args} and \texttt{\*\*kwargs} arguments to unpack these variables so that \texttt{wrapper}'s arguments always matches those of \texttt{f}'s arguments, but we can modify these arguments for extra functionality as well. 
+
+    \noindent\begin{minipage}{.5\textwidth}
+    \begin{lstlisting}[]{Code}
+      # generic args and kwargs
+      def decorator(f): 
+        def wrapper(*args, **kwargs): 
+          print("started") 
+          f(*args, **kwargs)
+          print("ended") 
+
+        return wrapper
+
+      @decorator
+      def f(string): 
+        print(string) 
+
+      f("Hello World")
+      # started
+      # Hello World
+      # ended
+    \end{lstlisting}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{.49\textwidth}
+    \begin{lstlisting}[]{Output}
+      # custom arguments 
+      def decorator(f): 
+        def wrapper(string, start_msg): 
+          print(start_msg) 
+          f(string)
+          print("ended") 
+
+        return wrapper
+
+      @decorator
+      def f(string): 
+        print(string) 
+
+      f("Hello World", "time to go")
+      # time to go
+      # Hello World
+      # ended
+    \end{lstlisting}
+    \end{minipage}
+    If we want to get the return values of this function, we can store the return value in temporary variable \texttt{tmp}, run whatever code after the function \texttt{f}, and finally return \texttt{tmp} in \texttt{wrapper}. 
+
+    \begin{lstlisting}
+      def decorator(f): 
+          def wrapper(*args, **kwargs): 
+              print("started") 
+              tmp = f(*args, **kwargs)
+              print("ended") 
+              return tmp
+
+          return wrapper
+
+      @decorator
+      def f(string): 
+          return string + "!"
+
+      print(f("Hello World"))
+      # started
+      # ended
+      # Hello World!
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{example}[Measuring Total and CPU Runtime]
+    If we want to find the runtime of a function, we can do this easily. 
+
+    \begin{lstlisting}
+      import time 
+
+      def runtime(f): 
+        def wrapper(*args, **kwargs): 
+          start = time.time() 
+          product = f(*args, **kwargs) 
+          end = time.time() 
+          print(f"Took {end - start} s") 
+          return product
+        return wrapper
+
+      @runtime
+      def dot(list1, list2): 
+        res = 0 
+        for x, y in zip(list1, list2): 
+          res += x * y 
+        return res
+
+      x = [1, 2, 3]
+      y = [2, 2, 3]
+      result = dot(x, y)  # Took 3.814697265625e-06 s 
+      print(result)       # 15 
+    \end{lstlisting}
+
+    However, this is not accurate as the OS will switch between different processes. Therefore, the process time is more accurate. 
+
+    \begin{lstlisting}
+      import numpy as np
+      import time
+
+      def cpu_usage(f):
+        def wrapper(*args, **kwargs):
+          start_cpu = time.process_time()
+          result = f(*args, **kwargs)
+          end_cpu = time.process_time()
+          print(f"CPU time: {end_cpu - start_cpu:.6f} seconds")
+          return result
+        return wrapper
+
+      @cpu_usage
+      def matrix_mult(a, b): 
+        return np.matmul(a, b)
+
+      x = np.random.randn(2000, 2000)
+
+      matrix_mult(x, x) # CPU time: 0.772730 seconds
+    \end{lstlisting}
+  \end{example}
+
+  \begin{example}[Memory Usage]
+    We can measure memory usage with the \texttt{psutil} library. 
+    \begin{lstlisting}
+      import numpy as np
+      import psutil, os 
+
+      def memory_usage(f):
+        def wrapper(*args, **kwargs):
+          process = psutil.Process(os.getpid())
+          mem_before = process.memory_info().rss
+          result = f(*args, **kwargs)
+          mem_after = process.memory_info().rss
+          print(f"Memory usage: {(mem_after - mem_before) / 1024 / 1024:.2f} MB")
+          return result
+        return wrapper
+
+      @memory_usage 
+      def matrix_mult(a, b): 
+        return np.matmul(a, b)
+
+      x = np.random.randn(2000, 2000)
+      matrix_mult(x, x) # Memory usage: 46.81 MB
+    \end{lstlisting}
+  \end{example}
+
+  \begin{example}[Measuring Function Call Count]
+    To measure how many times a function has been called, we can use the decorator. 
+    \begin{lstlisting}
+      def call_counter(f):
+          def wrapper(*args, **kwargs):
+              wrapper.count += 1
+              print(f"Function '{f.__name__}' called {wrapper.count} times")
+              return f(*args, **kwargs)
+          wrapper.count = 0
+          return wrapper
+
+      @call_counter
+      def factorial(x): 
+          if x == 1: 
+              return 1 
+          return x * factorial(x - 1)
+
+      result = factorial(7)
+      # Function 'factorial' called 1 times
+      # Function 'factorial' called 2 times
+      # Function 'factorial' called 3 times
+      # Function 'factorial' called 4 times
+      # Function 'factorial' called 5 times
+      # Function 'factorial' called 6 times
+      # Function 'factorial' called 7 times
+      print(result)       
+      # 5040
+    \end{lstlisting}
+  \end{example}
 
   functools.wraps. 
 
