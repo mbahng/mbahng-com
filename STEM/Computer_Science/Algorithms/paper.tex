@@ -345,7 +345,31 @@
 
   \subsection{Recursive Algorithms and Recurrence Relation}
 
-    I assume that the reader is familiar with recursive algorithms. Now to evaluate the runtime of a recursive algorithm, one must implicitly solve for the runtime of its recursive calls. 
+    I assume that the reader is familiar with recursive algorithms. Now to evaluate the runtime of a recursive algorithm, one must implicitly solve for the runtime of its recursive calls. An important theorem for divide-and-conquer algorithms is 
+
+    \begin{theorem}[Master Theorem]
+      Given a recurrence relation of form 
+      \begin{equation}
+        T(N) = a T(N/b) + O(N^c)
+      \end{equation}
+      then the following holds 
+      \begin{align}
+        a > b^c & \implies T(N) = O(N^{\log_b a}) \\
+        a = b^c & \implies T(N) = O(N^c \log{N}) \\
+        a < b^c & \implies T(N) = O(N^c) 
+      \end{align}
+    \end{theorem}
+    \begin{proof}
+      To intuit this, see that if $a > b^c$, then there arises a lot of subproblems, so our complexity is greater. If $a < b^c$, then we have few subproblems and can get a better runtime. If $a = b^c$, we get somewhere in between. To actually solve this, we can just unravel the recurrence to get the infinite series 
+      \begin{align}
+        T(N) & = a T(N/b) + O(N^c) \\
+             & = a^2 T(N/b^2) +  N^c \bigg( \frac{a}{b^c} + 1 \bigg) \\
+             & =  N^c \bigg( 1 + \frac{a}{b^c} + \frac{a^2}{b^{2c}} + \ldots \bigg)
+      \end{align}
+      So, if $a < b^c$, then even as $N \rightarrow \infty$, the sum is finite, so it is of order $O(N^c)$. If $a = b^c$, then the series is just $1 + \ldots + 1$, which scales on the order of $O(\log_2 {N})$. If $> 1$, then we have to calculate the last term, which contributes to our runtime and overpowers $c$.  
+      
+      Therefore, if $a$ is large, our algorithm will have an exponential number of subproblems and will be bottlenecked by the. 
+    \end{proof}
 
 \section{Brute Force Algorithms} 
 
@@ -642,15 +666,148 @@
       \end{algorithm}
     \end{algo}
 
-  \subsection{Multiplication and Matrix Multiplication} 
+  \subsection{Multiplication}
 
     \subsubsection{Karatsuba Algorithm}
 
 
     \subsubsection{Strassen Algorithm}
 
+      We can solve matrix multiplication of two $N \times N$ matrices in a slightly more clever way than $O(N^3)$. Note that we can take the $2 \times 2$ block form of matrices $A, B$ and multiply them to get $C = AB$, where 
+      \begin{align}
+        C_{11} & = A_{11} B_{11} \cdot A_{12} B_{21} \\ 
+        C_{12} & = A_{11} B_{12} \cdot A_{12} B_{22} \\ 
+        C_{21} & = A_{21} B_{11} \cdot A_{22} B_{21} \\ 
+        C_{22} & = A_{21} B_{12} \cdot A_{22} B_{22} 
+      \end{align}
 
-  \subsection{Fast Fourier Transform}
+      This requires us to compute a total of $8$ $N/2 \times N/2$ multiplications and 4 additions, each of which is $O(N^2)$. Therefore, our recurrence relation is 
+      \begin{equation}
+        T(N) = 8 T(N/2) + O(N^2)
+      \end{equation}
+
+      Using the master theorem, we find that $a = 8 > 2^2 = b^c$, so our runtime is $O(N^{\log_{b} a}) = O(N^3)$, which brings us right back to where we started. The problem with this is that $a = 8$, which is large. If we could get $a = 7$, then this would be an improvement. We want to reduce this number of multiplications, and we can do this using the Strassen algorithm, which uses the following values.  
+      \begin{align*}
+        P_1 &= (a_{11} + a_{22}) (b_{11} + b_{22}) \\
+        P_2 &= (a_{21} + a_{22}) b_{11} \\
+        P_3 &= a_{11} (b_{12} - b_{22}) \\
+        P_4 &= a_{22} (b_{21} - b_{11} \\
+        P_5 &= (a_{11} + a_{12}) b_{22} \\
+        P_6 &= (a_{21} - a_{11}) (b_{11} + b_{12}) \\
+        P_7 &= (a_{12} - a_{22}) (b_{21} + b_{22}) 
+      \end{align*}
+      Then, we claim that we the entries of $C$ are 
+      \begin{align*}
+          c_{11} &= P_1 + P_4 - P_5 + P_7 \\
+          c_{12} &= P_3 + P_5 \\
+          c_{21} &= P_2 + P_4 \\
+          c_{22} &= P_1 + P_3 - P_2 + P_6
+      \end{align*}
+      So we have reduced 8, 4 mult/add to 7, 18 mult/add. Addition is cheap and the number of additions is bounded, so now we have decreased $a$ to $7$.\footnote{We can reduce it even further, down to $2.37$. Whether $O(N^2)$ is possible is an open problem. } We can then solve the new recurrence relation 
+      \begin{equation}
+        T(N) = 7 T(N/2) + O(N^2) \implies O(N^{\log_2 7}) \approx O(N^{2.81})
+      \end{equation}
+
+  \subsection{Polynomial Multiplication with Fast Fourier Transform}
+
+    Given as inputs $2$ degree $N$ polynomials, 
+    \begin{align}
+      A(x) & = a_0 + a_1x + a_2x^2 + \ldots + a_{n-1}x^{n-1} \\
+      B(x) & = b_0 + b_1x + b_2x^2 + \ldots + b_{n-1}x^{n-1} 
+    \end{align}
+    we want to multiply them to $C(x) = A (x) B(x)$ defined 
+    \begin{equation}
+      C(x) = c_0 + c_1x + \cdots + c_{2n-2}x^{2n-2} 
+    \end{equation}
+    Clearly, we must multiply every coefficient in $A$ with $B$, which takes $O(N^2)$ time. It is also called the convolution operation. 
+    \begin{align*}
+      &\text{Convolution of } (a_0, a_1, \ldots, a_{n-1}) \text{ and } (b_0, b_1, \ldots, b_{n-1}) \\[1em]
+      &c_0 = a_0 b_0 \\
+      &c_1 = a_0 b_1 + a_1 b_0 \\
+      &c_2 = a_0 b_2 + a_1 b_1 + a_2 b_0 \\
+      &c_3 = a_0 b_3 + a_1 b_2 + a_2 b_1 + a_3 b_0 \\
+      &\vdots \\
+      &c_{2n-2} = a_{n-1} b_{n-1}
+    \end{align*}
+
+    We can actually compute this convolution of two vectors in $O(N \log{N})$ time using the FFT algorithm. Let's ease into this idea. 
+
+    \begin{lemma}[Evauating a Polynomial at x]
+      If we are given an $x$ and want to evaluate $A(x)$, we can just incrementally evaluate the terms up each degree in $O(N)$ time. 
+
+      \begin{algorithm}[H]
+        \caption{Evaluate polynomial $A(x)$ at $x=p$}
+        \begin{algorithmic}[1]
+        \State $S \gets a_0$
+        \State $R \gets x$
+        \For{$i = 1, 2, \ldots, n-1$}
+            \State $S \gets S + a_i \cdot R$
+            \State $R \gets R \cdot x$
+        \EndFor
+        \end{algorithmic}
+      \end{algorithm}
+    \end{lemma}
+
+    Great, we can make some progress, but what does this have to do with finding the actual polynomial? Recall that from the fundamental theorem of algebra, a set of $n+1$ points will uniquely determine a $n$th degree polynomial. This at first glance doesn't help, since evaluating all $n+1$ points is $O(n^2)$, and even if we did, this doesn't really tell us how to reconstruct the polynomial in some fast time (e.g. matrix inversion won't work). But note that if we have a 1st degree polynomial, then evaluating it at $\pm1$ will retrieve the whole polynomial back
+    \begin{equation}
+      f(x) = a_0 + a_1 x \implies \begin{cases} f(+1) & = a_0 + a_1 \\ f(-1) & = a_0 - a_1 \end{cases} \implies \begin{cases} a_0 & = \frac{1}{2} \big( f(+1) + f(-1) \big) \\ a_1 = \frac{1}{2} \big( f(+1) - f(-1) \big) \end{cases}
+    \end{equation}
+
+    We can think of this as sort of our base case. For $N$th degree polynomials, we can divide it into a even and odd powers part. 
+    \begin{align}
+      A(x) & = a_0 + a_1 x + a_2 x^2 + \ldots \\ 
+           & = (a_0 + a_2 x^2 + a_4 x^4) + x (a_1 + a_3 x^2 + a_5 x^4 + \ldots ) \\
+           & = A_{\mathrm{even}} (x^2) + x A_{\mathrm{odd}} (x^2) 
+    \end{align}
+    where each of the splits have degree $N/2$. Then we want to evaluate the even and odd parts. 
+
+    Let's jump ahead and focus on the problem of evaluating $A(x)$ of degree $N$ at the $N$th roots of unity. 
+
+    \begin{example}
+      For $N = 4$, we evaluate at $\pm 1, \pm i$. 
+      \begin{equation}
+        A(x) = (a_0 + a_2 x^2) + x (a_1 + a_3 x^2) 
+      \end{equation}
+      which gives us 
+      \begin{align}
+        A(+1) & = A_e (+1) + A_o (+1) \\ 
+        A(-1) & = A_e (+1) - A_o (1) \\ 
+        A(+i) & = A_e (-1) + i A_o (-1) \\ 
+        A(-i) & = A_e (-1) - i A_o (-1) 
+      \end{align}
+      Note that even though we had $\pm i$ evaluated on $A$, they were all squared in each split so evaluating the 4th of unity, which we denote $U(4)$, has been reduced to finding $U(2)$ for each of the left and right polynomials. 
+    \end{example}
+
+    Therefore, to evaluate $A$ of degree $N$ at $U(N)$, it suffices to evaluate $A_e, A_o$ each at $U(N/2)$, followed by combing them using addition and multiplication, which turns out to be $O(N)$. 
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/fft.png}
+      \caption{} 
+      \label{fig:fft}
+    \end{figure}
+
+    \begin{algo}[Evaluate Nth Degree Polynomial at Nth Roots of Unity]
+      
+      \begin{algorithm}[H]
+        \label{alg:unity}
+        \begin{algorithmic}
+          \Require{}
+          \State 
+          \Function{Func}{x}
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+    \end{algo}
+
+    Therefore, we have divided the problem of evaluating over $U(N)$ to be 
+    \begin{equation}
+      T(N) = 2 T(N/2) + O(N) \implies T(N) = O( N \log{N}) 
+    \end{equation}
+
+    So we have shown that in general, evaluating $N$ points of a polynomial takes $O(N^2)$ time, but if you're clever about what points to evaluate, you can get $O(N \log N)$. 
+
+    Now going back to the original problem, we can evaluate $A(u), B(u)$ for $u \in U(N)$, and then multiply them to get $C(u)$. Great. Now to reconstruct the polynomial using the roots of unity, it turns out that there is a method in $O(N \log{N})$ time as well. 
 
 \section{Hashing and Probabilistic Algorithms}
 
@@ -661,10 +818,465 @@
   \subsection{Primality Testing}
 
 \section{Dynamic Programming}
+  
+    Let's take a look at a motivating example. 
+
+    \begin{example}[Computing Fibonacci Numbers]
+      To compute the $N$th Fibonacci number, we can use a recursive method. 
+      \begin{algorithm}[H]
+        \caption{}
+        \label{alg:recfib}
+        \begin{algorithmic}
+          \Require{$N$}
+          \State 
+          \Function{RecFib}{$N$}
+            \If{$N = 0$} 
+              \State \Return{$0$}
+            \ElsIf{$N = 1$}
+              \State \Return{$1$}
+            \Else 
+              \State \Return{RecFib($N-1$) + RecFib($N-2$)}
+            \EndIf
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+    \end{example}
+
+    This is exponential, in fact $O(\varphi^N)$ where $\varphi$ is the golden ratio. The reason is that we are repeatedly computing the same subproblem (e.g. RecFib($N-2$ is computed twice)), leading to inefficiency. It would be great if we could store these intermediate values rather than recomputing them. This introduces us to the concept of memoization. 
+
+    \begin{definition}[Memoization]
+      \textbf{Memoization} refers to storing intermediate values for reuse rather than computing them again (e.g. in future recursive calls). 
+      
+      Therefore, the term \textbf{dynamic programming} just means \textit{to deliberately evaluate and memoize in the correct order}. 
+    \end{definition}
+
+
+    \begin{algo}[Redursive Memoized Fibonacci]
+      This leads us to a memoized version of computing Fibonacci Numbers, which is linear runtime. In fact, we can have constant space complexity since we don't need more than the last 2 previous Fibonacci numbers to compute the next one. 
+      
+      \begin{algorithm}[H]
+        \caption{Memoized Fibonacci}
+        \label{alg:memfib_rec}
+        \begin{algorithmic}
+          \Require{$N$}
+          \State Initialize memo array $F[0..N]$ with -1
+          \State $F[0] \gets 0$
+          \State $F[1] \gets 1$
+          \Function{MemFib}{$N$}
+            \If{$N < 0$}
+              \State \Return{$0$}
+            \ElsIf{$F[N] \neq -1$}
+              \State \Return{$F[N]$}
+            \Else
+              \State $F[N] \gets$ \Call{MemFib}{$N-1$} + \Call{MemFib}{$N-2$}
+              \State \Return{$F[N]$}
+            \EndIf
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+
+      The runtime is computed, by taking the number of distinct problems (i.e. the number of calls to MemFib with distinct inputs) multiplied by the time per subproblem (constant since lookup is constant and adding is constant). Note that this assumes that arbitrary arithmetic operations take constant time, but this is not true if we look at the bit complexity, which can scale quite fast as these numbers grow. 
+    \end{algo}
+
+    Note that this does not really explicitly show the order in which the memoized list is being filled. It is implicit but hard to see in the recursive calls. Therefore, it may help to write it iteratively. 
+
+
+    \begin{algo}[Iterative Memoized Fibonacci]
+      In here, we can explicitly see that the $n$th Fibonacci number is explicitly dependent on the $n-2$ and $n-1$. 
+      \begin{algorithm}[H]
+        \caption{Iterative Fibonacci}
+        \label{alg:iterfib}
+        \begin{algorithmic}
+          \Require{$N$}
+          \State Initialize array $F[0..N]$
+          \State $F[0] \gets 0$
+          \State $F[1] \gets 1$
+          \For{$i \gets 2$ to $N$}
+            \State $F[i] \gets F[i-1] + F[i-2]$
+          \EndFor
+          \State \Return{$F[N]$}
+        \end{algorithmic}
+      \end{algorithm}
+    \end{algo}
 
   \subsection{Longest Increasing Subsequence}
 
-  \subsection{Knapsack}
+    \begin{definition}[Longest Increasing Subsequence]
+      Given a sequence of numbers $A = \{a_1, a_2, ..., a_n\}$, a \textbf{longest increasing subsequence} is a subsequence $\{a_{i_1}, a_{i_2}, ..., a_{i_k}\}$ of $A$ such that:
+      \begin{enumerate}
+        \item $1 \leq i_1 < i_2 < ... < i_k \leq n$ (maintains original order)
+        \item $a_{i_1} < a_{i_2} < ... < a_{i_k}$ (strictly increasing)
+        \item $k$ is maximized (longest such subsequence)
+      \end{enumerate}
+    \end{definition}
+
+    \begin{example}
+      For the sequence $A = \{3, 10, 2, 1, 20, 4, 25\}$:
+      \begin{itemize}
+        \item $\{3, 10, 20, 25\}$ is an increasing subsequence of length 4
+        \item $\{2, 4, 25\}$ is an increasing subsequence of length 3
+        \item $\{3, 10, 20, 25\}$ is a longest increasing subsequence as no increasing subsequence of length 5 or greater exists
+      \end{itemize}
+    \end{example}
+
+    For the actual problem of calculating the length of the LIS, dynamic programming gives us an efficient approach. First, let's do a brute force algorithm. 
+
+    \begin{algo}[Recursive Brute Force LIS]
+      At each step, we consider whether to include the current element in our subsequence. We can only include it if it's larger than the previous element we chose, maintaining the increasing property. We explore both possibilities (including and excluding) recursively to find the longest possible subsequence.
+      \begin{algorithm}[H]
+        \caption{Recursive Brute Force Longest Increasing Subsequence}
+        \label{alg:reclis}
+        \begin{algorithmic}
+          \Require{Array $A[1..n]$}
+          \Function{LIS}{$A, i, prev$}  \Comment{$i$ is current position, $prev$ is last element we took}
+            \If{$i = n + 1$}  \Comment{If we've processed all elements}
+              \State \Return{$0$}  \Comment{Return 0 as we can't add more elements}
+            \EndIf
+
+            \State // First choice: skip current element
+            \State skip $\gets$ \Call{LIS}{$A, i+1, prev$}  \Comment{Keep same prev, move to next element}
+
+            \State // Second choice: try to take current element
+            \State take $\gets 0$  \Comment{Initialize take option to 0 in case we can't take it}
+            \If{$A[i] > prev$}  \Comment{Only if current element maintains increasing sequence}
+              \State take $\gets 1 +$ \Call{LIS}{$A, i+1, A[i]$}  \Comment{Add 1 for taking current element}
+            \EndIf \Comment{Recursively find best sequence starting at i+1 with A[i] as previous}
+
+            \State // Return best option between taking and skipping
+            \State \Return{max(skip, take)}  \Comment{Choose the better of our two options}
+          \EndFunction
+          
+          \State // Initial call with sentinel value to allow taking any first element
+          \State \Return{\Call{LIS}{$A, 1, -\infty$}}  \Comment{Start at first element, no previous restrictions}
+        \end{algorithmic}
+      \end{algorithm}
+      The runtime can be used by the recurrence relation. At every call, we may at most have to compute $2$ calls on the subarray not including the current element, and we compute the max of them which takes $O(1)$, so 
+      \begin{equation}
+        T(N) = 2 T(N-1) + O(1) \implies T(N) = O(2^N)
+      \end{equation}
+      which is not good. 
+    \end{algo}
+
+    Now let's move to our DP solution. 
+
+    \begin{algo}[Dynamic Programming LIS]
+      The key insight is that LIS[i] (the length of the LIS within the input array ending at i, inclusive) depends on all previous LIS[j] where j < i and A[j] < A[i]. For each position i, we can extend any previous increasing subsequence that ends with a smaller value. In other words, we are solving 
+      \begin{equation}
+        \mathrm{LIS}[i] = 1 + \max\{\mathrm{LIS}[j] \mid j < i \text{ and } A[i] > A[j] \}
+      \end{equation}
+
+      \begin{algorithm}[H]
+        \caption{Dynamic Programming Longest Increasing Subsequence}
+        \label{alg:dplis}
+        \begin{algorithmic}
+          \Require{Array $A[1..n]$}
+          \Function{DPLIS}{$A$}
+            \State // Initialize LIS array - each single element is an increasing sequence
+            \State Initialize array $LIS[1..n]$ with $1$  \Comment{Base case: each element forms LIS of length 1}
+            
+            \For{$i \gets 2$ to $n$}  \Comment{Consider each element as end of sequence}
+              \For{$j \gets 1$ to $i-1$}  \Comment{Look at all previous elements}
+                \If{$A[i] > A[j]$}  \Comment{Can we extend sequence ending at j?}
+                  \State $LIS[i] \gets \max(LIS[i], LIS[j] + 1)$  \Comment{Take best possible extension}
+                \EndIf
+              \EndFor
+            \EndFor
+            
+            \State \Return{LIS[-1]} \Comment{Find the maximum value in LIS array}
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+
+      The runtime is $O(n^2)$ since we have two nested loops, and the space complexity is $O(n)$ since we store one value for each position in the array. Note that we could also have filled this DP array backwards by considering all arrays that start at $A[i]$. 
+    \end{algo}
+
+    \begin{example}[DPLIS for Small Array]
+      For array $A = [3,1,4,1,5]$:
+      \begin{itemize}
+        \item Initially: $LIS = [1,1,1,1,1]$
+        \item After processing $i=2$: $LIS = [1,1,1,1,1]$
+        \item After $i=3$: $LIS = [1,1,2,1,1]$ (4 can extend sequence from 3)
+        \item After $i=4$: $LIS = [1,1,2,2,1]$
+        \item After $i=5$: $LIS = [1,1,2,2,3]$ (5 can extend sequence from 4)
+      \end{itemize}
+      Final answer is 3, corresponding to subsequence $[3,4,5]$
+    \end{example}
+
+  \subsection{0/1 Knapsack} 
+
+    Another application of DP is in the following problem. 
+
+    \begin{definition}[0/1 Knapsack]
+      Given a knapsack with maximum weight capacity $W$, along with a set of $n$ items, each with:
+      \begin{itemize}
+        \item Weight/Cost $c_i$
+        \item Value $v_i$
+      \end{itemize}
+      You want to know the size of the subset of items that maximizes total value while keeping total weight/Cost $\leq W$. The constraint is that each item can be picked at most once (hence 0/1). 
+    \end{definition}
+
+    \begin{example}
+      For $n = 3$ items and capacity $W = 4$:
+      \begin{itemize}
+        \item Item 1: $(c_1 = 2, v_1 = 3)$
+        \item Item 2: $(c_2 = 1, v_2 = 2)$
+        \item Item 3: $(c_3 = 3, v_3 = 4)$
+      \end{itemize}
+      Optimal solution: Take items 1 and 2
+      \begin{itemize}
+        \item Total weight: $2 + 1 = 3 \leq 4$
+        \item Total value: $3 + 2 = 5$ (maximum possible)
+      \end{itemize}
+    \end{example}
+
+    The most natural way to approach this would be greedy, but this does not exactly work. 
+
+    \begin{example}[Counter-Example for Greedy Knapsack]
+      Let's consider a knapsack with capacity $W = 10$ and:
+      \begin{itemize}
+        \item Values $V = [100, 48, 60, 11]$
+        \item Weights $C = [10, 6, 4, 1]$
+      \end{itemize}
+      Then the value/weight ratios would be 
+      \begin{equation}
+        V/C = [10, 8, 15, 11]
+      \end{equation}
+      and so we would choose to gain 60 for cost 4, then gain 11 for cost of 1. We do not have enough to buy any more and have a cost of 71, when we could have gotten a cost of 108 by buying 60 and 48 for a total of 10. 
+    \end{example}
+
+    Just like as always, we just solve this using recursive brute force and then apply optimization with DP. 
+
+    \begin{algo}[Recursive Brute Force Knapsack]
+      The key idea is that for each item, we have two choices: either include it (if we have enough capacity) or exclude it. We try both possibilities recursively to find the maximum value possible. In here, $i$ represents the current item we're considering and $r$ is the remaining weight we can still use. 
+      \begin{algorithm}[H]
+        \caption{Recursive Knapsack}
+        \label{alg:recknapG}
+        \begin{algorithmic}
+          \Require{Values $V[1..n]$, Weights $W[1..n]$, Capacity $C$}
+          \State V, W
+          \Function{Knapsack}{$i, r$}  
+            \If{$i = n + 1$ or $r = 0$}  \Comment{Base case}
+              \State \Return{$0$}   \Comment{Either we've considered all items or filled the knapsack}
+            \EndIf \Comment{No more value can be added}
+
+            \State skip $\gets$ \Call{Knapsack}{$i+1, r$}  \Comment{1st Op: Skip current item and maintain same $r$}
+
+            \State take $\gets 0$  \Comment{2nd Op: Try to include curr item}
+            \If{$W[i] \leq r$}  \Comment{Only try taking if item's weight fits in remaining $r$}
+              \State take $\gets V[i] +$ \Call{Knapsack}{$i+1, r - W[i]$} \Comment{Add current item's value + best value from remaining items}
+            \EndIf \Comment{Subtract current item's weight from remaining $r$}
+
+            \State \Return{$\max(take,skip)$} \Comment{Return best possible value between two choices}
+          \EndFunction
+          
+          \State // Start considering from first item with full $r$ 
+          \State \Return{\Call{Knapsack}{$1, C$}}
+        \end{algorithmic}
+      \end{algorithm}
+    \end{algo}
+
+    Now let's apply memoization. 
+
+    \begin{algo}[Dynamic Programming Knapsack]
+      The key insight is that $K[i,r]$ (best value possible using items up to i exclusive with remaining capacity r) can be built from $K[i-1,r]$ and $K[i-1,r-W[i]]$ using the formula 
+      \begin{equation}
+        K[i,r] = \begin{cases}
+          K[i-1,r] & \text{if } W[i] > r \text{ (can't take item i)} \\
+          \max(K[i-1,r], V[i] + K[i-1,r-W[i]]) & \text{if } W[i] \leq r \text{ (can take item i)}
+        \end{cases}        
+      \end{equation}
+      In here, i represents the items 1..i we're considering and r represents the remaining capacity.
+      \begin{algorithm}[H]
+        \caption{Dynamic Programming Knapsack}
+        \label{alg:dpknap}
+        \begin{algorithmic}
+          \Require{Values $V[1..n]$, Weights $W[1..n]$, Capacity $C$}
+          \State V, W
+          \Function{DPKnapsack}{$C$}
+            \State Create table $K[0..n, 0..C]$ \Comment{K[i,r] = max value using items V[:i] with remaining r}
+            \State Initialize all entries to 0
+            
+            \For{$i \gets 1$ to $n$}  \Comment{Consider each item}
+              \For{$r \gets 0$ to $C$}  \Comment{Consider each possible remaining capacity}
+                \State $K[i,r] \gets K[i-1,r]$  \Comment{Default: inherit value from excluding item i}
+                \If{$r \geq W[i]$}  \Comment{If current item fits in remaining capacity}
+                  \State take $\gets V[i] + K[i-1,r-W[i]]$  \Comment{Value of item i + best value with remaining r}
+                  \State $K[i,r] \gets \max(K[i,r],$ take$)$  \Comment{Take better of including or excluding}
+                \EndIf
+              \EndFor
+            \EndFor
+            
+            \State \Return{$K[n,C]$}  \Comment{Best value possible using all items}
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+      The memory complexity is obviously $\Theta(n C)$. The number of subproblems is $nC$, and the processing for each step is constant time (possibly addition and max), so $O(1)$. Therefore the total runtime is $O(nC)$ also. Note that if we compare this in terms of the bit runtime, then this is $O(n \log_2 C)$, which is psuedopolynomial since $C$ is described by $\log_2 {C}$ bits. However, the $n$ will scale linearly since it is the size of the array and not the size of each integer in $V, W$. 
+    \end{algo}
+
+    Note that if $C$ can be very big, and this can be problematic. 
+
+  \subsection{Line Breaking}
+
+    \begin{definition}[Line Breaking]
+      Line breaking is used whenever you compile a tex document. Given 
+      \begin{itemize}
+        \item a sequence of words $w_1, w_2, ..., w_n$ where $w_i$ has length $l_i$
+        \item a maximum line length $L$
+        \item each line must contain whole words in order, separated by spaces
+      \end{itemize}
+      Our goal is to break words into lines to minimize the sum of squares of empty spaces at the end of each line, i.e. our cost function for a sequence of words $W[i:j+1]$ is 
+      \begin{equation}
+        \bigg( L - \sum_{k=i}^j w_k \bigg)^2
+      \end{equation} 
+      If we used the absolute value, there exists a greedy solution. 
+    \end{definition}
+
+    \begin{example}[Line Breaking Example]
+      Given $L = 20$ and $W = [12, 8, 9]$ (note that spaces won't count in length in this problem), we have 3 possible arrangements. 
+      \begin{enumerate}
+        \item Option 1: First two words on first line
+        \begin{itemize}
+          \item Line 1: [12 + 8 = 20] (0 spaces remain)
+          \item Line 2: [9] (11 spaces remain)
+          \item Total cost = $0^2 + 11^2 = 121$
+        \end{itemize}
+
+        \item Option 2: Words one per line
+        \begin{itemize}
+          \item Line 1: [12] (8 spaces remain)
+          \item Line 2: [8] (12 spaces remain)
+          \item Line 3: [9] (11 spaces remain)
+          \item Total cost = $8^2 + 12^2 + 11^2 = 64 + 144 + 121 = 329$
+        \end{itemize}
+
+        \item Option 3: Word 2 and 3 together
+        \begin{itemize}
+          \item Line 1: [12] (8 spaces remain)
+          \item Line 2: [8 + 9 = 17] (3 spaces remain)
+          \item Total cost = $8^2 + 3^2 = 64 + 9 = 73$
+        \end{itemize}
+      \end{enumerate}
+      Therefore, Option 3 is optimal with cost 73. This also demonstrates that the greedy strategy, which gives Option 1, will not work. 
+    \end{example}
+
+    We start off with recursive brute force. Given any word $w_i$, we can either end the line there $w_i |$ or add another word $w_i w_{i+1}$. 
+
+    \begin{algo}[Recursive Brute Force Line Breaking]
+      The key idea is at each position i, we try placing different numbers of words on the current line and recursively solve for the rest. For each word i, we try all possible ways to break the line starting at word i. Let $MinCost(i)$ be the minimum cost to arrange words $[i..n]$. Then:
+      \begin{equation}
+        MinCost(i) = 
+        \begin{cases}
+          0 & \text{if } i > n \\
+          \min_{i \leq j \leq n} \big\{ (L - \sum_{k=i}^j W[k])^2 + MinCost(j+1) \big\} & \text{if else} 
+        \end{cases}
+      \end{equation}
+      where $(L - \sum_{k=i}^j W[k])^2$ is the cost to put the words $i...j$ on a new line and then ending. So whenever we add the new $i$th word at the end of the line, we are looking at all words $j$ at which we can break the line, and taking the minimum cost given this line break. The line break from $j+1$ should be computed as well (this is what we will store in our DP array later). 
+
+      \begin{algorithm}[H]
+        \caption{Recursive Line Breaking}
+        \label{alg:recline}
+        \begin{algorithmic}
+          \Require{Word lengths $W[1..n]$, Line length $L$}
+          \State W
+          \Function{MinCost}{$i$}  \Comment{Returns min cost for words[i..n]}
+            \If{$i = n + 1$}  \Comment{Base case: no words left}
+              \State \Return{$0$}
+            \EndIf
+
+            \State min\_cost $\gets \infty$
+            \State lineLen $\gets 0$
+            \For{$j \gets i$ to $n$}  \Comment{Try placing words i through j on current line}
+              \State lineLen $\gets$ lineLen $+ W[j]$
+              \If{lineLen $\leq L$}  \Comment{If these words fit on the line}
+                \State spaces $\gets L -$ lineLen  \Comment{Extra spaces at end of line}
+                \State cost $\gets$ spaces$^2 +$ \Call{MinCost}{$j+1$}  \Comment{Cost of this line + rest}
+                \State min\_cost $\gets \min($min\_cost$,$ cost$)$
+              \EndIf
+            \EndFor
+            \State \Return{min\_cost}
+          \EndFunction
+          
+          \State \Return{\Call{MinCost}{$1$}}  \Comment{Start with first word}
+        \end{algorithmic}
+      \end{algorithm}
+    \end{algo}
+
+    \begin{example}[Recursive Brute Force Line Breaking]
+      For example, with $L=20$ and $W=[12,8,9]$:
+      \begin{itemize}
+        \item At $i=1$: Try
+          \begin{itemize}
+            \item [12] alone (8 spaces) + solve for [8,9]
+            \item [12,8] together (0 spaces) + solve for [9]
+          \end{itemize}
+        \item At $i=2$: Try
+          \begin{itemize}
+            \item [8] alone (12 spaces) + solve for [9]
+            \item [8,9] together (3 spaces) + solve for []
+          \end{itemize}
+        \item At $i=3$: Try
+          \begin{itemize}
+            \item [9] alone (11 spaces) + solve for []
+          \end{itemize}
+      \end{itemize}
+    \end{example}
+
+    \begin{algo}[Dynamic Programming Line Breaking]
+      The key insight is that $DP[i]$ represents the minimum cost of optimally arranging words $[i..n]$. For each word i, we try placing words $[i..j]$ on a line and add the cost of optimally arranging the remaining words $[j+1..n]$. We do the same logic but rather than computing it we just retreive it from the DP array. 
+
+      \begin{equation}
+        DP[i] = 
+        \begin{cases}
+          0 & \text{if } i > n \\
+          \min_{i \leq j \leq n} \big\{ (L - \sum_{k=i}^j W[k])^2 + DP[j+1] \big\} & \text{if else} 
+        \end{cases}
+      \end{equation}
+
+
+      \begin{algorithm}[H]
+        \caption{Dynamic Programming Line Breaking}
+        \label{alg:dpline}
+        \begin{algorithmic}
+          \Require{Word lengths $W[1..n]$, Line length $L$}
+          \State W
+          \Function{LineBreak}{$L$}
+            \State Create array $DP[0..n]$ \Comment{DP[i] = min cost for words[i..n]}
+            \State Initialize all entries to $\infty$
+            \State $DP[n+1] \gets 0$ \Comment{Base case: no words left}
+            
+            \For{$i \gets n$ downto $1$}  \Comment{Consider each starting word}
+              \State lineLen $\gets 0$
+              \For{$j \gets i$ to $n$}  \Comment{Try placing words i through j on a line}
+                \State lineLen $\gets$ lineLen $+ W[j]$
+                \If{lineLen $\leq L$}  \Comment{If these words fit on the line}
+                  \State spaces $\gets L -$ lineLen \Comment{Extra spaces at end}
+                  \State cost $\gets$ spaces$^2 + DP[j+1]$ \Comment{Cost of this line + rest}
+                  \State $DP[i] \gets \min(DP[i],$ cost$)$ \Comment{Update if better}
+                \EndIf
+              \EndFor
+            \EndFor
+            
+            \State \Return{$DP[1]$}  \Comment{Cost of optimally arranging all words}
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+
+      The memory complexity is clearly $O(n)$. To add each element $i$, we must iterate over all the possible $j$'s, making this $O(n^2)$ total iterations. However, computing the cost is also $O(n)$, making the total runtime $O(n^3)$. However, if we also store another DP array \texttt{sums}, which can be computed in linear time and stores 
+      \begin{equation}
+        \texttt{sums}[i] = \sum_{k=i}^n w_k \implies \sum_{k=i}^{j}  = \sum_{k=i}^n w_k - a\sum_{k=j+1}^n w_k = \texttt{sums[i]} - \texttt{sums[j+1]}
+      \end{equation}
+      which can be accessed and computed in $O(1)$ time, bringing us down to $O(n^2)$. 
+    \end{algo}
+
+    \begin{example}[DP Line Breaking]
+      For example, with $L=20$ and $W=[12,8,9]$:
+      \begin{itemize}
+        \item $DP[4] = 0$ (base case)
+        \item $DP[3] = 11^2 = 121$ (only option for last word)
+        \item $DP[2] = \min(12^2 + 121, 3^2) = \min(265, 9) = 9$ (alone or with word 3)
+        \item $DP[1] = \min(8^2 + 9, 0^2 + 121) = \min(73, 121) = 73$ (alone or with word 2)
+      \end{itemize}
+    \end{example}
 
 \section{Graphs}
 
@@ -1350,7 +1962,7 @@
 
     Another way we can think of is just run Dijkstra. However, if it is looking at two paths. We can have $s \xrightarrow{2} b$ and $s \xrightarrow{5} a \xrightarrow{-4} b$. Dijkstra will immediately go to $b$ thinking that it is the shortest path, since that's how far it see. So we need to look far into the future. Therefore, after an arbitrarily long path length, you could get a negative length that just kills your accumulator.  
 
-    Another way we can do is to use dynamic programming. 
+    We use the Bellman equations, which could be solved using dynamic programming like we've seen before. 
 
     \begin{theorem}[Bellman Equations]
       We write the \textbf{Bellman equations}. 
@@ -1374,7 +1986,6 @@
     So how do we actually implement this? 
 
     \begin{algo}[Shortest Path in Possibly Negative Weighted Graph]
-      
       \begin{algorithm}[H]
         \label{alg:neg_weighted_short_path}
         \begin{algorithmic}[1]
@@ -1464,7 +2075,71 @@
 
       How about the runtime? The construction of $G'$ involves defining $8 \lvert V\rvert $ vertices since $p$ has $2$ possible values and $g$ has $4$, and we need to construct one state for each pair of $p$ and $g$. Similarly, for each $(u,v)$, regardless of the color of $v$, in both cases we add a total of $8$ edges. Therefore $\lvert E'\rvert  = 8 \lvert E\rvert $. Since $G, G'$ are directed graphs with real-valued weights, we need to run Bellman-Ford, which takes $\mathcal{O}(\lvert V\rvert \lvert E\rvert )$. Like shown before, other costs (e.g. the one to recover a walk in $G$ from a path in $G'$) are linear and hence dominated by the pathfinding runtime. So the final complexity is $\mathcal{O}(\lvert V\rvert \lvert E\rvert)$.
     \end{proof}
-   
+
+    Recall the Bellman equations that we must solve using DP. That is, given some $s \in V$, 
+    \begin{equation}
+      d[v] = \min_w \{ d[w] + l_{wv} \}
+    \end{equation}
+    with $d[s] = 0$. Note that the problem was not well defined if there are negative cycles in the graph, since we can just loop an infinite number of times. However, we can modify the bellman equations to get a better sense. 
+
+    \begin{theorem}[Modified Bellman Equations]
+      For paths of length at most $i$ edges, the Bellman equations become:
+      \begin{align}
+        d(v,i) = \begin{cases} 
+          0 & \text{ if } v = s \\
+          \min\{d(v,i-1), \min_{(u, v) \in E} \{d(u,i-1) + w_{uv}\}\} & \text{ otherwise}
+        \end{cases}
+      \end{align}
+      where $d(v,i)$ represents the shortest path from source $s$ to vertex $v$ using at most $i$ edges, and $w_{uv}$ represents the weight of edge $(u, v)$. Note that the inner minimum takes the minimum over all paths with the final edge connecting from some other node $u$ to target $v$, and the outer minimum compares this minimum path to what we already have to see if it's an improvement. 
+    \end{theorem} 
+
+    This indicates that we should use a 2D DP array to memoize. This allows you to have a more flexible representation in case there are negative cycles since we are also limiting the number of edges a path could have. 
+
+    \begin{algo}[2D DP Bellman-Ford]
+      The implementation of the modified equations gives us the following algorithm. 
+      \begin{algorithm}[H]
+        \label{alg:bellman_ford_leq}
+        \begin{algorithmic}[1]
+          \Require{Nodes $V$, Edges $E$, source $s$}
+          \State $d \gets$ 2D array of size $|V| \times |V|$ initialized to $\infty$
+          \State $d[s,0] \gets 0$ \Comment{Base case: Can reach source with 0 edges}
+          
+          \For{$i = 1, \ldots, n-1$}
+            \For{$v \in V$}
+              \State $d[v,i] \gets d[v,i-1]$ \Comment{Keep best path seen so far}
+              \For{$(u,v) \in E$}
+                \State $d[v,i] \gets \min(d[v,i], d[u,i-1] + l_{uv})$
+              \EndFor
+            \EndFor
+          \EndFor
+        \end{algorithmic}
+      \end{algorithm}
+      Note that this algorithm still has time complexity $O(nm)$ because the outer loop runs $n-1$ times and for each iteration, we examine each edge once. The space complexity is $O(n^2)$, and finally, note the important properties. 
+      \begin{enumerate}
+        \item \textit{Monotonicity}: For all vertices $v$ and indices $i$:
+        \begin{equation}
+          d(v,i) \leq d(v,i-1)
+        \end{equation}
+        This is because any path using $\leq (i-1)$ edges is also a valid path using $\leq i$ edges.
+
+        \item \textit{Convergence}: The algorithm will stabilize after at most $n-1$ iterations since:
+        \begin{itemize}
+          \item Any shortest path without negative cycles can use at most $n-1$ edges
+          \item Therefore, $d(v,n-1) = d(v,n)$ for all $v$ if no negative cycles exist
+        \end{itemize}
+
+        \item \textit{Negative Cycle Detection}: A negative cycle exists if and only if:
+        \begin{equation}
+          \exists v \in V : d(v,n) < d(v,n-1)
+        \end{equation}
+        This is because any improvement after $n-1$ edges must use a negative cycle.
+      \end{enumerate}
+    \end{algo}
+
+  \subsection{All Pairs Shortest Paths} 
+
+    Now what if we want to find the minimum distance between all $u, v \in V$? We can just use $|V|$ Dijkstras or Bellman-Fords to get the appropriate runtimes of $O(EV + V^2 \log{V})$ or $O(EV^2)$, respectively, but for negative weighted graphs, there is a way to do this in $O(V^3)$.\footnote{Note that if the graph is sparse, then $|E| < |V|$ and just running $|V|$ Bellman Fords may be optimal.}
+
   \subsection{Minimum Spanning Trees} 
 
       \begin{definition}[Spanning Tree]
