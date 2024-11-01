@@ -645,7 +645,7 @@
   
     The next problem is a generalization of finding the median of an array, which we present can be done in $O(n)$ time \textit{on average}. It turns out that that this idea of choosing a pivot and then dividing and conquering happens often in general selection and sort algorithms.    
 
-    \begin{algo}[Select kth smallest element from unsorted array]
+    \begin{algo}[Select kth Largest 1lement from Unsorted Array]
 
       \begin{algorithm}[H]
         \caption{Find Kth Largest Element}
@@ -659,11 +659,11 @@
               \EndIf
               
               \State pivot $\gets$ $\lfloor$length(nums)/2$\rfloor$ \Comment{Select middle element as pivot}
-              \State left $\gets$ [ ] \Comment{Array for elements smaller than pivot}
-              \State right $\gets$ [ ] \Comment{Array for elements larger than pivot}
+              \State left $\gets$ [ ] \Comment{Unsorted array for elements smaller than pivot}
+              \State right $\gets$ [ ] \Comment{Unsorted array for elements larger than pivot}
               \State n\_pivots $\gets$ 0 \Comment{Count of elements equal to pivot}
               
-              \For{each n in nums}
+              \For{each n in nums} \Comment{Start filling in the arrays}
                   \If{n = nums[pivot]}
                       \State n\_pivots $\gets$ n\_pivots + 1
                   \ElsIf{n $\leq$ nums[pivot]}
@@ -674,11 +674,11 @@
               \EndFor
               
               \If{length(right) $\leq$ k - 1 \textbf{and} length(left) $\leq$ length(nums) - k}
-                  \State \Return nums[pivot]
+                \State \Return nums[pivot] \Comment{Found the $k$th element which was in the middle in n\_pivots}
               \ElsIf{length(right) $\geq$ k}
-                  \State \Return \Call{FindKthLargest}{right, k}
+                \State \Return \Call{FindKthLargest}{right, k} \Comment{Largest is in the array of bigger numbers.}
               \Else
-                  \State \Return \Call{FindKthLargest}{left, k - length(right) - n\_pivots}
+                \State \Return \Call{FindKthLargest}{left, k - length(right) - n\_pivots} \Comment{Largest is in the array of smaller numbers.}
               \EndIf
           \EndFunction
         \end{algorithmic}
@@ -720,15 +720,84 @@
 
   \subsection{Closest Pair of Points} 
 
-    \begin{algo}
-      
+    The next problem simply takes a series of points and calculates the closest pair of points. This can be done trivially in $O(N^2)$ by taking all combinations, but with clever divide and conquer, we can reduce this down. The idea is that we want to divide them into a left and a right side, which we can sort in $O(N \log{N})$ and find the median in $O(1)$. This now reduces to computing the closest pair of points in each $N/2$ half. If we can find the closest pair in each half, then we must compare it to all pairs of points across the halves, meaning that we must do $(N/2)^2$ comparisons again, leading to 
+    \begin{equation}
+      T(N) = 2 T(N/2) + O(N^2)
+    \end{equation}
+    which isn't any better than $O(N^2)$. But imagine that we found that the smallest distance of the left and right were $\delta_1, \delta_2$, then for each point in the left side, we don't have to check all $N/2$ points on the right. 
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/closest_point.png}
+      \caption{} 
+      \label{fig:closest_point}
+    \end{figure}
+
+    We just have to check those with distance at most $\delta = \min\{\delta_1, \delta_2\}$ from each point. Furthermore, we can discard all points that are too far away from the boundary. However, all $N$ points could like in the relevant space, leading to $O(N^2)$ computations of distance. 
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/cp2.png}
+      \caption{} 
+      \label{fig:closest_point2}
+    \end{figure}
+
+    Therefore, we want to incorporate vertical distances and tile our relevant space into square of side length $\delta/2$.  
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/cp3.png}
+      \caption{} 
+      \label{fig:closest_point3}
+    \end{figure}
+
+    We claim that each square has at most 1 point, since if there were two, then their distance would be less than $\delta / \sqrt{2}$, which contradicts the distance between the two points being greater than $\delta$. Therefore given a point, we only need to check a bounded constant. 
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/cp4.png}
+      \caption{The number of points on the other side with distance $\leq \delta$ is at most $10$. If we are more careful, we can reduce the number down to $7$. } 
+      \label{fig:closest_point4}
+    \end{figure}
+
+    It turns out that we just need to compute $5N = (N/2) \cdot 10$ distances at most, and now our question reduces to how do we find these 5 points? Well we can first sort the points on the left and right by their y-coordinates, so we can just take a sliding window that encapsulates these points on the right for every on the left. The pointers of the sliding window should point to a point where the y-coordinate is at most $\delta$ away, and this can be done in constant time. Therefore, our recurrence relation is  
+
+    \begin{equation}
+      T(N) = 2 T(N/2) + O(N \log{N}) \implies T(N) = O(N \log^2 {N})
+    \end{equation}
+    
+    This sorting along the y-coordinates is a bottleneck, but we can just shove this into the recursion step by telling the left and right to not just return the $\delta_1, \delta_2$, but also the points sorted in the y-coordinate. Then at the end of the merge, we also merge the lists $L, R$ so that $S = L \cup R$ is sorted on $y$, which also takes $O(N)$ and doesn't add extra runtime on the merge step. This reduces the runtime to $O(N \log{N})$. 
+
+    \begin{algo}[Closest Pair of Points]
+      The next problem simply takes a series of points and calculates the closest pair of points. This can be done trivially in $O(N^2)$ by taking all combinations, but with clever divide and conquer, we can reduce this down. 
       \begin{algorithm}[H]
         \caption{Closest Pair of Points}
         \label{alg:closest_pair}
         \begin{algorithmic}
           \Require{$N$ points $\{(x_i, y_i)\}$.}
           \State 
-          \Function{Func}{x}
+          \Function{ClosestPair}{P} 
+            \State Sort points by x-coordinate. \Comment{Bottleneck of $O(N \log{N})$}
+            \If{len(P) = 2} 
+              \State \Return $d(p_1, p_2)$, sorted $P$ by y-coord
+            \EndIf
+
+            \State $\delta_1, L \gets$ ClosestPair($P_L$)
+            \State $\delta_2, R \gets$ ClosestPair($P_R$)
+            \State $\delta = \min\{\delta_1, \delta_2\}$ 
+            \State min $\gets \delta$
+            \For{$l \in L$ s.t. distance to boundary $\leq \delta$} \Comment{$O(N)$ iterations}
+              \State $W_l \gets \delta$-window of points in $R$ around $l$. \Comment{Can be done in $O(1)$ using sliding window.}
+              \For{$r \in W_l$} \Comment{This is bounded by $O(10)$}
+                \If{$d(p, l) < \delta$} 
+                  \State min $\gets d(p, l)$
+                \EndIf
+              \EndFor
+            \EndFor
+
+            \State merge $L$ and $R$ into sorted $S$ \Comment{O(N)} 
+
+            \State \Return{min, S}
           \EndFunction
         \end{algorithmic}
       \end{algorithm}
