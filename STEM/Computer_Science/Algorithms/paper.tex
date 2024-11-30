@@ -45,6 +45,7 @@
   \usepackage{tikz}
   \usepackage{tikz-cd}
   \usepackage{circuitikz}
+  \usetikzlibrary{arrows.meta,backgrounds}
   \usetikzlibrary{arrows}
   \usetikzlibrary{positioning}
   \usetikzlibrary{calc}
@@ -2823,13 +2824,207 @@
       \item Look for another bin. We can just look at $h(x) + 1$ or $h(h(x))$ (or really any deterministic function $f(h(x))$) if $h(x)$ is occupied. 
     \end{enumerate}
 
-    This is what we have to work with here, so we would like to modify our assumptions. Therefore, we can achieve good performance by reducing the collisions and by improving how we deal with collisions. We will focus on the first part. 
+    This is what we have to work with here, so we would like to modify our assumptions. Therefore, we can achieve good performance by reducing the collisions and by improving how we deal with collisions. We will focus on the first part, and we would like for our hash functions to have some nice properties, which we will define. The most intuitive way is to treat $x, y$ as random variables uniformly sampled from $U$, and then we would like $\mathbb{P}(h(x) = H(y)) \approx 1/N$. However in practice, this is not the case since our subdomain $S$ is already fixed, yet may be unknown. Therefore given any function $h$, we can construct an adversarial sequences of inputs that will all map to the same bin. We must therefore consider a \textit{family} of hash functions. 
 
+    \begin{definition}[Universal Hashing]
+      A family of hash functions $H = \{h : U \rightarrow [N] \}$ is \textbf{universal} if for any fixed $x, y \in U$, 
+      \begin{equation}
+        \mathbb{P}_{h} \big( h(x) = h(y) \big) \leq \frac{1}{N}
+      \end{equation}
+      where $h$ is drawn uniformly. If the bound is $2/N$ then it is called \textbf{near-universal}, and what's important is the $N$ in the denominator. This polynomial decay in collision probabilities is exactly what we need for constant operation time. That is, given query $x$, let the random variable $X$ be the number of operations we must do to find $X$, which consists of $1$ pointer traversal plus some other amount of traversals (e.g. through a linked list) if collision, say which is $C_n$. So we have 
+      \begin{equation}
+        X = 1 + \sum_{y \in S} Q_y
+      \end{equation}
+      where $1$ comes from the initial pointer traversal in hashing, and Bernoulli $Q_y = 1$ if $h(y) = h(x)$.\footnote{This may not be $1$ since we may have to do more than 1 additional traversal, e.g. in linked lists. But we assume the extra cost is bounded by a constant.} Then, by linearity of expectation combined with the bound on probability of collision we have 
+      \begin{equation}
+        \mathbb{E}[X] = 1 + \sum_{y \in S} \mathbb{E}[Q_y] = 1 + |S| \cdot \mathbb{P}(h(x) = h(y)) = 1 + \frac{|S|}{N}
+      \end{equation} 
+      which is constant. 
+    \end{definition} 
 
+    If $H$ is the set of all functions from $U$ to $[N]$, then this universal property is trivially satisfied since 
+    \begin{equation}
+        \mathbb{P}_{h} \big( h(x) = h(y) \big) = \frac{1}{N}
+    \end{equation}
+    But this is quite a complex function class and $h$ may not be easy to store, i.e. may not be analytic. The question now becomes whether we can achieve universality with a smaller class. It turns out yes, and the obvious use is to use cyclic groups. 
+
+    \begin{lemma}[Carter-Wegman 71]
+      Suppose $U = \{0, 1, \ldots, M-1\}$. We choose a prime $p \geq M$\footnote{It is guaranteed that a prime exists between $m$ and $2m$.} and construct the family 
+      \begin{equation}
+        H = \{h_a (x) = (ax \mathrm{ mod } p ) \mathrm{ mod } N \mid a = 0, \ldots, p-1 \}
+      \end{equation}
+      We claim this is near-universal. 
+    \end{lemma}
+    \begin{proof}
+      We treat $x$ as the generator of this group, and then $ax \mathrm{ mod } p = a^\prime x { mod } p$ iff $a = a^\prime$. Therefore, 
+      \begin{equation}
+        \mathbb{P}_a (h_a (x) = h_a (y)) = \mathbb{P}_a \big( (ax - ay) \mathrm{ mod } p = N k \big)
+      \end{equation}
+      for some $k$. If $a = 0$, then everything collides, but if $a \neq 0$ and $x \neq y$, then $ax - ay$ must have a difference of exactly a multiply of $N$, which happens with probability $1/N$. Therefore, we have 
+      \begin{equation}
+        \mathbb{P}_a (h_a (x) = h_a (y)) = \mathbb{P}(a = 0) + \mathbb{P}(a \neq 0) \cdot \frac{1}{N} = \frac{1}{p} + \frac{p-1}{p} \cdot \frac{1}{N} < \frac{2}{N} 
+      \end{equation}
+      since $p > N$. 
+    \end{proof}
+
+    Therefore, to hash, 
+    \begin{enumerate}
+      \item we choose a prime $p \geq m = |U|$. 
+      \item choose $a \in \{0, 1, \ldots, p-1\}$ at random. 
+      \item Use $h_a(x) = (ax \mathrm{ mod } p ) \mathrm{ mod } N$ to hash everything.\footnote{We do not change $a$ every time we hash. }
+    \end{enumerate}
+
+    \begin{example}
+      Let $n$ be a fixed prime number and 
+      \begin{equation}
+        H = \{h_{a, b} (x, y) = ax + by \mathrm{ mod } n : a, b \in [n] \}
+      \end{equation} 
+      We claim that this is universal. Let $x = (x_1, x_2)$ and $y = (y_1, y_2)$ be arbitrary pairs of integers where $x \neq y$. WLOG, assume $x_2 \neq y_2$. Then 
+      \begin{equation}
+        \mathbb{P}(h_{a, b} (x) = h_{a, b} (y)) = \mathbb{P}(a x_1 + b x_2 = a y_1 + b y_2) = \mathbb{P}\big( a (x_1 - y_1) = b (y_2 - x_2) \big)
+      \end{equation} 
+      Suppose that we pick $a$ first and we compute the conditional probability. Then the LHS is a constant, and for this to hold in a cyclic group, $b$ must equal $c (y_2 - x_2)^{-1}$, which occurs with probability $1/N$. Using LOTP the joint probability is also $1/N$. 
+    \end{example}
 
   \subsection{Modulo Operations}
 
   \subsection{Primality Testing}
+
+\section{Flows and Cuts} 
+
+  \subsection{Max-Flow Min-Cut Theorem} 
+
+    \begin{definition}[Flow Network]
+      Given a nonnegative weighted directed graph $G(V, E)$, we can define the weights to be the \textbf{capacity} $C: E \rightarrow \mathbb{R}^+$ of some commodity that can travel through the edge. Say that we have a source node $s \in V$ and a sink/destination node $t \in V$. This is called a \textbf{flow network}.
+    \end{definition}
+
+    \begin{definition}[Flow]
+      Given a flow network, a \textbf{flow} is a function $f: E \rightarrow \mathbb{R}^+$ satisfying 
+      \begin{enumerate}
+        \item \textit{Conservation}. What flows in must always flow out. For all $v \neq s, t$, we have 
+          \begin{equation}
+            \sum_{(u \rightarrow v) \in E} f(u \rightarrow v) = \sum_{(v \rightarrow w) \in E} f(v \rightarrow w)
+          \end{equation}
+
+        \item \textit{Feasibility}. We cannot exceed the capacity. For all $e \in E$, 
+          \begin{equation}
+            0 \leq f(e) \leq C(e)
+          \end{equation}
+      \end{enumerate}
+      The \textbf{value} of a flow represents the actual/realized amount of the commodity that we can push through the graph
+      \begin{equation}
+        |f| = \sum_{(s \rightarrow u) \in E}  f(s \rightarrow u) - \sum_{(u \rightarrow s) \in E}  f(u \rightarrow s) 
+      \end{equation} 
+      where we need to subtract the right expression to avoid loops. 
+    \end{definition}
+
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}[
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth
+      ]
+
+      % Nodes with increased horizontal spacing
+      \node[vertex] (s) at (0,0) {s};
+      \node[vertex] (a) at (3,2) {};
+      \node[vertex] (b) at (6,2) {};
+      \node[vertex] (c) at (3,-2) {};
+      \node[vertex] (d) at (6,-2) {};
+      \node[vertex] (t) at (9,0) {t};
+
+      % Edges with colored fraction labels
+      \draw[->] (s) -- node[above] {$\frac{\color{red}10}{\color{blue}20}$} (a);
+      \draw[->] (s) -- node[below] {$\frac{\color{red}0}{\color{blue}10}$} (c);
+      \draw[->] (a) -- node[above] {$\frac{\color{red}0}{\color{blue}5}$} (b);
+      \draw[->] (a) -- node[below] {$\frac{\color{red}10}{\color{blue}10}$} (c);
+      \draw[->] (b) -- node[above] {$\frac{\color{red}5}{\color{blue}15}$} (t);
+      \draw[->] (b) -- node[right] {$\frac{\color{red}5}{\color{blue}20}$} (d);
+      \draw[->] (c) -- node[below] {$\frac{\color{red}10}{\color{blue}10}$} (d);
+      \draw[->] (d) -- node[below] {$\frac{\color{red}5}{\color{blue}20}$} (t);
+      \draw[<-] (c) -- node[above] {$\frac{\color{red}0}{\color{blue}15}$} (b);
+
+      \end{tikzpicture}
+      \caption{The red values represent the flow. The blue values represent the capacity. The value of the above flow is 10.} 
+      \label{fig:flow}
+    \end{figure}
+
+    Now let's revisit cuts. 
+
+    \begin{definition}[Cuts]
+      Given a flow network, a s-t \textbf{cut} is a partition of $V = S \sqcup T$ s.t. $s \in S, t \in T$. The \textbf{value}, or \textbf{capacity}, of a cut is defined as the capacity of its edges 
+      \begin{equation}
+        ||S, T|| = \sum_{u in S} \sum_{v \in T} C(u \rightarrow v)
+      \end{equation}
+    \end{definition}
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth
+      ]
+
+      % Nodes with increased horizontal spacing
+      \node[vertex] (s) at (0,0) {s};
+      \node[vertex] (a) at (3,2) {};
+      \node[vertex] (b) at (6,2) {};
+      \node[vertex] (c) at (3,-2) {};
+      \node[vertex] (d) at (6,-2) {};
+      \node[vertex] (t) at (9,0) {t};
+
+      % Edges with upright colored fraction labels
+      \draw[->] (s) -- node[above] {$\color{blue}20$} (a);
+      \draw[->] (s) -- node[below] {$\color{blue}10$} (c);
+      \draw[->] (a) -- node[above] {$\color{blue}5$} (b);
+      \draw[->] (a) -- node[left] {$\color{blue}10$} (c);
+      \draw[->] (b) -- node[above] {$\color{blue}15$} (t);
+      \draw[->] (b) -- node[right] {$\color{blue}20$} (d);
+      \draw[->] (c) -- node[below] {$\color{blue}10$} (d);
+      \draw[->] (d) -- node[below] {$\color{blue}20$} (t);
+      \draw[<-] (c) -- node[right] {$\color{blue}15$} (b);
+
+      % Draw the cut (add this on background layer to appear behind nodes)
+      \begin{scope}[on background layer]
+          \draw[dashed, thick, gray] (4.5,-3) -- (4.5,3);
+          
+          % Add labels for the sets
+          \node at (2,2.5) {S};
+          \node at (7,2.5) {T};
+      \end{scope}
+
+      \end{tikzpicture}
+      \caption{This cut has capacity 15. Note that the cut going from right to left is not included since this is a S-T cut. } 
+      \label{fig:cut}
+    \end{figure}
+
+    We now introduce two related problems. 
+    \begin{enumerate}
+      \item Max Flow. How do we find the flow with the maximum value? This is analogous to maximizing the commodity transport from $s$ to $t$.  
+      \item Min Cut. How do we find the cut with the minimum capacity? This is analogous to removing the smallest total edges that will disconnect $s$ to $t$. 
+    \end{enumerate}
+
+    \begin{theorem}[Max-Flow Min-Cut Theorem]
+      For any valid $(s, t)$ flow $f$ on a flow network $G = (V, E)$ and any valid $(s, t)$-cut $S, T$, we have 
+      \begin{equation}
+        |f| \leq ||S, T||
+      \end{equation} 
+      It also turns out that equality is achieved, which immediately implies that the max-flow is the min-cut. 
+    \end{theorem}
+    \begin{proof}
+      We can see that in order for a flow to have a value, given some cut the flow value cannot exceed the capacity through this cut from $S$ to $T$. Mathematically, we can see that the flow value is invariant due to conservation, and so  
+      \begin{align}
+        |f| & = \sum_{s \rightarrow v} f(s \rightarrow v) - \sum_{v \rightarrow s} f(v \rightarrow s) \\ 
+            & = \sum_{u \in S} \sum_{v \in T} f(u \rightarrow v) - \sum_{v \in T} \sum_{u \in S} f(v \rightarrow u) \\ 
+            & \leq \sum_{u \in S} \sum_{v \in T} c(u \rightarrow v) = ||S, T||
+      \end{align}
+    \end{proof} 
+
+  \subsection{Maximum Flows} 
 
 \section{Linear Programming}
 
