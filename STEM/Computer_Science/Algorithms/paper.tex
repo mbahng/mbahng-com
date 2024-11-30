@@ -3024,7 +3024,291 @@
       \end{align}
     \end{proof} 
 
-  \subsection{Maximum Flows} 
+  \subsection{Maximum Flows}  
+
+    Now to compute the maximum flow itself, we use a residual graph. For now, we will assume that a flow network $G$ does not have 2-cycles (cycles of length 2), and if we do find a graph with such a 2-cycle, we modify it by adding an intermediate node. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[
+          vertex/.style={circle, draw, minimum size=0.6cm},
+          >=Stealth
+      ]
+
+      % First pattern
+      \node[vertex] (u1) at (0,0) {$u$};
+      \node[vertex] (v1) at (2,0) {$v$};
+
+      \draw[->] (u1) to[bend left=30] (v1);
+      \draw[->] (v1) to[bend left=30] (u1);
+
+      % Arrow indicating transformation
+      \draw[-{Stealth[length=10pt]}, double] (3,0) -- (4,0);
+
+      % Second pattern
+      \node[vertex] (u2) at (5,0) {$u$};
+      \node[vertex] (v2) at (7,0) {$v$};
+      \node[vertex] (uv2) at (6,-1.5) {$uv$};
+
+      \draw[->] (u2) -- (v2);
+      \draw[->] (v2) -- (uv2);
+      \draw[->] (uv2) -- (u2);
+
+      \end{tikzpicture}
+      \caption{How we modify our 2-cycle.} 
+      \label{fig:cycle_mod}
+    \end{figure}
+
+    \begin{definition}[Residual Network]
+      Given a flow network $G$ and a flow $f$, the \textbf{residual graph} $G_f$ is a new flow network that has edges $u \rightarrow v$ and $v \rightarrow u$, where 
+      \begin{equation}
+        c_f (u \rightarrow v) = \begin{cases} c (u \rightarrow v) - f(u \rightarrow v) & \text{ if } u \rightarrow v \in E \\ 
+          f(u \rightarrow v) & \text{ if } v \rightarrow u \in E
+        \end{cases}
+      \end{equation}
+      Basically, if there is some flow in an edge, we replace that edge's capacity by the residual capacity, giving us our \textit{forward edge}, and then take this flow and add it to a new opposite pointing edge, called the \textit{backwards edge}. 
+    \end{definition} 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth,
+          fwd/.style={blue},
+          back/.style={purple}
+      ]
+
+      % Nodes with increased horizontal spacing
+      \node[vertex] (s) at (0,0) {s};
+      \node[vertex] (a) at (3,2) {a};
+      \node[vertex] (b) at (6,2) {b};
+      \node[vertex] (c) at (3,-2) {c};
+      \node[vertex] (d) at (6,-2) {d};
+      \node[vertex] (t) at (9,0) {t};
+
+      % Forward edges in blue (including zero weights)
+      \draw[->, fwd] (s) -- node[above] {10} (a);
+      \draw[->, fwd] (s) -- node[below] {10} (c);
+      \draw[->, fwd] (a) -- node[above] {5} (b);
+      \draw[->, fwd] (b) -- node[above] {15} (t);
+      \draw[->, fwd] (b) -- node[right] {15} (d);
+      \draw[->, fwd] (b) -- node[left] {15} (c);
+      \draw[->, fwd] (d) -- node[below] {15} (t);
+      \draw[->, fwd] (a) to[bend left=20] node[above] {0} (c);
+      \draw[->, fwd] (c) to[bend left=20] node[below] {0} (d);
+
+      % Backward edges in purple (including zero weights)
+      \draw[->, back] (a) to[bend right=20] node[below] {10} (s);
+      \draw[->, back] (c) to[bend left=20] node[left] {10} (a);
+      \draw[->, back] (d) to[bend left=20] node[below] {10} (c);
+      \draw[->, back] (t) to[bend left=20] node[below] {5} (b);
+      \draw[->, back] (t) to[bend right=20] node[above] {5} (d);
+      \draw[->, back] (d) to[bend left=20] node[right] {5} (b);
+      \draw[->, back] (c) to[bend right=20] node[above] {0} (s);
+      \draw[->, back] (b) to[bend right=20] node[above] {0} (a);
+
+      \end{tikzpicture}
+      \caption{Residual network. } 
+      \label{fig:residual_network}
+    \end{figure}
+
+    \begin{theorem}
+      If we have a flow $f$, its value $|f|$ can be improved/augmented up to the bottleneck capacity on any residual path. That is, if we find any $s \rightarrow t$ path $\pi$ on $G_f$, with a positive bottleneck capacity (minimum capacity over its edges), we can improve the flow.\footnote{For example, the capacity of the path $S, C, A, B, T$ is $5$, since $A \rightarrow B$ has weight $5$.} Given this residual path $\pi$, it may have both forward or backwards edges. To augment the original path on $G$ by value $b$, we look at each edge $(u \rightarrow v) \in E$ and 
+      \begin{enumerate}
+        \item If it corresponds to a forward edge (i.e. if $(u \rightarrow v)$ is in the residual path $\pi$), we add $b$. This corresponds to how much more flow you can put into this edge. 
+        \item If it corresponds to a backward edge (i.e. if $(v \rightarrow u)$ is in the residual path $\pi$), we subtract $b$. The corresponds to how much flow could you reroute in the backwards direction and have it reach $t$ through another path.   
+        \item If it is not in $\pi$, then we don't change it. 
+      \end{enumerate}
+      In summary, the new flow $f^\prime$ is defined 
+      \begin{equation}
+        f^\prime (u \rightarrow v) = \begin{cases} 
+          f(u \rightarrow v) + b & \text{ if } (u \rightarrow v) \in \pi \\ 
+          f(u \rightarrow v) - b & \text{ if } (v \rightarrow u) \in \pi \\  
+          f(u \rightarrow v) & \text{ else }
+        \end{cases}
+      \end{equation}
+    \end{theorem} 
+    \begin{proof}
+      We first show that $f^\prime$ is a valid flow. For feasibility, 
+      \begin{enumerate}
+        \item \textit{Forward}. If $(u \rightarrow  v) \in \pi$, then 
+          \begin{equation}
+            f^\prime (u \rightarrow v) = f(u \rightarrow v) + b \leq f(u \rightarrow v) + c_f (u \rightarrow v) = c(u \rightarrow v)
+          \end{equation} 
+        \item \textit{Backward}. If $(v \rightarrow u) \in \pi$, then 
+          \begin{equation}
+          f^\prime (u \rightarrow v) = f(u \rightarrow v) - b \geq f(u \rightarrow v) - c_f (v \rightarrow u) = 0 
+          \end{equation}
+      \end{enumerate}
+
+      For conservation, there are 4 cases. 
+      \begin{enumerate}
+        \item Forward into node, forward out of node. $\Delta_{in} = +b, \Delta_{out} = +b$. Therefore the flows cancel out. 
+        \item Forward into node, backward out of node. $\Delta_{in} = +b - b = 0$. 
+        \item Backward into node, forward out of node. $\Delta_{out} = +b - b = 0$. 
+        \item Backward into node, backward out of node. $\Delta_{in} = -b, \Delta_{out} = - b$. 
+      \end{enumerate}
+    \end{proof} 
+
+    At this point, we're pretty much ready to give our algorithm on max-flow. 
+
+    \begin{algo}[Ford-Fulkerson]
+      We've reduced this problem to a problem of finding a positive path $\pi$ in the residual graph, which we have a lot of algorithms built for. We find such a path and augment the flow until we cannot find such a path. If we cannot find a path, then we can use BFS to look at all vertices $S \subset V$ reachable from $s$ in $G_f$, and then let $T = V \setminus S$. These two disjoint sets will give the min cut. 
+      
+      \begin{algorithm}[H]
+        \label{alg:maxflow}
+        \begin{algorithmic}
+          \Require{Flow network $G(V, E)$, source/sink $s, t \in V$. Capacity $c$. }
+          \State 
+          \Function{MaxFlow}{G}
+          \State Start with the trivial flow $f$, maybe stored as array $[0, \ldots, 0]$ of length $E$. 
+            \State Construct residual graph $G_f$ for this trivial flow. 
+            \While{$G_f$ has an augmenting path in $G_f$} \Comment{Maybe use BFS to find this.}
+              \State Pick $\pi$ as any augmenting path 
+              \State augment $f$ by bottleneck capacity 
+              \State update $G_f$. 
+            \EndWhile
+            \State \Return{f}  
+            \State Use BFS to find all nodes in $G_f$ reachable from $s$. Call this $S$.  
+            \State Let $T = V \setminus S$.  
+            \State $S, T$ is our min cut, and $f$ is your max flow. 
+          \EndFunction
+        \end{algorithmic}
+      \end{algorithm}
+      The inner loop is just BFS, which is $O(N + M)$, but how many iterations do we do? Well for integer capacities, we can bound it by the actual value of the max flow $|f^\ast|$ since we must improve by at least $+1$ every loop.\footnote{This is not a trivial result that if all capacities are integers, then there is an integer max-flow, despite the actual flow being dispersed as fractions across edges.} Unfortunately, $O((N+M) |f^\ast|)$ is the best we can do in generality, which is pseudopolynomial. 
+    \end{algo}
+
+    There are indeed polynomial time algorithms, e.g. Orlin's algorithm with runtime $O(NM)$, which is guaranteed to be polynomial but in practice may be slower. 
+
+    \begin{example}[Max Flow and Residual Graph]
+      Here is the max flow. 
+      \begin{figure}[H]
+        \centering
+        \begin{tikzpicture}[
+            node distance=2.5cm,
+            vertex/.style={circle, draw, minimum size=0.8cm},
+            auto,
+            >=Stealth
+        ]
+
+        % Nodes with increased horizontal spacing
+        \node[vertex] (s) at (0,0) {s};
+        \node[vertex] (a) at (3,2) {a};
+        \node[vertex] (b) at (6,2) {b};
+        \node[vertex] (c) at (3,-2) {c};
+        \node[vertex] (d) at (6,-2) {d};
+        \node[vertex] (t) at (9,0) {t};
+
+        % Edges with colored fraction labels
+        \draw[->] (s) -- node[above] {$\frac{\color{red}15}{\color{blue}20}$} (a);
+        \draw[->] (s) -- node[below] {$\frac{\color{red}0}{\color{blue}10}$} (c);
+        \draw[->] (a) -- node[above] {$\frac{\color{red}5}{\color{blue}5}$} (b);
+        \draw[->] (a) -- node[below] {$\frac{\color{red}10}{\color{blue}10}$} (c);
+        \draw[->] (b) -- node[above] {$\frac{\color{red}10}{\color{blue}15}$} (t);
+        \draw[->] (b) -- node[right] {$\frac{\color{red}5}{\color{blue}20}$} (d);
+        \draw[->] (c) -- node[below] {$\frac{\color{red}10}{\color{blue}10}$} (d);
+        \draw[->] (d) -- node[below] {$\frac{\color{red}5}{\color{blue}20}$} (t);
+        \draw[<-] (c) -- node[above] {$\frac{\color{red}0}{\color{blue}15}$} (b);
+
+        \end{tikzpicture}
+        \caption{The max flow of the above graph.}
+        \label{fig:ex_flow}
+      \end{figure}
+      Here is the residual graph, which shows indeed that this the max flow. The min cut is therefore $S = \{s, a, c\}$ and $T = \{t, b, d\}$. 
+      \begin{figure}[H]
+        \centering
+        \begin{tikzpicture}[
+            node distance=2.5cm,
+            vertex/.style={circle, draw, minimum size=0.8cm},
+            auto,
+            >=Stealth,
+            fwd/.style={blue},
+            back/.style={purple}
+        ]
+
+        % Nodes with increased horizontal spacing
+        \node[vertex] (s) at (0,0) {s};
+        \node[vertex] (a) at (3,2) {a};
+        \node[vertex] (b) at (6,2) {b};
+        \node[vertex] (c) at (3,-2) {c};
+        \node[vertex] (d) at (6,-2) {d};
+        \node[vertex] (t) at (9,0) {t};
+
+        % Forward residual edges (blue) capacity-flow
+        \draw[->, fwd] (s) to[bend right=20] node[above] {5} (a);  % 20-15=5
+        \draw[->, fwd] (s) to[bend right=20] node[below] {10} (c); % 10-0=10
+        \draw[->, fwd] (b) to[bend left=20] node[above] {5} (t);  % 15-10=5
+        \draw[->, fwd] (b) to[bend left=20] node[right] {15} (d); % 20-5=15
+        \draw[->, fwd] (b) to[bend left=20] node[left] {15} (c);  % 15-0=15
+        \draw[->, fwd] (d) to[bend left=20] node[below] {15} (t); % 20-5=15
+
+        % Backward residual edges (purple) flow
+        \draw[->, back] (a) to[bend right=20] node[below] {15} (s); % flow=15
+        \draw[->, back] (c) to[bend right=20] node[left] {10} (a);  % flow=10
+        \draw[->, back] (d) to[bend right=20] node[below] {10} (c); % flow=10
+        \draw[->, back] (t) to[bend left=20] node[below] {10} (b); % flow=10
+        \draw[->, back] (t) to[bend left=20] node[above] {5} (d);   % flow=5
+        \draw[->, back] (d) to[bend left=20] node[right] {5} (b);  % flow=5
+        \draw[->, back] (b) to[bend right=20] node[above] {5} (a);  % flow=5
+        \draw[->, back] (c) to[bend right=20] node[above] {0} (s);   % flow=0
+
+        \end{tikzpicture}
+        \caption{You can see that there are no paths from $s$ to $t$ anymore. The edges $a \rightarrow b$ and $c \rightarrow d$ in the original graph are saturated and so have weight $0$ in the residual graph. }
+        \label{fig:ex_residual}
+      \end{figure}
+    \end{example} 
+
+    \begin{example}[Edge Disjoint Paths]
+      Given a directed graph $G(V, E)$ with start and end nodes $s, t \in V$, we want to find the maximum number of paths from $s \rightarrow t$ s.t. they do not share any edge, i.e. are \textit{edge-disjoint}. 
+      \begin{figure}[H]
+        \centering 
+        \caption{This graph has two edge-disjoint paths: the top and bottom paths. } 
+        \begin{tikzpicture}[
+            vertex/.style={circle, draw, minimum size=0.6cm},
+            >=Stealth
+        ]
+
+        % Nodes - arranging them in the shape shown
+        \node[vertex] (s) at (0,0) {s};
+        \node[vertex] (a) at (2,1) {};
+        \node[vertex] (b) at (4,1) {};
+        \node[vertex] (t) at (6,0) {t};
+        \node[vertex] (c) at (2,-1) {};
+        \node[vertex] (d) at (4,-1) {};
+
+        % Upper and lower path edges
+        \draw[->] (s) -- (a);
+        \draw[->] (a) -- (b);
+        \draw[->] (b) -- (t);
+        \draw[->] (s) -- (c);
+        \draw[->] (c) -- (d);
+        \draw[->] (d) -- (t);
+
+        % Cross edges between paths
+        \draw[->] (a) to[bend right=20] (c);
+        \draw[->] (c) -- (b);
+        \draw[->] (b) to[bend right=20] (d);
+
+        \end{tikzpicture}
+        \label{fig:edge_disjoint}
+      \end{figure}
+      
+      The idea is to reduce the maximum flow by first assigning capacity 1 to every edge. Then we compute the maximum flow $f^\ast$, and then return $|f^\ast|$. It turns out that even if we chose a path $\pi$ that went through the center node, the augmentation would push us to redirect the flows to the top and bottom outer edges. Since $|f^\ast| \leq n-1 < m$ in this example (since it can be at most the maximum indegree or outdegree of $s, t$), we should probably use Ford-Fulkerson rather than Orlin's algorithm. 
+    \end{example}
+
+    This leads to the lemma. 
+
+    \begin{theorem}[Edge-Disjoint Paths]
+      Given directed graph $G$ and its corresponding flow network $G^\prime$ of capacity $1$, the following are true: 
+      \begin{enumerate}
+        \item If there exists $k$ edge-disjiont paths in $G$, then there exists a flow with value $\geq k$ in $G^\prime$. 
+        \item If there exists a flow of value $k$ in $G^\prime$, then there exists $k$ edge-disjoint paths in $G$. 
+      \end{enumerate}
+    \end{theorem}
+
+    What if $G$ is undirected? In this case, we want to construct a flow network and then convert its 2 cycles into a 3 cycles by adding artificial points, taking linear time. Another problem is about vertex-disjoint paths, which is a stronger restriction than edge-disjoint ones.
 
 \section{Linear Programming}
 
