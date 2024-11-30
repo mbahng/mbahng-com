@@ -46,6 +46,7 @@
   \usepackage{tikz-cd}
   \usepackage{circuitikz}
   \usetikzlibrary{arrows.meta,backgrounds}
+  \usetikzlibrary{circuits.logic.US}
   \usetikzlibrary{arrows}
   \usetikzlibrary{positioning}
   \usetikzlibrary{calc}
@@ -3303,40 +3304,486 @@
     \begin{theorem}[Edge-Disjoint Paths]
       Given directed graph $G$ and its corresponding flow network $G^\prime$ of capacity $1$, the following are true: 
       \begin{enumerate}
-        \item If there exists $k$ edge-disjiont paths in $G$, then there exists a flow with value $\geq k$ in $G^\prime$. 
+        \item If there exists $k$ edge-disjoint paths in $G$, then there exists a flow with value $\geq k$ in $G^\prime$. 
         \item If there exists a flow of value $k$ in $G^\prime$, then there exists $k$ edge-disjoint paths in $G$. 
       \end{enumerate}
     \end{theorem}
+    \begin{proof}
+      The first is trivially feasible and conservation is satisfied since for any node $u \in V \setminus \{s, t\}$, every path in $P$ (the collection of $k$ paths) that enters $u$ must exit $u$, so the total flow in equals the total flow out $\implies$ $f$ is a valid $(s, t)$-flow. Therefore, we have $k$ paths leaving $s$, so $|f| = k$. 
 
-    What if $G$ is undirected? In this case, we want to construct a flow network and then convert its 2 cycles into a 3 cycles by adding artificial points, taking linear time. Another problem is about vertex-disjoint paths, which is a stronger restriction than edge-disjoint ones.
+      For the other direction, let $f$ be the flow with value $k$, and let $P = \{\}$. Let $H$ be the subgraph of $G^\prime$ of edges with positive flow, and for every loop, we use BFS from $s$ to $t$ to get a path $\pi$. We then add $\pi$ to $P$ and remove $\pi$ from $H$, repeat this $k$ times until we get $k$ paths in $P$.  
+    \end{proof} 
+
+    The way that we have constructed a collection of paths from a flow function is very useful, and is called \textit{flow decomposition}. We can go back and forth between a flow and a collection of paths by doing what we have just done in the previous proof. 
+
+    \begin{definition}[Flow Decomposition]
+      Given a general flow $f$ on flow network $G$, we initialize our set of paths $P = \{\}$ and loop the following: 
+      \begin{enumerate}
+        \item Use BFS from $s$ to $t$ to get a path $\pi$. 
+        \item Add $\pi$ to $P$ and rather than strictly removing the path from $H$, we need to be mindful of how much flow is left on it after removing only the bottleneck flow on the path. 
+      \end{enumerate}
+      This can be done in $O(NM)$ time, which loosely is because we are running BFS $O(M)$ times. 
+    \end{definition}
+
+    \begin{example}[Undirected Edge-Disjoint Paths]
+      What if $G$ is undirected? In this case, we want to construct a flow network and then convert its 2 cycles into a 3 cycles by adding artificial points, taking linear time. 
+    \end{example}
+
+    \begin{example}[Undirected Edge-Disjoint Paths]
+      Another problem is about vertex-disjoint paths, which is a stronger restriction than edge-disjoint ones. Each node does not have a concept of a capacity, so the general idea is for each vertex $v$, replace it with an ``in-out gadget'' with an edge of weight 1. The rest of the details follow similarly from edge-disjoint paths. 
+      
+      \begin{figure}[H]
+        \centering 
+        \begin{tikzpicture}
+
+        % Define styles
+        \tikzset{
+            voltage node/.style={
+                draw,
+                circle,
+                minimum size=1.2cm,
+                thick
+            },
+            arrow style/.style={
+                ->,
+                >=stealth,
+                thick
+            }
+        }
+
+        % Left figure
+        % Node v with 4 in-edges and 3 out-edges
+        \node[voltage node] (v1) at (0,0) {$v$};
+
+        % In-edges
+        \draw[arrow style] (-1.5, 1) -- (v1);
+        \draw[arrow style] (-1.5, 0.33) -- (v1);
+        \draw[arrow style] (-1.5, -0.33) -- (v1);
+        \draw[arrow style] (-1.5, -1) -- (v1);
+
+        % Out-edges
+        \draw[arrow style] (v1) -- (1.5, 0.67);
+        \draw[arrow style] (v1) -- (1.5, 0);
+        \draw[arrow style] (v1) -- (1.5, -0.67);
+
+        % Arrow between figures
+        \draw[->, line width=1.5pt, red] (2.5,0) -- (3.5,0);
+
+        % Right figure
+        % Node v_in with 3 in-edges
+        \node[voltage node, blue] (v2) at (6,0) {$v_{in}$};
+        \draw[arrow style, blue] (4.5, 0.67) -- (v2);
+        \draw[arrow style, blue] (4.5, 0) -- (v2);
+        \draw[arrow style, blue] (4.5, -0.67) -- (v2);
+
+        % Connection between v_in and v_out
+        \draw[arrow style, red] (v2) -- (8.5,0);
+
+        % Node v_out with 4 out-edges
+        \node[voltage node, purple] (v3) at (9,0) {$v_{out}$};
+        \draw[arrow style, purple] (v3) -- (10.5, 1);
+        \draw[arrow style, purple] (v3) -- (10.5, 0.33);
+        \draw[arrow style, purple] (v3) -- (10.5, -0.33);
+        \draw[arrow style, purple] (v3) -- (10.5, -1);
+
+        \end{tikzpicture}
+        \caption{} 
+        \label{fig:undirected_ex}
+      \end{figure}
+    \end{example}
+
+    \begin{example}[Maximum Bipartite Matching]
+      Another application is in \textbf{bipartite matching}, which for an undirected bipartite graph $G(V, E)$ with $V = A \sqcup B$, is a subset of the edges $M \subset E$ s.t. no 2 edges in $M$ share an endpoint. The goal is to find the maximum bipartite matching, i.e. the matching with the greatest total weight. 
+
+      \begin{figure}[H]
+        \centering 
+        \begin{tikzpicture}[
+            blue node/.style={draw, circle, fill=blue!20, minimum size=0.8cm},
+            red node/.style={draw, circle, fill=red!20, minimum size=0.8cm},
+            normal edge/.style={thin, black},
+            matching edge/.style={very thick, green!60!black},
+            normal weight/.style={black},
+            matching weight/.style={green!60!black, font=\bfseries}
+        ]
+
+        % Left (blue) nodes
+        \node[blue node] (a1) at (0,3) {$a_1$};
+        \node[blue node] (a2) at (0,2) {$a_2$};
+        \node[blue node] (a3) at (0,1) {$a_3$};
+        \node[blue node] (a4) at (0,0) {$a_4$};
+
+        % Right (red) nodes
+        \node[red node] (b1) at (4,2.5) {$b_1$};
+        \node[red node] (b2) at (4,1.5) {$b_2$};
+        \node[red node] (b3) at (4,0.5) {$b_3$};
+
+        % Regular edges with weights
+        \draw[normal edge] (a1) -- node[above, pos=0.7] {3} (b2);
+        \draw[normal edge] (a2) -- node[below, pos=0.3] {4} (b1);
+        \draw[normal edge] (a3) -- node[above, pos=0.7] {2} (b2);
+        \draw[normal edge] (a3) -- node[below, pos=0.6] {4} (b3);
+        \draw[normal edge] (a4) -- node[below, pos=0.3] {5} (b3);
+
+        % Maximum matching edges (highlighted in green)
+        \draw[matching edge] (a1) -- node[above, pos=0.3, matching weight] {5} (b1);
+        \draw[matching edge] (a2) -- node[above, pos=0.6, matching weight] {6} (b3);
+        \draw[matching edge] (a4) -- node[below, pos=0.7, matching weight] {3} (b2);
+
+        \end{tikzpicture}
+        \caption{A bipartite matching} 
+        \label{fig:bipartite_matching}
+      \end{figure}
+
+      The general idea is to take an undirected graph, convert it to a flow network, compute the max flow, i.e. min cut, and then translate it back into the undirected graph solution.  
+      \begin{enumerate}
+        \item Construct the flow network $G^\prime = (V^\prime, E^\prime)$, where $V^\prime = V \cup \{s, t\}$, with additional edges going from $s$ to $A$ and $B$ to $t$ all with weights $1$. Replace the middle edges with directed edges towards the flow with the same weight (though it can be any weight at least 1). 
+
+        \begin{figure}[H]
+          \centering 
+          \begin{tikzpicture}[
+              blue node/.style={draw, circle, fill=blue!20, minimum size=0.8cm},
+              red node/.style={draw, circle, fill=red!20, minimum size=0.8cm},
+              special node/.style={draw, circle, minimum size=0.8cm},
+              edge/.style={->, >=stealth}
+          ]
+
+          % Source and sink nodes
+          \node[special node] (s) at (-2,1.5) {$s$};
+          \node[special node] (t) at (6,1.5) {$t$};
+
+          % Left (blue) nodes
+          \node[blue node] (a1) at (0,3) {$a_1$};
+          \node[blue node] (a2) at (0,2) {$a_2$};
+          \node[blue node] (a3) at (0,1) {$a_3$};
+          \node[blue node] (a4) at (0,0) {$a_4$};
+
+          % Right (red) nodes
+          \node[red node] (b1) at (4,2.5) {$b_1$};
+          \node[red node] (b2) at (4,1.5) {$b_2$};
+          \node[red node] (b3) at (4,0.5) {$b_3$};
+
+          % Edges from source to A nodes with weight 1
+          \draw[edge] (s) -- node[above] {1} (a1);
+          \draw[edge] (s) -- node[above] {1} (a2);
+          \draw[edge] (s) -- node[below] {1} (a3);
+          \draw[edge] (s) -- node[below] {1} (a4);
+
+          % Edges from B nodes to sink with weight 1
+          \draw[edge] (b1) -- node[above] {1} (t);
+          \draw[edge] (b2) -- node[above] {1} (t);
+          \draw[edge] (b3) -- node[below] {1} (t);
+
+          % Middle edges (directed A to B) with original weights
+          \draw[edge] (a1) -- node[above, pos=0.3] {5} (b1);
+          \draw[edge] (a1) -- node[above, pos=0.7] {3} (b2);
+          \draw[edge] (a2) -- node[below, pos=0.3] {4} (b1);
+          \draw[edge] (a2) -- node[above, pos=0.6] {6} (b3);
+          \draw[edge] (a3) -- node[above, pos=0.7] {2} (b2);
+          \draw[edge] (a3) -- node[below, pos=0.6] {4} (b3);
+          \draw[edge] (a4) -- node[below, pos=0.7] {3} (b2);
+          \draw[edge] (a4) -- node[below, pos=0.3] {5} (b3);
+
+          \end{tikzpicture}
+
+          \label{fig:g_prime}
+        \end{figure}
+
+        \item Compute max flow $f$ in $G^\prime$. 
+        \item Return $M = \{ (u \rightarrow v) \in E \mid f(u \rightarrow v) = 1 \}$. This can be done using the flow decomposition or just by looking at the edges in our flow with value $1$ and mapping it to the corresponding undirected bipartite graph. 
+      \end{enumerate}
+      To see correctness, we claim that there exists a matching $M$ in $G$ of size $k$ iff there exists a flow $f$ in $G^\prime$ with $|f|= k$, and therefore the max matching corresponds to the max flow. Constructing the flow network is $O(N + M)$ since $N^\prime = N + 2$ and $M^\prime = M + N$. Computing the max-flow is $O(N^\prime M^\prime)$ or $O(M^\prime |f|)$ depending on if we use Orlin's or Ford-Fulkerson, but either one is $O(NM)$. Then mapping it back to $M$ might take $O(M)$, so the total time is $O(NM)$. 
+    \end{example}
+
+\section{Efficiency} 
+
+  \subsection{NP-Completeness and Reductions} 
+
+    We have talked about optimization problems that choose the best solution from a class of solutions. Now we will talk about \textit{decision problems}, which seek to answer whether a certain problem contains a solution or not. Here are two examples. It turns out we can convert one into the other easily by rephrasing the problem. 
+
+    \begin{definition}[CircuitSAT]
+      Consider a black box circuit $f$, with input $\mathbf{x} \in \{0, 1\}^n$. We want to answer the question of whether there exists some $\mathbf{x}$ s.t. $f(\mathbf{x}) = 1$, i.e. whether the circuit is \textbf{satisfiable}? 
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/circuit.png}
+        \caption{Some random circuit where $n = 5$.} 
+        \label{fig:random_circuit}
+      \end{figure}
+      The obvious way is to brute force is an check all $2^n$ combinations, and this is the only way since this is black-box. However, even if we knew the circuit itself, the amount of computations that we need to solve this is conjectured to be still $O(2^n)$, though we may be able to cleverly shave off some calculations here and there.\footnote{It is not proven that there exists no exponential algorithm.}
+    \end{definition}
+
+    \begin{definition}[3SAT]
+      Given a boolean formula $\phi$ where each \textbf{clause} contains exactly 3 literals, determine if there exists a satisfying assignment to the variables that makes $\phi$ true. Formally:
+      \begin{align*}
+        \phi &= C_1 \land C_2 \land \cdots \land C_m \\
+        C_i &= (l_{i1} \lor l_{i2} \lor l_{i3}) \\
+        l_{ij} &\in \{x_k, \neg x_k\} \text{ for some } k \in \{1,\ldots,n\}
+      \end{align*}
+      where $x_k$ are boolean variables and $\neg x_k$ their negations. For example:
+      \begin{align*}
+        \phi = (x_1 \lor \neg x_2 \lor x_3) \land (\neg x_1 \lor x_2 \lor x_4) \land (x_2 \lor \neg x_3 \lor \neg x_4)
+      \end{align*}
+      Like CircuitSAT, this problem is also believed to require $O(2^n)$ time, and in fact these problems are polynomially reducible to each other (CircuitSAT $\leq_p$ 3SAT and 3SAT $\leq_p$ CircuitSAT). The key difference is that 3SAT has a very specific structure that makes it easier to analyze and reduce other problems to, making it a canonical NP-complete problem.\footnote{The restriction to exactly 3 literals per clause is not arbitrary - 2SAT is solvable in polynomial time, while 3SAT is NP-complete.}
+    \end{definition}
+
+    In fact, there is a polynomial time algorithm to translate between 3SAT and CircuitSAT, so the two are theoretically equivalent. 
+
+    \begin{definition}[Classes of Problems]
+      Given the set of all decision problems. 
+      \begin{enumerate}
+        \item $P$ (Polynomial Time) is the set of all decision problems with polynomial-time algorithms. 
+        \item $NP$ (Nondeterministic Polynomial Time) is the set of all decision problems for which if it returns $1$ (i.e. a solution exists), this can be \textit{verified} in polynomial time. 
+      \end{enumerate}
+      Clearly, $P$ is more restrictive since if we can solve a problem in polynomial time, it can be verified in polynomial time (again if a solution exists). If a solution doesn't exist, we would have to show that no solutions exist by testing all cases. So 
+      \begin{equation}
+        P \subset NP
+      \end{equation}
+      There can be other problems which are at least as hard as NP, called \textbf{NP-hard}. The intersection of NP-hard and NP is \textbf{NP-complete}, which can be thought of as the hardest problems existing in NP.\footnote{We will deal with P vs NP problems only in the context of decision problems, but we can classify optimization problems as NP-hard. }
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.3]{img/class.png}
+        \caption{Diagram of the 4 classes. The complexity rises as we go up. } 
+        \label{fig:class}
+      \end{figure}
+    \end{definition}
+
+    The other way around $NP \subset P$ is an unsolved millenium conjecture. It attempts to answer what the runtime difference or difficulty is between solving and verifying a problem? The conjecture states that solving is exponentially harder that verifying. 
+
+    \begin{theorem}[Formal Definition of NP-hard Problems]
+      A problem $\pi$ is NP-hard iff the existence of a polynomial time algorithm for $\pi$ implies $P = NP$. 
+    \end{theorem}
+
+    \begin{theorem}
+      For CircuitSAT, 
+      \begin{equation}
+        \texttt{CircuitSAT} \not\in P, \texttt{CircuitSAT} \in NP
+      \end{equation}
+      That is, it cannot be solved in polynomial time, but given a solution circuit and a satisfying assignment, the assignment can be verified in $O(N+M)$ time. 
+      For 3SAT, 
+      \begin{equation}
+        \texttt{3SAT} \not\in P, \texttt{3SAT} \in NP
+      \end{equation}
+      That is, it cannot be solved in polynomial time, but given a solution formula and a satisfying assignment, the assignment can be verified in $O(N+M)$ time. 
+    \end{theorem}
+
+    \begin{theorem}[Cook-Levin]
+      3SAT is NP-complete. 
+    \end{theorem}
+
+    \begin{theorem}[Longest Path]
+      Finding the longest path in a graph is NP-complete. 
+    \end{theorem}
+
+    To show whether a problem is NP, we should show that it is verifiable in polynomial time, which we have done so far. 
+
+    \begin{definition}[Reduction]
+      For NP-hard, we use a technique called \textit{reduction}. In other words, to prove a problem $\pi$ is NP-hard, reduce a known NP-hard problem $\beta$ to $\pi$ in polynomial time (not the other way around!). If this reduction is possible, then $\pi$ must be at least as hard as $\beta$: $\beta \leq_p \pi$, i.e. there exists an injective (but not necessarily surjective) mapping from the set of solutions of $\beta$ to the set of solutions of $\pi$. Formally, 
+      \begin{enumerate}
+        \item Assume there exists a polynomial time algorithm that solves $\pi$. 
+        \item Since we have reduced $\pi$ to $\beta$, this indicates that we can use this polytime algorithm to solve $\beta$, which we already knew was NP-hard. 
+        \item This creates a contradiction, and therefore $\pi$ must be NP-hard. 
+      \end{enumerate}
+    \end{definition}
+
+    For example, to prove that CircuitSAT is NP-hard, we should reduce 3-SAT to CircuitSAT in polynomial time and then we are done.  
+
+    \begin{example}[MIS]
+      Given an undirected graph $G(V, E)$, an \textbf{independent set} is a subset $S \subseteq V$ such that no two vertices in $S$ are connected by an edge in $E$. The Maximum Independent Set problem asks us to find an independent set of maximum cardinality. 
+    \end{example}
+
+    \begin{theorem}[Maximum Independent Set (MIS)]
+      MIS is NP-hard.
+    \end{theorem}
+    \begin{proof}
+      We prove NP-hardness by reducing from 3SAT, which is more structured than CircuitSAT. Given a 3SAT instance $\phi$, we construct a graph $G$ such that $\phi$ is satisfiable if and only if $G$ has an independent set of size $m$, where $m$ is the number of clauses in $\phi$. The reduction works as follows: For a 3SAT formula $\phi = C_1 \land C_2 \land \cdots \land C_m$ where each clause $C_i = (l_{i1} \lor l_{i2} \lor l_{i3})$, construct graph $G(V,E)$:
+
+      \begin{enumerate}
+        \item For each clause $C_i$, create a \textbf{clause gadget}: a triangle with vertices labeled $l_{i1}$, $l_{i2}$, and $l_{i3}$ with undirected edges between them. 
+        \item Add \textbf{consistency edges}: for any two literals $l_{ij}$ and $l_{k\ell}$ from different triangles, add an edge if they are complementary (i.e., one is $x$ and the other is $\neg x$)
+      \end{enumerate}
+
+      This reduction has the following properties:
+      \begin{itemize}
+        \item Each triangle forces us to choose at most one literal from each clause
+        \item Consistency edges ensure we can't choose contradictory literals
+        \item Choosing $m$ vertices (one per triangle) corresponds to making each clause true
+      \end{itemize}
+
+      It turns out that $\phi$ is satisfiable iff the size of the IS in $G$ is exactly the number of clauses in $phi$. 
+      \begin{itemize}
+        \item ($\Rightarrow$) If $\phi$ is satisfiable, choose one true literal from each clause to form an independent set of size $m$
+        \item ($\Leftarrow$) If $G$ has an independent set of size $m$, it must contain exactly one vertex per triangle (by pigeonhole principle), giving us a valid satisfying assignment
+      \end{itemize}
+
+      Therefore, now that we have established the reduction, since 3SAT is NP-complete and we have a polynomial-time reduction to MIS, MIS is NP-hard.
+    \end{proof}
+
+    \begin{example}[3SAT Reduction of MIS]
+      Consider the 3SAT formula 
+      \begin{equation}
+        \phi = (a \lor b \lor c) \land (b \lor \neg c \lor \neg d) \land (\neg a \lor c \lor d) \land (a \lor \neg b \lor \neg d)
+      \end{equation}
+      Following our reduction, we construct graph $G$ as follows:
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.8]{img/mis_graph.png}
+        \caption{Reduction graph from 3SAT to MIS. } 
+        \label{fig:mis_graph}
+      \end{figure}
+
+      The graph contains:
+      \begin{enumerate}
+        \item Four triangles, one for each clause of $\phi$
+        \item Red edges connecting complementary literals (e.g., $b$ with $\bar{b}$)
+        \item A maximum independent set highlighted in yellow ($\{a, d\}$) of size 4
+      \end{enumerate} 
+
+      This independent set corresponds to the satisfying assignment $(a, b, c, d) = (1, \ast, 1, 0)$. 
+      \begin{itemize}
+        \item $(a \lor b \lor c)$ is satisfied by $a = 1$
+        \item $(b \lor \neg c \lor \neg d)$ is satisfied by $d = 0$. 
+        \item $(\neg a \lor c \lor d)$ is satisfied by $c = 1$. 
+        \item $(a \lor \neg b \lor \neg d)$ is satisfied by $a = 1$. 
+      \end{itemize}
+
+      To demonstrate the proof, we assume that this MIS can be solved in polynomial time, so $MIS \in P$. But since $3SAT \leq_p MIS$, this means that $3SAT \in P$, which is a contradiction since $3SAT \in NP-hard$. 
+    \end{example} 
+
+    \begin{example}[Min Vertex Cover]
+      Given an undirected graph $G(V, E)$, a \textbf{vertex cover} is a subset $S \subset V$ where for all $(u, v) \in E$, either $u \in S$ or $v \in S$ (or both). We would like to figure out the vertex cover of minimum cardinality, i.e. the min vertex cover. 
+    \end{example}
+
+    \begin{theorem}[MVC]
+      MVC is NP-hard. 
+    \end{theorem}
+    \begin{proof}
+      We will reduce this from MIP. Recall that an independent set is a subset $S \subset V$ s.t. for all $(u, v) \in E$, $u \in S$ or $v \in S$. By definition, we can see that $u \in S \iff u \not\in V \setminus S$, and so IS and VCs are related in the following way: 
+      \begin{equation}
+        S \subset V \text{ is a VC} \iff V \setminus S \text{ is an IS of size } n-k
+      \end{equation}
+
+      We assume that a polytime algorithm exists for MVC, so on input $G(V, E0)$, we calculate the MVC, call it $M$, and then we return the corresponding maxiumum independent set $S = V \setminus M$. But this would imply that there exists such a polytime algorithm, implying that $P = NP$, and therefore MVC must be NP-hard by definition. 
+    \end{proof}
+
+    \begin{example}[Max Clique]
+      Given an undirected graph $G(V, E)$, a \textbf{clique} a subset of vertices $S \subset V$ s.t. there is an edge between each pair in $S$, i.e. a \textit{complete subgraph}. We would like to find the largest clique. 
+    \end{example} 
+
+    \begin{theorem}[MC]
+      Finding the max clique is NP-hard. 
+    \end{theorem}
+    \begin{proof}
+      Let's define the \textbf{edge-complement} of a graph $G$ as $\bar{G} = (V, \bar{E})$ where $\bar{E}$ is the set of edges not in $G$. Note that if $S \subset V$ is an independent set of $G$, then for all $u, v \in S$, $(u, v) \not\in E$, which is equivalent saying that $(u, v) \in \bar{E}$, which means that $S \subset V$ is a clique of $\bar{G}$. 
+
+      Therefore, we can reduce this from MIS by taking input $G$, getting $\bar{G}$ in $O(N + M)$ time, and returning the size of the max clique of $\bar{G}$ in our assumed polytime algorithm. Therefore, MC is NP-hard. 
+    \end{proof}
+
+    MIS, MVC, and MC are all optimization problems, but we can convert them to their \textit{decision versions} by simply taking a solution and asking ``Given graph $G$ and constant $K$, is there a solution of size less/greater than $K$?'' 
+
+    \begin{example}[Subset Sum]
+      Given a multiset (allowing duplicates) $X$ of positive integers and a target value $T$, we want to find whether there exists a subset $S \subset X$ that sum up to $T$.  
+    \end{example}
+    \begin{proof}
+      We reduce from the decision version of VC, which is also known to be NP-hard. We are given a graph input $G(V, E)$ and constant $K$. 
+      \begin{enumerate}
+        \item We label each edge of $G$ from $0$ to $E - 1$. 
+        \item Construct $X = \{\}$: 
+          \begin{enumerate}
+            \item for each $e = 0, \ldots, E-1$, add $b_e = 4^e$ to $X$. 
+            \item for each vertex $v$, add 
+              \begin{equation}
+                a_v = 4^{E} + \sum_{e \in \Delta(u)} 4^e
+              \end{equation}
+              to $X$, where $\Delta(u)$ are the incident edges of $u$. 
+          \end{enumerate}
+        \item Now construct 
+          \begin{equation}
+            T = K \cdot 4^E = \sum_{e=0}^{E-1} 2 \cdot 4^e
+          \end{equation}
+          where the first term covers all vertices and the summation covers all edges. 
+      \end{enumerate}
+    \end{proof}
 
 \section{Linear Programming}
 
 \section{Streaming Algorithms}
 
   \begin{algo}[Boyer-Moore Majority Vote Algorithm]
-    
     \begin{algorithm}[H]
-      \caption{}
+      \caption{Boyer-Moore Majority Vote Algorithm}
       \label{alg:majority_vote}
-      \begin{algorithmic}
-        \Require{}
-        \State 
-        \Function{Func}{x}
+      \begin{algorithmic}[1]
+        \Require{Array A of length n} \Comment{Input array to find majority element}
+        \Ensure{Element that appears more than n/2 times, if it exists} \Comment{Output majority element or indication of none}
+        \Function{FindCandidate}{A} \Comment{First pass to find potential majority element}
+          \State candidate $\gets$ A[0] \Comment{Initialize candidate as first element}
+          \State count $\gets$ 1 \Comment{Initialize counter for current candidate}
+          \For{i = 1 to n-1} \Comment{Iterate through remaining elements}
+            \If{count = 0} \Comment{If counter depleted, need new candidate}
+              \State candidate $\gets$ A[i] \Comment{Pick current element as new candidate}
+              \State count $\gets$ 1 \Comment{Reset counter for new candidate}
+            \ElsIf{A[i] = candidate} \Comment{Found another occurrence of current candidate}
+              \State count $\gets$ count + 1 \Comment{Increment counter}
+            \Else \Comment{Found different element}
+              \State count $\gets$ count - 1 \Comment{Decrement counter}
+            \EndIf
+          \EndFor
+          \State \Return candidate \Comment{Return potential majority element}
+        \EndFunction
+        \Function{VerifyMajority}{A, candidate} \Comment{Second pass to verify candidate}
+          \State count $\gets$ 0 \Comment{Initialize counter for verification}
+          \For{i = 0 to n-1} \Comment{Count all occurrences of candidate}
+            \If{A[i] = candidate} \Comment{Found candidate in array}
+              \State count $\gets$ count + 1 \Comment{Increment occurrence counter}
+            \EndIf
+          \EndFor
+          \If{count > n/2} \Comment{Check if candidate appears majority of times}
+            \State \Return candidate \Comment{Confirmed majority element}
+          \Else
+            \State \Return "No majority element exists" \Comment{No element appears more than n/2 times}
+          \EndIf
         \EndFunction
       \end{algorithmic}
     \end{algorithm}
   \end{algo}
 
   \begin{algo}[Track Median From Data Stream]
-    
     \begin{algorithm}[H]
-      \caption{}
+      \caption{Track Median From Data Stream}
       \label{alg:median_track}
-      \begin{algorithmic}
-        \Require{}
-        \State 
-        \Function{Func}{x}
+      \begin{algorithmic}[1]
+        \Require{Stream of numbers} \Comment{Input is a continuous stream of numbers}
+        \Ensure{Current median after each number} \Comment{Returns median as each number arrives}
+        
+        \State maxHeap $\gets$ empty max heap \Comment{Stores lower half of numbers}
+        \State minHeap $\gets$ empty min heap \Comment{Stores upper half of numbers}
+        
+        \Function{AddNumber}{num}
+          \If{maxHeap.isEmpty() OR num < maxHeap.peek()} \Comment{Number belongs in lower half}
+            \State maxHeap.add(num) \Comment{Add to max heap}
+          \Else
+            \State minHeap.add(num) \Comment{Add to min heap}
+          \EndIf
+          
+          \State balance $\gets$ maxHeap.size() - minHeap.size() \Comment{Check heap balance}
+          
+          \If{balance > 1} \Comment{Max heap has too many elements}
+            \State minHeap.add(maxHeap.poll()) \Comment{Move largest from max heap to min heap}
+          \ElsIf{balance < -1} \Comment{Min heap has too many elements}
+            \State maxHeap.add(minHeap.poll()) \Comment{Move smallest from min heap to max heap}
+          \EndIf
+        \EndFunction
+        
+        \Function{FindMedian}{}
+          \If{maxHeap.size() > minHeap.size()} \Comment{Odd number of elements}
+            \State \Return maxHeap.peek() \Comment{Return top of max heap}
+          \ElsIf{minHeap.size() > maxHeap.size()} \Comment{Odd number of elements}
+            \State \Return minHeap.peek() \Comment{Return top of min heap}
+          \Else \Comment{Even number of elements}
+            \State \Return (maxHeap.peek() + minHeap.peek()) / 2 \Comment{Average of both tops}
+          \EndIf
         \EndFunction
       \end{algorithmic}
     \end{algorithm}
