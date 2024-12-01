@@ -3532,13 +3532,621 @@
         Therefore, path expression becomes joins. The number of joins is proportional to the length of the path expression. 
     \end{enumerate}
 
-  \subsubsection{Query Processing and Optimization} 
-    
+\section{Query Processing and Optimization} 
+  
     When the DBMS chooses the best way to sort or merge two relations, it needs to choose it immediately. This can be done crudely by looking at the statistics of the relations that it is working with, but it doesn't guarantee that you will get the optimal plan. Therefore, it goes by the principal that you shouldn't try and waste time choosing the optimal one, but rather avoid the horrible ones. 
 
+    As a user of this DBMS, we should also take care in writing queries that are not too computationally or IO heavy. Two general heuristics that we should follow are: 
+    \begin{enumerate}
+      \item You want to \textit{push down}, i.e. use as early as possible, selections and projections. 
+      \item You want to join smaller relations first and avoid using cross product, which can be devastating in memory. 
+    \end{enumerate}
+
+    We can get a bit more theoretical and use the following identities in relational algebra. 
+
+    \begin{theorem}[Identities]
+      The following hold:
+      \begin{enumerate}
+        \item Selection-Join Conversion: $\sigma_p(R \times S) = R \bowtie_p S$
+        \item Selection Merge/Split: $\sigma_{p_1}(\sigma_{p_2}R) = \sigma_{p_1 \wedge p_2}R$
+        \item Projection Merge/Split: $\pi_{L_1}(\pi_{L_2}R) = \pi_{L_1}R$, where $L_1 \subseteq L_2$
+        \item Selection Push Down/Pull Up: $\sigma_{p \wedge p_r \wedge p_s}(R \bowtie_{p'} S) = (\sigma_{p_r}R) \bowtie_{p \wedge p'} (\sigma_{p_s}S)$, where:
+        - $p_r$ is a predicate involving only R columns
+        - $p_s$ is a predicate involving only S columns
+        - $p$ and $p'$ are predicates involving both R and S columns
+        \item Projection Push Down: $\pi_L(\sigma_p R) = \pi_L(\sigma_p(\pi_{L L'}R))$, where:
+        - $L'$ is the set of columns referenced by $p$ that are not in $L$
+      \end{enumerate}
+    \end{theorem} 
+
+  \subsection{Rewriting SQL Queries}
+
+    \begin{definition}[SQL Query Rewrite]
+      We can rewrite SQL queries directly, though this is more complicated and requires knowledge of the nuances of the DBMS. 
+      \begin{enumerate}
+        \item Subqueries and views may not be efficient, as they divide a query into nested blocks. Processing each block separately forces the DBMS to use join methods, which may not be optimal for the entire query though it may be optimal for each block. 
+        \item Unnest queries convert subqueries/views to joins. 
+      \end{enumerate}
+      Therefore, it is usually easier to deal with select-project-join queries, where the rules of relational algebra can be cleanly applied. 
+    \end{definition} 
+
+    \begin{example}[Query Rewrite]
+      Given the query, we wish to rewrite it. 
+      \begin{lstlisting}
+        SELECT name 
+        FROM User 
+        WhERE uid = ANY(SELECT uid FROM Member);
+      \end{lstlisting}
+
+      The following is wrong since there may be one user in two groups, so it will be duplicated.\footnote{A bit of review: when testing whether two queries are equal, think about if the two queries treat duplicates, null values, and empty relations in the same way. } 
+      \begin{lstlisting}
+        SELECT name 
+        FROM User, Member 
+        WHERE User.uid = Member.uid;
+      \end{lstlisting} 
+
+      The following is correct assuming \texttt{User.uid} is a key. 
+      \begin{lstlisting}
+        SELECT name 
+        FROM (SELECT DISTINCT User.uid, name) 
+        FROM User, Member 
+        WHERE User.uid = Member.uid); 
+      \end{lstlisting}
+    \end{example}
+
+    \begin{example}[Correlated Subqueries]
+      Look at this query where we want to select all group ids with name like Springfield and having less than some number of members. 
+      \begin{lstlisting}
+        SELECT gid 
+        FROM Group, (SELECT gid, COUNT(*) AS cnt FROM Member GROUP BY gid) t 
+        WHERE t.gid = Group.gid AND min_size > t.cnt 
+        AND name LIKE 'Springfield%';
+      \end{lstlisting}
+      This is inefficient since for every \texttt{gid}, we are making an entire extra query to select the counts. This is called a \textbf{non-correlated} query since this subquery is being run independently for every run. It ends up computing the size of \textit{every} group, unlike the following one, where it filters out groups named Springfield first and then computes their size. 
+      \begin{lstlisting}
+        SELECT gid FROM Group 
+        WHERE name LIKE 'Springfield%' 
+        AND min_size > (SELECT COUNT(*) FROM Member WHERE Member.gid = Group.gid);
+      \end{lstlisting}
+    \end{example}
+  
+  \subsection{Logical and Physical Plans}
+
+    We can construct a high-level \textbf{logical plan}, which shows the computation DAG of the relational operators that we will perform for a query. We can optimize the logical plan by modifying the intermediate steps with the following identities. They may or may not help in the runtime, since they are dependent on the size of the intermediate inputs. On the implementation side, we want to show the \textbf{physical plan}, which is the actual implementation including even more operations in between each node of the logical plan. This may include scanning or sorting. 
+
+    The difference between the logical and physical plan is that the logical plan represents \textit{what} needs to be done and not \textit{how}. Consider the two approaches. 
+
+    \begin{example}[Query Plans]
+      Consider the following SQL query:
+      \begin{lstlisting}
+        SELECT Group.title
+        FROM User
+        JOIN Member ON User.uid = Member.uid
+        JOIN Group ON Member.gid = Group.gid
+        WHERE User.name = 'Bart';
+      \end{lstlisting}
+
+      \begin{figure}[H]
+        \centering 
+        \begin{tikzpicture}[
+            level distance=1.0cm,
+            every node/.style={draw, rounded corners}, 
+            sibling distance=4cm,
+            edge from parent/.style={draw, -latex}
+        ]
+        \node {$\pi_{\text{Group.title}}$}
+            child {
+                node {$\bowtie_{\text{gid}}$}
+                child {
+                    node {$\bowtie_{\text{uid}}$}
+                    child {
+                        node {$\sigma_{\text{name="Bart"}}$}
+                        child {
+                            node {User}
+                        }
+                    }
+                    child {
+                        node {Member}
+                    }
+                }
+                child {
+                    node {Group}
+                }
+            };
+        \end{tikzpicture}
+        \caption{Logical Plan. We first take User, select Bart, and join it to Member over uid. Then we join it with Group on gid, and finally project the title attribute.} 
+        \label{fig:logical_plan}
+      \end{figure}
+
+      \begin{figure}[H]
+        \centering 
+        \begin{tikzpicture}[
+            level distance=1.0cm,
+            sibling distance=4cm,
+            every node/.style={draw, rounded corners},
+            edge from parent/.style={draw, -latex}
+        ]
+        \node {PROJECT (Group.title)}
+            child {
+                node {MERGE-JOIN (gid)}
+                child {
+                    node {SORT (gid)}
+                    child {
+                        node {MERGE-JOIN (uid)}
+                        child {
+                            node {FILTER (name = "Bart")}
+                            child {
+                                node {SCAN (User)}
+                            }
+                        }
+                        child {
+                            node {SORT (uid)}
+                            child {
+                                node {SCAN (Member)}
+                            }
+                        }
+                    }
+                }
+                child {
+                    node {SCAN (Group)}
+                }
+            };
+        \end{tikzpicture}
+        \caption{Physical Plan. We first take User and do a scan before filtering/selecting tuples with Bart. We also scan Member and sort it by uid in order to prepare for merge-join. Once we merge-join over uid, we sort it again to prepare a second merge-join with Group (which we scan first). Once we do this, we finally project the title attribute. } 
+        \label{fig:physical_plan}
+      \end{figure}
+    \end{example} 
+
+  \subsection{Cardinality Estimation}
+
+    In the physical plan, we need to have a cost estimation for each operator. For example, we know that \texttt{SORT(gid)} takes $O(B(\text{input}) \cdot \log_M B(\text{input}))$, but we should find out what $B$, the number of blocks needed to store our input relation, is. To do this, we need the size of intermediate results through cardinality estimation.  
+
+    Usually we cannot do quick and accurate cardinality estimation without strong assumptions, the first of which is uniformity of data. 
+
+    \begin{example}[Selection with Equality Predicates]
+      Suppose you have a relation $R$ with $|R| = 100,000$ tuples. Assume that it has an attribute $A$ taking integer values in $[50, 100)$ \textit{distributed uniformly}. Then, there are 50 distinct values, and when we want to do $\sigma_{A = a} (R)$, then we would expect it to return 
+      \begin{equation}
+        |\sigma_{A = a} (R)| = \frac{|R|}{|\pi_A(R)|} = 2000
+      \end{equation}
+      tuples.
+    \end{example}
+
+    The second assumption is \textit{independence} of the distributions over each attribute. 
+
+    \begin{example}[Selection with Conjunctive Predicates]
+      If we have the same relation $R$ with integer attributes $A \in [50, 100), B \in [10, 20)$ independently and uniformly distributed. Then, 
+      \begin{equation}
+        |\sigma_{A = a, B = b} (R) = \frac{|R|}{|\pi_A (R)| \cdot |\pi_B(R)|} = \frac{100,000}{50 \cdot 10} = 200
+      \end{equation}
+    \end{example}
+
+    At this point, we are just using inclusion-exclusion principle and this becomes a counting problem. 
+
+    \begin{example}[Negated, Disjunctive Predicates]
+      We list these identities for brevity. The math is pretty simple. 
+      \begin{equation}
+        |\sigma_{A \neq a} (R)| = |R| \cdot \bigg( 1 - \frac{1}{|\pi_A (R)|} \bigg)
+      \end{equation}
+      and using I/E principle, we have 
+      \begin{equation}
+        |\sigma_{A = a \lor B = b} (R)| = |R| \cdot \bigg( \frac{1}{|\pi_A (R)|}  + \frac{1}{|\pi_B (R)|} - \frac{1}{|\pi_A (R)| \cdot |\pi_B(R)|} \bigg)
+      \end{equation}
+    \end{example}
+
+    \begin{example}[Range Predicates]
+      Range also works similarly, but only if we know the actual bounds of the attribute values.  
+      \begin{equation}
+        |\sigma_{A > a} (R)| = |R| \cdot \frac{\max(R.A) - a}{\max(R.A) - \min(R.A)}
+      \end{equation}
+    \end{example}
+
+    Clearly, if we know that an attribute follows, say a Gaussian or a Poisson distribution, we can just calculate the difference in the CDFs and scale up by the relation size to get the approximate cardinality. I think this is what the professor refers to as \textit{histogram estimation}. 
+
+    For joins, we need yet another assumption, called \textit{containment of value sets}. This means that if we are natural joining $R(A, B) \bowtie S(A, C)$, every tuple in the smaller (as in fewer distinct values for the join attribute $A$) joins with some tuple in the other relation. In other words, 
+    \begin{equation}
+      |\pi_A (R)| \leq |\pi_A (S)| \implies \pi_A (R) \subset \pi_A (S)
+    \end{equation}
+    which again is a very strong assumption in general but holds in the case of foreign key joins. 
+
+    \begin{example}[Two Way Equi-Join] 
+      With the containment assumption, we have 
+      \begin{equation}
+        |R \bowtie_{A} S| = \frac{|R| \cdot |S|}{\max( |\pi_A (R)|, |\pi_A(S)|)}
+      \end{equation} 
+      Think of this as looking at the cross product between the two relations, and then filtering out the actual tuples that don't belong there.  
+    \end{example}
+
+  \subsection{Search Strategies} 
+
+    Say that we have relations $R_1, \ldots, R_n$ that we want to join. The set of all sequences in which we can join them is bijective to the set of all binary trees with leaves $R_i$. This grows super-exponentially, reading $30,240$ for $n = 6$. There are too many logical plans to choose from, so we must reduce this search space. Here are some heuristics. 
+    \begin{enumerate}
+      \item We consider only \textbf{left-deep} plans, in which case every time we join two relations, it is the outer relation in the next join.\footnote{Note that since the right/inner relation is the one that is being scanned, we want the right one to be smaller since for each block of the left relation, we are looping over all blocks of the right relation. Therefore, left-deep plans are much more efficient since we don't have to scan the huge relation from the disk multiple times. We can just send it directly to the next join.} 
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/left_deep.png}
+        \caption{Left deep plans have a search space of only $n!$, which is better than before. } 
+        \label{fig:left_deep}
+      \end{figure} 
+
+      \item We can consider a balance binary tree, which can be parallel processed, but this causes more runtime on the CPU in sort-merge joins, you must materialize the result in the disk, and finally the search space of binary trees may be larger than that of the left-deep tree. 
+    \end{enumerate}
+
+    Even left-deep plans are still pretty bad, and so optimizing this requires a bit of DP (dynamic programming), using \textit{Selinger's algorithm}. Given $R_1, \ldots, R_n$, we must choose a permutation from the $n!$ permutations. Say that the cost of the optimal join of a set $\mathbb{R}$ is $f(\mathbb{R})$. Note the recursive formula for some $S \subset [n]$. 
+    \begin{equation}
+      f(\{R_i\}_{i \in S}) = \min_i f(\{R_j\}_{j \in S, j \neq i}) + f(R_i, \bowtie_{j \in S, j \neq i} R_j) 
+    \end{equation}
+    Where we sum up the cost of getting the accumulated relation and add it to the additional cost of joining once more with $R_i$. Therefore, given the $R_i$'s, 
+    \begin{enumerate}
+      \item We compute all $f(\{R_i, R_j\})$ for $i < j$ (since $j > i$ requires us the larger one to be inner). 
+      \item Then we apply the recursive formula for all 3-combinations and so on, until we get to $n$-combinations. 
+    \end{enumerate}
 
 \section{JSON}
 
+  NoSQL just stands for not SQL or not relational, like XML or \textbf{JSON}.\footnote{I think it's called this because it's literally how JS objects are stored and printed.} This relaxes some constraints and may be more flexible/efficient, with some popular data stores being MongoDB, CouchDB, Dynamo, etc. They are designed to scale simple OLTP (online transaction processing) style application loads and provide good horizontal scalability. An example of where this is used is in pretty much all blockchains. Every transaction and block is accessible in a JSON format on say \texttt{etherscan.io}. 
 
+  \begin{definition}[JSON]
+    A \textbf{JSON}, short for \textbf{JavaScript Object Notation}, data model is an object with the following properties: 
+    \begin{enumerate} 
+      \item At the top level, it is an array of \textit{objects}. 
+      \item Each object contains a set of key-value pairs of form \texttt{\{key : value\}}, where key (attribute) names should be unique within an object. 
+      \item It supports most primitive types (numbers, strings, double, booleans are stored in quotes e.g. \texttt{"true"}), along with arrays \texttt{[...]}, and finally \textbf{objects} \texttt{\{...\}} (which defines a recursive structure). 
+      \item The order is unimportant. 
+      \item You can't comment in JSON files. 
+    \end{enumerate}
+  \end{definition}
+
+  \begin{example}[Example JSON]
+    Here is an example with users, groups, and members. 
+    \begin{lstlisting}
+      {
+        "users": [
+          {"uid": 1, "name": "Bart"},
+          {"uid": 2, "name": "Lisa"}
+        ],
+        "groups": [
+          {"gid": 101, "title": "Skateboarding Club"},
+          {"gid": 102, "title": "Chess Club"}
+        ],
+        "members": [
+          {"uid": 1, "gid": 101},
+          {"uid": 1, "gid": 102},
+          {"uid": 2, "gid": 102}
+        ]
+      } 
+    \end{lstlisting}
+  \end{example}
+
+  \begin{definition}[MongoDB Database]
+    A database has collections of similarly structured documents, similar to tables of records as opposed to one big XML document that contains all data.  
+    \begin{enumerate}
+      \item \textbf{Database} is a list of collections. (analogous to a database)
+      \item \textbf{Collection} is a list a documents (analogous to a table)
+      \item \textbf{Document} is a JSON object (analogous to a row/tuple)
+    \end{enumerate}
+    MongoDB actually stores this data with \textbf{BSON} (Binary JSON), which is the binary encoding of it. 
+  \end{definition}  
+
+  MongoDB provides a rich set of operations for querying and manipulating data. 
+
+  \begin{definition}[find()]
+    The \texttt{find()} operation is MongoDB's basic query mechanism. It returns a cursor to the matching documents.
+    \begin{enumerate}
+      \item Takes a query document that specifies the selection criteria
+      \item Can include projection to specify which fields to return
+      \item Supports comparison operators like \texttt{\$eq}, \texttt{\$gt}, \texttt{\$lt}
+      \item Can query nested documents and arrays
+    \end{enumerate}
+  \end{definition}
+
+  \begin{example}[Basic Query]
+    Find all users named "Bart":
+    \begin{lstlisting}
+      db.users.find({"name": "Bart"})
+    \end{lstlisting}
+    Find users with uid greater than 1:
+    \begin{lstlisting}
+      db.users.find({"uid": {$gt: 1}})
+    \end{lstlisting}
+  \end{example}
+
+  \begin{definition}[sort()]
+    The \texttt{sort()} method orders the documents in the result set.
+    \begin{enumerate}
+      \item Takes a document specifying the fields to sort by
+      \item Use 1 for ascending order, -1 for descending
+      \item Can sort by multiple fields
+      \item Applied after the query but before limiting results
+    \end{enumerate}
+  \end{definition}
+
+  \begin{example}[Sorting]
+    Sort users by name in ascending order:
+    \begin{lstlisting}
+      db.users.find().sort({"name": 1})
+    \end{lstlisting}
+  \end{example}
+
+
+  \begin{definition}[Aggregation Pipeline]
+    An aggregation pipeline consists of stages that transform sequences of documents. Each stage performs an operation on the input documents and passes the results to the next stage. Despite its name, it handles more than just aggregation operations.
+  \end{definition}
+
+  MongoDB supports several types of pipeline stages:
+
+  \begin{enumerate}
+    \item \textbf{Selection and Filtering} (\texttt{\$match})
+    \begin{itemize}
+        \item Filters documents based on specified conditions
+        \item Similar to \texttt{find()} but within the pipeline context
+    \end{itemize}
+
+    \item \textbf{Projection} (\texttt{\$project})
+    \begin{itemize}
+        \item Reshapes documents by including, excluding, or transforming fields
+        \item Can create computed fields
+    \end{itemize}
+
+    \item \textbf{Sorting} (\texttt{\$sort})
+    \begin{itemize}
+        \item Orders documents based on specified fields
+        \item Equivalent to the \texttt{sort()} method
+    \end{itemize}
+
+    \item \textbf{Grouping} (\texttt{\$group})
+    \begin{itemize}
+        \item Groups documents by a specified expression
+        \item Supports aggregation operators:
+            \begin{itemize}
+                \item \texttt{\$sum}: Calculates numeric totals
+                \item \texttt{\$push}: Accumulates values into an array
+            \end{itemize}
+    \end{itemize}
+
+    \item \textbf{Document Transformation}
+    \begin{itemize}
+        \item \texttt{\$project}/\texttt{\$addFields}: Adds computed fields
+        \item \texttt{\$unwind}: Deconstructs arrays into individual documents
+        \item \texttt{\$replaceRoot}: Promotes an embedded document to the top level
+        \item Array operators:
+            \begin{itemize}
+                \item \texttt{\$map}: Applies an expression to each array element
+                \item \texttt{\$filter}: Selects array elements matching a condition
+            \end{itemize}
+    \end{itemize}
+
+    \item \textbf{Joining} (\texttt{\$lookup})
+    \begin{itemize}
+        \item Performs left outer joins with other collections
+    \end{itemize}
+  \end{enumerate}
+
+  \begin{example}[Basic Pipeline]
+    A pipeline that finds users in the "Chess Club" and sorts them by name:
+    \begin{lstlisting}
+      db.members.aggregate([
+          {$lookup: {
+              from: "users",
+              localField: "uid",
+              foreignField: "uid",
+              as: "user"
+          }},
+          {$match: {"gid": 102}},
+          {$sort: {"user.name": 1}}
+      ])
+    \end{lstlisting}
+  \end{example}
+
+  \begin{example}[Complex Pipeline]
+    A pipeline using multiple stages to group and transform data:
+    \begin{lstlisting}
+      db.members.aggregate([
+          {$group: {
+              _id: "$gid",
+              members: {$push: "$uid"},
+              count: {$sum: 1}
+          }},
+          {$lookup: {
+              from: "groups",
+              localField: "_id",
+              foreignField: "gid",
+              as: "group_info"
+          }},
+          {$project: {
+              _id: 0,
+              group: {$arrayElemAt: ["$group_info.title", 0]},
+              member_count: "$count",
+              members: 1
+          }}
+      ])
+    \end{lstlisting}
+  \end{example}
+  
+  The pipeline stages must be carefully ordered as each stage's output becomes the input for the next stage. For optimal performance:
+  \begin{enumerate}
+    \item Use \texttt{\$match} early to reduce the number of documents
+    \item Place \texttt{\$project} and \texttt{\$unwind} before \texttt{\$group} when possible
+    \item Consider memory limitations when using \texttt{\$sort}
+  \end{enumerate}
+
+  \begin{definition}[\$lookup]
+    The \texttt{\$lookup} operation performs a left outer join to another collection.
+    \begin{enumerate}
+      \item Must be used within an aggregation pipeline
+      \item Specifies foreign collection to join with
+      \item Defines local and foreign fields to join on
+      \item Results stored in an array field
+    \end{enumerate}
+  \end{definition}
+
+  \begin{example}[Join Operation]
+    Join members with users:
+    \begin{lstlisting}
+      db.members.aggregate([
+        {$lookup: {
+          from: "users",
+          localField: "uid",
+          foreignField: "uid",
+          as: "user_info"
+        }}
+      ])
+    \end{lstlisting}
+  \end{example}
+
+  \begin{definition}[Aggregation Operators]
+    Special operators used within aggregation pipelines for computations.
+    \begin{enumerate}
+      \item \texttt{\$sum}: Calculates sum of numeric values
+      \item \texttt{\$push}: Adds value to an array
+      \item \texttt{\$avg}: Calculates average
+      \item \texttt{\$first}/\texttt{\$last}: Returns first/last value in group
+    \end{enumerate}
+  \end{definition}
+
+  \begin{example}[Aggregation Operators]
+    Calculate total members and collect group IDs:
+    \begin{lstlisting}
+      db.members.aggregate([
+        {$group: {
+          _id: "$uid",
+          total: {$sum: 1},
+          groups: {$push: "$gid"}
+        }}
+      ])
+    \end{lstlisting}
+  \end{example}
+
+\section{Transactions} 
+
+    So far, we've had one query/update on one machine, but this is not the case in reality. In modern systems, you have users interacting with a database all the time and databases may be prone to failure. These two situations requires us to develop a safer way of interacting with the database. 
+
+    \begin{example}[Simultaneous Interaction]
+      In an airline, say that we have two parties A and B trying to book the same seat. A looks at the website, which queries the tuple representing the seat. B does the same. A and B then both book it at the same time, sending an update request to the database, causing an overbooking. 
+
+      In a bank, say that we have some events that must be recorded in a database. Say that $A = 0$ and $B = 100$. 
+      \begin{enumerate}
+        \item T1. B sends \$100 to A. So $A \mapsto A + 100, B \mapsto B - 100$. 
+        \item T2. The bank sends all users an interest of 6\%. $A \mapsto 1.06 A, B \mapsto 1.06B$. 
+      \end{enumerate}
+      This is sensitive to order and perhaps at the end we expect $A = 100$. Consider the following cases. 
+      \begin{enumerate} 
+        \item $A \mapsto A + 100, B \mapsto B - 100, A \mapsto 1.06A, B \mapsto 1.06B$. This is fine. 
+        \item $A \mapsto A + 100, A \mapsto 1.06A, B \mapsto 1.06B, B \mapsto B - 100$. This is not fine since both A and B got interest and the bank lost \$6. 
+      \end{enumerate}
+    \end{example}
+
+    \begin{example}[Database Crash]
+      If $A \mapsto A + 100$ happened first and the bank crashed, then the system would find that $A$ just gained \$100! This is clearly not good, so we must undo what we have done so far. 
+    \end{example}
+
+    These two examples hint at some nice properties that we want in our database. 
+    \begin{enumerate}
+      \item \textit{Serializability}. The first example shows that we do not like parallelism and rather we want things to run \textit{serially} in a way such that T1 and T2 occur separately, like a mutex lock. In practice, there are so many requests that parallelism is a must, so we must find ways to not run serially, but to modify our parallel computing to make it serializable, as if it is running serially.  
+      \item \textit{Atomicity}. The second example shows that we want these operations to be \textit{atomic}, i.e. it is fully done or not done at all. That is, we do not want to update the disk (which preserves its state upon powering off) until  T1 is completely finished. A simple solution is to do all the operations in memory (which is wiped upon crashing anyways) and then \textit{commit} (announce that it is done) these changes. \footnote{Committing is not the same as disk writing, actually. It is not necessarily the case that one follows the other, so you can commit before writing and write before committing. There can also be some completed transactions with updated data still in memory and therefore lost in crash.} 
+    \end{enumerate} 
+
+    \begin{definition}[Transaction]
+      The solution to both serializability and atomicity is to use \textbf{transactions}, which is a collection of one or more operations, called \textbf{actions}, on the database that must be executed atomically as a whole. At the end of every transaction, the DBMS always puts either a commit (indicating successful completion) or abort signal. 
+    \end{definition} 
+
+    \begin{definition}[ACID]
+      These properties are a subset of the \textbf{ACID} properties.
+      \begin{enumerate}
+        \item \textit{Atomicity}. A user can think of a transaction as always executing all actions in one stop or not executing any at all. In an abort, this can be undone by storing recovery logs and going through the history to undo. 
+        \item \textit{Consistency}. Each transaction, when run by itself with no concurrent execution of other actions, must preserve the consistency of the database.\footnote{e.g. if you transfer money from one account to another, the total amount in circulation still remains the same. The constraints must also be maintained. } 
+        \item \textit{Isolation}. A user should be able to understand a transaction without considering the effect of any other concurrently running transaction. This allows us to have \textit{concurrency control}, which handles multiple transactions by interweaving them in a serializable way (like the bank example we saw above), and sometimes they may ensure isolation with locks.  
+
+        \item \textit{Durability}. Once the DBMS informs the user that a transaction is completed, its effect should persist.\footnote{Even if the system crashes before writing to disk, we can recover it by using the history logs and redoing them.}
+      \end{enumerate}
+    \end{definition}
+
+    \begin{definition}[Schedule]
+      Now that we've cleared up on transactions, a schedule is simply a sequence of actions gotten from interweaving the transactions on the DBMS. It must obviously be consistent, and two actions from the same transaction T must appear in the schedule in the same order that they appear in T. Some examples of actions that can occur in a schedule is: 
+      \begin{enumerate}
+        \item \texttt{READ} 
+        \item \texttt{WRITE}
+        \item \texttt{COMMIT}
+        \item \texttt{ABORT} 
+      \end{enumerate}
+      Some terminology to compare schedules: 
+      \begin{enumerate}
+        \item \textbf{Serial Schedule}. No interweaving of transactions. 
+        \item \textbf{Equivalent Schedule}. Two schedules that have the same effect on the database state after completion. 
+        \item \textbf{Serializable Schedule}. A schedule that is equivalent to a serial schedule. 
+      \end{enumerate}
+    \end{definition}
+
+    \begin{example}[Bank Schedule]
+      For the bank example above, we can construct a serial schedule $S_1$. 
+      \begin{lstlisting}
+        T1: R(A) W(A) R(B) W(B) C(T1)
+        T2:                           R(A) W(A) R(B) W(B) C(T2)
+      \end{lstlisting}
+      and a serializable schedule $S_2$. 
+      \begin{lstlisting}
+        T1: R(A) W(A)                           R(B) W(B) C(T1)
+        T2:           R(A) W(A) R(B) W(B) C(T2)
+      \end{lstlisting}
+      We can verify that $S_1 \equiv S_2$. 
+    \end{example} 
+
+
+  \subsection{Isolation Levels}
+
+    When we interweave actions, conflicts may arise if one transaction wants to write to a data that another transactions reads/writes. This causes schedules that are not equivalent to the serial schedule. 
+    \begin{enumerate}
+      \item Write-Read (WR): reading uncommited or \textit{dirty data} 
+      \item Read-Write (RW): unrepeatable reads. 
+      \item Write-Write (WW): overwriting uncommitted data or lost updates, which can happen in the same or different transactions. 
+      \item RR has no conflicts since there are no writes. 
+    \end{enumerate}
+
+    In SQL a transaction is automatically started when a user executes a SQL statement, and subsequent statements in the same session are executed as part of this transaction. Statements see changes made by earlier ones in the same transaction and statements in other concurrently running transactions do not. \texttt{COMMIT} and \texttt{ROLLBACK} commands are self explanatory.  
+     
+    SQL also supports isolation levels, which increases performance by eliminating overhead and allowing higher levels of concurrency, albeit at the cost of getting inconsistent answers if you don't know what you're doing. We start off with the most restrictive and go down. 
+    \begin{enumerate}
+      \item \texttt{SERIALIZABLE} is the strongest isolation level, with complete isolation. 
+
+      \item \texttt{REPEATABLE READ} allows repeated reads, and you are safe with updates, but you aren't safe with new insertions, which are called \textit{phantoms}. 
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/rep_read.png}
+        \caption{You still have a different average due to the insertion of a new element. } 
+        \label{fig:rep_read}
+      \end{figure}
+
+      \item \texttt{READ COMMITTED} does not allow dirty reads, but non-repeatable reads are allowed (RW conflicts), which means that reading the same data twice can produce different results and is allowed. 
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/read_c.png}
+        \caption{In T2, we first compute an average of say 0.6. Then in T1 we update the popularity and commit. Then in T2, we take the average again, getting 0.8, and finally commit. T2 ends up reading two different states of the database.} 
+        \label{fig:read_committed}
+      \end{figure}
+
+      \item \texttt{READ UNCOMMITTED} allows you to read uncommitted/dirty data (WR conflict). 
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/read_unc.png}
+        \caption{In T1, you are setting the popularity to 0.99. In T2, you read this uncommitted data to compute the average. However, T1 aborts this write, and in T2 you are left with the wrong average. } 
+        \label{fig:read_uncommitted}
+      \end{figure}
+    \end{enumerate}
+
+    Here is a summary of the isolation levels.\footnote{Postgres defaults to read committed.}
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/isolation.png}
+      \caption{} 
+      \label{fig:isolation}
+    \end{figure}
+
+  \subsection{Serizability and Precedence Graph}
+
+    Okay, so serial schedules are trivial to construct and ideally we want to construct serializable schedules. How do we detect them? We can make a \textbf{precedence graph}. 
 
 \end{document}
