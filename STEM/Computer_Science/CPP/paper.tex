@@ -308,8 +308,69 @@
   \subsection{Compilation} 
 
     We only compile files one at a time and independently. When the compiler compiles a file, it goes through each line sequentially. Therefore, we must ensure that all functions/variables/classes are \textit{declared} first before they are called. \textit{Forward declaration} makes this a lot easier. 
-    
-    If we 
+
+    There is a difference between a declaration and a definition. 
+
+    \begin{definition}[ODR]
+      Remember the ODR (One Definition Rule): 
+      \begin{enumerate}
+        \item Within a file, each function, variable, type, or template in a given scope can only have one definition. Definitions occurring in different scopes (e.g. local variables defined inside different functions, or functions defined inside different namespaces) do not violate this rule. 
+
+        \item Within a program, each function or variable in a given scope can only have one definition.\footnote{This rule exists because programs can have more than one file. For example, if you have two definitions of \texttt{int add(int, int)} in two different files, the linker does not know which one to connect the declaration to.}
+      \end{enumerate}
+      To be honest, ODR 2 really implies ODR 1, since once the directives are preprocessed or the object files are linked, we are really left with one executable file. 
+    \end{definition} 
+
+    \begin{example}[ODR 1 Violation] 
+      The following shows that in the same file, there are multiple variables defined in the function scope of \texttt{main}, and there are two definitions of \texttt{foo} in the global scope. 
+      
+      \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          int main() {
+            int x; 
+            int x;
+
+            return 0;
+          } 
+          .
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          int foo() { return 5; }
+          int foo() { return 5; }
+
+          int main() {
+            std::cout << foo();
+            return 0;
+          } 
+        \end{lstlisting}
+      \end{minipage}
+    \end{example}
+
+    \begin{example}[ODR 2 Violation]
+      Say that \texttt{main.cpp} has the \texttt{main()} method that calls on \texttt{int add(int x, int y)}, which is forward declared. However, say that we define add in two places. 
+
+      \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          // foo.cpp 
+          int add(int x, int y) {
+            return x + y; 
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          // bar.cpp 
+          int add(int x, int y) {
+            return x + y; 
+          }
+        \end{lstlisting}
+      \end{minipage}
+      Then, if we run \texttt{g++ main.cpp foo.cpp bar.cpp}, the linker will complain that there is a function redefinition. 
+    \end{example}
 
   \subsection{Linking} 
 
@@ -323,30 +384,137 @@
     This should not be order dependent. The source files can be 
 
     \noindent\begin{minipage}{.5\textwidth}
-    \begin{lstlisting}[]{Code}
-      // main.cpp 
-      int add(int x, int y); // declaration
+      \begin{lstlisting}[]{Code}
+        // main.cpp 
+        int add(int x, int y); // declaration
 
-      int main() {  
-        int z = add(2, 3); 
-        return 0; 
-      }
-    \end{lstlisting}
+        int main() {  
+          int z = add(2, 3); 
+          return 0; 
+        }
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        // add.cpp
+        // definition
+        int add(int x, int y) { 
+          return x + y;
+        }
+        .
+        .
+      \end{lstlisting}
     \end{minipage}
-    \hfill
-    \begin{minipage}{.49\textwidth}
-    \begin{lstlisting}[]{Output}
-      // add.cpp
-      // definition
-      int add(int x, int y) { 
-        return x + y;
-      }
-      .
-      .
-    \end{lstlisting}
+  
+  \subsection{Header Files} 
+
+    To be honest, we can just include forward declarations everywhere, but this does not scale well to large projects. If we had a set of declarations that we wanted to use over a bunch of files, we can package them nicely using a \textbf{header file}. 
+    
+    If we have a bunch of functions and classes written in \texttt{foo.cpp}, then it is conventional to write a \texttt{foo.h} that contains all the declarations of these expressions. Then, whenever we need to write a new file \texttt{bar.cpp} that uses functions from \texttt{foo.cpp}, we can just \texttt{\#include "foo.h"}, which replaces this directive (by the preprocessor) with all the forward declarations in \texttt{foo.h}. Boom easy. 
+
+    \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        // add.cpp
+        int add(int x, int y) { 
+          return x + y;
+        }
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        // add.h 
+        int add(int x, int y); 
+        .
+        .
+      \end{lstlisting}
     \end{minipage}
 
-\section{Multiple Files}
+    Therefore when we call \texttt{add} in \texttt{main.cpp}, we can just \texttt{\#include "add.h"} to put in the declarations, making everything good. Conventionally, it is best practice for a source file to also include its paired header (e.g. \texttt{add.cpp} should also contain \texttt{\#include "add.h"} at the top). This allows the compiler to discover inconsistencies between the two files, and this extra cost is negligible.\footnote{\href{here}{https://www.learncpp.com/cpp-tutorial/cpp-faq/\#pairedheader}} 
 
+    \begin{example}[Definitions inside Header Files]
+      You should not add definitions (only declarations) to header files since if they are included in multiple header files, then we would have different definitions of the same function, leading to ODR 2 violation. Take a look at the following. 
+      
+      \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          // square.h
+          int getSquareSides() {
+              return 4;
+          } 
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          // wave.h 
+          #include "square.h"
+        \end{lstlisting}
+      \end{minipage}
+
+      With the following. 
+      \begin{lstlisting}
+        #include "square.h"
+        #include "wave.h" 
+        int main() {
+          return 0;
+        }
+      \end{lstlisting}
+      This won't compile since 
+      \begin{enumerate}
+        \item by including \texttt{square.h}, we have defined \texttt{getSquareSides()} in the global scope of \texttt{main.cpp}. 
+        \item by including \texttt{wave.h}, we have included \texttt{square.h} which then substitutes this line with the definition of \texttt{getSquareSides()} again. 
+      \end{enumerate}
+      This is an ODR 1 violation. 
+    \end{example} 
+
+    The simple fix to the above is to just remove the \texttt{\#include "wave.h"}, but what if we needed some other function from \texttt{wave.h}? Resolving this issue is not trivial if say, half of the functions in \texttt{square.h} is needed in \texttt{wave.h} and the other half is needed in \texttt{main.cpp}. We must include both of them in \texttt{main.cpp}, but then we have an inevitable redefinition. Without separating \texttt{square.h} into separate files, solving this is impossible. 
+
+    Even if we didn't have definitions in header files in the first place (which is bad practice in general), repeated declarations, which are still fine, are also not really ideal either. Furthermore, custom types are typically defined in header files, so redefining them leads to an ODR violation. 
+    
+    \begin{definition}[Header Guards]
+      Fortunately, we have \textbf{header guards}, which are conditional compilation directives that tell the compiler to include a header file at most once to the main file. You can do this in two ways. 
+      \begin{enumerate}
+        \item Just put this to the top of the header file. The compiler will take care of redeclaration/redefinitions for you. This isn't always fail-safe. 
+        \begin{lstlisting}
+          #pragma once
+        \end{lstlisting} 
+
+      \item More manually, we can use a conditional compilation directive. Put this on the top of the header. 
+        \begin{lstlisting}
+          #ifndef HEADERFILE_H
+          #define HEADERFILE_H 
+          
+          ...Header Contents...
+
+          #endif 
+        \end{lstlisting}
+        In the beginning, \texttt{HEADERFILE\_H} is not defined, so we include all of this. In a second inclusion though, \texttt{HEADERFILE\_H} is defined, so the preprocessor removes this. 
+      \end{enumerate}
+
+      Note that header guards limit the number of times a header can be included in a single given file, but the header may still be repeated across separate project files. This is what we want. 
+    \end{definition}
+
+\section{Types} 
+
+  Some types have the \texttt{\_t} suffix, which just represents type. Some types have this and others don't. In C++, there is no exact size for each fundamental type (except for \texttt{char}, which is always 1 byte). There is however a lower bound, so you should always use the lower bound and for maximum portability, never assume that a type can store more bytes. 
+  \begin{enumerate}
+    \item \texttt{sizeof(short) = 4}
+    \item \texttt{sizeof(int) = 4}
+    \item \texttt{sizeof(long) = 4}
+    \item \texttt{sizeof(long long) = 8}
+    \item \texttt{sizeof(float) = 4}
+    \item \texttt{sizeof(double) = 8}
+    \item \texttt{sizeof(long double) = 8}
+  \end{enumerate} 
+
+  Where does the \texttt{sizeof} operator come from? 
+
+  We can also convert some types to different types. If the types are relatively similar, then the C++ implementation may do an \textbf{implicit typecast}. If not, then we do an \textbf{explicit typecast} in the following ways. 
+  \begin{enumerate}
+    \item \texttt{static\_cast<T>(foo)}
+    \item \texttt{(T)foo} 
+    \item \texttt{dynamic\_cast<T>(foo)}
+  \end{enumerate}
 
 \end{document}
