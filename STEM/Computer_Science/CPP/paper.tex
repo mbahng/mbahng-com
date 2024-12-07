@@ -251,6 +251,45 @@
 \tableofcontents
 \pagebreak
 
+\section{Basics} 
+
+  We define a bunch of terms. This may seem unnecessary, but it becomes very useful when getting into the weeds of C++. 
+
+  \begin{definition}[Variables]
+    \begin{enumerate}
+      \item A \textbf{literal} is a value that is directly inserted into code, e.g. \texttt{5}, \texttt{3.2}, \texttt{'a'}.\footnote{Usually, using literals by themselves such as \texttt{return 4;} should be avoided since the reader can't determine what it represents through the identifier name. We must resort to a comment or external documentation. } 
+      \item A \textbf{variable} can be assigned to a literal, e.g. \texttt{x}. 
+      \item The \textbf{identifier} is simply the name of the variable. 
+      \item An \textbf{operation} consists of an \textbf{operator} (\texttt{+}) and one or more \textbf{operands} (\texttt{3}, \texttt{4.3}).  
+      \item An \textbf{expression} is simply a line of code containing variables, operations, and literals, e.g. \texttt{int x = 3 + 4;} 
+      \item The process of executing an expression is called \textbf{evaluation}. 
+    \end{enumerate}
+
+    Variables can be \textbf{constructed} in two ways. 
+    \begin{enumerate}
+      \item We first \textbf{declare} a variable, which tells the compiler about the existence of the variable (\texttt{int x;}). Then, we can \textbf{define} the variable, which assigns it a literal (\texttt{x = 4;}). 
+      \item We can \textbf{initialize} a variable, which both declares it and defines it at once (\texttt{int x = 4;}).
+    \end{enumerate}
+  \end{definition}
+
+  \begin{definition}[Functions]
+    \begin{enumerate}
+      \item The \textbf{declaration} of a function states the existence of the function. 
+        \begin{lstlisting}
+          double foo(int x, double y); // one way 
+          double foo(int, double); // another way 
+        \end{lstlisting}
+        This declaration is also called the \textbf{function prototype}, or the \textbf{function identifier}. 
+
+      \item The \textbf{definition} of a function tells us the actual implementation. 
+        \begin{lstlisting}
+          double foo(int x, double y) {
+            ...
+          }
+        \end{lstlisting}
+    \end{enumerate}
+  \end{definition}
+
 \section{Translation} 
 
     \textbf{Translating} C++ code to a binary consists of multiple steps: 
@@ -495,6 +534,39 @@
       Note that header guards limit the number of times a header can be included in a single given file, but the header may still be repeated across separate project files. This is what we want. 
     \end{definition}
 
+  \subsection{Compile Time vs Run Time} 
+
+    By default, all expressions are evaluated at runtime, but compilers have different levels of optimization. Here are some. 
+
+    \begin{definition}[Constant Folding] 
+      The compiler replaces expressions that have literal operands with the result of the operation, e.g. \texttt{3 + 4} automatically gets evaluated to \texttt{7}. 
+    \end{definition}
+
+    \begin{definition}[Constant Propagation]
+      In the code below, \texttt{x} is initialized to be \texttt{7} and will be stored in the memory allocated for \texttt{x}. On the next line, the program will go out to memory to fetch the same value to print. This is redundant. Therefore, the compiler will realize that \texttt{x} always has the constant value \texttt{7} and will replace all instances of \texttt{x} with \texttt{7}. 
+      \begin{lstlisting}
+        #include <iostream>
+
+        int main() {
+          int x { 7 };
+          std::cout << x << '\n';
+          return 0;
+        } 
+      \end{lstlisting}
+    \end{definition}
+
+    \begin{definition}[Dead Code Elimination]
+      The compiler removes all code that has no noticeable effect on the program's behavior. Note that this is not a preprocessing step. 
+      \begin{lstlisting}
+        #include <iostream>
+        int main() {
+          int x { 7 }; // this line is removed. 
+          std::cout << 7 << '\n';
+          return 0;
+        } 
+      \end{lstlisting}
+    \end{definition}
+
 \section{Types} 
 
   Some types have the \texttt{\_t} suffix, which just represents type. Some types have this and others don't. In C++, there is no exact size for each fundamental type (except for \texttt{char}, which is always 1 byte). There is however a lower bound, so you should always use the lower bound and for maximum portability, never assume that a type can store more bytes. 
@@ -510,11 +582,41 @@
 
   Where does the \texttt{sizeof} operator come from? 
 
-  We can also convert some types to different types. If the types are relatively similar, then the C++ implementation may do an \textbf{implicit typecast}. If not, then we do an \textbf{explicit typecast} in the following ways. 
-  \begin{enumerate}
-    \item \texttt{static\_cast<T>(foo)}
-    \item \texttt{(T)foo} 
-    \item \texttt{dynamic\_cast<T>(foo)}
-  \end{enumerate}
+  \subsection{Casting}
+
+    We can also convert some types to different types. If the types are relatively similar, then the C++ implementation may do an \textbf{implicit typecast}. If not, then we do an \textbf{explicit typecast} in the following ways. 
+    \begin{enumerate}
+      \item \texttt{static\_cast<T>(foo)}
+      \item \texttt{(T)foo} 
+      \item \texttt{dynamic\_cast<T>(foo)}
+    \end{enumerate} 
+
+  \subsection{Constants}
+
+    \textbf{Named constants} are variables must be initialized since they cannot change. They cannot be declared. If a variable can be made constant, it should be. It reduces bugs and gives more opportunity for compiler optimization, effectively reducing runtime and increasing compile time. 
+
+    Function parameters that are \texttt{const} just tells the compiler that it won't be changed during the function execution. But since the variable is thrown away after the body, it doesn't really matter anyways. You can also return const types, but this is again a temporary copy and may impede compiler optimizations so it not recommended.  
+
+    In a way, consts are just like object-like directives with substitution text, but consts follow scoping, so use consts whenever you can rather than macros.  
+
+  \subsection{Compile-Time Programming} 
+
+    \begin{definition}[Constant Expression]
+      A \textbf{constant expression} is an expression that must be evaluatable at compile-time.\footnote{along with rules that determine how the compiler should handle these expressions.} If we really want to make fast programs, we must convert it to as much constant expressions as possible. They generally contain the following: 
+      \begin{enumerate}
+        \item Literals 
+        \item Most operators with constant expression operands, e.g. \texttt{3 + 4}, \texttt{2 * sizeof(int)} 
+        \item Constexpr variables  
+        \item Constexpr function calls with constant expression arguments. 
+      \end{enumerate}
+      Any expression not a constant expression is called a \textbf{runtime expression}. 
+    \end{definition}
+
+    Constants in C++ are often divided into 2 categories. 
+    \begin{enumerate}
+      \item A \textbf{compile-time constant} is a constant whose value is known at compile-time, e.g. literals and constant objects whose initializers are compile-time constants. 
+      \item A \textbf{runtime constant} is a constant whose value is determined at runtime, e.g. constant function parameters and constant objects whose initializers are non-constants or runtime constants.\footnote{This is what we would like to reduce.} 
+    \end{enumerate}
+
 
 \end{document}
