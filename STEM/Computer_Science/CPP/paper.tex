@@ -534,9 +534,164 @@
       Note that header guards limit the number of times a header can be included in a single given file, but the header may still be repeated across separate project files. This is what we want. 
     \end{definition}
 
-  \subsection{Compile Time vs Run Time} 
+  \subsection{Namespaces} 
 
-    By default, all expressions are evaluated at runtime, but compilers have different levels of optimization. Here are some. 
+    Perhaps we want to have two functions of the same name, but we get a redefinition error. This is where namespaces come in. 
+
+    \begin{definition}[Namespace]
+      We can wrap each function around a \textbf{namespace}, which is written with an upper-case letter. 
+      \begin{lstlisting}
+        namespace Foo {
+          int bar() {}
+        }
+      \end{lstlisting}
+      To access identifiers defined in the namespace, we must use the \textbf{scope resolution operator} \texttt{::}. If no scope resolution is given, or an empty one is given, then we look for the identifier in the global namespace. 
+      \begin{lstlisting}
+        int x = Foo::bar();   // Foo namespace
+        int y = bar();        // global namespace
+        int z = ::bar();      // global namespace 
+      \end{lstlisting}
+    \end{definition} 
+
+    \begin{example}[Namespace]
+      Say that we have two files with the same-name function in different namespaces. 
+      
+      \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          namespace Foo {
+            int doSomething(int x, int y) {
+              return x + y;
+            }
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          namespace Goo {
+            int doSomething(int x, int y) {}
+              return x - y;
+            }
+          }
+        \end{lstlisting}
+      \end{minipage}
+
+      When we put our forward declarations, we must make sure to add the namespace using the scope resolution operator. If the namespace is not included, then the linker will look for the function in the global namespace rather than the user-defined namespace. 
+
+      \begin{lstlisting}
+        int doSomething(int x, int y); // this results in an error 
+        int Foo::doSomething(int x, int y); // correct
+        int Goo::doSomething(int x, int y); // correct
+
+        int main() {
+            std::cout << Foo::doSomething(4, 3) << '\n'; 
+            std::cout << Goo::doSomething(4, 3) << '\n'; 
+            return 0;
+        }
+      \end{lstlisting}
+    \end{example} 
+
+    Let's talk about a few properties of namespaces. 
+
+    \begin{lemma}[Identifiers in Parent Namespaces]
+      If an identifier $A$ in a namespace uses another identifier $B$ without a scope resolution, then $A$ will look for $B$ within $A$'s namespace. If no matching identifier for $B$ is found, then the compiler will then check each containing namespace in sequence to see if a match is found, with the global namespace being checked last. 
+
+      \begin{lstlisting}
+        #include <iostream>
+        void print() // this print() lives in the global namespace
+        {
+          std::cout << " there\n";
+        }
+
+        namespace Foo {
+          void print() // this print() lives in the Foo namespace
+          {
+            std::cout << "Hello";
+          }
+
+          void printHelloThere()
+          {
+            print();   // calls print() in Foo namespace
+            ::print(); // calls print() in global namespace
+          }
+        }
+
+        int main() {
+          Foo::printHelloThere(); // prints "Hello there" 
+          return 0;
+        } 
+      \end{lstlisting}
+    \end{lemma}
+
+    \begin{lemma}[Nested Namespaces]
+      Namespaces can be nested as well, either of 2 ways. 
+
+      \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          namespace Foo {
+            namespace Goo{
+              ... 
+            }
+          }
+          .
+          .
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          namespace Foo {
+
+          }
+
+          namespace Foo::Goo {
+
+          }
+        \end{lstlisting}
+      \end{minipage}
+    \end{lemma}
+
+    \begin{lemma}[Namespace aliases]
+      You can shorten namespaces using \textbf{namespace aliases}. 
+      \begin{lstlisting}
+        namespace Active = Foo::Goo; 
+        int x = Active::doSomething(); 
+      \end{lstlisting}
+    \end{lemma}
+
+    \begin{lemma}[Using Namespace]
+      The \textbf{using namespace} is a directive that allows access to all members of a namespace. 
+    \end{lemma}
+
+\section{Types and Expressions} 
+
+  Some types have the \texttt{\_t} suffix, which just represents type. Some types have this and others don't. In C++, there is no exact size for each fundamental type (except for \texttt{char}, which is always 1 byte). There is however a lower bound, so you should always use the lower bound and for maximum portability, never assume that a type can store more bytes. 
+  \begin{enumerate}
+    \item \texttt{sizeof(short) = 4}
+    \item \texttt{sizeof(int) = 4}
+    \item \texttt{sizeof(long) = 4}
+    \item \texttt{sizeof(long long) = 8}
+    \item \texttt{sizeof(float) = 4}
+    \item \texttt{sizeof(double) = 8}
+    \item \texttt{sizeof(long double) = 8}
+  \end{enumerate} 
+
+  Where does the \texttt{sizeof} operator come from? 
+
+  \subsection{Casting}
+
+    We can also convert some types to different types. If the types are relatively similar, then the C++ implementation may do an \textbf{implicit typecast}. If not, then we do an \textbf{explicit typecast} in the following ways. 
+    \begin{enumerate}
+      \item \texttt{static\_cast<T>(foo)}
+      \item \texttt{(T)foo} 
+      \item \texttt{dynamic\_cast<T>(foo)}
+    \end{enumerate} 
+
+\section{Constants and Constant Expressions}
+
+  \subsection{Compiler Optimization} 
+
+    By default, all expressions are evaluated at runtime, but compilers have different levels of optimization. Here are some methods in which it optimizes, which follow the \textbf{as-if rule} that states that a compiler can modify a program however it likes in order to produce more optimized code, so long as those modification do not affect a program's observable behavior. 
 
     \begin{definition}[Constant Folding] 
       The compiler replaces expressions that have literal operands with the result of the operation, e.g. \texttt{3 + 4} automatically gets evaluated to \texttt{7}. 
@@ -565,58 +720,78 @@
           return 0;
         } 
       \end{lstlisting}
+    \end{definition} 
+
+    A slightly higher level optimization evaluates certain expressions during compile time. 
+
+    \begin{definition}[Compile-Time Expression]
+      A \textbf{compile-time expression} is an expression that must always be capable of being evaluated at compile-time. 
     \end{definition}
 
-\section{Types and Expressions} 
+    \begin{example}
+      Say we have the following code. 
+      \begin{lstlisting}
+        const double x { 1.2 };
+        const double y { 3.4 };
+        const double z { x + y }; 
+      \end{lstlisting} 
+      \texttt{z} may or may not be evaluated to \texttt{4.6} at runtime. By default it is evaluated at runtime, but it depends on the compiler and level of optimization. 
+    \end{example}
 
-  Some types have the \texttt{\_t} suffix, which just represents type. Some types have this and others don't. In C++, there is no exact size for each fundamental type (except for \texttt{char}, which is always 1 byte). There is however a lower bound, so you should always use the lower bound and for maximum portability, never assume that a type can store more bytes. 
-  \begin{enumerate}
-    \item \texttt{sizeof(short) = 4}
-    \item \texttt{sizeof(int) = 4}
-    \item \texttt{sizeof(long) = 4}
-    \item \texttt{sizeof(long long) = 8}
-    \item \texttt{sizeof(float) = 4}
-    \item \texttt{sizeof(double) = 8}
-    \item \texttt{sizeof(long double) = 8}
-  \end{enumerate} 
-
-  Where does the \texttt{sizeof} operator come from? 
-
-  \subsection{Casting}
-
-    We can also convert some types to different types. If the types are relatively similar, then the C++ implementation may do an \textbf{implicit typecast}. If not, then we do an \textbf{explicit typecast} in the following ways. 
-    \begin{enumerate}
-      \item \texttt{static\_cast<T>(foo)}
-      \item \texttt{(T)foo} 
-      \item \texttt{dynamic\_cast<T>(foo)}
-    \end{enumerate} 
-
+    Shifting some of the evaluation from runtime to compile time makes your code faster, though it may make it more difficult to debug since the compiler might rearrange the logic of your program (though in an equivalent way). Therefore, at runtime, the compiled code no longer correlates with the original source code. 
+  
   \subsection{Constants}
 
-    \textbf{Named constants} are variables must be initialized since they cannot change. They cannot be declared. If a variable can be made constant, it should be. It reduces bugs and gives more opportunity for compiler optimization, effectively reducing runtime and increasing compile time. 
+    Now we talk about a seemingly separate, but very related concept. 
 
-    Function parameters that are \texttt{const} just tells the compiler that it won't be changed during the function execution. But since the variable is thrown away after the body, it doesn't really matter anyways. You can also return const types, but this is again a temporary copy and may impede compiler optimizations so it not recommended.  
+    \begin{definition}[Constant Variables]
+      \textbf{Named constants} are variables that cannot change. 
+      \begin{enumerate}
+        \item They cannot be declared and must be initialized since they cannot change. This is called \textbf{constant expression initialization}.
+        \item If a variable can be made constant, it should be. It reduces bugs and gives more opportunity for compiler optimization, effectively reducing runtime and increasing compile time. 
+        \item Function parameters that are \texttt{const} just tells the compiler that it won't be changed during the function execution. But since the variable is thrown away after the body, it doesn't really matter anyways. You can also return const types, but this is again a temporary copy and may impede compiler optimizations so it not recommended. 
+        \item In a way, consts are just like object-like directives with substitution text, but consts follow scoping, so use consts whenever you can rather than macros. 
+      \end{enumerate}
+    \end{definition}
 
-    In a way, consts are just like object-like directives with substitution text, but consts follow scoping, so use consts whenever you can rather than macros.  
+    \begin{theorem}
+      All compiler-time expressions must be consts. However, a const variable does not guarantee that it will be evaluated in compile time. With only consts, only const \textit{integral} variables can be a part of a constant expression. No other const variable is allowed.
+    \end{theorem}
+    \begin{proof}
+      It is not surprising to see that if an expression can be evaluated at compile time, it must be a const variable. Consider the contrapositive: if it wasn't a const variable, then it may be initialized or changed during runtime and therefore the expression cannot be evaluated at compile time. However, the converse is not true. 
+    \end{proof}
 
-  \subsection{Compile-Time Programming} 
+  \subsection{Compile-Time Programming}  
+    
+    Notice that when we really want a section of code to be evaluated at compile-time, the best we can do is use const variables and hope that the compiler executes it. In other words, we are dependent on the sophistication of the compiler, which is not ideal. To allow more explicit control over which parts of code we want to execute at compile-time, we can use \textbf{compile-time programming}. In C++11, compile-time programming was introduced with constant expressions, or \textbf{constexpr}s.
 
     \begin{definition}[Constant Expression]
-      A \textbf{constant expression} is an expression that must be evaluatable at compile-time.\footnote{along with rules that determine how the compiler should handle these expressions.} If we really want to make fast programs, we must convert it to as much constant expressions as possible. They generally contain the following: 
+      A \textbf{constant expression} is an expression that must be entirely evaluatable at compile-time.\footnote{along with rules that determine how the compiler should handle these expressions.} They generally contain the following: 
       \begin{enumerate}
         \item Literals 
         \item Most operators with constant expression operands, e.g. \texttt{3 + 4}, \texttt{2 * sizeof(int)} 
         \item Constexpr variables  
         \item Constexpr function calls with constant expression arguments. 
       \end{enumerate}
-      Any expression not a constant expression is called a \textbf{runtime expression}. 
+      Any expression not a constant expression is called a \textbf{runtime expression}. The following cannot be used in a constant expression. 
+      \begin{enumerate}
+        \item Non-const variables (e.g. \texttt{int x = 3;}) 
+        \item Const non-integral variables, even when they have a constant expression initializer (e.g. \texttt{const double d = 1.2}). To use such variables, we need to define them with \texttt{constexpr}. 
+        \item Function parameters. 
+      \end{enumerate}
+      There is a complex list of literals, operators, and variables that can and cannot be used in constant expressions. 
     \end{definition}
 
-    Constants in C++ are often divided into 2 categories. 
-    \begin{enumerate}
-      \item A \textbf{compile-time constant} is a constant whose value is known at compile-time, e.g. literals and constant objects whose initializers are compile-time constants. 
-      \item A \textbf{runtime constant} is a constant whose value is determined at runtime, e.g. constant function parameters and constant objects whose initializers are non-constants or runtime constants.\footnote{This is what we would like to reduce.} 
-    \end{enumerate}
+    There are still two problems. First, the limitations of constant expressions not being able to contain const non-integral variables is quite restricting. Second, even if we did have a constant expression, the compiler will by default evaluate it at runtime. Fortunately, constexpr addresses both problems. 
+
+    \begin{definition}[constexpr Keyword]
+      The \textbf{constexpr} variable is always a compile-time constant. As a result, a constexpr variable must be initialized with a constant expression, otherwise a compilation error will result. Here are some examples. 
+      \begin{lstlisting}
+        constexpr double gravity = 9.8; // works for doubles now 
+      \end{lstlisting} 
+      Since a constexpr variable is really a constant expression, it is implicitly a const variable. 
+    \end{definition} 
+
 
 
 \end{document}
