@@ -290,101 +290,108 @@
       \end{enumerate}
     \end{definition}
 
-  \subsection{Scope}
+  \subsection{Scope and Duration}
 
-    \begin{definition}[Scope]
-      The \textbf{scope} of an identifier refers to where it is accessible by. The \textbf{duration} of an identifier governs how it will be constructed and destroyed, over its \textbf{lifetime}. There are two types of variables, \textbf{local variables} and \textbf{global variables}. 
+    You probably know that there are two types of variables: \textbf{local variables} and \textbf{global variables}, along with their general properties. Let's specify them a bit, starting with the two most important ones: scope and duration.  
+
+    \begin{definition}[Duration]
+      The \textbf{duration} of an identifier governs how it will be constructed and destroyed, over its \textbf{lifetime}. 
+      \begin{enumerate}
+        \item \textbf{Automatic duration} means that their lifetime begins at the start of the block (at \texttt{\{}) and is destroyed at the end of the block \texttt{\}}. 
+        \item \textbf{Static duration} means they are created when the program starts (before \texttt{main()}) and destroyed when it ends. Variables with static duration, both local and global, are 0-intialized by default. (e.g. \texttt{static int x;} is really \texttt{static int x = 0;}). It is conventional to prefix static local variables with a \texttt{s\_}. 
+      \end{enumerate}
     \end{definition} 
 
-    \subsubsection{Local Variables}
-
-      \begin{definition}[Local Variables]
-        \textbf{Local variables} are variables constructed inside a block scope. 
-        \begin{enumerate}
-          \item They have \textbf{automatic duration}, which means that their lifetime begins at the start of the block (at \texttt{\{}) and is destroyed at the end of the block \texttt{\}}. 
-        \end{enumerate}
-      \end{definition}
-
-      \begin{example}[Automatic Duration]
-        You can see that every block contains its own scope with its own local variables. When the block ends all variables in this block are destroyed on the stack. 
+    \begin{definition}[Scope]
+      The \textbf{scope} of an identifier refers to where it is accessible by. 
+      \begin{enumerate}
+        \item \textbf{Local variables} are variables constructed inside a \textbf{block scope} and are accessible only within that block. They have automatic duration by default, but can have static duration with the \texttt{static} keyword. 
 
         \begin{lstlisting}
-          int main() {  
-            int x = 2; 
+          int main() {
+            int x = 2; // local variable 
+            static int x = 3; // static local variable
+          }
+        \end{lstlisting}
+
+        \item \textbf{Global variables} live within the \textbf{global scope} of the global or a local namespace and therefore can be accessible from anywhere. They are static variables by definition. Usually it is preferred to define global variables in a namespace. It is conventional to prefix global variables with \texttt{g\_}. 
+      \end{enumerate}
+    \end{definition} 
+
+    It may seem like the scope and duration are related, but you can have any combination of automatic local variables (just called local variables), static local variables, and global variables. The duration talks about \textit{when} a variables is allowed to live while the scope talks about \textit{where} it is accessible from. Just like local variables, global variables can be const as well, and like all const variables, must be initialized. 
+
+    \begin{example}[Automatic Duration]
+      You can see that every block contains its own scope with its own local variables. When the block ends all variables in this block are destroyed on the stack. 
+
+      \begin{lstlisting}
+        int main() {  
+          int x = 2; 
+          std::cout << x << std::endl; // 2
+          {
+            int y = 1;
             std::cout << x << std::endl; // 2
-            {
-              int y = 1;
-              std::cout << x << std::endl; // 2
-              std::cout << y << std::endl; // 1
-            }
-            return 0; 
+            std::cout << y << std::endl; // 1
           }
-          
-        \end{lstlisting}
-      \end{example}
+          return 0; 
+        }
+        
+      \end{lstlisting}
+    \end{example}
 
-      \begin{example}[Accessing Parent Block Scope]
-        Local variables in a nested block have access to the parent block's scope. Both of these programs are valid. The left accesses the parent block's \texttt{x} while the right one access \texttt{x} newly created in the local scope. 
+    \begin{example}[Accessing Parent Block Scope]
+      Local variables in a nested block have access to the parent block's scope. Both of these programs are valid. The left accesses the parent block's \texttt{x} while the right one access \texttt{x} newly created in the local scope. 
 
-        \noindent\begin{minipage}{.5\textwidth}
-          \begin{lstlisting}[]{Code}
-            int main() {  
-              int x = 2; 
-              for (int i = 0; i < 10; i++) {
-                x += 1;
-              }
-              std::cout << x << std::endl; // 12
-              return 0; 
-            }
-            .
-          \end{lstlisting}
-          \end{minipage}
-          \hfill
-          \begin{minipage}{.49\textwidth}
-          \begin{lstlisting}[]{Output}
-            int main() {  
-              int x = 2; 
-              for (int i = 0; i < 10; i++) {
-                int x = 1;
-                x += 1;
-              }
-              std::cout << x << std::endl; // 2
-              return 0; 
-            }
-          \end{lstlisting}
-        \end{minipage}
-      \end{example}
-
-      \begin{example}[Variable Shadowing]
-        You can see that the \texttt{x} is initialized in the \texttt{main()} block scope, but it gets ``shadowed'' by the \texttt{x} in the nested block. Once the block terminates, then it is ``revealed'' again. 
-
-        \begin{lstlisting}
+      \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
           int main() {  
             int x = 2; 
-            std::cout << x << std::endl; // 1
-            {
-              int x = 1;
-              std::cout << x << std::endl; // 1
+            for (int i = 0; i < 10; i++) {
+              x += 1;
             }
-            std::cout << x << std::endl; // 2 
+            std::cout << x << std::endl; // 12
+            return 0; 
+          }
+          .
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          int main() {  
+            int x = 2; 
+            for (int i = 0; i < 10; i++) {
+              int x = 1;
+              x += 1;
+            }
+            std::cout << x << std::endl; // 2
             return 0; 
           }
         \end{lstlisting}
-        
-      \end{example}
+      \end{minipage}
+    \end{example}
 
-    \subsubsection{Global Variables} 
+    \begin{example}[Variable Shadowing]
+      You can see that the \texttt{x} is initialized in the \texttt{main()} block scope, but it gets ``shadowed'' by the \texttt{x} in the nested block. Once the block terminates, then it is ``revealed'' again. 
 
-      \begin{definition}[Global Variables]
-        Global variables are constructed outside of the main function, in the global namespace. 
-        \begin{enumerate}
-          \item They have \textbf{static duration}, which means they are created when the program starts (before \texttt{main()}) and destroyed when it ends. 
-          \item Usually it is preferred to define global variables in a namespace. If not, many developers prefer the prefix global variable identifiers with \texttt{g} or \texttt{g\_} to indicate that they are global and do not have naming conflicts. 
-          \item Unlike local variables, which are uninitialized by default, variables with static duration are 0-intialized by default (e.g. \texttt{int g\_x;} is really \texttt{int g\_x = 0;}). 
-        \end{enumerate}
-      \end{definition}
+      \begin{lstlisting}
+        int main() {  
+          int x = 2; 
+          std::cout << x << std::endl; // 1
+          {
+            int x = 1;
+            std::cout << x << std::endl; // 1
+          }
+          std::cout << x << std::endl; // 2 
+          return 0; 
+        }
+      \end{lstlisting}
+    \end{example} 
 
-      Just like local variables, global variables can be const as well, and like all const variables, must be initialized. 
+    Static local variables are good for id generation, since they are not accessible beyond a block but still have a persistent state that does not get reset. Another good use is to use const static local variables for functions that needs to use a const value, but initializing that object is expensive. Using a local variable would instantiate it every time the function is called, but a static local variable requires us to create it once. 
+
+  \subsection{Internal and External Linkage} 
+
+    When \texttt{static} is applied to a global variable, it has a completely unrelated effect than that applied on a local variable. It means that the global variable now has internal linkage, meaning that the variable cannot be exported to other files. 
 
 \section{Translation} 
 
@@ -541,6 +548,8 @@
         .
       \end{lstlisting}
     \end{minipage}
+
+    \subsubsection{Internal vs External Linking}
   
   \subsection{Header Files} 
 
@@ -783,6 +792,8 @@
       \item \texttt{dynamic\_cast<T>(foo)}
     \end{enumerate} 
 
+  \subsection{Enums}  
+
 \section{Constants and Constant Expressions}
 
   \subsection{Compiler Optimization} 
@@ -887,5 +898,364 @@
       \end{lstlisting} 
       Since a constexpr variable is really a constant expression, it is implicitly a const variable. 
     \end{definition} 
+
+\section{Control Flow and Error Handling}  
+
+  \subsection{If Statements} 
+
+    Constexpr if statements can be evaluated at compile time, so we end up compiling only the block under the condition that evaluates to true.  
+
+  \subsection{Switch Statements}
+
+  \subsection{Assert and Static Assert} 
+
+    Assert statements can be turned off with the \texttt{\#NDEBUG} directive. \texttt{static\_assert} checks at compile time, so the condition must be a constant expression. 
+
+\section{Functions} 
+  
+  \subsection{Inline Functions} 
+
+    When we make a call to a function, we add another frame to our call stack, store the address of our stack pointer, and then execute the function body in the new stack frame. This is known as the \textbf{function overhead}. 
+
+    \begin{definition}[Inline Functions]
+      We can avoid this by using the \texttt{inline} keyword to define \textbf{inline functions}. 
+      \begin{lstlisting}
+        inline int add(int x, int y) {
+          return x + y; 
+        }
+      \end{lstlisting}
+      As the name suggests, the compiler essentially replaces the function call with the function body, treating as it if it were all on the same stack frame. 
+    \end{definition}
+
+    We get the benefits of no function overhead while still maintaining modularity of our code. However, abusing this increases the size of our compiled executable, which may make our program slower. Most of the time, the compiler is better at optimizing this.  
+
+    \subsubsection{Inline Variables}
+
+  \subsection{Overloading} 
+
+    Functions can be overloaded based on their parameters, and the compiler will try to match the function call to the appropriate overload based on the arguments, called \textbf{overload resolution}. The number of parameters and types of parameters are used in differentiating, but not the return type. 
+
+  \subsection{Deleting}
+
+    Sometimes, functions may use implicit type conversion to call. For example, look at the code. 
+
+    \begin{lstlisting}
+      #include <iostream>
+
+      void printInt(int x) {
+        std::cout << x << '\n';
+      }
+
+      int main() {
+        printInt(5);    // okay: prints 5
+        printInt('a');  // prints 97 -- does this make sense?
+        printInt(true); // print 1 -- does this make sense?
+        return 0;
+      }
+    \end{lstlisting}
+
+    \begin{definition}[Function Deleting]
+      If we want to enforce that a function cannot take other parameters, we can define that function as deleted using the \texttt{= delete} specifier. A call to a deleted function will halt compilation. 
+      \begin{lstlisting}
+        #include <iostream>
+
+        void printInt(int x) {
+            std::cout << x << '\n';
+        }
+
+        void printInt(char) = delete; // calls to this function will halt compilation
+        void printInt(bool) = delete; // calls to this function will halt compilation
+
+        int main() {
+          printInt(97);   // okay
+
+          printInt('a');  // compile error: function deleted
+          printInt(true); // compile error: function deleted
+
+          printInt(5.0);  // compile error: ambiguous match
+
+          return 0;
+        } 
+      \end{lstlisting}
+    \end{definition}
+
+  \subsection{Default Arguments} 
+
+    Explicit arguments must all come before any default argument. 
+
+    Default arguments can not be redeclared, and must be declared before use. Therefore, for forward declarations, the default argument can be declared in either the forward declaration or the function definition, but not both.   
+
+    However, note that default arguments can lead to ambiguous matches. 
+
+  \subsection{Template Functions}
+
+    \begin{definition}[Template Functions]
+      Let's talk about the syntax. We start with the keyword \texttt{template}, which tells the compiler that we're creating a template. Next we specify all the template parameters that our template will use inside the brackets. For each type template parameter, we use the keyword \texttt{template} or \texttt{class}, followed by the name of the type template parameter (e.g. \texttt{T}). 
+      \begin{lstlisting}
+        template <typename T> 
+        T add(T x, T y) {
+          return x + y; 
+        } 
+      \end{lstlisting}
+      Function templates are not actually functions. Their code isn't compiled or executed directly. Instead, function templates have one job: to generate functions (that are compiled and executed), called \textbf{function instantiation}. The instantiated functions are called \textbf{function instances}, and they are \textit{implicitly inline}. When we call a function with a new template argument, it gets instantiated during translation. Therefore, if we called \texttt{add} with arguments \texttt{int} and \texttt{double}, the result of our compilation would look as if we had explicitly defined the following functions. 
+      \begin{lstlisting}
+        template<>
+        int max<int>(int x, int y) // the generated function max<int>(int, int)
+        {
+            return (x < y) ? y : x;
+        }
+
+        template<>
+        double max<double>(double x, double y) // the generated function max<double>(double, double)
+        {
+            return (x < y) ? y : x;
+        }
+      \end{lstlisting}
+    \end{definition}
+
+    Here are some properties. 
+
+    \begin{lemma}[Normal Function Call Priority]
+      Template functions can be called in several ways. However, a normal function call syntax will prefer a non-template function over an equally viable function instantiated from a template. 
+
+      \begin{lstlisting}
+        template <typename T>
+        T max(T x, T y)
+        {
+            std::cout << "called max<int>(int, int)\n";
+            return (x < y) ? y : x;
+        }
+
+        int max(int x, int y)
+        {
+            std::cout << "called max(int, int)\n";
+            return (x < y) ? y : x;
+        }
+
+        int main()
+        {
+            std::cout << max<int>(1, 2) << '\n'; // calls max<int>(int, int)
+            std::cout << max<>(1, 2) << '\n';    // deduces max<int>(int, int) (non-template functions not considered)
+            std::cout << max(1, 2) << '\n';      // calls max(int, int)
+
+            return 0;
+        } 
+      \end{lstlisting}
+    \end{lemma} 
+
+    \begin{lemma}[Static Local Variables]
+      If a static local variable is defined in a template function, every function instance will have its own copy of the static local variable. 
+      \begin{lstlisting}
+        #include <iostream>
+
+        template <typename T>
+        void printIDAndValue(T value) {
+          static int id{ 0 };
+          std::cout << ++id << ") " << value << '\n';
+        }
+
+        int main() {
+          printIDAndValue(12);    // 1) 12
+          printIDAndValue(13);    // 2) 13 
+          printIDAndValue(14.5);  // 1) 14.5
+          return 0;
+        } 
+      \end{lstlisting}
+    \end{lemma} 
+
+    \begin{lemma}[No Implicit Type Conversions]
+      Unlike explicit functions, function instances are strict in that they will not do any implicit type conversions. In the left, the call to \texttt{max} is okay since the int will be converted to a double. On the right, however, will generate an error. 
+
+      \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          double max(double x, double y) {
+            return (x < y) ? y : x;
+          }
+
+          int main() {
+            std::cout << max(2, 3.5) << '\n'; // okay
+            return 0;
+          }
+          .
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          template <typename T>
+          T max(T x, T y) {
+            return (x < y) ? y : x;
+          }
+
+          int main() {
+            std::cout << max<double>(2, 3.5) << '\n'; // error
+            return 0;
+          }
+        \end{lstlisting}
+      \end{minipage}
+    \end{lemma} 
+
+    \begin{definition}[Multiple Template Type Parameters]
+      
+    \end{definition}
+
+    \begin{definition}[Overloading Function Templates]
+      
+    \end{definition}
+
+    \begin{lemma}[Function Templates in Multiple Files]
+      When we forward declare a function template, we cannot just define the template function in another file. 
+
+      \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code} 
+          // main.cpp
+          template <typename T>
+          T addOne(T x); // template forward declaration
+
+          int main() {
+              std::cout << addOne(1) << '\n';
+              std::cout << addOne(2.3) << '\n';
+              return 0;
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          // add.cpp
+          template <typename T>
+          T addOne(T x) {
+            return x + 1;
+          }
+          .
+          .
+          .
+          .
+          .
+        \end{lstlisting}
+      \end{minipage}
+
+      This would get a linker error since the linker cannot see the definitions of all the \textit{function instances}. There are two solutions to this. 
+      \begin{enumerate}
+        \item We can use a header file that contains the function template definition and add that along with a header guard. This is recommended. 
+
+        \noindent\begin{minipage}{.45\textwidth}
+          \begin{lstlisting}[]{Code}
+            // main.cpp
+            template <typename T> 
+            T add(T x, T y); 
+
+            int main() { 
+              std::cout << add(1, 2) << "\n";
+              std::cout << add('1', 'a') << "\n";
+              return 0; 
+            }
+          \end{lstlisting}
+          \end{minipage}
+          \hfill
+          \begin{minipage}{.44\textwidth}
+          \begin{lstlisting}[]{Output}
+            // add.cpp
+            template <typename T>
+            T add(T x, T y) {
+              return x + y;
+            }
+            template int add<int>(int x, int y);
+            template char add<char>(char x, char y);
+            .
+          \end{lstlisting}
+        \end{minipage}
+
+        \item We can explicitly define all the necessary function instances.\footnote{Before C++20, only integral, enumeration type, or constexpr can be a template parameter.} This might be okay if we are using enum types. 
+
+        \noindent\begin{minipage}{.45\textwidth}
+          \begin{lstlisting}[]{Code}
+            // main.cpp
+            #include "add.h"
+
+            int main() {
+              std::cout << add(1, 2) << "\n";
+              std::cout << add('a', 'b') << "\n";
+              return 0;
+            }
+          \end{lstlisting}
+          \end{minipage}
+          \hfill
+          \begin{minipage}{.44\textwidth}
+          \begin{lstlisting}[]{Output}
+            // add.cpp
+            #pragma once
+
+            template <typename T>
+            T add(T x, T y) {
+              return x + y;
+            }
+            .
+          \end{lstlisting}
+        \end{minipage}
+      \end{enumerate}
+    \end{lemma}
+
+  \subsection{Non-Type Template Parameters} 
+
+    As of C++20, function parameters cannot be constexpr. Therefore, we cannot enforce that these parameters should be fixed at compile time. There may be times where we would like to build a constexpr from the function parameters (say, to do a \texttt{static\_assert} check on some value), but function parameters cannot be constexpr and therefore this is impossible. 
+
+    \begin{definition}[Non-Type Template Parameters]
+      It turns out that non-type template parameters can indeed be constexpr, so they can indeed be used to build constexpr and therefore evaluate at compile time. Again, function instantiations are inline. 
+    \end{definition}
+
+    \begin{example}[Motivation]
+      Say that we have this code. 
+
+      \begin{lstlisting}
+        double getSqrt(double d) {
+          assert(d >= 0.0 && "getSqrt(): d must be non-negative");
+          return std::sqrt(d);
+        }
+
+        int main() {
+            std::cout << getSqrt(5.0) << '\n';
+            std::cout << getSqrt(-5.0) << '\n';
+            return 0;
+        } 
+      \end{lstlisting}
+
+      When we run \texttt{getSqrt(-5.0)}, we will runtime assert out. While this is better than nothing, because \texttt{-5.0} is a literal (and implicitly constexpr), it would be better if we could \texttt{static\_assert} so that errors such as this one would be caught at compile-time. However, \texttt{static\_assert} requires a constant expression, and function parameters can’t be constexpr... However, if we change the function parameter to a non-type template parameter instead, then we can do exactly as we want. The following will fail to compile. 
+      \begin{lstlisting}
+        template <double D> 
+        double getSqrt() {
+          static_assert(D >= 0.0, "getSqrt(): D must be non-negative");
+          return std::sqrt(D);
+        }
+
+        int main() {
+            std::cout << getSqrt<5.0>() << '\n';
+            std::cout << getSqrt<-5.0>() << '\n';
+            return 0;
+        } 
+      \end{lstlisting}
+    \end{example}
+
+    Template parameters can't always be used over regular parameters since the parameter itself may not be a constant expression, so regular parameters are still necessary for runtime evaluation. Here are some other properties. 
+
+    \begin{lemma} 
+      Non-type template parameters can be implicitly type-casted. 
+    \end{lemma}
+
+    \begin{lemma} 
+      We can use type-deduction for non-type template parameters using \texttt{auto}. 
+      \begin{lstlisting}
+        template <auto N> // deduce non-type template parameter from template argument
+        void print() {
+          std::cout << N << '\n';
+        }
+
+        int main() {
+          print<5>();   // N deduced as int `5`
+          print<'c'>(); // N deduced as char `c`
+          return 0;
+        } 
+      \end{lstlisting}
+    \end{lemma} 
 
 \end{document}
