@@ -363,9 +363,19 @@
           \item The programmer can \textbf{explicitly typecast} by calling an operator to change an objects type. 
           \item If two objects are relatively similar,\footnote{defined very loosely here} then the C++ implementation may do an \textbf{implicit typecast} to convert it automatically. 
         \end{enumerate}
-      \end{definition}
+      \end{definition} 
 
-      \begin{lemma}[Function Calls]
+      Here we list some situations when there is implicit typecasting. 
+
+      \begin{lemma}[Variable Initialization]
+        When initializing (or assigning a value to) a variable with a value of a different type. 
+        \begin{lstlisting}
+          double d = 3; // int value 3 implicitly converted to type double 
+          d = 6; 
+        \end{lstlisting}
+      \end{lemma}
+
+      \begin{lemma}[Function and Operators]
         Function calls and operators will implicitly typecast between char and signed int. This can both be convenient and a pain to work with. 
         \begin{lstlisting}
           int main() { 
@@ -375,6 +385,53 @@
             return 0; 
           }
         \end{lstlisting}
+      \end{lemma}
+
+      \begin{lemma}[Return Types]
+        When the type of a return value is different from the function's declared return type. 
+        \begin{lstlisting}
+          float func() {
+            return 3.0; // double value 3.0 implicitly converted to float
+          }
+        \end{lstlisting}
+      \end{lemma}
+
+      \begin{lemma}[Truthy and Falsy Values]
+        When we use a non-Boolean value in an if-statement. 
+        \begin{lstlisting}
+          if (5) { // int value 5 implicitly converted to true
+            ...
+          }
+        \end{lstlisting}
+      \end{lemma}
+
+      \begin{lemma}[Returning Structs]
+        Say that we have a function that returns a struct (an anonymous object with no name). 
+        \begin{lstlisting}
+          strict Point3d {
+            int x; 
+            int y; 
+            int z; 
+          };
+        \end{lstlisting}
+
+        We can actually return a list, which will be implicitly typecasted to be of the struct type. 
+
+        \noindent\begin{minipage}{.5\textwidth}
+          \begin{lstlisting}[]{Code}
+            Point3d getZeroPoint() {
+              return Point3d {0.0, 0.0, 0.0}; 
+            }
+          \end{lstlisting}
+          \end{minipage}
+          \hfill
+          \begin{minipage}{.49\textwidth}
+          \begin{lstlisting}[]{Output}
+            Point3d getZeroPoint() {
+              return {0.0, 0.0, 0.0}; 
+            }
+          \end{lstlisting}
+        \end{minipage}
       \end{lemma}
 
       How do we explicitly typecast? C++ defines a few operators (not functions! explained later) that does this. 
@@ -429,7 +486,7 @@
       Now that we've established variables, we can talk about their scope. 
       
       \begin{definition}[Block]
-        
+        A \textbf{block} is a portion of code that is within curly braces $\texttt{\{ ...\}}$. Note that C++ is not line sensitive.
       \end{definition}
 
       You probably know that there are two types of variables: \textbf{local variables} and \textbf{global variables}, along with their general properties. Let's specify them a bit, starting with the two most important ones: scope and duration.  
@@ -445,21 +502,39 @@
       \begin{definition}[Scope]
         The \textbf{scope} of an identifier refers to where it is accessible by. 
         \begin{enumerate}
-          \item \textbf{Local variables} are variables constructed inside a \textbf{block scope} and are accessible only within that block. They have automatic duration by default, but can have static duration with the \texttt{static} keyword. 
-
-          \begin{lstlisting}
-            int main() {
-              int x = 2; // local variable 
-              static int x = 3; // static local variable
-            }
-          \end{lstlisting}
-          A variable's linkage determines whether a declaration of that same identifier in a different scope refers to the same object. 
-
-          \item \textbf{Global variables} live within the \textbf{global scope} of the global or a local namespace and therefore can be accessible from anywhere. They are static variables by definition. Usually it is preferred to define global variables in a namespace. It is conventional to prefix global variables with \texttt{g\_}. 
+          \item \textbf{Block scope} refers to a variable being accessible within a certain block. 
+          \item \textbf{Global scope} refers to a variable being accessible from everywhere.  
         \end{enumerate}
       \end{definition} 
 
       It may seem like the scope and duration are related, but you can have any combination of automatic local variables (just called local variables), static local variables, and global variables. The duration talks about \textit{when} a variables is allowed to live while the scope talks about \textit{where} it is accessible from. Just like local variables, global variables can be const as well, and like all const variables, must be initialized. 
+
+      \begin{definition}[Local Variables]
+        \textbf{Local variables} are variables constructed inside a \textbf{block scope} and are accessible only within that block. They have automatic duration by default. 
+      \end{definition}
+
+      \begin{definition}[Static Local Variables]
+        If we talk about \textbf{static local variables}, they are variables with block scope but having static duration. 
+
+        This may be a bit counterintuitive, but say that there is a variable that you want to persist for the entire program, but you only want to modify that value within a function. 
+        \begin{lstlisting}
+          void increment() {
+            static int val = 1;  // static duration. Initializer only executed once. 
+            ++val; 
+            std::cout << val << "\n";
+          } // val is not destroyed here, but becomes inaccessible 
+
+          int main() {
+            increment(); 
+            increment(); 
+            return 0; 
+          }
+        \end{lstlisting}
+      \end{definition}
+
+      \begin{definition}[Global Variables]
+        \textbf{Global variables} live within the \textbf{global scope} of the global or a local namespace and therefore can be accessible from anywhere. They are static variables by definition. Usually it is preferred to define global variables in a namespace. It is conventional to prefix global variables with \texttt{g\_}. 
+      \end{definition}
 
       \begin{example}[Automatic Duration]
         You can see that every block contains its own scope with its own local variables. When the block ends all variables in this block are destroyed on the stack. 
@@ -475,7 +550,6 @@
             }
             return 0; 
           }
-          
         \end{lstlisting}
       \end{example}
 
@@ -532,9 +606,11 @@
 
     \subsubsection{Internal and External Linkage} 
 
-      Talk about static keyword. 
+      Remember that given a name, its \textit{linkage} determines whether other declarations of that name refer to the same object or not. 
 
-      When \texttt{static} is applied to a global variable, it has a completely unrelated effect than that applied on a local variable. It means that the global variable now has internal linkage, meaning that the variable cannot be exported to other files. 
+      \begin{definition}[Static Global Variables]
+        When \texttt{static} is applied to a global variable, it has a completely unrelated effect than that applied on a local variable. It means that the global variable now has internal linkage, meaning that the variable cannot be exported to other files. 
+      \end{definition}
 
   \subsection{Operators and Functions} 
 
@@ -977,6 +1053,166 @@
     \begin{lemma}[Using Namespace]
       The \textbf{using namespace} is a directive that allows access to all members of a namespace. 
     \end{lemma}
+
+  \subsection{MakeFiles and CMake} 
+    
+      Most computer come with a built-in C or C++ compiler out of the box. There are generally two types. 
+      \begin{enumerate}
+        \item \textbf{gcc} (GNU compiler collection) is primarily a C compiler. \texttt{g++} is a C++ compiler built on top of gcc. When compiling C++ code, g++ automatically links the C++ standard library and enables C++ specific features. This is generally considered the old standard that supports more platforms and architectures.  
+        \item \textbf{clang} is the C compiler and \textbf{clang++} is the C++ one. It is generally considered a more modern version, with better error messages. 
+      \end{enumerate} 
+
+      Generally, when you run these compiler commands, you must specify a huge number of options to go along with it. For example, here is my compiler commands for a personal project I am working on. 
+
+      \begin{figure}[H]
+        \centering 
+        \begin{lstlisting}
+          /Library/Developer/CommandLineTools/usr/bin/c++ \
+          -Daten_python_EXPORTS \
+          -I/Users/mbahng/Development/pyember/aten/src \
+          -I/Users/mbahng/Development/pyember/aten/bindings \
+          -isystem /opt/miniconda3/envs/ember/include/python3.12 \
+          -isystem /Users/mbahng/Development/pyember/build/_deps/pybind11-src/include \
+          -std=gnu++17 \
+          -arch x86_64 -arch arm64 \
+          -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX14.4.sdk \
+          -fPIC -fvisibility=hidden -flto 
+        \end{lstlisting}
+        \caption{Note that \texttt{c++} is a symlink to either \texttt{g++} or \texttt{clang++}.} 
+        \label{fig:com_code}
+      \end{figure} 
+
+      Let's parse some of these flags. 
+
+      \begin{definition}[Optimization Flags]
+        We can optimize our compilation process at different levels. 
+        \begin{enumerate}
+          \item \texttt{-O0}: No optimization, with fastest compilation and best for debugging. 
+          \item \texttt{-O1}: Basic optimization 
+          \item \texttt{-O2}: Moderate optimization, with best balance and most commonly used. 
+          \item \texttt{-O3}: Aggressive optimization, which can make code larger/slower in some cases. 
+          \item \texttt{-Os}: Optimize for size of the final binary. 
+          \item \texttt{-Ofast}: Like \texttt{-O3} but can break standards compliance for speed. 
+        \end{enumerate}
+      \end{definition}
+
+      \begin{definition}[Debugging Flags]
+        The various flags for debugging information are: 
+        \begin{enumerate}
+          \item \texttt{-g}: Include debugging information. 
+          \item \texttt{-Wall}: Enable all common warnings. 
+          \item \texttt{-Wextra}: Enable extra warnings beyond \texttt{-Wall} 
+          \item \texttt{-Werror}: Treat warnings as errors. 
+          \item \texttt{-fsanitize=undefined}: Check for undefined behavior. 
+        \end{enumerate}
+      \end{definition} 
+
+      \begin{definition}[Language Standards]
+        The language standards are simple. 
+        \begin{enumerate}
+          \item \texttt{-std=c++17}: Use C++17 standard. 
+          \item \texttt{-std=c++20}: Use C++20 standard. 
+          \item \texttt{-std=gnu++17}: Use C++17 with GNU extensions. 
+        \end{enumerate}
+      \end{definition}
+
+      \begin{definition}[Architecture/Platform]
+        \begin{enumerate}
+          \item \texttt{-fPIC}: Generate position-independent code (needed for shared libraries). 
+          \item \texttt{-m32} or \texttt{-m64}: Compile for 32/64-bit used mainly in traditional Unix/Linux environments.\footnote{This isn't needed when you have the \texttt{-arch} flag.}
+          \item \texttt{-arch}: Specify the CPU architecture for compatibility across OSes. You can specify \texttt{x86\_64}, \texttt{arm64}, and others. You can specify multiple architectures to make it portable with all of them, e.g. \texttt{-arch x86\_64 -arch arm64}. 
+          \item \texttt{-march native}: On a known CPU architecture, this tells to use all available instructions for this CPU, which optimizes performance of instruction sets at the cost of portability. If you want to ensure maximum compatibility \textit{across} architectures, you don't want this flag since it will use instructions that other CPUs do not support. 
+          \item \texttt{-mtune=generic} however optimizes for a CPU but doesn't use instructions unique to it. This is good for widely distributed software. 
+        \end{enumerate}
+      \end{definition}
+
+      \begin{definition}[Include Paths and Linking]
+        These final ones are probably the ones you will directly interact with the most. 
+        \begin{enumerate}
+          \item \texttt{-c source.cpp}: Tells to create an object file from the source file \texttt{source.cpp}. 
+          \item \texttt{-I<path>}: Add include directory, which is a directory where the compiler looks for header files that are referenced in your source code. It tells the compiler to also look in this directory for headers. 
+          \item \texttt{-L<path>}: Add library search directory, which tells the compiler to look for library files (like \texttt{.so}, \texttt{.dylib}, \texttt{.pyd}, or \texttt{.a} files) in a certain directory during the linking phase. 
+          \item \texttt{-l<library>}: Link against library. 
+          \item \texttt{-D<macro>}: Define preprocessor macro. 
+        \end{enumerate}
+      \end{definition}
+
+    \subsubsection{Makefiles} 
+    
+      \begin{definition}[Makefiles]
+        As we've seen above, we probably don't want to rewrite out an entire set of arguments every time we compile something. Perhaps we can make another script that automatically generates these commands, called \textbf{build files}. These are \textbf{Makefiles} and they exist literally with the name \texttt{Makefile} in a directory. If we run the \texttt{make} command with an argument, also called a \textbf{target}, it automatically compiles with the flags that we set in the Makefile. The general structure of a makefile is 
+        \begin{lstlisting}
+          target: dependencies 
+            commands # This must be a tab, not a space
+        \end{lstlisting}
+        In here, you can define commands for compiling, linking, translation, and cleaning.  
+      \end{definition}
+
+      \begin{example}[Representative Makefile]
+        Here is an example, where we can call 
+        \begin{enumerate}
+          \item \texttt{make} or \texttt{make all} 
+          \item \texttt{make program}
+          \item \texttt{make main.o} 
+          \item \texttt{make utils.o}
+        \end{enumerate}
+        \begin{lstlisting}
+          # Define arguments 
+          CXX = g++
+          CXXFLAGS = -Wall -O2
+
+          # Default: generate the binary directly
+          all: main.cpp utils.cpp 
+              $(CXX) $(CXXFLAGS) main.cpp utils.cpp
+
+          # Link the object files
+          program: main.o utils.o
+              $(CXX) $(CXXFLAGS) main.o utils.o -o program
+
+          # Create object file from source file main.cpp
+          main.o: main.cpp
+              $(CXX) $(CXXFLAGS) -c main.cpp
+
+          # Create object file from source file utils.cpp
+          utils.o: utils.cpp
+              $(CXX) $(CXXFLAGS) -c utils.cpp        
+        \end{lstlisting}
+      \end{example}
+
+    \subsubsection{CMake}
+
+      Even with Makefiles, they have some disadvantages. 
+      \begin{enumerate}
+        \item They can get extremely complex with thousands of lines in a single Makefile. 
+        \item Makefiles are primarily designed for Unix-like systems, so cross-platform development is hard. 
+        \item The dependencies may be complex, with different libraries stored in different locations on different platforms. Coding this all into a Makefile is error prone. 
+      \end{enumerate}
+
+      \begin{definition}[CMake]
+        Therefore, we have a further abstraction called CMake, which automatically generates Makefiles, which themselves generate the actual compiler commands. They are stored in a text file called \texttt{CMakeLists.txt}.
+      \end{definition} 
+
+      For the remainder, we'll talk about how we can configure CMake. 
+
+      \begin{definition}[Version]
+        CMake is a software, and it has versions that are important to have a general knowledge of. 
+        \begin{enumerate}
+          \item \textit{CMake 3.0} (2014). Major transition from CMake 2.x by Kitware. Has target-based dependency management. 
+          \item \textit{CMake 3.6} (2016). Enhanced C++11/14/17 support. 
+          \item \textit{CMake 3.10} (2017). Added CUDA language support and Visual Studio 2017 support. 
+          \item \textit{CMake 3.20} (2021). Improved C++20 support. 
+          \item \textit{CMake 3.27} (2023). Improved build system integration. 
+        \end{enumerate}
+        We can set the minimum version. If a user tries to compile with a CMake version that is less than that required, compilation fails. 
+        \begin{lstlisting}
+          # Requires CMake 3.10 or higher 
+          cmake_minimum_required(VERSION 3.10)  
+
+          # This sets policies to 3.10 but requires at least 3.5
+          cmake_minimum_required(VERSION 3.5...3.10)
+        \end{lstlisting}
+      \end{definition}
+
 
 \section{Constants and Constant Expressions}
 
@@ -1685,22 +1921,60 @@
 \section{Structs} 
 
   \begin{definition}[Structs]
-    \textbf{Structs} are compound types that allow you to store multiple values of different types. 
+    \textbf{Structs} are compound types that allow you to store multiple values of different types. We can define them as such. 
     \begin{lstlisting}
       struct Employee {
-          int id {};
-          int age {};
-          double wage {};
+        int id {};
+        int age {};
+        double wage {};
       };
-
-      int main() {
-          Employee frank = { 1, 32, 60000.0 }; // copy-list initialization using braced list
-          Employee joe { 2, 28, 45000.0 };     // list initialization using braced list
-          Employee bob {2, 28}                 // bob.wage value-initialized to 0.0
-          return 0;
-      } 
     \end{lstlisting}
-  \end{definition}
+    We can also initialize them in two ways: 
+    \begin{enumerate}
+      \item By defining their component data types, called \textbf{aggregate initialization}. 
+        \begin{lstlisting}
+          int main() {
+            Employee frank = { 1, 32, 60000.0 }; // copy-list initialization using braced list
+            Employee joe { 2, 28, 45000.0 };     // list initialization using braced list
+            Employee bob {2, 28}                 // bob.wage value-initialized to 0.0
+            return 0;
+          } 
+        \end{lstlisting}
+
+      \item With another struct of the same type. 
+        \begin{lstlisting}
+          int main() {
+            Employee frank = { 1, 32, 60000.0 }; 
+            Employee bob = frank;  // copied
+            return 0;
+          } 
+        \end{lstlisting}
+    \end{enumerate}
+  \end{definition} 
+
+  Like functions, the initialization behaves similarly. 
+
+  \begin{lemma}[Missing Initialization Values]
+    When doing aggregate initialization, if we do not give the struct enough values in our list to cover all attributes, the remaining attributes are value-initialized (e.g. ints are initialized to 0, floats to 0.0, etc.). 
+    \begin{lstlisting}
+      int main() {
+        Employee frank = { 1, 32 }; // no double for salary given 
+        std::cout << frank.salary << std::endl; // prints 0
+        return 0; 
+      }
+    \end{lstlisting}
+  \end{lemma}
+
+  \begin{lemma}[Default Initialization Values]
+    We can add default values in our definition of the struct. It is always recommended to. 
+    \begin{lstlisting}
+      struct Employee {
+        int id = 0;
+        int age = 1;
+        double wage = 10000.0;
+      };
+    \end{lstlisting}
+  \end{lemma}
 
 \section{Classes} 
 
@@ -1747,5 +2021,7 @@
   So far, we've worked only in the stack, where our variables were limited to its scope and were destroyed after the block ends. If we want to keep objects in a more persistent memory location, we use the heap.  
 
 \section{Operator Overloading} 
+
+\section{Building}
 
 \end{document}
