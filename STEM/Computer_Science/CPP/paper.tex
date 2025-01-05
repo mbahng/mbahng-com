@@ -232,6 +232,31 @@
     stepnumber=1
   }
 
+  \lstdefinelanguage{CMake}{
+    keywords={
+      if, else, elseif, endif,
+      foreach, endforeach,
+      while, endwhile,
+      function, endfunction,
+      macro, endmacro,
+      set, unset,
+      project,
+      cmake_minimum_required,
+      add_executable,
+      add_library,
+      target_link_libraries,
+      include_directories,
+      add_subdirectory,
+      file,
+      find_package,
+      option
+    },
+    sensitive=false,
+    comment=[l]{\#},
+    morestring=[b]",
+    morestring=[b]',
+  }
+
 % Page style
   \pagestyle{fancy}
   \fancyhead[L]{C++}
@@ -1054,7 +1079,7 @@
       The \textbf{using namespace} is a directive that allows access to all members of a namespace. 
     \end{lemma}
 
-  \subsection{MakeFiles and CMake} 
+  \subsection{Building and Makefiles}
     
       Most computer come with a built-in C or C++ compiler out of the box. There are generally two types. 
       \begin{enumerate}
@@ -1179,7 +1204,7 @@
         \end{lstlisting}
       \end{example}
 
-    \subsubsection{CMake}
+  \subsection{CMake}
 
       Even with Makefiles, they have some disadvantages. 
       \begin{enumerate}
@@ -1189,10 +1214,16 @@
       \end{enumerate}
 
       \begin{definition}[CMake]
-        Therefore, we have a further abstraction called CMake, which automatically generates Makefiles, which themselves generate the actual compiler commands. They are stored in a text file called \texttt{CMakeLists.txt}.
+        Therefore, we have a further abstraction called CMake, which automatically generates Makefiles, which themselves generate the actual compiler commands. They are stored in a text file called \texttt{CMakeLists.txt}. Conventionally, you would make a \texttt{build/} directory \texttt{cd} into it, and run 
+        \begin{lstlisting}
+          cmake <path-to-cmakelists> 
+        \end{lstlisting} 
+        which will automatically generate a Makefile along with other build files for you. 
       \end{definition} 
 
-      For the remainder, we'll talk about how we can configure CMake. 
+      Let's talk about what options CMake supports. 
+
+    \subsubsection{Standards}
 
       \begin{definition}[Version]
         CMake is a software, and it has versions that are important to have a general knowledge of. 
@@ -1204,15 +1235,313 @@
           \item \textit{CMake 3.27} (2023). Improved build system integration. 
         \end{enumerate}
         We can set the minimum version. If a user tries to compile with a CMake version that is less than that required, compilation fails. 
-        \begin{lstlisting}
+        \begin{lstlisting}[language=CMake]
           # Requires CMake 3.10 or higher 
           cmake_minimum_required(VERSION 3.10)  
 
           # This sets policies to 3.10 but requires at least 3.5
           cmake_minimum_required(VERSION 3.5...3.10)
         \end{lstlisting}
+      \end{definition} 
+
+      \begin{definition}[CMake Options and Variables]
+        CMake variables are variables that are either set manually or automatically. They are conventionally uppercase. 
+        \begin{enumerate}
+          \item To set one manually in \texttt{CMakeLists.txt}, we write 
+          \begin{lstlisting}[language=CMake]
+            # basic variable setting 
+            set(MY_VARIABLE "value") 
+            # list variable 
+            set(MY_LIST "item1" "item2" "item3") 
+            # path variable 
+            set(MY_PATH "${PROJECT_SOURCE_DIR}/include")
+          \end{lstlisting}
+
+          \item We can actually set them directly in the command line when calling \texttt{cmake}. You should first set an option for it in \texttt{CMakeLists.txt} and then call it with the option argument having a prefix of \texttt{D}, which tells cmake that this is a variable definition. 
+            
+          \noindent\begin{minipage}{.47\textwidth}
+            \begin{lstlisting}[language=CMake]{Code}
+              # CMakeLists.txt
+              option(MY VARIABLE "Documentation" ON)
+            \end{lstlisting}
+            \end{minipage}
+            \hfill
+            \begin{minipage}{.46\textwidth}
+            \begin{lstlisting}[]{Output}
+              # Command Line 
+              cmake -DMY_VARIABLE=value ..
+            \end{lstlisting}
+          \end{minipage}
+
+        \end{enumerate}
+      \end{definition} 
+
+      \begin{definition}[Message]
+        You can output logs as a part of your build process such as the following. 
+        \begin{lstlisting}[language=CMake]
+          message("Hello world") 
+          message("my variable is ${MY_VARIABLE}")
+        \end{lstlisting}
       \end{definition}
 
+      \begin{definition}[Project Name]
+        The project name defines the name of your project and automatically sets certain CMake variables. 
+        \begin{enumerate}
+          \item \texttt{PROJECT\_NAME} contains the name you specified in \texttt{project()}. 
+          \item \texttt{PROJECT\_SOURCE\_DIR} is the full path to the directory containing your main \texttt{CMakeLists.txt} 
+          \item \texttt{PROJECT\_BINARY\_DIR} is the full path to the build directory where CMake generates build files. 
+        \end{enumerate}
+        \begin{lstlisting}[language=CMake]
+          project(aten)
+
+          # Sets these variables
+          message("Project name: ${PROJECT_NAME}")
+          message("Source dir: ${PROJECT_SOURCE_DIR}")
+          message("Build dir: ${PROJECT_BINARY_DIR}") 
+        \end{lstlisting}
+      \end{definition}
+
+      \begin{definition}[C++ Standards]
+        We can set the C++ standard as such
+        \begin{lstlisting}[language=CMake]
+          set(CMAKE_CXX_STANDARD 17)
+        \end{lstlisting}
+        which is equivalent to using compiler flags like \texttt{-std=c++17}. If we also set 
+        \begin{lstlisting}[language=CMake]
+          set(CMAKE_CXX_STANDARD_REQUIRED ON)
+        \end{lstlisting}
+        then this forces CMake to always use the specified standard and will fail if the compiler does not support C++17. 
+      \end{definition}
+
+      \begin{definition}[Operating Systems]
+        CMake also automatically defines which operating system it is running on through the following cmake variables. With these, we can use conditionals to set extra configuration depending on the system. 
+        \begin{lstlisting}[language=CMake]
+          if(UNIX)        # Linux, macOS, BSD, etc.
+              # UNIX-specific settings
+          endif()
+
+          if(APPLE)       # macOS, iOS
+              # Apple-specific settings
+          endif()
+
+          if(WIN32)       # Windows
+              # Windows-specific settings
+          endif()
+
+          if(LINUX)       # Linux specifically
+              # Linux-specific settings
+          endif() 
+        \end{lstlisting}
+      \end{definition}
+
+      \begin{definition}[Architecture]
+        The \texttt{CMAKE\_OSX\_ARCHITECTURES} is similar to the \texttt{-arch} flag. 
+        \begin{lstlisting}[language=CMake]
+          set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64")
+        \end{lstlisting}
+      \end{definition} 
+
+    \subsubsection{Compiling}
+
+      \begin{definition}[Build Type]
+        \texttt{CMAKE\_BUILD\_TYPE} sets the type of build configuration, which controls compiler optimization levels and debug information. The options are 
+        \begin{enumerate}
+          \item \texttt{Debug}. No optimization (\texttt{-O0}), includes debug symbols (\texttt{-g}). Produces larger binaries and slower execution. 
+          \item \texttt{Release}. Max optimization (\texttt{-O3}), no debug symbols. Has fastest execution and smaller binaries, but harder to debug. 
+          \item \texttt{RelWithDebInfo}\footnote{Stands for \textit{Release with Debug Info}}. High optimization (\texttt{-O2}), includes debug symbols (\texttt{-g}).  
+          \item \texttt{MinSizeRel}\footnote{Minimum size release.}. Size optimization \texttt{-Os}, no debug symbols, and smallest possible binaries, which are good for embedded systems. 
+        \end{enumerate}
+        We can set it either in the file or in the command line. 
+        \begin{lstlisting}[language=CMake]
+          # Set during cmake configuration
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+
+          # Or in CMakeLists.txt 
+          set(CMAKE_BUILD_TYPE Debug)
+          set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
+        \end{lstlisting}
+      \end{definition} 
+
+      \begin{definition}[Add Executable]
+        \texttt{add\_executable} tells CMake to create an executable program from source files. 
+        \begin{lstlisting}
+          # Creates executable named 'myapp' from main.cpp
+          add_executable(myapp main.cpp)  
+
+          # Multiple source files 
+          add_executable(myapp2 
+              main.cpp
+              utils.cpp
+              helper.cpp
+          )
+        \end{lstlisting}
+      \end{definition}
+
+      \begin{definition}[Include Directories] 
+        We can tell cmake to look into specific include directories to look for header files, similar to the \texttt{-I} flag. 
+        \begin{lstlisting}
+          target_include_directories(myapp PRIVATE include)
+        \end{lstlisting}
+      \end{definition}
+
+      \begin{definition}[Link Libraries]
+        We can tell cmake to look into certain library directories to look for library files (\texttt{.so}, \texttt{.a}, etc.) during linking, similar to the \texttt{-L} flag. 
+        \begin{lstlisting}
+          target_link_libraries(myapp PRIVATE somelib)
+        \end{lstlisting}
+      \end{definition}
+
+    \subsubsection{Subdirectories}
+  
+      \begin{example}[Motivation for Multiple CMake Files]
+        Sometimes, you may have multiple \texttt{CMakeList.txt} in different subdirectories. Look at this directory structure. 
+        \begin{lstlisting}
+          .
+          |-- CMakeLists.txt
+          |-- README.md
+          |-- bindings
+          |   |-- CMakeLists.txt
+          |   |-- ...
+          |   |-- common.hpp
+          |-- main.cpp
+          |-- src
+          |   |-- CMakeLists.txt
+          |   |-- ...
+          |   |-- Util
+          |-- test
+              |-- CMakeLists.txt
+              |-- ...
+              |-- Tensor
+        \end{lstlisting}
+        \begin{enumerate}
+          \item It has a main cmake file. 
+          \item If we want to compile the source files, there \texttt{src/CMakeLists.txt} that will do it for us. 
+          \item Same with the bindings cmake file. 
+          \item Same with the test cmake file. 
+        \end{enumerate}
+        This nested structure allows for more flexibility, since by setting certain cmake parameters, we can control which parts of this project get compiled. 
+      \end{example}
+
+      \begin{definition}[Subdirectories]
+        \texttt{add\_subdirectory} tells CMake to enter a subdirectory and process the \texttt{CMakeLists.txt} file there. 
+        \begin{lstlisting}[language=CMake]
+          add_subdirectory(src)
+        \end{lstlisting}
+      \end{definition}
+
+      \begin{definition}[Conditionals]
+        We can implement conditionals. 
+        \begin{lstlisting}[language=CMake]
+          if (BUILD_DEV) 
+            message(STATUS "Development mode ON")
+            ...
+            add_subdirectory(test)
+          else()
+            message(STATUS "Development mode OFF")
+          endif()
+        \end{lstlisting}
+      \end{definition}
+    
+    \subsubsection{External Libraries} 
+
+      When you install CMake, it also comes with a set of \texttt{Find<Package>.cmake} files, which are basic finders located in CMake's modules directory. This on my mac is located in \texttt{/opt/homebrew/share/cmake/modules/}, which contains files like \texttt{FindZLIB.cmake} or \texttt{FindOpenSSL.cmake}. These are also cmake files and contain variables that tell you where to find these packages. 
+
+      However, just because the cmake finders are there does not mean that the actual package is installed. Therefore, \texttt{Find<Package>.cmake} will run but fail to find the package. When you install an external library through a system package manager like apt/brew/pacman or by building it yourself, it creates a package configuration file. 
+
+      \begin{definition}[Package Config Files]
+        The package creates a file called \texttt{<Package>Config.cmake} (also a cmake file) which serves to tell other projects how to use the installed library. They are usually found in paths like 
+        \begin{lstlisting}
+          /user/lib/cmake/XXX/XXXConfig.cmake
+        \end{lstlisting}
+      \end{definition}
+
+      \begin{example}
+        \begin{lstlisting}
+          # When you install CMake, you get basic finders like:
+          /opt/homebrew/share/cmake/Modules/FindZLIB.cmake
+          /opt/homebrew/share/cmake/Modules/FindOpenSSL.cmake
+
+          # When you install Boost, you get:
+          /opt/homebrew/lib/cmake/Boost-1.82.0/BoostConfig.cmake
+
+          # When you install OpenCV, you get:
+          /opt/homebrew/lib/cmake/opencv4/OpenCVConfig.cmake 
+        \end{lstlisting}
+      \end{example} 
+
+      \begin{definition}[Find Package]
+        Therefore, if we want to use an external package, we must first take the cmake finder file, find the package config file, and locate the existing package binaries. This is all done by the \texttt{find\_package} command. 
+
+        \begin{lstlisting}[language=CMake]
+          # Simple find
+          find_package(OpenSSL)
+
+          # Require the package - CMake will error if not found
+          find_package(Boost REQUIRED)
+
+          # Find specific components of a package
+          find_package(Boost REQUIRED COMPONENTS filesystem system)
+
+          # Specify minimum version
+          find_package(OpenSSL 1.1.1 REQUIRED) 
+        \end{lstlisting}
+
+        So how does it know where to look for packages? It looks at the following in order. 
+        \begin{enumerate}
+          \item Package-specific hints, e.g. \texttt{BOOST\_ROOT} for Boost to see if any package-specific paths are defined. 
+
+          \item \texttt{CMAKE\_PREFIX\_PATH}, which is a cmake variable that you can specify manually. 
+            \begin{lstlisting}[language=CMake]
+              # In CMakeLists.txt
+              set(CMAKE_PREFIX_PATH 
+                  "/custom/path/to/library"
+                  "/another/path"
+              ) 
+            \end{lstlisting}
+
+          \item System paths, which differ for each operating system. 
+            \begin{lstlisting}
+              # On macOS (with Homebrew/M1,M2,M3)
+              /opt/homebrew/lib/cmake/
+              /usr/local/lib/cmake/
+
+              # On Linux
+              /usr/lib/cmake/
+              /usr/local/lib/cmake/
+              /usr/share/cmake/
+            \end{lstlisting}
+        \end{enumerate}
+
+        If a package is not found, it will report an error (if REQUIRED). When a package is found, it typically provides 
+        \begin{lstlisting}[language=CMake]
+          # Common variables set by find_package
+          ${PACKAGE_NAME}_FOUND        # Was it found?
+          ${PACKAGE_NAME}_INCLUDE_DIRS # Headers location
+          ${PACKAGE_NAME}_LIBRARIES    # Library locations 
+        \end{lstlisting}
+      \end{definition}
+
+      While \texttt{find\_package} looks for the system's pre-built binaries, we can also get the source code from a library directly and compile/link it along with our program. This is what \texttt{FetchContent\_Declare} does. 
+
+      \begin{definition}[Fetch Content]
+        The \texttt{FetchContent\_Declare} downloads code during CMake configuration and builds the library from source as a part of my project. If you have your own project A and it requires dependency B, it downloads and compiles B, compiles A, and then links the object files of A and B together to get the final binary. In your cmake file, you must first 
+        \begin{lstlisting}[language=CMake]
+          include(FetchContent)
+        \end{lstlisting}
+        and then 
+        \begin{lstlisting}[language=CMake]
+          # First declare what you want
+          FetchContent_Declare(
+              googletest
+              GIT_REPOSITORY https://github.com/google/googletest.git
+              GIT_TAG main
+          )
+
+          # Then make it available (downloads & builds)
+          FetchContent_MakeAvailable(googletest)
+        \end{lstlisting}
+        It will have slower builds than finding a package since it compiles everything. In the backend, it is really just doing an \texttt{add\_subdirectory} of the downloaded repository's source and binary directories, with their own cmake files, and processing them. 
+      \end{definition}
 
 \section{Constants and Constant Expressions}
 
