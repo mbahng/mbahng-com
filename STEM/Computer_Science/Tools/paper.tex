@@ -446,6 +446,10 @@
 
       \begin{definition}[Fast-Forward Merge]
         
+      \end{definition} 
+
+      \begin{definition}[3-Way Merge]
+        
       \end{definition}
 
     \subsubsection{Rebase}
@@ -455,32 +459,188 @@
       \end{definition}
 
       \begin{definition}[Rebasing Diamond Merges]
-        
+        Say that you h 
       \end{definition}
     
   \subsection{Remote Trees}
 
-    This allows you to keep track of your change history, but another benefit is to store these changes in the cloud. In order to do this, you must have access to a remote server. 
+    So far, we've talked about how you can use git to keep track of your edit history locally, but another benefit is to store these changes in the cloud. This is done through a third-party provider, and they are completely separate entities from git. The three most dominant ones are  
+    \begin{enumerate}
+      \item \textit{Github}. Owned by Microsoft and is the default for most open-source projects, with 100 million users. 
+      \item \textit{Gitlab}. Owned by Gitlab and is slowly gaining popularity due to better control of repositories and after Microsoft acquired github. 
+      \item \textit{Bitbucket}. Owned by Atlassian and used for private repositories in enterprise settings. 
+    \end{enumerate}
+    Again, all three platforms still use \textit{git}, but the cloud storage is managed separately. All of these platforms provide a remote server that stores all of these git histories of millions of repositories around the world. The motivation behind the need of a remote workspace is that it is a common ground in which many developers can communicate and track the progress of their entire repository. 
 
-    \begin{definition}[Remote References]
-      In your local branch, it 
+    \begin{definition}[Remote Repository]
+      The first step to setting up a cloud-based git tree is to place it on some server (IP address) in some directory with the proper permissions. This remote location containing the git tree and the corresponding code is called the \textbf{remote repository}, and it is encoded in either a URL or a SSH host link of the form 
+      \begin{equation}
+        https://github.com/user/repo.git
+      \end{equation} 
+      For now, we will consider a local repository having at most 1 remote repository that it can communicate to.\footnote{When we get to forking, we will talk about multiple remote repositories.} Conventionally, the primary\footnote{Again, for now it's really the only remote.} remote repository goes under the alias \textbf{origin}. 
+    \end{definition}  
+
+    None of the commands that we have introduced so far does anything to the remote repository. The first command we should know is how to set up one from scratch. 
+
+    \begin{definition}[Add Remote]
+      Given that git is initialized, we can initialize a corresponding remote repository by running 
+      \begin{lstlisting}
+        git remote add <remote-name> <remote-url>
+      \end{lstlisting}
+      Again, conventionally the \texttt{<remote-name>} is put as \texttt{origin}. 
+    \end{definition} 
+
+    Great, we have set a remote repository up, but there is an extra step to do. Most synchronizations happens at a branch level rather than the whole tree itself, so what we would need to do for each local branch is create a corresponding remote branch and then \textit{connect} those two so that git knows which branches to sync together. The local branch is called the \textbf{downstream} branch and its corresponding remote branch is called \textbf{upstream}. 
+
+    In order to understand how the process of setting upstream branches is done, we introduce another variable in our local repository. In our local git tree, we have stated that for each branch \texttt{B}, there is a \texttt{HEAD} pointer living at the most recent commit, denoted as \texttt{B/HEAD} or just \texttt{B}. 
+
+    \begin{definition}[Remote References] 
+      There is actually a second pointer called the \textbf{remote reference (ref)} in the local branch called \texttt{origin/B} (more generally \texttt{<remote>/<branch>}), which is a symbolic link that points to the head of the remote branch. They are git's way of keeping track of the state of branches in your remote repositories. 
+    \end{definition} 
+
+    For some local branch, the existence of a remote ref tells you where the corresponding upstream branch is located (i.e. at \texttt{<remote>/<branch>}). If you do not see the remote ref, this means that you have not yet connected your local branch to its remote upstream, which can happen if the remote counterpart doesn't exist (i.e. you created a completely new branch) or you have never connected it. You can find all local branches and the remote references by calling 
+    \begin{lstlisting}
+      git branch -vv
+      # Shows all branches with their tracking info
+      # Example output:
+      # * main    abc123 [origin/main] Latest commit message
+      #   feature def456 [origin/feature: ahead 2] Some work
+    \end{lstlisting} 
+
+    \begin{definition}[Push with Set Upstream] 
+      We consider two cases, where we do not see the remote refs at all. 
+      \begin{enumerate}
+        \item Say that you have a local branch \texttt{main} with some committed changes, and the remote branch does not exist at all. Your tree will look something like this 
+          \begin{lstlisting}
+            Remote: 
+            Local : A <- B <- C <- (main) D
+          \end{lstlisting}
+        \item Say that you have a local branch \texttt{main} with some committed changes, and the remote branch does exist but the upstream is not set. 
+          \begin{lstlisting}
+            Remote: A <- (main) B
+            Local : A <- B <- C <- (main) D
+          \end{lstlisting}
+      \end{enumerate}
+      We can synchronize our local commits with the remote repo by \textbf{pushing} them. As we push, we also set the upstream with the \texttt{-u} or \texttt{--set-upstream} flag. 
+      \begin{lstlisting}
+        git push -u <remote> <branch> 
+        
+        # for example, if we want to push our current checked out branch to origin/main
+        git push -u origin main
+      \end{lstlisting}
+      This will set your remote refs, and in both cases we will have 
+      \begin{lstlisting}
+        Remote: A <- B <- C <- (main) D
+        Local : A <- B <- C <- (main, origin/main) D
+      \end{lstlisting}
     \end{definition}
 
-    \begin{definition}[Remote Git Tree]
-      
-    \end{definition}
+    \begin{definition}[Push] 
+      If your remote ref is already set and you have some further commits, 
+      \begin{lstlisting}
+        Remote: A <- B <- C <- (main) D
+        Local : A <- B <- C <- (origin/main) D <- E <- (main) F
+      \end{lstlisting}
+      then you can just push your changes with \texttt{git push}, which will push the commits up to HEAD and update the remote ref to HEAD. 
+      \begin{lstlisting}
+        Remote: A <- B <- C <- D <- E <- (main) F
+        Local : A <- B <- C <- D <- E <- (main, origin/main) F
+      \end{lstlisting}
+    \end{definition} 
 
-    \begin{definition}[Fetch]
-      
+    In all of these scenarios, we have only seen cases when \texttt{origin/main} and \texttt{main} point to the same commit. However, remember that the remote ref is a \textit{local} pointer to the remote repo's head, and so it is only updated every time your local repo interacts with the remote repo. Therefore, they can be different. 
+
+    \begin{example}[Remote Ref is Different From True Remote Head]
+      Say that you are \texttt{Local1} and a friend is \texttt{Local2}. We first start off with this. 
+      \begin{lstlisting}
+        True Remote: A <- B <- C <- (main) D
+        Remote1    : A <- B <- C <- (main) D 
+        Local1     : A <- B <- C <- (main, origin/main) D 
+        Remote2    : A <- B <- C <- (main) D
+        Local2     : A <- B <- C <- (main, origin/main) D
+      \end{lstlisting}
+      Your friend makes commits \texttt{E} and \texttt{F} and pushes them while you are working on commit \texttt{G}.  
+      \begin{lstlisting}
+        True Remote: A <- B <- C <- D <- E <- (main) F
+        Remote1    : A <- B <- C <- (main) D 
+        Local1     : A <- B <- C <- (origin/main) D <- (main) G
+        Remote2    : A <- B <- C <- D <- E <- (main, origin/main) F 
+        Local2     : A <- B <- C <- D <- E <- (main, origin/main) F 
+      \end{lstlisting} 
+      In this case, your friend's push will update the head of the remote main branch to \texttt{F} and update their remote ref to \texttt{F} as well. But you have worked only locally and have no interacted with the remote repo for a while, so your remote ref is still \texttt{D}. When you therefore try to push your changes, git will complain to you that your future ref and the remote head does not match. Since this creates divergent histories which splits from \texttt{D}, it will not let you push. 
+    \end{example}
+
+    The scenario above is clearly a problem, and it stems from the fact that we have a remote ref. Why need remote refs at all if they seem redundant and at the same time they might introduce this problem? The answer is convenience. Imagine that there were no remote refs. This means that every time someone pushed to the remote main I would need to be notified that there were changes to main. However, I may not have access to the remote repo while I am working on my code, so I may still have the same problem when I am able to connect. The extra remote ref pointer allows for quick checking to see if my local branch matches its upstream. It turns out that if the upstream changed, git does indeed warn you about it as soon as possible. 
+
+    \begin{definition}[Fetch] 
+      Say that for a branch, it looks like this, and your local remote is not updated with the true remote's latest commits. 
+      \begin{lstlisting}
+        True Remote: A <- B <- C <- D <- E <- (main) F
+        Remote1    : A <- B <- C <- (main) D 
+        Local1     : A <- B <- C <- (origin/main, main) D
+      \end{lstlisting}
+      To update your remote ref to match the current upstream head, we can \textbf{fetch} it to get the following. 
+      \begin{lstlisting}
+        True Remote: A <- B <- C <- D <- E <- (main) F
+        Remote1    : A <- B <- C <- D <- E <- (main) F
+        Local1     : A <- B <- C <- (main) D <- E <- (origin/main) F
+      \end{lstlisting}
+      It comes in three commands. 
+      \begin{lstlisting}
+        git fetch <remote-url> <branch> # fetches from specific remote branch 
+        git fetch <remote-url>          # fetches from all branches in a remote repo  
+        git fetch                       # fetches from all branches of all remote repos
+      \end{lstlisting}
     \end{definition}
 
     \begin{definition}[Fast-Forward]
-      
+      In the case above, note that even though the commits are synchronized to your local remote, the changes aren't actually reflected in your current code since HEAD has not moved. If you want head to also move to the most recent remote ref, then you can do a \textbf{fast-forward merge}. 
+      \begin{lstlisting}
+        True Remote: A <- B <- C <- D <- E <- (main) F
+        Remote1    : A <- B <- C <- D <- E <- (main) F
+        Local1     : A <- B <- C <- D <- E <- (origin/main, main) F
+      \end{lstlisting}
+      You can do this in git by checking out to the local branch you are on. After fetching, you should have the remote ref that you want to update your HEAD to, which you put in as an argument. 
+      \begin{lstlisting}
+        git merge --ff-only <remote-url/branch> 
+        # e.g. 
+        git merge -ff-only origin/main 
+      \end{lstlisting}
     \end{definition}
 
-    \begin{definition}[Push]
-      
+    \begin{definition}[Pull]
+      The combination of doing a fetch to get the latest commits and update the remote ref, and then doing a (fast-forward) merge to update your HEAD pointer to the remote ref, is so common that we refer to doing these two things sequentially as a \textbf{pull}. Therefore, the two commands are the same. 
+
+      \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          git pull <remote-url> <branch> 
+
+          git fetch <remote-url> <branch>  
+          git merge <remote-url/branch>
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          git pull origin main 
+
+          git fetch origin main 
+          git merge origin/main
+        \end{lstlisting}
+      \end{minipage}
     \end{definition}
+
+    \begin{definition}[Clone]
+      Finally, you can take an existing remote repository and \textbf{clone} it, which creates a complete copy of a remote repository. It does the following. 
+      \begin{enumerate}
+        \item Does a \texttt{git init} to set up git. 
+        \item Does \texttt{git remote add origin <remote-url>} to connect to the remote repo and set the \texttt{origin} alias to it. 
+        \item Does \texttt{git fetch origin} to fetch all branches of the remote repo, setting up the local remote branches and their corresponding remote refs. 
+        \item Does \texttt{git checkout -b main origin/main} which creates the local branch \textbf{main}, checks out to it, and sets \texttt{origin/main} as its upstream. 
+      \end{enumerate}
+    \end{definition}
+
+  \subsection{Pull Requests and Forking} 
 
 \section{Continuous Integration (CI)} 
 
