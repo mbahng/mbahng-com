@@ -334,6 +334,10 @@
 
     Conflicts are unavoidable and you will have to get comfortable with them.  
 
+    \begin{definition}[Amending a Commit]
+      If you have some staged edits and you decide that these edits should go into some previous commit rather than a new one, you can \textbf{amend} the old commits. In lazygit, you can stage which edits you want to amend with, then go to the commit in your working branch and press \texttt{<shift-a>} to amend it. 
+    \end{definition}
+
   \subsection{Interactive Rebasing} 
 
     Even though we can revert commits, we haven't actually found out how to truly \textit{delete} a commit from your history which modifies 
@@ -346,7 +350,7 @@
     \end{equation} 
   
     \begin{definition}[Rebasing]
-      Essentially, we want to \textit{directly} (unlike a revert) modify our history that goes \textit{beyond} (unlike a reset) the last $K$ commits. Any actions that modifies the history is known as \textbf{rebasing}, which can be done automatically by git but must often be done \textbf{interactively}. When you want to start an interactive rebase, you want to tell git from which commit $C_s$ you want to start the interactive rebase on. 
+      Essentially, we want to \textit{directly} (unlike a revert) modify our history that goes \textit{beyond} (unlike a reset) the last $K$ commits. Any actions that modifies the history is known as \textbf{rebasing}, which can be done automatically by git (regular rebasing just picks all commits) but must often be done \textbf{interactively}, which allows for more operations listed below. When you want to start an interactive rebase, you want to tell git from which commit $C_s$ you want to start the interactive rebase on. 
       \begin{lstlisting}
         git rebase -i <start commit hash>
       \end{lstlisting}
@@ -397,42 +401,60 @@
 
     Again, note that if you have changed anything in commit $C_i$, then the hash of $C_i$ every $C_j$ after will get changed. This causes git to interpret these changed commits as completely new ones, even if we only picked a given commit without any modifications. For single-branch rebases, this is fine, but this causes some nasty problems when rebasing over multiple branches, as we will talk about later. 
 
+    \begin{definition}[Patching]
+      An easier way to modify your edits in old commits is through \textbf{patching}.\footnote{Though patching really just does an interactive rebase in the backend.} Within a commit, a \textbf{patch} is simply a diff file that you can add and remove to. It's like having a mini-staging area in a commit. When you have selected the different files/lines you have added to your patch, you can either choose to: 
+      \begin{enumerate}
+        \item Remove them from the commit. 
+        \item Add them to another commit. 
+        \item Move them from the original commit to a new commit. 
+      \end{enumerate}
+    \end{definition}
+
+    \begin{theorem}[Splitting Commits Into Two Different Commits]
+      If you want to split commits, 
+      \begin{enumerate}
+        \item create a dummy commit 
+        \item go to the commit you want to split, get its patches, and add them to the dummy commit. 
+        \item Do an interactive rebase to swap the dummy commits down until you have it at the desired location. 
+      \end{enumerate}
+    \end{theorem} 
+
   \subsection{Branches} 
 
-    Okay, so we now have much better control over our git history, but we've only been treating our history as a linked list. In order to introduce the tree structure, we need to introduce the \textit{branch}. This is especially important if we have a particular previous commit $C_{k < n}$ where we would like to make some different changes to, giving us \textbf{diverging histories} with next nodes $C_k \leftarrow C_{k+1}$ and $C_k \leftarrow C_{k^\prime + 1}$. 
-    
-    \begin{definition}[Branch]
-      A \textbf{branch} is a path from the root commit to any leaf node. It represents a unique history from genesis to \texttt{HEAD}. To list all branches, use 
-      \begin{lstlisting}
-        >> git branch 
-          feature/threading
-        * main
-          test/tensor
-      \end{lstlisting} 
-      The asterisk represents which branch you are currently on. The first branch you start off with is a special branch called \textbf{main}, or \textbf{master} branch. 
-    \end{definition} 
+      Okay, so we now have much better control over our git history, but we've only been treating our history as a linked list. In order to introduce the tree structure, we need to introduce the \textit{branch}. This is especially important if we have a particular previous commit $C_{k < n}$ where we would like to make some different changes to, giving us \textbf{diverging histories} with next nodes $C_k \leftarrow C_{k+1}$ and $C_k \leftarrow C_{k^\prime + 1}$. 
+      
+      \begin{definition}[Branch]
+        A \textbf{branch} is a path from the root commit to any leaf node. It represents a unique history from genesis to \texttt{HEAD}. To list all branches, use 
+        \begin{lstlisting}
+          >> git branch 
+            feature/threading
+          * main
+            test/tensor
+        \end{lstlisting} 
+        The asterisk represents which branch you are currently on. The first branch you start off with is a special branch called \textbf{main}, or \textbf{master} branch. 
+      \end{definition} 
 
-    Therefore, really our linked-list history is a git tree with a single branch. 
+      Therefore, really our linked-list history is a git tree with a single branch. 
 
-    \begin{definition}[Creating/Switching Branches]
-      From any (main or non-main) branch you can create new branches by choosing the commit to split from. 
-      \begin{enumerate}
-        \item Create a new branch from HEAD of current branch. 
-          \begin{lstlisting}
-            git branch <new-branch-name> 
-          \end{lstlisting}
+      \begin{definition}[Creating/Switching Branches]
+        From any (main or non-main) branch you can create new branches by choosing the commit to split from. 
+        \begin{enumerate}
+          \item Create a new branch from HEAD of current branch. 
+            \begin{lstlisting}
+              git branch <new-branch-name> 
+            \end{lstlisting}
 
-        \item Create a new branch from certain commit of current branch. 
-          \begin{lstlisting}
-            git branch <new-branch-name> <commit-hash>
-          \end{lstlisting} 
+          \item Create a new branch from certain commit of current branch. 
+            \begin{lstlisting}
+              git branch <new-branch-name> <commit-hash>
+            \end{lstlisting} 
 
-        \item To switch to another branch 
-          \begin{lstlisting}
-            git checkout <branch> 
-          \end{lstlisting}
-      \end{enumerate}
-    \end{definition} 
+          \item To switch to another branch 
+            \begin{lstlisting}
+              git checkout <branch> 
+            \end{lstlisting}
+        \end{enumerate}
+      \end{definition} 
 
     \subsubsection{Working Between Branches} 
 
@@ -442,21 +464,144 @@
         \textbf{Stashing} changes mean that you can take uncommitted changes and store them in a temporary node but not have it point to any existing commit in a branch. This allows you to save your changes without having to commit incomplete work to a branch, and you can pop them back whenever you need. 
       \end{definition} 
 
-    \subsubsection{Merge} 
+      Sometimes, you may want to just copy a commit from one branch to another. You can do this using an interactive rebase, but this may be overkill since it is mainly used to work with a sequence of commits. 
 
-      \begin{definition}[Fast-Forward Merge]
-        
+      \begin{definition}[Cherry-Picking and Pasting]
+        You can do copy a commit by \textbf{cherry picking} it and \textbf{pasting} it somewhere else. 
       \end{definition} 
 
-      \begin{definition}[3-Way Merge]
-        
+    \subsubsection{Integrating Branches} 
+
+      The reason you want to have different branches is so that you have independent workflows that may hopefully be integrated into the master branch. So how does one actually perform this integration? There are two general ways to do this: a 3-way merge or a rebase. For both methods, we will use this example. 
+      \begin{lstlisting}
+        main     : A1 --- A2 --- A3
+                                  \
+        feature1 :                 B1 --- B2 --- B3
+                                  \
+        feature2 :                 C1 --- C2 --- C3
+      \end{lstlisting}
+
+      \begin{definition}[Fast-Forward Merge]
+        If you want to merge \texttt{main} and \texttt{feature1}, notice that \texttt{feature1} is really just ahead of \texttt{main} by some number of commits. The easiest way to merge is to add the additional commits in \texttt{feature1} to \texttt{main}. This is called a \textbf{fast-forward merge}, which we can call using 
+        \begin{lstlisting}
+          git checkout main 
+          git merge --ff-only feature1
+        \end{lstlisting} 
+        Doing so will result in 
+        \begin{lstlisting}
+          main     : A1 --- A2 --- A3 --- B1 --- B2 --- B3
+                                    \
+          feature1 :                  --- B1 --- B2 --- B3
+                                    \
+          feature2 :                  --- C1 --- C2 --- C3
+        \end{lstlisting}
+        and we can delete \texttt{feature1} since it's not needed. 
       \end{definition}
 
-    \subsubsection{Rebase}
+      In fact, if a fast-forward merge is possible, then calling \texttt{git merge feature1} will automatically do a fast-forward. We can explicitly set it to only attempt or never attempt fast-forward by adding the \texttt{--ff-only} or \texttt{--no-ff} flags. 
+
+      \begin{definition}[3-Way Merge]
+        If you want to merge two divergent branches, e.g. \texttt{feature1} and \texttt{feature2}, then a fast-forward is not possible. Rather, you want to choose to merge \texttt{feature2} \textit{into} \texttt{feature1}. Git will rather do a \textbf{three-way merge} between the divergent node \texttt{A3} and the heads of the respective branches \texttt{B3} and \texttt{C3}. After you resolve conflicts, the tree should look something like 
+        \begin{lstlisting}
+          main     : A1 --- A2 --- A3
+                                    \
+          feature1 :                  --- B1 --- B2 --- B3 --- M1
+                                    \                          /
+          feature2 :                  --- C1 --- C2 --- C3 ---
+        \end{lstlisting}
+        Note that we could choose to merge \texttt{feature1} into \texttt{main} subsequently, resulting in both feature branches merged. 
+        \begin{lstlisting}
+          main     : A1 --- A2 --- A3 ------------------------------- M2
+                                    \                                 /
+          feature1 :                  --- B1 --- B2 --- B3 --- M1 ---
+                                    \                          /
+          feature2 :                  --- C1 --- C2 --- C3 ---
+        \end{lstlisting}
+      \end{definition}
+
+      Note that a three-way merge may result in a pretty ugly tree, especially if we are working with dozens of branches. What we would like to do is a three-way merge in a fashion that \textit{looks like} a fast-forward merge. That is, we want the main branch to have a linear structure rather than a series of diverging and converging nodes. In fact, we already have the tools to do this. Let's revisit the interactive rebase again. We have seen that we can do an interactive rebase from a start commit by doing 
+      \begin{lstlisting}
+        git rebase -i <start-commit-hash>
+      \end{lstlisting} 
+      What we would like to do is to rebase from a commit in a different branch. 
 
       \begin{definition}[Rebase]
-        
-      \end{definition}
+        If we want to linearly merge \texttt{feature2} into \texttt{feature1}, this is called ``\textbf{rebasing} \texttt{feature2} \textit{onto} \texttt{feature1}.'' We run 
+        \begin{lstlisting}
+          git checkout feature2 
+          git rebase feature1
+        \end{lstlisting} 
+        which means ``take my current branch's unique commits and replay them on top of whatever branch I am rebasing on (in here, \texttt{feature1}).'' This will result in 
+        \begin{lstlisting}
+          main     : A1 --- A2 --- A3
+                                    \
+          feature1 :                 B1 --- B2 --- B3
+                                                    \
+          feature2 :                                 C1' --- C2' --- C3' 
+        \end{lstlisting} 
+        where the \texttt{C'} are the same commits but with different hashes since they start from a different parent. 
+      \end{definition} 
+
+      \begin{example}[Updating Feature Branch with Changes from Main]
+        A common workflow you would do in a large project with multiple developers is as follows. Consider that you are working on \texttt{feature1} and another developer is working on \texttt{feature2}. 
+        \begin{lstlisting}
+          main     : A1 --- A2 --- A3
+                                    \
+          feature1 :                  --- B1 --- B2 --- B3
+                                    \
+          feature2 :                  --- C1 --- C2 
+        \end{lstlisting}
+        Your friend pushes their changes to \texttt{main}, which leads to this structure. 
+        \begin{lstlisting}
+          main     : A1 --- A2 --- A3 --- C1 --- C2
+                                    \
+          feature1 :                  --- B1 --- B2 --- B3
+                                    \
+          feature2 :                  --- C1 --- C2 
+        \end{lstlisting}
+        Your branch has diverged from main, so you will need to rebase your own branch onto main. You checkout to \texttt{feature1} and run \texttt{git rebase main}. After settling conflicts, your branch will look like the following, updated with the most recent commits from \texttt{main}. 
+        \begin{lstlisting}
+          main     : A1 --- A2 --- A3 --- C1 --- C2
+                                                  \
+          feature1 :                                --- B1' --- B2' --- B3'
+                                    \
+          feature2 :                  --- C1 --- C2 
+        \end{lstlisting}
+      \end{example}
+
+      \begin{example}[Converting a Merge Into Rebase]
+        Say that you already merged \texttt{feature1} and \texttt{main}. 
+        \begin{lstlisting}
+          main     : A1 --- A2 --- A3 ------------------------ M1
+                                    \                          /
+          feature1 :                  --- B1 --- B2 --- B3 ---  
+        \end{lstlisting}
+        You realized that you actually wanted to do a fast-forward so that it looks linear! How do you do this? 
+        \begin{enumerate}
+          \item You first undo the merge. 
+            \begin{lstlisting}
+              git checkout main 
+              git reset --hard A3
+            \end{lstlisting} 
+
+          \item Then do the rebase of \texttt{feature1} onto \texttt{main}. 
+            \begin{lstlisting}
+              git checkout feature1 
+              git rebase main 
+            \end{lstlisting} 
+
+          \item Then fast-forward to main to include \texttt{feature1}'s commits. 
+            \begin{lstlisting}
+              git checkout main 
+              git merge --ff-only feature1
+            \end{lstlisting}
+        \end{enumerate}
+        We will have this in the end. 
+        \begin{lstlisting}
+          main     : A1 --- A2 --- A3 --- B1' --- B2' --- B3' 
+          feature1 : A1 --- A2 --- A3 --- B1' --- B2' --- B3'
+        \end{lstlisting}
+      \end{example} 
 
   \subsection{Remote Trees}
 
@@ -470,9 +615,9 @@
 
     \begin{definition}[Remote Repository]
       The first step to setting up a cloud-based git tree is to place it on some server (IP address) in some directory with the proper permissions. This remote location containing the git tree and the corresponding code is called the \textbf{remote repository}, and it is encoded in either a URL or a SSH host link of the form 
-      \begin{equation}
+      \begin{lstlisting}
         https://github.com/user/repo.git
-      \end{equation} 
+      \end{lstlisting} 
       For now, we will consider a local repository having at most 1 remote repository that it can communicate to.\footnote{When we get to forking, we will talk about multiple remote repositories.} Conventionally, the primary\footnote{Again, for now it's really the only remote.} remote repository goes under the alias \textbf{origin}. 
     \end{definition}  
 
@@ -636,23 +781,69 @@
       \end{enumerate}
     \end{definition}
 
+  \subsection{Reflog} 
+
+    \begin{definition}[Reflog]
+      Git's \textbf{reflog} is a super-history that records every change to your branch tips. It's essentially an undo tree for all git actions (sort of like a meta undo tree). Therefore, if you ever screwed something up, git allows you to undo your actions by undoing the entries in the reflog. It contains the following types of actions. 
+      \begin{enumerate}
+        \item Branch Operations
+          \begin{itemize}
+            \item checkout: switching branches
+            \item branch: creating/deleting branches
+            \item merge: merging branches
+            \item rebase: rebasing branches
+            \item pull: pulling from remote
+          \end{itemize}
+        
+        \item Commit Modifications
+          \begin{itemize}
+            \item commit: new commits
+            \item reset: moving HEAD
+            \item revert: reverting commits
+            \item amend: amending commits
+            \item cherry-pick: copying commits
+          \end{itemize}
+
+        \item Stash Operations
+          \begin{itemize}
+            \item stash: stashing changes
+            \item stash apply: applying stash
+            \item stash pop: popping stash
+          \end{itemize}
+
+        \item History Rewrites
+          \begin{itemize}
+            \item rebase -i: interactive rebase
+            \item filter-branch: rewriting history
+          \end{itemize}
+
+        \item Reference Updates
+          \begin{itemize}
+            \item HEAD@{n}: moving HEAD pointer
+            \item refs/heads/*: branch pointer updates
+            \item refs/remotes/*: remote branch updates
+            \item refs/stash: stash reference updates
+          \end{itemize}
+
+        \item Remote Operations
+          \begin{itemize}
+            \item clone: cloning repository
+            \item fetch: fetching from remote
+            \item push: pushing to remote
+            \item remote add: adding remote
+          \end{itemize}
+      \end{enumerate}
+      You can access it using the following command. 
+      \begin{lstlisting}
+        $ git reflog
+        ab12345 HEAD@{0}: reset: moving to HEAD~1    # Most recent action
+        bc23456 HEAD@{1}: commit: Add feature X 
+        cd34567 HEAD@{2}: rebase: onto main          # Rebase happened here
+        ef45678 HEAD@{3}: commit: Initial commit
+      \end{lstlisting}
+    \end{definition}
+
   \subsection{Pull Requests and Forking} 
-
-  \subsection{Examples} 
-
-    In here I just list some more complicated workflows that I don't use often using lazygit. It saves me time rather than having to google them. 
-
-    \begin{theorem}[Rebasing Commits From Main to Current Branch]
-      
-    \end{theorem}
-
-    \begin{theorem}[Rebasing Diamond Merges]
-      
-    \end{theorem} 
-
-    \begin{theorem}[Splitting Commits Into Two Different Commits]
-      
-    \end{theorem} 
 
 \section{Continuous Integration (CI)} 
 
