@@ -1,1 +1,65 @@
+\section{Normalizing Flows} 
+
+  We have seen many examples of generative models that attempt to produce a probability distribution $p$ that approximates that of the data samples. Some are given by an explicit model (e.g. RBMs) while in others the model is implicit. The key idea for flow-based models\footnote{This has nothing to do with flow graphs and the max-flow-min-cut theorem in graph theory.} is that we want to map simple distributions (e.g. a Gaussian) to complex densities representing the data through an \textit{invertible transformation}. Recall the lemma below from multivariate calculus. 
+
+  \begin{lemma}[Jacobi] 
+    Let $X, Z$ be absolutely continuous random variables in $\mathbb{R}^n$. 
+    Given that $f: \mathbb{R}^n \rightarrow \mathbb{R}^n$ is invertible and differentiable everywhere, with $X = f(Z), Z = f^{-1} (X)$, we claim 
+    \begin{equation}
+      p_X (x) = p_Z (f^{-1} (x)) \cdot \big| (D f^{-1}) (x) \big|
+    \end{equation} 
+    where $|(D f^{-1}) (x)|$ is the determinant of total derivative of $f^{-1}$ at $x$. 
+  \end{lemma}
+  \begin{proof}
+    For $n = 1$, we have 
+    \begin{align}
+      p_X (x) & = \frac{d}{dx} F_X (x) \\
+              & = \frac{d}{dx} F_Z (f^{-1}(x)) \\
+              & = p_z (f^{-1} (x)) \cdot \frac{d}{dx} f^{-1} (x)  \\
+              & = p_z 
+    \end{align}
+  \end{proof} 
+
+  Therefore, if we parameterize $f$ with some $\theta$, then the marginal likelihood of $x$ given $\theta$ can be written as 
+  \begin{equation}
+    p_X (x;\; \theta) = p_Z (f^{-1}_\theta (x)) \cdot | (D f^{-1}_\theta) (x) |
+  \end{equation} 
+  Therefore, if $X$ is a complex distribution and $Z$ is a simple one (e.g. uniform), we might have hope to efficiently compute $p_X (x)$ for any $x \in \mathbb{R}^n$ if 
+  \begin{enumerate}
+    \item we can efficiently compute $f^{-1}_\theta (x)$, which allows us to compute $p_Z (f^{-1} (x))$ efficiently since $Z$ is simple. 
+    \item we can efficiently compute the Jacobian $Df^{-1} (x)$, and furthermore be able to compute the determinant efficiently.\footnote{Note that computing determinants are approximately $O(n^{2.4})$, which may not be practical. } 
+  \end{enumerate} 
+  It looks like we have split this enormously hard problem of modeling $X$ with three slightly less difficult problems. However, with some tricks, we may be able to get a simple enough parameterization of $f$ to be able to compute its inverse plus the determinant of the Jacobian. As a first step, what if we add more intermediate functions? Consider the sequence of invertible functions $Z \xrightarrow{f} Y \xrightarrow{g} \rightarrow X$, where $Z$ is a simple distribution that gets transformed to a slightly more complicated distribution $Y$ that then gets transformed to a complex distribution $X$. We can apply the Jacobi theorem above to see $p_Y (y) = p_Z (f^{-1} (y)) \cdot | (Df^{-1})(x)|$, and so we have 
+  \begin{align}
+    p_X (x) & = p_Y (g^{-1} (x)) \cdot | (D g^{-1}) (x) | \\
+            & = p_Z (f^{-1} (g^{-1} (x))) \cdot | (Df^{-1}) (y)| \cdot | (D g^{-1}) (x) | \\ 
+            & = p_Z ((g \circ f)^{-1} (x))) \cdot | (Df^{-1}) (y)| \cdot | (D g^{-1}) (x) | 
+  \end{align}
+  This leads to the following corollary. 
+
+  \begin{corollary}[Jacobi]
+    Given a sequence of transformations 
+    \begin{equation}
+      Z = Z_0 \xrightarrow{f^1} Z_1 \xrightarrow{f^2} \ldots \xrightarrow{f^{M-1}} Z_{M-1} \xrightarrow{f^M} Z_M = X
+    \end{equation} 
+    where each $f^m$ is invertible and differentiable everywhere, let us denote $f = f^M \circ \cdot \circ f^1: Z \rightarrow X$, which is invertible. Then
+    \begin{equation}
+      p_X (x) = p_Z (f^{-1} (x)) \cdot \prod_{m=1}^M \big|([D f^m]^{-1})(z_m) \big|
+    \end{equation}
+  \end{corollary} 
+
+  Therefore, by taking a sequence these functions $f^m_\theta$, which may each have a simple parameterization, we may construct a very complex composition $f_\theta$ that may result in a very expressive $Z$. As for how we parameterize this, our notation will assume that $\theta = (\theta_1, \ldots, \theta_M)$ and each $\theta_m$ parameterizes $f^m$. This is very similar to how a composition of linear mappings plus an activation gives us a very expressive neural network, and unsurprisingly, there is an analogue of the universal approximation theorem for transformations of this form. 
+
+  \begin{theorem}[Probability Integral Transform] 
+    Any $n$-dimensional random variable in $\mathbb{R}^n$ that is absolutely continuous w.r.t. the Lebesgue measure can be constructed from the uniform distribution $U$ on $[0, 1]^n$. Since we can map to and back from invertibility, any two such random variables $X$ and $Y$ can be mapped from each other, 
+    \begin{equation}
+      X \mapsto U \mapsto Y 
+    \end{equation}
+  \end{theorem} 
+
+  The composition $f_\theta$ is pretty much our neural network, and we maximize the log-likelihood over the samples. 
+  \begin{align}
+    \theta^\ast & = \argmax_{\theta} \sum_{x \in \mathcal{D}} \log p_X (x) \\  
+                & = \argmax_{\theta} \sum_{x \in \mathcal{D}} \log p_Z (f^{-1} (x)) \cdot \prod_{m=1}^M \big|([D f^m]^{-1})(z_m) \big|
+  \end{align}
 
