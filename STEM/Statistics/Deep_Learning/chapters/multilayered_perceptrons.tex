@@ -1,358 +1,360 @@
-\section{Multi-Layered Perceptrons}
+\section{Multi-Layered Perceptrons} 
 
-  \subsection{Generalized Linear Models}
+  Why do we even \textit{need} deep neural networks in the first place? Well with classical machine learning, the models that we worked with were ``simple' enough\footnote{I am using simple in a very loose sense, since this doesn't really mean that the model space is finite-dimensional or have any correlation with complexity.} to interpret. For example, linear regression had a simple parametric form, and decision trees, though nonlinear and nonparametric, were very interpretable both in training and prediction. However, it may be that the very notion of interpretability is limiting the power of our models. Maybe the world is so complex that it may not be even possible to model it with these interpretable functions. Therefore, we should try to create a model with a simple enough parametrization, but something that is expressive enough to cover an extremely large space of functions. This may sound contradictory, but it is possible. We build upon what we already know: generalized linear models. 
 
-    \begin{code}[PyTorch Basics]
-      Before we get into anything. You must be familiar with how to work with pytorch tensors. For a primer, look \href{code/01_MLP/basics.ipynb}{here}. 
-    \end{code}
+  In simple regression, we transform the inputs into the relevant features $\mathbf{x}_n \mapsto \boldsymbol{\phi} (\mathbf{x}_n) = \boldsymbol{\phi}_n$ and then, when we construct a generalized linear model, we assume that the conditional distribution $Y \mid X = x$ is in the canonical exponential family, with some natural parameter $\eta(x)$ and expected mean $\mu(x) = \mathbb{E}[Y \mid X = x]$. Then, to choose the link function $g$ that related $g(\mu(x)) = x^T \beta$, we can set it to be the canonical link $g$ that maps $\mu$ to $\eta$. That is, we have $g(\mu(x)) = x^T \beta = \eta (x)$ such that the natural parameter is linearly dependent on the input. The inverse $g^{-1}$ of the link function is called the \textbf{activation function}, which connects the expected mean to a linear function of $x$. 
+  \begin{equation}
+    h_\beta (x) = g^{-1} (x^T \beta) = \mu(x) = \mathbb{E}[Y \mid X = x]
+  \end{equation}
+  Now, note that for a classification problem, the decision boundary defined in the $\boldsymbol{\phi}$ feature space is linear, but it may not be linear in the input space $\mathcal{X}$. 
 
-    First, we transform the inputs into the relevant features $\mathbf{x}_n \mapsto \boldsymbol{\phi} (\mathbf{x}_n) = \boldsymbol{\phi}_n$ and then, when we construct a generalized linear model, we assume that the conditional distribution $Y \mid X = x$ is in the canonical exponential family, with some natural parameter $\eta(x)$ and expected mean $\mu(x) = \mathbb{E}[Y \mid X = x]$. Then, to choose the link function $g$ that related $g(\mu(x)) = x^T \beta$, we can set it to be the canonical link $g$ that maps $\mu$ to $\eta$. That is, 
+  \begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.24\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{img/01_MLP/untrans_data.png}
+      \caption{Data in space $\mathcal{X} = \mathbb{R}^2$.}
+      \label{fig:raw_points}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.24\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{img/01_MLP/trans_data.png}
+      \caption{Transformed data $\phi(\mathbf{x}) = \|\mathbf{x}\|$.}
+      \label{fig:transformed_points}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.24\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{img/01_MLP/trans_fit.png}
+      \caption{Logistic fit in transformed space.}
+      \label{fig:transformed_trained}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.24\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{img/01_MLP/untrans_fit.png}
+      \caption{Logistic fit to data in input space.}
+      \label{fig:raw_trained}
+    \end{subfigure}
+    \caption{Consider the set of points in $\mathbb{R}^2$ with the corresponding class. We transform the features to $\boldsymbol{\phi}(x_1, x_2) = x_1^2 + x_2^2$, which gives us a new space to work with. Fitting logistic regression onto this gives a linear decision boundary in the space $\boldsymbol{\phi}$, but the boundary is circular in $\mathcal{X} = \mathbb{R}^2$.}
+    \label{fig:logistic_transformed}
+  \end{figure}
+
+  We would like to extend this model by making the basis functions $\boldsymbol{\phi}_n$ depend on the parameters $\mathbf{w}$ and then allow these parameters to be adjusted during training. 
+
+\subsection{Feedforward Fully-Connected Networks}
+
+  So how should we construct parametric nonlinear basis functions? One way is to have a similar architecture as GLMs by having a linear map followed by an activation function $f(x) = \sigma(w^T x + b)$. The simplest such function with the activation function as the step function 
+  \begin{equation}
+    f(z) = \begin{cases} 1 & \text{ if } z \geq 0 \\ 0 & \text{ if } z < 0 \end{cases}
+  \end{equation}
+  is the perceptron algorithm. It divides $\mathbb{R}^d$ using a hyperplane $\boldsymbol{\omega}^T \mathbf{x} + b = 0$ and linearly classifies all points on one side to value $1$ and the other side to value $0$. This is similar to a neuron, which takes in a value and outputs a ``signal" if the function evaluated gets past a threshold. However, for reasons regarding training these networks, we would like to use smooth activation functions for this, so we would use different activations. Hence we have a neuron. 
+
+  \begin{definition}[Neuron]
+    A \textbf{neuron} is a function of form 
+    \begin{equation}
+      y = \sigma(\mathbf{w}^T x  + b)
+    \end{equation}
+    where $\sigma: \mathbb{R} \rightarrow \mathbb{R}$ is any nonlinear function, called an \textbf{activation functions}. 
+  \end{definition}
   
+  Ultimately, a neural net is really just a generalized linear model with some trained feature extractors, which is why in practice, if researchers want to predict a smaller dataset, they take a pretrained model on a related larger dataset and simply tune the final layer, since the second last layer most likely encodes all the relevant features. This is called \textit{transfer learning}. But historically, it was called a \textit{multilayer perceptron} and the name stuck. 
+
+  \begin{definition}[Feedforward, Fully-Connected Multilayer Perceptron]
+    A $L$-layer \textbf{multilayer perceptron (MLP)} $f_\theta : \mathbb{R}^D \rightarrow \mathbb{R}^M$, with parameters $\theta$, is a function of form 
     \begin{equation}
-     g(\mu(x)) = x^T \beta = \eta (x)
+      h_\theta (\mathbf{x}) \coloneqq \sigma^{[L]} \circ W^{[L]} \circ \sigma^{[L-1]} \circ W^{[L-1]} \circ \cdots \circ \sigma^{[1]} \circ W^{[1]} (\mathbf{x})
     \end{equation}
-
-    such that the natural parameter is linearly dependent on the input. The inverse $g^{-1}$ of the link function is called the \textbf{activation function}, which connects the expected mean to a linear function of $x$. 
-
-    \begin{equation}
-      h_\beta (x) = g^{-1} (x^T \beta) = \mu(x) = \mathbb{E}[Y \mid X = x]
-    \end{equation}
-
-    Now, note that for a classification problem, the decision boundary defined in the $\boldsymbol{\phi}$ feature space is linear, but it may not be linear in the input space $\mathcal{X}$. For example, consider the set of points in $\mathbb{R}^2$ with the corresponding class in Figure $\ref{fig:logistic_transformed}$. We transform the features to $\boldsymbol{\phi}(x_1, x_2) = x_1^2 + x_2^2$, which gives us a new space to work with. Fitting logistic regression onto this gives a linear decision boundary in the space $\boldsymbol{\phi}$, but the boundary is circular in $\mathcal{X} = \mathbb{R}^2$. 
+    where $\sigma^{[l]}: \mathbb{R}^{N^{[l]}} \rightarrow \mathbb{R}^{N^{[l]}}$ is an activation function and $W^{[l]}: \mathbb{R}^{N^{[l-1]}} \rightarrow \mathbb{R}^{N^{[l]}}$ is an affine map. We will use the following notation. 
+    \begin{enumerate}
+      \item The inputs will be labeled $\mathbf{x} = a^{[0]}$ which is in $\mathbb{R}^{N^{[0]}} = \mathbb{R}^D$. 
+      
+      \item We map $a^{[l]} \in \mathbb{R}^{N^{[l]}} \mapsto W^{[l+1]} a^{[l]} + b^{[l+1]}= z^{[l+1]} \in \mathbb{R}^{N^{[l+1]}}$, where $z$ denotes a vector after an affine transformation. 
+      \item We map $z^{[l+1]} \in \mathbb{R}^{N^{[l+1]}} \mapsto \sigma(z^{[l+1]}) = a^{[l+1]} \in \mathbb{R}^{N^{[l+1]}}$, where $a$ denotes a vector after an activation function. 
+      \item We keep doing this until we reach the second last layer with vector $a^{[L-1]}$. 
+      \item Now we want our last layer to be our predicted output. Based on our assumptions of the problem, we construct a generalized linear model with some inverse link function $g$. We perform one more affine transformation $a^{[L-1]} \mapsto W^{[L]} a^{[L-1]} + b^{[L]} = z^{[L]}$, followed by the link function to get our prediction: $a^{[L]} = g(z^{[L]}) = h_{\theta} (\mathbf{x}) \in \mathbb{R}^M$. 
+    \end{enumerate}
 
     \begin{figure}[H]
-      \centering
-      \begin{subfigure}[b]{0.35\textwidth}
-      \centering
-        \includegraphics[width=\textwidth]{img/01_MLP/untrans_data.png}
-        \caption{Data in space $\mathcal{X} = \mathbb{R}^2$. }
-        \label{fig:raw_points}
-      \end{subfigure}
-      \begin{subfigure}[b]{0.35\textwidth}
-      \centering
-        \includegraphics[width=\textwidth]{img/01_MLP/untrans_fit.png}
-        \caption{Logistic fit to data in input space. }
-        \label{fig:raw_trained}
-      \end{subfigure}
-
-      \centering
-      \begin{subfigure}[b]{0.35\textwidth}
-      \centering
-        \includegraphics[width=\textwidth]{img/01_MLP/trans_data.png}
-        \caption{Transformed data $\phi(\mathbf{x}) = ||\mathbf{x}||$. }
-        \label{fig:transformed_points}
-      \end{subfigure}
-      \begin{subfigure}[b]{0.35\textwidth}
-        \centering
-          \includegraphics[width=\textwidth]{img/01_MLP/trans_fit.png}
-          \caption{Logistic fit in transformed space. }
-          \label{fig:transformed_trained}
-      \end{subfigure}
-      \caption{A nonlinear feature transformation $\phi$ will cause a nonlinear decision boundary when doing logistic regression. }
-      \label{fig:logistic_transformed}
+      \centering 
+      \includegraphics[scale=0.17]{img/01_MLP/Multilayer_Neural_Net.jpg}
+      \caption{If there does not exist any edge from a potential input $x$ to an output $y$, then this means that $x$ is not relevant in calculating $y$. However, we usually work with \textbf{fully-connected neural networks}, which means that every input is relevant to calculating every output, since we usually cannot make assumptions about which variables are relevant or not. We can stack multiple neurons such that one neuron passes its output as input into the next neuron, resulting in a more complex function. } 
+      \label{fig:multilayer_neural_net}
     \end{figure}
+  \end{definition}
 
-    \begin{example}[Tarokh, ECE685 2021 Midterm 1]
-      Let $x \in \mathbb{R}$ denote a random variable with the following \textit{cumulative distribution function} 
-        \[F(x) = \exp \bigg( - \exp \bigg( - \frac{x - \mu}{\beta} \bigg) \bigg) \] 
-      where $\mu$ and $\beta > 0$ denote the location and scale parameters, respectively. Let $\mathcal{D} = \{x_1, \ldots, x_n\}$ be a set of $n$ iid observations of $x$. 
-      \begin{enumerate}
-        \item Write an equation for a cost function $L(\mu, \beta \mid \mathcal{D})$ whose minimization gives the maximum likelihood estimates for $\mu$ and $\beta$. 
-        \item Compute the derivatives of $L(\mu, \beta \mid \mathcal{D})$ with respect to $\mu$ and $\beta$ and write a system of equations whose solution gives the MLEs of $\mu$ and $\beta$. 
-      \end{enumerate}
-    \end{example}
+  Note that each layer corresponds to how close a neuron is to the output. But really any neuron can be a function of any other neuron. For example, we can connect a neuron from layer $4$ back to a neuron of layer $1$. For now, we will consider networks that are restricted to a \textbf{feed-forward} architecture, in other words having no closed directed cycles. 
 
-    \begin{solution}[Tarokh, ECE685 2021 Midterm 1]
-      We can derive the PDF of the observation as 
-        \[f(x; \mu, \beta) = \frac{d F(x)}{dx} = \frac{1}{\beta} \exp \bigg\{ - \bigg( \frac{x - \mu}{\beta} + \exp \Big( - \frac{x - \mu}{\beta}\Big) \bigg) \bigg\}\] 
-      and the likelihood is then 
-      \begin{align*}
-        L(\mu, \beta \mid \mathcal{D}) & = \prod_{i=1}^N \frac{1}{\beta} \exp \bigg\{ - \bigg( \frac{x^{(i)} - \mu}{\beta} + \exp \Big( - \frac{x^{(i)} - \mu}{\beta}\Big) \bigg) \bigg\}
-      \end{align*}
-      Rather than maximizing this likelihood, we minimize the negative log of it, defined as 
-        \[ \ell(\mu, \beta \mid \mathcal{D}) = - \ln L(\mu, \beta \mid \mathcal{D}) = N \ln{\beta} + \frac{\sum_{i} x^{(I)} - N \mu}{\beta} + \sum_{i=1}^N \exp \Big( - \frac{x^{(i)} - \mu}{\beta} \Big) \]    
-      The derivatives of $\ell$ can be computed simply by using the derivative rules.  
-      \begin{align*}
-        \frac{\partial \ell}{\partial \mu} & = - \frac{N}{\beta} + \frac{1}{\beta} \sum_{i=1}^N \exp \Big( - \frac{x^{(i)} - \mu}{\beta} \Big) \\
-        \frac{\partial \ell}{\partial \beta} & = \frac{N}{\beta} - \frac{\sum_{i} x^{(i)} - N \mu}{\beta^2} + \frac{1}{\beta^2} \sum_{i=1}^N (x^{(i)} - \mu) \exp \Big( - \frac{x^{(i)} - \mu}{\beta} \Big)
-      \end{align*}
-      and so the MLE estimates that minimizes $\ell$ can be found by setting the equations above equal to $0$. 
-    \end{solution}
+  \begin{code}[Parameters and Neural Nets in PyTorch] 
+    At this point, you have learned the theory of MLPs. To actually implement them in PyTorch, look at this module \href{code/01_MLP/parameters.ipynb}{here}, which will tell you on how to construct linear maps and activations functions, and more importantly see how you can look at the weights, modify them, and see how they are initialized. You can then learn how to explore the weights and biases of a neural network. 
+  \end{code}
 
-    We would like to extend this model by making the basis functions $\boldsymbol{\phi}_n$ depend on the parameters $\mathbf{w}$ and then allow these parameters to be adjusted during training. There are many ways to construct parametric nonlinear basis functions and in fact, neural networks use basis functions that are of the form $\boldsymbol{\phi}(\mathbf{x}) = g^{-1} (\mathbf{x}^T \boldsymbol{\beta})$. 
+\subsection{Function Space and Universal Approximation} 
 
-  \subsection{Architecture}
+  Great, so we have defined our architecture, but how do we know that this class of functions is expressive? Neural networks have been mathematically studied back in the 1980s, and the reason that they are so powerful is that we can theoretically prove the limits on what they can learn. For very specific classes of functions, the results are easier, but for more general ones, it becomes much harder. We prove one of the theorems below. 
 
-    A neuron basically takes in a vector $\mathbf{x} \in \mathbb{R}^d$ and multiplies its corresponding weight by some vector $\boldsymbol{\omega}$, plus some bias term $b$. It is then sent into some nonlinear activation function $\sigma: \mathbb{R} \longrightarrow \mathbb{R}$. Letting the parameter be $\theta = (\boldsymbol{\omega}, b)$, we can think of a neuron as a function 
-      \[h_\theta (\mathbf{x}) = f(\boldsymbol{\omega}^T \mathbf{x} + b) \]
-    A single neuron with the activation function as the step function 
-      \[f(z) = \begin{cases} 1 & \text{ if } z \geq 0 \\ 0 & \text{ if } z < 0 \end{cases} \]
-    is simply the perceptron algorithm. It divides $\mathbb{R}^d$ using a hyperplane $\boldsymbol{\omega}^T \mathbf{x} + b = 0$ and linearly classifies all points on one side to value $1$ and the other side to value $0$. This is similar to a neuron, which takes in a value and outputs a ``signal" if the function evaluated gets past a threshold. However, we would like to use smooth activation functions for this, so we would use different activations. Hence we have a neuron. 
+  Let us think about how one would construct approximations for such functions. Like in measure theory, we can think of every measurable function as a linear combination of a set of bump functions, and so we can get a neural network to do the same.
 
-    \begin{definition}[Neuron]
-      A \textbf{neuron} is a function (visualized as a node) that takes in inputs $\mathbf{x}$ and outputs a value $y$ calculated 
-        \[y = \sigma(\mathbf{w}^T x  + b)\]
-      where $\sigma$ is an activation function. Activation functions are usually simple functions with a range of $[0, 1]$ or $[-1, 1]$, and popular ones include: 
-      \begin{enumerate}
-        \item the rectified linear unit 
-          \[\mathrm{ReLU}(z) = \max\{0 , z\}\]
-        \item the sigmoid 
-          \[\sigma(z) = \frac{1}{1 + e^{-z}}\]
-        \item the hyperbolic tangent 
-          \[\tanh(z) = \frac{e^{z} - e^{-z}}{e^z + e^{-z}}\]
-      \end{enumerate}
-      A visual of a neuron is shown in Figure \ref{fig:neuron}. 
-      \begin{figure}[H]
-        \centering 
-          \includegraphics[scale=0.25]{img/01_MLP/Neuron.jpg}
-        \caption{Neuron. } 
-        \label{fig:neuron}
-      \end{figure}
+  \begin{example}[Bump Functions in $\mathbb{R}$] 
+    Assuming the sigmoid activation function is used, the bump function 
+    \begin{equation}
+      f(x) = \begin{cases} 1 & \text{ if } a < x < b \\ 0 & \text{ if else} \end{cases}
+    \end{equation}
+    can be approximated by taking a linear combination of a sigmoid function stepping up and one stepping down. That is, 
+    \begin{equation}
+      f(x) \approx \frac{1}{2} \sigma \big( k( x - a)\big) - \frac{1}{2} \sigma \big( k (x - b) \big)
+    \end{equation}
+    where $k$ is a scaling constant that determines how steep the steps are for each function. Therefore, as $k \rightarrow \infty$, the function begins to look more like a step function. 
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.6]{img/01_MLP/bump_functions_1d.png}
+      \caption{Bump function approximated with $a = 0.4, b = 0.6$, with differing values of $k$. } 
+      \label{fig:bump_functions_1d}
+    \end{figure}
+  \end{example}
+
+  \begin{example}[Bump Functions in $\mathbb{R}^2$]
+    To do this for a 2-D step function, of the form 
+    \begin{equation}
+      f(x_1, x_2) = \begin{cases} 1 \text{ if } a < x_1 < b \\ 0 & \text{ if else} \end{cases}
+    \end{equation}
+    this is a simple extension of the first one. We just don't need to make our linear combination dependent on $x_2$ and we're done.
+    \begin{equation}
+      f(x) \approx \frac{1}{2} \sigma \big( k( x_1 - a)\big) - \frac{1}{2} \sigma \big( k (x_1 - b) \big)
+    \end{equation}
+  \end{example} 
+
+  \begin{example}[Tower Functions in $\mathbb{R}^2$] 
+    Now to construct a tower function of the form 
+    \begin{equation}
+      f(x_1, x_2) = \begin{cases} 1 & \text{ if } a_1 < x_1 < b_1, a_2 < x_2 < b_2 \\ 0 & \text{ if else} \end{cases}
+    \end{equation}
+    we need slightly more creativity. Now we can approximate it by doing 
+    \begin{equation}
+      f(x) \approx \sigma \bigg( k_2 \big[ \sigma\big( k_1 (x_1 - a_1)\big) - \sigma\big( k_1 (x_1 -b_1)\big) + \sigma \big( k_1 (x_2 - a_2)\big) - \sigma\big(k_1 (x_2 - b_2)\big)  big] - b_2\bigg)
+    \end{equation}
+  \end{example} 
+
+  At this point, we can see how this would extend to $\mathbb{R}^n$, and by isolating parts of the network we can have it approximate tower functions that are completely separate from each other, at any height, and then finally take a linear combination of them to approximate the original function of interest.  
+
+  \begin{theorem}[CS671 Fall 2023 PS5]
+    Suppose you have a 2D, $L$-lipschitz function $f(x_1, x_2)$ defined on a unit square ($x_1, x_2 \in \left [0,1 \right ]$). You want to approximate this with an arbitrary neural net $\Tilde{f}$ such that
+    \begin{equation}
+      \sup_{x \in [0, 1]^2} |f(x) - \Tilde{f}(x)| \leq \epsilon
+    \end{equation}
+    If we divide the square into a checkerboard of $K \times K$ nonoverlapping squares, approximate the restriction of $f$ to each subsquare with a tower function, what is the least $K$ we would need to ensure that the error is less than $\epsilon$? 
+  \end{theorem} 
+
+  Early in the development of the theory of neural nets, An Mei Chen, (currently VP of engineering in Qualcomm) showed that for certain neural networks, there are multiple parameters $\theta$ that map to the same function $f$. \cite{symmetry}
+
+  \begin{theorem}[Parameter Symmetry]
+    Consider a 2-layer feedforward network of form 
+    \begin{equation}
+      f = W^{[2]} \circ \sigma \circ W^{[1]}
+    \end{equation} 
+    where $\sigma = \tanh$. Let $z$ be the hidden vector. We can see that by changing the signs of the $i$th row of $W^{[1]}$, $z_i$'s sign will be flipped. From the properties that $\tanh$ is an odd function (i.e. $\tanh(-x) = - \tanh(x)$), therefore the activation will be also sign-flipped, but this effect can be negated by flipping the $i$th column of the $W^{[2]}$. Therefore, given that $z \in R^{N}$, i.e there are $N$ hidden units, we can choose any set of row-column pairs of the weight matrices to invert, leading to a total of $2^N$ different weightings that produce the same function $f$. 
+
+    Similarly, imagine that we permute the columns of $W^{[2]}$ and rows of $W^{[1]}$ in the same way. Then this will also lead to an invariance in $f$, and so this leads to $N! 2^N$ different weight vectors that lead to the same function! 
+  \end{theorem}
+
+\subsection{Tensors} 
+
+  In numerical computing packages like \texttt{numpy} in Python and \texttt{eigen} in C++, we often work with scalars, vectors, and matrices. From linear algebra, the generalization of these objects is a tensor, which is an element of a tensor product space.\footnote{For a refresher, look at my linear algebra notes.} The full mathematical abstraction is rarely needed in practice, and so developers call tensors by their realization as \textit{multidimensional arrays}. 
+  
+  \begin{definition}[Tensor]
+    A \textbf{tensor} is an element of a tensor product space $\bigotimes_i V_i$. It is represented as a \textbf{multidimensional array} of shape $(\dim(V_1), \ldots, \dim(V_n))$. 
+  \end{definition}
+
+  If we were trying to build a \texttt{Tensor} class from scratch, what attributes should it have? Well obviously we need the actual data in the tensor, which we will call \texttt{storage}, plus some metadata about the \texttt{shape} (in math, known as the tensor \textit{rank}). Usually, these packages optimize as much as possible for efficiency, and so these are implemented as C-style arrays, which then requires knowledge of the type of each element of the Tensor, called the \texttt{dtype}. Great, with these three attributes, we can do almost every type of arithmetic manipulation. Let's first introduce the most basic math tensor operations, which includes the normal operations supported in an algebra, plus some other ones. We will denote the shapes as well. 
+  \begin{enumerate}
+    \item \textit{Tensor Addition}. 
+    \item \textit{Tensor Additive Inverse}. 
+    \item \textit{Scalar Multiplication}. 
+    \item \textit{Matrix Multiplication}. 
+    \item \textit{Elementwise Multiplication}. 
+    \item \textit{Elementwise Multiplicative Inverse}.  
+    \item \textit{Transpose}. 
+  \end{enumerate} 
+
+  We would probably like some constructors that allows you to directly initialize tensors filled with $0$s (\texttt{zeros}), $1$s (\texttt{ones}), a multiplicative identity (\texttt{eye}\footnote{homophone for $I$, used to denoted the identity matrix.}) Some random initializers would be good, such as sampling from uniforms (\texttt{uniform}), \texttt{gaussians} (\texttt{gaussian}, \texttt{randn}). 
+
+  Finally, we would like some very fundamental operations, such as typecasting, comparison, and indexing as well. 
+
+  \begin{algorithm}[H]
+    \caption{Tensor Class Implementation}
+    \begin{algorithmic}[1]
+    \State \textbf{class} Tensor:
+        \State \textbf{Attributes:}
+        \State \hspace{1em}storage: array  \Comment{Underlying data storage}
+        \State \hspace{1em}shape: tuple    \Comment{Dimensions of tensor}
+        \State \hspace{1em}dtype: type     \Comment{Data type of elements}
+
+        \State \textbf{Constructors:}
+        \State \texttt{def \_\_init\_\_(data, shape, dtype):}
+            \State \hspace{2em}Initialize tensor with given data, shape, and dtype
+
+        \State \textbf{Static Constructors:}
+        \State \texttt{@staticmethod}
+        \State \texttt{def zeros(shape, dtype):}
+            \State \hspace{2em}\Return tensor filled with zeros
+        \State \texttt{@staticmethod}
+        \State \texttt{def ones(shape, dtype):}
+            \State \hspace{2em}\Return tensor filled with ones
+        \State \texttt{@staticmethod}
+        \State \texttt{def eye(n, dtype):}
+            \State \hspace{2em}\Return n×n identity matrix
+        \State \texttt{@staticmethod}
+        \State \texttt{def uniform(shape, low, high, dtype):}
+            \State \hspace{2em}\Return tensor with uniform random values
+        \State \texttt{@staticmethod}
+        \State \texttt{def gaussian(shape, mean, std, dtype):}
+            \State \hspace{2em}\Return tensor with gaussian random values
+
+        \State \textbf{Arithmetic Operations:}
+        \State \texttt{def \_\_add\_\_(self, other):}
+            \State \hspace{2em}\Return element-wise addition
+        \State \texttt{def \_\_neg\_\_(self):}
+            \State \hspace{2em}\Return additive inverse
+        \State \texttt{def \_\_mul\_\_(self, other):}
+            \State \hspace{2em}\Return scalar or element-wise multiplication
+        \State \texttt{def matmul(self, other):}
+            \State \hspace{2em}\Return matrix multiplication
+        \State \texttt{def \_\_truediv\_\_(self, other):}
+            \State \hspace{2em}\Return element-wise division
+        \State \texttt{def transpose(self):}
+            \State \hspace{2em}\Return transposed tensor
+
+        \State \textbf{Utility Operations:}
+        \State \texttt{def \_\_repr\_\_(self):}
+            \State \hspace{2em}\Return string representation
+        \State \texttt{def \_\_str\_\_(self):}
+            \State \hspace{2em}\Return human-readable string
+        \State \texttt{def \_\_getitem\_\_(self, index):}
+            \State \hspace{2em}\Return indexed value(s)
+        \State \texttt{def \_\_eq\_\_(self, other):}
+            \State \hspace{2em}\Return element-wise equality comparison
+    \end{algorithmic}
+  \end{algorithm}
+
+  Note that there are other operations, such as concatenation, splitting, and stacking that would be a good idea to implement.  
+
+  \subsubsection{Strides} 
+
+    A specific property of PyTorch is that they use strides as another source of metadata in storing tensors, which greatly speeds up operations. Consider that we want to transpose the first two dimensions of a tensor. Then, we would have to create a new tensor and fill it in with all the elements, which may be too computationally expensive for such a small operation. 
+
+    \begin{definition}[Stride] 
+      Given a tensor $T$ of size $(N_1, \ldots N_M)$, it is stored as a contiguous array of $\prod_m T_m$ elements, and we can index it as 
+      \begin{equation}
+        T[n_1, n_2, \ldots, n_M], \;\;\; 1 \leq n_i \leq N_i
+      \end{equation} 
+      To counteract this, the \textbf{stride} is a array $S$ of $M$ elements, 
+      \begin{equation}
+        S = (S_1, \ldots, S_M)
+      \end{equation} 
+      where indexing with some $I = (n_1, \ldots, n_M)$ is equivalent to computing $S \cdot I$ and taking that index in the array in memory. It defines a mapping. 
     \end{definition}
 
-    If there does not exist any arrow from a potential input $\mathbf{x}$ to an output $y$, then this means that $\mathbf{x}$ is not relevant in calculating $y$. However, we usually work with \textbf{fully-connected neural networks}, which means that every input is relevant to calculating every output, since we usually cannot make assumptions about which variables are relevant or not. We can stack multiple neurons such that one neuron passes its output as input into the next neuron, resulting in a more complex function. What we have seen just now is a 1-layer neural network. 
+    If we do some calculation, the default stride of such a vector is defined 
+    \begin{equation}
+      S_m = \prod_{m < j} N_j, \;\;\; S_M = 1
+    \end{equation}
 
-    \begin{definition}[Multilayer Perceptron]
-      A $L$-layer MLP $\mathbf{h}_\theta : \mathbb{R}^D \longrightarrow \mathbb{R}^M$ is the function 
-        \[h_\theta (\mathbf{x}) \coloneqq \boldsymbol{\sigma}^{[L]} \circ \mathbf{W}^{[L]} \circ \boldsymbol{\sigma}^{[L-1]} \circ \mathbf{W}^{[L-1]} \circ \cdots \circ \boldsymbol{\sigma}^{[1]} \circ \mathbf{W}^{[1]} (\mathbf{x})\]
-      where $\boldsymbol{\sigma}^{[l]}: \mathbb{R}^{N^{[l]}} \rightarrow \mathbb{R}^{N^{[l]}}$ is an activation function and $\mathbf{W}^{[l]}: \mathbb{R}^{N^{[l-1]}} \rightarrow \mathbb{R}^{N^{[l]}}$ is an affine map. We will use the following notation. 
-      \begin{enumerate}
-        \item The inputs will be labeled $\mathbf{x} = \mathbf{a}^{[0]}$ which is in $\mathbb{R}^{N^{[0]}} = \mathbb{R}^D$. 
-        
-        \item We map $\mathbf{a}^{[l]} \in \mathbb{R}^{N^{[l]}} \mapsto \mathbf{W}^{[l+1]} \mathbf{a}^{[l]} + \mathbf{b}^{[l+1]}= \mathbf{z}^{[l+1]} \in \mathbb{R}^{N^{[l+1]}}$, where $z$ denotes a vector after an affine transformation. 
-
-        \item We map $\mathbf{z}^{[l+1]} \in \mathbb{R}^{N^{[l+1]}} \mapsto \boldsymbol{\sigma}(\mathbf{z}^{[l+1]}) = \mathbf{a}^{[l+1]} \in \mathbb{R}^{N^{[l+1]}}$, where $a$ denotes a vector after an activation function. 
-
-        \item We keep doing this until we reach the second last layer with vector $\mathbf{a}^{[L-1]}$. 
-
-        \item Now we want our last layer to be our predicted output. Based on our assumptions of the problem, we construct a generalized linear model with some inverse link function $g$. We perform one more affine transformation $\mathbf{a}^{[L-1]} \mapsto \mathbf{W}^{[L]} \mathbf{a}^{[L-1]} + \mathbf{b}^{[L]} = \mathbf{z}^{[L]}$, followed by the link function to get our prediction: $\mathbf{a}^{[L]} = \mathbf{g}(\mathbf{z}^{[L]}) = \mathbf{h}_{\boldsymbol{\theta}} (\mathbf{x}) \in \mathbb{R}^M$. 
-      \end{enumerate}
-      All the parameters of the neural net will be denoted $\boldsymbol{\theta}$. 
-      \begin{figure}[H]
-        \centering 
-        \includegraphics[scale=0.2]{img/01_MLP/Multilayer_Neural_Net.jpg}
-        \caption{Multilayer neural network.} 
-        \label{fig:multilayer_neural_net}
-      \end{figure}
-      Ultimately, a neural net is really just a generalized linear model with some trained feature extractors, which is why in practice, if researchers want to predict a smaller dataset, they take a pretrained model on a related larger dataset and simply tune the final layer, since the second last layer most likely encodes all the relevant features. This is called \textbf{transfer learning}. 
-    \end{definition}
-
-    \begin{example}[Fully Connected 2-Layer Neural Network]
-      The fully-connected 2-layer neural network of $d$ input features $\mathbf{x} \in \mathbb{R}^d$ and one scalar output $y \in \mathbb{R}$ can be visualized below. It has one \textbf{hidden layer} with $m$ inputs values $a_1, \ldots, a_m$. 
-      \begin{figure}[H]
-        \centering 
-        \includegraphics[scale=0.2]{img/01_MLP/2_layer_neural_net.jpg}
-        \caption{2-layer neural network. } 
-        \label{fig:2_layer_neural_net}
-      \end{figure}
-      Conventionally, we account for every layer except for the final layer when talking about the number of layers in the neural net. 
+    \begin{example}[Transposing]
+      If we want to transpose the tensor above, then we change the stride from 
+      \begin{equation}
+        S = \bigg( \prod_{1 < j} N_j , \prod_{2 < j} N_j, \ldots, 1 \bigg)
+      \end{equation} 
+      to 
+      \begin{equation}
+        S = \bigg( \prod_{2 < j} N_j , \prod_{1 < j} N_j, \ldots, 1 \bigg)
+      \end{equation} 
     \end{example}
 
-    Note that each layer corresponds to how close a neuron is to the output. But really any neuron can be a function of any other neuron. For example, we can connect a neuron from layer $4$ back to a neuron of layer $1$. For now, we will consider networks that are restricted to a \textbf{feed-forward} architecture, in other words having no closed directed cycles. 
+  \subsubsection{Automatic Differentiation} 
 
-    \begin{code}[Parameters and Neural Nets in PyTorch] 
-      At this point, you have learned the theory of MLPs. To actually implement them in PyTorch, look at this module \href{code/01_MLP/parameters.ipynb}{here}, which will tell you on how to construct linear maps and activations functions, and more importantly see how you can look at the weights, modify them, and see how they are initialized. You can then learn how to explore the weights and biases of a neural network. 
-    \end{code}
+    \begin{lemma}[Derivative of $+/-$]
+      Given two tensors $X, Y$ and $Z_+ = X + Y, Z_{-} = X - Y$, we have 
+      \begin{align}
+        \frac{\partial Z_+}{\partial X} = +1 && \frac{\partial Z_+}{\partial Y} = +1 \\ 
+        \frac{\partial Z_-}{\partial X} = +1 && \frac{\partial Z_-}{\partial Y} = -1 
+      \end{align}
+      where $\pm1$ are tensors of $1$ or $-1$s of the same shape as $X, Y$. 
+    \end{lemma}
 
-  \subsection{Theoretical Properties} 
+    \begin{lemma}[Derivative of Element-wise Multiplication]
+      Given two tensors $X, Y$ and $Z = X \odot Y$, we have 
+      \begin{align}
+        \frac{\partial Z}{\partial X} = Y && \frac{\partial Z}{\partial Y} = X
+      \end{align}
+    \end{lemma} 
 
-    \subsubsection{Stability and Lipschitz Continuity}
+    \begin{lemma}[Derivative of Matrix Multiplication]
+      Given $X \in (N, M)$ and $Y \in (M, P)$, with $Z = XY \in (N, P)$, the derivative of matrix multiplication is 
+      \begin{align}
+        \frac{\partial Z}{\partial X} \in (N, P, N, M) && \bigg( \frac{\partial Z}{\partial X} \bigg)_{i, j, k, l} \coloneqq \frac{\partial Z_{i, j}}{\partial X_{k, l}} \\
+        \frac{\partial Z}{\partial Y} \in (N, P, M, P) && \bigg( \frac{\partial Z}{\partial Y} \bigg)_{i, j, k, l} \coloneqq \frac{\partial Z_{i, j}}{\partial Y_{k, l}} 
+      \end{align} 
+    \end{lemma} 
 
-      Deep neural networks are known for being overparameterized and tends to predict data very nicely, known as benign overfitting. In fact, it can be proved that a data set of any size, we can always fit a one-layer perceptron that perfectly fits through all of them, given that the layer is large enough. In most cases, we are interested in fitting the data \textit{smoothly} in the sense that data extrapolations are stable, i.e. a small perturbation of $x$ should result in a small perturbation of $h(x)$. It turns out that the more parameters it has, the better this stability is and therefore the more robust the model. 
+\subsection{Forward and Back Propagation}
 
-      Deep neural networks, despite their usefulness in many problems, are known for being very sensitive to their input. Adversarial examples take advantage of this weakness by adding carefully chosen perturbations that drastically change the output of the network. Adversarial machine learning attempts to study these weaknesses and hopefully use them to create more robust models. It is natural to expect that the precise configuration of the minimal necessary perturbations is a random artifact of the normal variability that arises in different runs of backpropagation learning. Yet, it has been found that adversarial examples are relatively robust, and are shared by neural networks with varied number of layers, activations or trained on different subsets of the training data. This suggest that the deep neural networks that are learned by backpropagation have \textit{intrinsic} blind spots, whose structure is connected to the data distribution in a non-obvious way. 
+  Back in the supervised learning notes, we have gone through the derivation for linear, logistic, and softmax regression. It turns out that despite them having very different architectures, with a identity, sigmoid, and softmax activation function, our choice of loss to be the mean squared loss, the binary cross-entropy, and the cross-entropy loss, had given very cute formulas in computing the gradient of the loss. Unfortunately, the formulas do not get cute when we differentiate neural networks, but they do come in a very structured way. To gain intuition, I would recommend to go over the exercises at the end of the chapter labeled ECE 689 Fall 2021 Midterm. If you just use chain rule to do the calculations, you can see that they require us to compute all the intermediate $z^{(i)}$'s and the $a^{(i)}$'s, a process called \textit{forward propagation}, before we compute the gradients. 
 
-      A metric to assess the robustness of a deep neural net $h_\theta: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ is its Lipshitz constant, which effectively bounds how much $h$ can change given some change in $\mathbf{x}$. 
+  \begin{definition}[Forward Propagation]
+    Given an MLP $f$ and an input $x$, the process of sequentially evaluating 
+    \begin{equation}
+      x = a^{[0]} \mapsto z^{[1]} \mapsto a^{[1]} \mapsto \ldots \mapsto z^{[L]} \mapsto a^{[L]} = f(x)
+    \end{equation}
+    is called \textbf{forward propagation}. 
+  \end{definition} 
 
-      \begin{definition}[Lipshitz Continuity]
-        A function $f: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ is called \textbf{Lipshitz continuous} if there exists a constant $L$ such that for all $x, y \in \mathbb{R}^n$
-        \[||f(x) - f(y)||_2 \leq L ||x - y||_2\]
-        and the smallest $L$ for which the inequality is true is called the \textbf{Lipshitz constant}, denoted $\mathrm{Lip}(f)$. 
-      \end{definition}
+  When we want to compute the derivative of $f$. we can see that the intermediate partial derivatives in the chain rule are repeatedly used. That is, if we have layer $0 \leq l \leq L$, then to compute the derivative with respect to the $l$th layer we use the chain rule 
+  \begin{equation}
+    \frac{\partial f}{\partial z^{[l]}} = \frac{\partial f}{\partial z^{[l+1]}} \cdot \frac{z^{[l+1]}}{z^{[l]}}
+  \end{equation}
+  which requires us to know the derivative at the $(l+1)$th layer, along with the current values of $z^{[l]}, z^{[l+1]}$ to evaluate the derivatives at the current point. Therefore, we must complete forward propagation first and then compute \textit{backwards} from the result to the input to compute the gradients. 
 
-      \begin{theorem}[Lipschitz Upper Bound with Operator Norm of Total Derivative]
-        If $f: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ is Lipschitz continuous, then 
-          \[\mathrm{Lip}(f) = \sup_{x \in \mathbb{R}^n} ||D_x f||_{\mathrm{op}}\]
-        where $||\cdot ||_{\mathrm{op}}$ is the operator norm of a matrix. In particular, if $f$ is scalar-valued, then its Lipschitz constant is the maximum norm of its gradient on its domain 
-          \[\mathrm{Lip}(f) = \sup_{x \in \mathbb{R}^n} ||\nabla f(x)||_2\]
-      \end{theorem}
+  \begin{definition}[Backward Propagation]
+    Given an MLP $f$ with input $x$ that has been forward propagated, the process of sequentially evaluating 
+    \begin{equation}
+      \frac{\partial f}{\partial a^{[L]}} \mapsto \frac{\partial f}{\partial z^{[L]}} \mapsto \ldots \mapsto \frac{\partial f}{\partial z^{[L]}}, 
+    \end{equation}
+    is called \textbf{backward propagation}, or \textbf{backprop}. 
+  \end{definition}
 
-      The above theorem makes sense, since indeed the stability of the function should be equal to the stability of its "maximum" linear approximation $D_x f$. 
+  Backpropagation is not hard, but it is cumbersome notation-wise. What we really want to do is just compute a very long vector with all of its partials $\partial E / \partial \boldsymbol{\theta}$. 
 
-      \begin{theorem}[Lipschitz Upper Bound for MLPs]
-        It has already been shown that for a $K$-layer MLP
-        \[h_\theta (\mathbf{x}) \coloneqq \mathbf{T}_K \circ \boldsymbol{\rho}_{K-1} \circ \mathbf{T}_{K-1} \circ \cdots \circ \boldsymbol{\rho}_1 \circ \mathbf{T}_1 (\mathbf{x})\]
-        the Lipshitz constant for an affine map $\mathbf{T}_k (\mathbf{x}) = M_k \mathbf{x} + b_k$ is simply the operator norm (largest singular value) of $M_k$, while that of an activation function is always bounded by some well-known constant, usually $1$. So, the Lipshitz constant of the entire composition $h$ is simply the product of all operator norms of $M_k$. 
-      \end{theorem}
-
-       What about $K$-computable functions in general? That is, given a function $f: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ with 
-       \begin{align*}
-         v_0 (\mathbf{x}) & = \mathbf{x} \\ 
-         v_1 (\mathbf{x}) & = g_1 \big(v_0(\mathbf{x}) \big) \\
-         v_2 (\mathbf{x}) & = g_2 \big(v_0(\mathbf{x}), v_1 (\mathbf{x}) \big) \\ 
-         \ldots & = \ldots \\
-         v_k (\mathbf{x}) & = g_k \big(v_0 (\mathbf{x}), v_1(\mathbf{x}), \ldots, v_{k-1} (\mathbf{x}) \big) \\
-         \ldots & = \ldots \\
-         v_K (\mathbf{x}) & = g_K \big(v_0(\mathbf{x}), v_1 (\mathbf{x}), \ldots, v_{K-2}(\mathbf{x}), v_{K-1}(\mathbf{x}) \big)
-       \end{align*}
-       where $v_k: \mathbb{R}^n \longrightarrow \mathbb{R}^{n_k}$, with $n_0 = n$ and $n_K = m$, and 
-       \[g_k : \prod_{i=0}^{k-1} \mathbb{R}^{n_i} \longrightarrow \mathbb{R}^{n_k}\]
-       To differentiate $v_k$ w.r.t. $\mathbf{x}$, we can use the chain rule, resulting in the total derivative 
-       \[\underbrace{\frac{\partial v_k}{\partial \mathbf{x}}}_{n_k \times n} = \sum_{i=1}^{k-1} \underbrace{\frac{\partial g_k}{\partial v_i}}_{n_k \times n_i} \, \underbrace{\frac{\partial v_i}{\partial \mathbf{x}}}_{n_i \times n}\]
-
-    \subsubsection{Parameter Symmetry}
-
-
-    \subsubsection{Universal Approximation Theorem} 
-
-      Neural networks have been mathematically studied back in the 1980s, and the reason that they are so powerful is that we can theoretically prove the limits on what they can learn. For very specific classes of functions, the results are easier, but for more general ones, it becomes much harder. We prove one of the theorems below. 
-
-      Let us think about how one would construct approximations for such functions. Like in measure theory, we can think of every measurable function as a linear combination of a set of bump functions, and so we can get a neural network to do the same.
-
-      \begin{example}[Bump Functions in $\mathbb{R}$] 
-        Assuming the sigmoid activation function is used, the bump function 
-          \[f(x) = \begin{cases} 1 & \text{ if } a < x < b \\ 0 & \text{ if else} \end{cases}\]
-        can be approximated by taking a linear combination of a sigmoid function stepping up and one stepping down. That is, 
-          \[f(x) \approx \frac{1}{2} \sigma \big( k( x - a)\big) - \frac{1}{2} \sigma \big( k (x - b) \big)\]
-        where $k$ is a scaling constant that determines how steep the steps are for each function. Therefore, as $k \rightarrow \infty$, the function begins to look more like a step function. 
-        \begin{figure}[H]
-          \centering 
-          \includegraphics[scale=0.6]{img/01_MLP/bump_functions_1d.png}
-          \caption{Bump function approximated with $a = 0.4, b = 0.6$, with differing values of $k$. } 
-          \label{fig:bump_functions_1d}
-        \end{figure}
-      \end{example}
-
-      \begin{example}[Bump Functions in $\mathbb{R}^2$]
-        To do this for a 2-D step function, of the form 
-          \[f(x_1, x_2) = \begin{cases} 1 \text{ if } a < x_1 < b \\ 0 & \text{ if else} \end{cases}\]
-        this is a simple extension of the first one. We just don't need to make our linear combination dependent on $x_2$ and we're done.
-          \[f(x) \approx \frac{1}{2} \sigma \big( k( x_1 - a)\big) - \frac{1}{2} \sigma \big( k (x_1 - b) \big)\]
-      \end{example} 
-
-      \begin{example}[Tower Functions in $\mathbb{R}^2$] 
-        Now to construct a tower function of the form 
-          \[f(x_1, x_2) = \begin{cases} 1 & \text{ if } a_1 < x_1 < b_1, a_2 < x_2 < b_2 \\ 0 & \text{ if else} \end{cases}\]i
-        we need slightly more creativity. Now we can approximate it by doing 
-          \[f(x) \approx \sigma \bigg( k_2 \big[ \sigma\big( k_1 (x_1 - a_1)\big) - \sigma\big( k_1 (x_1 -b_1)\big) + \sigma \big( k_1 (x_2 - a_2)\big) - \sigma\big(k_1 (x_2 - b_2)\big)  big] - b_2\bigg)\]
-      \end{example} 
-
-      At this point, we can see how this would extend to $\mathbb{R}^n$, and by isolating parts of the network we can have it approximate tower functions that are completely separate from each other, at any height, and then finally take a linear combination of them to approximate the original function of interest.  
-
-      \begin{theorem}[CS671 Fall 2023 Problem Set 5]
-        Suppose you have a 2D, $L$-lipschitz function $f(x_1, x_2)$ defined on a unit square ($x_1, x_2 \in \left [0,1 \right ]$). You want to approximate this with an arbitrary neural net $\Tilde{f}$ such that
-          \[\sup_{x \in [0, 1]^2} |f(x) - \Tilde{f}(x)| \leq \epsilon\]    
-        If we divide the square into a checkerboard of $K \times K$ nonoverlapping squares, approximate the restriction of $f$ to each subsquare with a tower function, what is the least $K$ we would need to ensure that the error is less than $\epsilon$? 
-      \end{theorem} 
-
-  \subsection{Forward and Back Propagation}
-
-    Back in the supervised learning notes, we have gone through the derivation for linear, logistic, and softmax regression. It turns out that despite them having very different architectures, with a identity, sigmoid, and softmax activation function, our choice of loss to be the mean squared loss, the binary cross-entropy, and the cross-entropy loss, had given very cute formulas in computing the gradient of the loss. Unfortunately, the formulas do not get cute when we differentiate neural networks, but they do come in a very structured way. Let us go through a very simple example to gain intuition. 
-
-    \begin{exercise}[ECE 685 Fall 2021 Midterm 1]
-      The figure depicts a simple neural network with one hidden layer. The inputs to the network are denoted by $x_1, x_2, x_3$, and the output is denoted by $y$. The activation functions of the neurons in the hidden layer are given by $h_1 (z) = \sigma(z), h_2 (z) = \tanh(z)$, and the output unit activation function is $g(z) = z$, where $\sigma(z) = \frac{1}{1 + \exp(-z)}$ and $\tanh(z) = \frac{\exp(z) - \exp(-z)}{\exp(z) + \exp(-z)}$ are the logistic sigmoid and hyperbolic tangent, respectively. The biases $b_1, b_2$ are added to the inputs of the neurons int he hidden layer before passing them through the activation functions. let 
-        \[\mathbf{w} = (b_1, b_2, w_{11}^{(1)}, w_{12}^{(1)}, w_{21}^{(1)}, w_{31}^{(1)}, w_{32}^{(1)}, w_1^{(2)}, w_2^{(2)}) \] 
-      denote the vector of network parameters. 
-      \begin{enumerate}
-        \item Write the input output relation $y = f(x_1, x_2, x_3 ; \mathbf{w})$ in explicit form. 
-
-        \item Let $\mathcal{D} = \{(x_{1, n}, x_{2, n}, x_{3, n})\}$ denote a training dataset of $N$ points where $y_n \in \mathbb{R}$ are labels of the corresponding data points. We want to estimate the network parameters $\mathbf{w}$ using $\mathcal{D}$ by minimizing the mean squared error loss 
-          \[ L(\mathbf{w}) = \frac{1}{2} \sum_{n=1}^N \big( f(x_{1, n}, x_{2, n}, x_{3, n}; \mathbf{w}) - y_n \big)^2 \]
-        Compute the gradient of $L(\mathbf{w})$ with respect to the network parameters $\mathbf{w}$. 
-
-        \item Write pseudo code for one iteration for minimizing $L(\mathbf{w})$ with respect to the network parameters $\mathbf{w}$ using SGD with learning rate $\eta > 0$. 
-      \end{enumerate}
-
-      \begin{center}
-          \includegraphics[scale=0.4]{img/01_MLP/tarokhfig1.png}
-      \end{center}
-    \end{exercise}
-
-    \begin{solution}[ECE 685 Fall 2021 Midterm 1]
-      We can write the computation graph as 
-      \begin{align*} 
-        z_1^{(1)} & = w_{11}^{(1)} x_1 + w_{21}^{(1)} x_2 + w_{31}^{(1)} x_3 + b_1 \\
-        z_2^{(1)} & = w_{12}^{(1)} x_1 + w_{32}^{(1)} x_3 + b_2 \\
-        a_1^{(1)} & = \sigma(z^{(1)})\\
-        a_2^{(1)} & = \tanh(z_2^{(1)}) \\
-        z^{(2)} & = w_{1}^{(2)} a_1^{(1)} + w_2^{(2)} a_2^{(1)} \\
-        y = a^{(2)} & = g(z^{(2)})
-      \end{align*}
-      and composing these gives 
-        \[y = w_1^{(2)} \sigma(w_{11}^{(1)} x_1  + w_{21}^{(1)} x_2 + w_{31}^{(1)} x_3 + b_1) + w_2^{(2)} \tanh(w_{12}^{(1)} x_1 + w_{32}^{(1)} x_3 + b_2) \]
-      The gradient of the network can be written as 
-      \begin{align*}
-        \nabla_\mathbf{w} L(\mathbf{w}) & = \frac{1}{2} \sum_{n=1}^N \nabla_\mathbf{w} \big( f(x_{1, n}, x_{2, n}, x_{3, n}; \mathbf{w}) - y_n \big)^2 \\
-        & = \sum_{n=1}^N (f(x_{1, n}, x_{2, n}, x_{3, n}; \mathbf{w}) - y_n) \nabla_\mathbf{w} f(x_{1, n}, x_{2, n}, x_{3, n})
-      \end{align*}
-      where 
-      \[\nabla_\mathbf{w} f(x_{1, n}, x_{2, n}, x_{3, n}) = \frac{\partial f}{\partial \mathbf{w}} \bigg|_{\mathbf{x} = \mathbf{x}^{(n)}}\] 
-      Now we can take derivatives using chain rule, working backwards, and using the derivative identities $\sigma^\prime (z)  = \sigma(z) (1 - \sigma(z))$ and $\tanh^\prime (z) = 1 - \tanh^2 (z)$. 
-      \begin{align*}
-          \frac{\partial f}{\partial w_1^{(2)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial w_1^{(2)}} = a_1^{(1)} \\
-          \frac{\partial f}{\partial w_2^{(2)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial w_2^{(2)}} = a_2^{(1)} \\ 
-          \frac{\partial f}{\partial w_{11}^{(1)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_1} \frac{\partial a^{(1)}_1}{\partial z_1^{(1)}} \frac{\partial z_1^{(1)}}{\partial w_{11}^{(1)}} = w_1^{(2)} a_1^{(1)} (1 - a_1^{(1)}) x_1\\
-          \frac{\partial f}{\partial w_{21}^{(1)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_1} \frac{\partial a^{(1)}_1}{\partial z_1^{(1)}} \frac{\partial z_1^{(1)}}{\partial w_{21}^{(1)}} = w_1^{(2)} a_1^{(1)} (1 - a_1^{(1)}) x_2\\
-          \frac{\partial f}{\partial w_{31}^{(1)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_1} \frac{\partial a^{(1)}_1}{\partial z_1^{(1)}} \frac{\partial z_1^{(1)}}{\partial w_{31}^{(1)}} = w_1^{(2)} a_1^{(1)} (1 - a_1^{(1)}) x_3\\
-          \frac{\partial f}{\partial b_{1}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_1} \frac{\partial a^{(1)}_1}{\partial z_1^{(1)}} \frac{\partial z_1^{(1)}}{\partial b_{1}}  = w_1^{(2)} a_1^{(1)} (1 - a_1^{(1)}) \\
-          \frac{\partial f}{\partial w_{12}^{(1)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_2} \frac{\partial a^{(1)}_2}{\partial z_2^{(1)}} \frac{\partial z_2^{(1)}}{\partial w_{12}^{(1)}} = w_2^{(2)} (1 - (a_2^{(1)})^2 ) x_1\\
-          \frac{\partial f}{\partial w_{13}^{(1)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_2} \frac{\partial a^{(1)}_2}{\partial z_2^{(1)}} \frac{\partial z_2^{(1)}}{\partial w_{13}^{(1)}} = w_2^{(2)} (1 - (a_2^{(1)})^2 ) x_3 \\
-          \frac{\partial f}{\partial b_{2}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_2} \frac{\partial a^{(1)}_2}{\partial z_2^{(1)}} \frac{\partial z_2^{(1)}}{\partial b_{2}} = w_2^{(2)} (1 - (a_2^{(1)})^2 )
-      \end{align*}
-      To compute one step of SGD, we must first choose a minibatch $\mathcal{M} \subset \mathcal{D}$ and then compute 
-      \[\nabla_{\mathbf{w}; \mathcal{M}} L(\mathbf{w}) = \sum_{(\mathbf{x}, y) \in \mathcal{M}} (f(\mathbf{x}; \mathbf{w}) - y) \nabla_{\mathbf{w}} f(\mathbf{x})\] 
-      where we compute the gradient simply over the minibatch. Then, we update the parameters according to 
-      \[\mathbf{w} = \mathbf{w} - \eta \nabla_{\mathbf{w}; \mathcal{M}} L(\mathbf{w}) \]
-    \end{solution}
-
-    The following example is slightly harder since we are dealing with fully connected networks. 
-
-    \begin{exercise}[ECE 685 Fall 2021 Midterm 1]
-      Given the following neural network with 2 inputs $(x_1, x_2)$, fully-connected layers and ReLU activations. The weights and biases of hidden units are denoted $w$ and $b$, with $h$ as activation units. For example, 
-      \[h_1 = \mathrm{ReLU}(x_1 w_{11} + x_2 w_{21} + b_1) \]
-      The outputs are denoted as $(y_1, y_2)$ and the ground truth targets are denoted as $(t_1, t_2)$. 
-      \[y_1  = \mathrm{ReLU} (h_1 w_{31} + h_2 w_{41} + b_3)\]
-      \begin{center}
-          \includegraphics[scale=0.3]{img/01_MLP/nn_example.png} 
-      \end{center}
-      The values of the variables are given as follows: 
-      \begin{table}[H]
-        \centering
-        \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
-          \hline
-          $i_1$ & $i_2$ & $w_{11}$ & $w_{12}$ & $w_{21}$ & $w_{22}$ & $w_{31}$ & $w_{32}$ & $w_{41}$ & $w_{42}$ & $b_1$ & $b_2$ & $b_3$ & $b_4$ & $t_1$ & $t_2$ \\
-          \hline
-          1 & 2 & 1 & 0.5 & -0.5 & 1 & 0.5 & -2 & -1 & 0.5 & -0.5 & -0.5 & 1 & 1 & 2 & 4 \\
-          \hline
-        \end{tabular}
-      \end{table}
-      \begin{enumerate}
-          \item Compute the output $(y_1, y_2)$ of the input $(x_1, x_2)$ using the network parameters as specified above. 
-          \item Compute the mean squared error of the computed output and the target labels. 
-          \item Using the calculated MSE, update the weight $w_{31}$ using GD with $\eta = 0.01$. 
-          \item Do the same with weight $w_{42}$. 
-          \item Do the same with weight $w_{22}$.  
-      \end{enumerate}
-    \end{exercise}
-     
-    Note that the calculations above require us to compute all the $\mathbf{z}^{(i)}$'s and the $\mathbf{a}^{(i)}$'s, a process called \textbf{forward propagation}, before we compute the gradients. Even in the backpropagation step, we can see that the intermediate partial derivatives in the chain rule are repeatedly used. 
-
-    Backpropagation is not hard, but it is cumbersome notation-wise. What we really want to do is just compute a very long vector with all of its partials $\partial E / \partial \boldsymbol{\theta}$. 
-
+  \begin{algo}[Backpropagation]
     To compute $\frac{\partial E_n}{\partial w_{ji}^{[l]}}$, it would be natural to split it up into a portion where $E_n$ is affected by the term before activation $\mathbf{z}^{[l]}$ and how that is affected by $w_{ji}^{[l]}$. The same goes for the bias terms. 
-    \[\frac{\partial E_n}{\partial w_{ji}^{[l]}} = \underbrace{\frac{\partial E_n}{\partial \mathbf{z}^{[l]}}}_{1 \times N^{[l]}} \cdot \underbrace{\frac{\partial \mathbf{z}^{[l]}}{\partial w_{ji}^{[l]}}}_{N^{[l]} \times 1} \text{ and } \frac{\partial E_n}{\partial b_{i}^{[l]}} = \underbrace{\frac{\partial E_n}{\partial \mathbf{z}^{[l]}}}_{1 \times N^{[l]}} \cdot \underbrace{\frac{\partial \mathbf{z}^{[l]}}{\partial b_{i}^{[l]}}}_{N^{[l]} \times 1}\]
+    \begin{equation}
+      \frac{\partial E_n}{\partial w_{ji}^{[l]}} = \underbrace{\frac{\partial E_n}{\partial \mathbf{z}^{[l]}}}_{1 \times N^{[l]}} \cdot \underbrace{\frac{\partial \mathbf{z}^{[l]}}{\partial w_{ji}^{[l]}}}_{N^{[l]} \times 1} \text{ and } \frac{\partial E_n}{\partial b_{i}^{[l]}} = \underbrace{\frac{\partial E_n}{\partial \mathbf{z}^{[l]}}}_{1 \times N^{[l]}} \cdot \underbrace{\frac{\partial \mathbf{z}^{[l]}}{\partial b_{i}^{[l]}}}_{N^{[l]} \times 1}
+    \end{equation}
     It helps to visualize that we are focusing on 
-    \[\mathbf{h}_{\boldsymbol{\theta}} (\mathbf{x}) = g\big( \ldots \sigma( \underbrace{\mathbf{W}^{[l]} \mathbf{a}^{[l-1]} + \mathbf{b}^{[l]}}_{\mathbf{z}^{[l]}} )  \ldots \big)\]
+    \begin{equation}
+      \mathbf{h}_{\boldsymbol{\theta}} (\mathbf{x}) = g\big( \ldots \sigma( \underbrace{\mathbf{W}^{[l]} \mathbf{a}^{[l-1]} + \mathbf{b}^{[l]}}_{\mathbf{z}^{[l]}} )  \ldots \big)
+    \end{equation}
     We can expand $\mathbf{z}^{[l]}$ to get 
-    \[\mathbf{z}^{[l]} = \begin{pmatrix} w_{11}^{[l]} & \ldots & w_{1 N^{[l-1]}}^{[l]} \\ \vdots & \ddots & \vdots \\ w_{N^{[l]} 1}^{[l]} & \ldots & w_{N^{[l]} N^{[l-1]}}^{[l]} \end{pmatrix} \begin{pmatrix} a^{[l-1]}_1 \\ \vdots \\ a^{[l-1]}_{N^{[l-1]}} \end{pmatrix} + \begin{pmatrix} b_1^{[l]} \\ \vdots \\ b_{N^{[l]}_{[l]}} \end{pmatrix}\]
+    \begin{equation}
+      \mathbf{z}^{[l]} = \begin{pmatrix} w_{11}^{[l]} & \ldots & w_{1 N^{[l-1]}}^{[l]} \\ \vdots & \ddots & \vdots \\ w_{N^{[l]} 1}^{[l]} & \ldots & w_{N^{[l]} N^{[l-1]}}^{[l]} \end{pmatrix} 
+      \begin{pmatrix} a^{[l-1]}_1 \\ \vdots \\ a^{[l-1]}_{N^{[l-1]}} \end{pmatrix} + \begin{pmatrix} b_1^{[l]} \\ \vdots \\ b_{N^{[l]}_{[l]}} \end{pmatrix}
+    \end{equation}
     $w_{ji}^{[l]}$ will only show up in the $j$th term of $\mathbf{z}^{[l]}$, and so the rest of the terms in $\frac{\partial \mathbf{z}^{[l]}}{\partial w_{ji}^{[l]}}$ will vanish. The same logic applies to $\frac{\partial \mathbf{z}^{[l]}}{\partial b_{i}^{[l]}}$, and so we really just have to compute 
-    \[\frac{\partial E_n}{\partial w_{ji}^{[l]}} = \underbrace{\frac{\partial E_n}{\partial z^{[l]}_j}}_{1 \times 1} \cdot \underbrace{\frac{\partial z^{[l]}_j}{\partial w_{ji}^{[l]}}}_{1 \times 1} = \delta^{[l]}_j \cdot \frac{\partial z^{[l]}_j}{\partial w_{ji}^{[l]}} \text{ and } \frac{\partial E_n}{\partial b_{i}^{[l]}} = \underbrace{\frac{\partial E_n}{\partial z^{[l]}_j}}_{1 \times 1} \cdot \underbrace{\frac{\partial z^{[l]}_j}{\partial b_{i}^{[l]}}}_{1 \times 1} = \delta^{[l]}_j \cdot \frac{\partial z^{[l]}_j}{\partial b_{i}^{[l]}}\]
+    \begin{equation}
+      \frac{\partial E_n}{\partial w_{ji}^{[l]}} = \underbrace{\frac{\partial E_n}{\partial z^{[l]}_j}}_{1 \times 1} \cdot \underbrace{\frac{\partial z^{[l]}_j}{\partial w_{ji}^{[l]}}}_{1 \times 1} = \delta^{[l]}_j \cdot \frac{\partial z^{[l]}_j}{\partial w_{ji}^{[l]}} \text{ and } \frac{\partial E_n}{\partial b_{i}^{[l]}} = \underbrace{\frac{\partial E_n}{\partial z^{[l]}_j}}_{1 \times 1} \cdot \underbrace{\frac{\partial z^{[l]}_j}{\partial b_{i}^{[l]}}}_{1 \times 1} = \delta^{[l]}_j \cdot \frac{\partial z^{[l]}_j}{\partial b_{i}^{[l]}}
+    \end{equation}
     where the $\delta_j^{[l]}$ is called the $j$th \textbf{error term} of layer $l$. If we look at the evaluated $j$th row, 
-    \[z_j^{[l]} = w_{j1}^{[l]} a_1^{[l-1]} + \ldots w_{j N^{[l-1]}} a^{[l-1]}_{N^{[l-1]}} + b_j^{[l]}\]
+    \begin{equation}
+      z_j^{[l]} = w_{j1}^{[l]} a_1^{[l-1]} + \ldots w_{j N^{[l-1]}} a^{[l-1]}_{N^{[l-1]}} + b_j^{[l]}
+    \end{equation}
     We can clearly see that $\frac{\partial z^{[l]}_j}{\partial w_{ji}^{[l]}} = a_i^{[l-1]}$ and $\frac{\partial z^{[l]}_j}{\partial b_{i}^{[l]}} = 1$, which means that our derivatives are now reduced to 
-    \[\frac{\partial E_n}{\partial w_{ji}^{[l]}} = \delta_j^{[l]} a_i^{[l-1]}, \;\;\;\;\; \frac{\partial E_n}{\partial b_{i}^{[l]}} = \delta_j^{[l]}\]
+    \begin{equation}
+      \frac{\partial E_n}{\partial w_{ji}^{[l]}} = \delta_j^{[l]} a_i^{[l-1]}, \;\;\;\;\; \frac{\partial E_n}{\partial b_{i}^{[l]}} = \delta_j^{[l]}
+    \end{equation}
     What this means is that we must know the intermediate values $\mathbf{a}^{[l-1]}$ beforehand, which is possible since we would compute them using forward propagation and store them in memory. Now note that the partial derivatives at this point have been calculated without any consideration of a particular error function or activation function. To calculate $\boldsymbol{\delta}^{[L]}$, we can simply use the chain rule to get 
-    \[\delta_j^{[L]} = \frac{\partial E_n}{\partial z_j^{[L]}} = \frac{\partial E_n}{\partial \mathbf{a}^{[L]}} \cdot \frac{\partial \mathbf{a}^{[L]}}{\partial z_j^{[L]}} = \sum_k \frac{\partial E_n}{\partial a_k^{[L]}} \cdot \frac{\partial a_k^{[L]}}{\partial z_j^{[L]}}\]
+    \begin{equation}
+      \delta_j^{[L]} = \frac{\partial E_n}{\partial z_j^{[L]}} = \frac{\partial E_n}{\partial \mathbf{a}^{[L]}} \cdot \frac{\partial \mathbf{a}^{[L]}}{\partial z_j^{[L]}} = \sum_k \frac{\partial E_n}{\partial a_k^{[L]}} \cdot \frac{\partial a_k^{[L]}}{\partial z_j^{[L]}}
+    \end{equation}
     which can be rewritten in the matrix notation
     \begin{equation}
       \boldsymbol{\delta}^{[L]} = \bigg( \frac{\partial \mathbf{g}}{\partial \mathbf{z}^{[L]}} \bigg)^T \bigg( \frac{\partial E_n}{\partial \mathbf{a}^{[L]}} \bigg) = \underbrace{\begin{bmatrix} \frac{\partial g_1}{\partial z_1^{[L]}} & \ldots & \frac{\partial g_{N^{[L]}}}{\partial z^{[L]}_1} \\ \vdots & \ddots & \vdots \\ \frac{\partial g_1}{\partial z^{[L]}_{N^{[L]}}} & \ldots & \frac{\partial g_{N^{[L]}}}{\partial z^{[L]}_{N^{[L]}}} \end{bmatrix}}_{N^{[L]} \times N^{[L]}} \begin{bmatrix} \frac{\partial E_n}{\partial a_1^{[L]}} \\ \vdots \\ \frac{\partial E_n}{\partial a_{N^{[L]}}^{[L]}} \end{bmatrix}
@@ -360,74 +362,170 @@
     Note that as soon as we make a model assumption on the form of the conditional distribution $Y \mid X = x$ (e.g. it is Gaussian), with it being in the exponential family, we immediately get two things: the loss function $E_n$ (e.g. sum of squares loss), and the canonical link function $\mathbf{g}$
     \begin{enumerate}
       \item If we assume that $Y \mid X = x$ is Gaussian in a regression (of scalar output) setting, then our canonical link would be $g(x) = x$, which gives the sum of squares loss function. Note that since the output is a real-valued scalar, $\mathbf{a}^{[L]}$ will be a scalar (i.e. the final layer is one node, $N^{[L]} = 1$). 
-      \[E_n = \frac{1}{2} (y^{(n)} - a^{[L]} )^2 \]
+      \begin{equation}
+        E_n = \frac{1}{2} (y^{(n)} - a^{[L]} )^2
+      \end{equation}
       To calculate $\boldsymbol{\delta}^{[L]}$, we can simply use the chain rule to get 
-      \[\delta^{[L]} = \frac{\partial E_n}{\partial z^{[L]}} = \frac{\partial E_n}{\partial a^{[L]}} \cdot \frac{\partial a^{[L]}}{\partial z^{[L]}} = a^{[L]} - y^{(n)}\]
+      \begin{equation}
+        \delta^{[L]} = \frac{\partial E_n}{\partial z^{[L]}} = \frac{\partial E_n}{\partial a^{[L]}} \cdot \frac{\partial a^{[L]}}{\partial z^{[L]}} = a^{[L]} - y^{(n)}
+      \end{equation}
 
       \item For classification (of $M$ classes), we would use the softmax activation function (with its derivative next to it for convenience) 
-      \[\mathbf{g}(\mathbf{z}) = \mathbf{g} \bigg( \begin{bmatrix} z_1 \\ \vdots \\ z_M \end{bmatrix} \bigg) = \begin{bmatrix} e^{z_1} / \sum_k e^{z_k} \\ \vdots \\ e^{z_M} / \sum_k e^{z_k} \end{bmatrix}, \;\;\; \frac{\partial g_k}{\partial z_j} = \begin{cases} g_j (1 - g_j) & \text{ if } k = j \\ - g_j g_k & \text{ if } k \neq j \end{cases} \]
+      \begin{equation}
+        \mathbf{g}(\mathbf{z}) = \mathbf{g} \bigg( \begin{bmatrix} z_1 \\ \vdots \\ z_M \end{bmatrix} \bigg) = \begin{bmatrix} e^{z_1} / \sum_k e^{z_k} \\ \vdots \\ e^{z_M} / \sum_k e^{z_k} \end{bmatrix}, \;\;\; \frac{\partial g_k}{\partial z_j} = \begin{cases} g_j (1 - g_j) & \text{ if } k = j \\ - g_j g_k & \text{ if } k \neq j \end{cases}
+      \end{equation}
       which gives the cross entropy error 
-      \[E_n = - \mathbf{y}^{(n)} \cdot \ln \big( \mathbf{h}_{\boldsymbol{\theta}} (\mathbf{x}^{(n)}) \big) = -\sum_i y^{(n)}_i \, \ln(a_i^{[L]})\]
+      \begin{equation}
+        E_n = - \mathbf{y}^{(n)} \cdot \ln \big( \mathbf{h}_{\boldsymbol{\theta}} (\mathbf{x}^{(n)}) \big) = -\sum_i y^{(n)}_i \, \ln(a_i^{[L]})
+      \end{equation}
       where the $\mathbf{y}$ has been one-hot encoded into a standard unit vector in $\mathbb{R}^M$. To calculate $\boldsymbol{\delta}^{[L]}$, we can again use the chain rule again 
-      \begin{align*}
-          \delta_j^{[L]} & = \sum_k \frac{\partial E_n}{\partial a_k^{[L]}} \cdot \frac{\partial a_k^{[L]}}{\partial z_j^{[L]}} \\
-          & = - \sum_k \frac{y_k^{(n)}}{a_k^{{[L]}}} \cdot \frac{\partial a_k^{[L]}}{\partial z_j^{[L]}} \\
-          & = \bigg( - \sum_{k \neq j} \frac{y_k^{(n)}}{a_k^{{[L]}}} \cdot \frac{\partial a_k^{[L]}}{\partial z_j^{[L]}} \bigg) - \frac{y_j^{(n)}}{a_j^{{[L]}}} \cdot \frac{a_j^{[L]}}{\partial z_j^{[L]}} \\ 
-          & = \bigg( - \sum_{k \neq j} \frac{y_k^{(n)}}{a_k^{{[L]}}} \cdot - a_k^{[L]} a_j^{[L]} \bigg) - \frac{y_j^{(n)}}{a_j^{{[L]}}} \cdot a_j^{[L]} (1 - a_j^{[L]}) \\ 
-          & = a_j^{[L]} \underbrace{\sum_{k} y_k^{(n)}}_{1} - y_j^{(n)} = a_j^{[L]} - y_j^{(n)}
-      \end{align*}
+      \begin{align}
+        \delta_j^{[L]} & = \sum_k \frac{\partial E_n}{\partial a_k^{[L]}} \cdot \frac{\partial a_k^{[L]}}{\partial z_j^{[L]}} \\
+        & = - \sum_k \frac{y_k^{(n)}}{a_k^{{[L]}}} \cdot \frac{\partial a_k^{[L]}}{\partial z_j^{[L]}} \\
+        & = \bigg( - \sum_{k \neq j} \frac{y_k^{(n)}}{a_k^{{[L]}}} \cdot \frac{\partial a_k^{[L]}}{\partial z_j^{[L]}} \bigg) - \frac{y_j^{(n)}}{a_j^{{[L]}}} \cdot \frac{a_j^{[L]}}{\partial z_j^{[L]}} \\ 
+        & = \bigg( - \sum_{k \neq j} \frac{y_k^{(n)}}{a_k^{{[L]}}} \cdot - a_k^{[L]} a_j^{[L]} \bigg) - \frac{y_j^{(n)}}{a_j^{{[L]}}} \cdot a_j^{[L]} (1 - a_j^{[L]}) \\ 
+        & = a_j^{[L]} \underbrace{\sum_{k} y_k^{(n)}}_{1} - y_j^{(n)} = a_j^{[L]} - y_j^{(n)}
+      \end{align}
       giving us 
-      \[\boldsymbol{\delta}^{[L]} = \mathbf{a}_j^{[L]} - \mathbf{y}^{[L]}\]
+      \begin{equation}
+        \boldsymbol{\delta}^{[L]} = \mathbf{a}_j^{[L]} - \mathbf{y}^{[L]}
+      \end{equation}
     \end{enumerate}
 
     Now that we have found the error for the last layer, we can continue for the hidden layers. We can again expand by chain rule that 
-    \[\delta_j^{[l]} = \frac{\partial E_n}{\partial z_j^{[l]}} = \frac{\partial E_n}{\partial \mathbf{z}^{[l+1]}} \cdot \frac{\partial \mathbf{z}^{[l+1]}}{\partial z_j^{[l]}} = \sum_{k=1}^{N^{[l+1]}} \frac{\partial E_n}{\partial z_k^{[l+1]}} \cdot \frac{\partial z_k^{[l+1]}}{\partial z_j^{[l]}} = \sum_{k=1}^{N^{[l+1]}} \delta_k^{[l+1]} \cdot \frac{\partial z_k^{[l+1]}}{\partial z_j^{[l]}}\]
+    \begin{equation} 
+      \delta_j^{[l]} = \frac{\partial E_n}{\partial z_j^{[l]}} = \frac{\partial E_n}{\partial \mathbf{z}^{[l+1]}} \cdot \frac{\partial \mathbf{z}^{[l+1]}}{\partial z_j^{[l]}} = \sum_{k=1}^{N^{[l+1]}} \frac{\partial E_n}{\partial z_k^{[l+1]}} \cdot \frac{\partial z_k^{[l+1]}}{\partial z_j^{[l]}} = \sum_{k=1}^{N^{[l+1]}} \delta_k^{[l+1]} \cdot \frac{\partial z_k^{[l+1]}}{\partial z_j^{[l]}}
+    \end{equation} 
     By going backwards from the last layer, we should already have the values of $\delta_k^{[l+1]}$, and to compute the second partial, we recall the way $a$ was calculated 
-    \[z_k^{[l+1]} = b_k^{[l+1]} + \sum_{j=1}^{N^{[l]}} w_{kj}^{[l+1]} \sigma(z_j^{[l]}) \implies \frac{\partial z_k^{[l+1]}}{\partial z_j^{[l]}} = w_{kj}^{[l+1]} \cdot \sigma^\prime(z_j^{[l]})\]
+    \begin{equation}
+      z_k^{[l+1]} = b_k^{[l+1]} + \sum_{j=1}^{N^{[l]}} w_{kj}^{[l+1]} \sigma(z_j^{[l]}) \implies \frac{\partial z_k^{[l+1]}}{\partial z_j^{[l]}} = w_{kj}^{[l+1]} \cdot \sigma^\prime(z_j^{[l]})
+    \end{equation}
     Now this is where the ``back" in backpropagation comes from. Plugging this into the equation yields a final equation for the error term in hidden layers, called the \textbf{backpropagation formula}: 
-    \[\delta_j^{[l]} = \sigma^\prime(z_j^{[l]}) \sum_{k=1}^{N^{[l+1]}} \delta_k^{[l+1]} \cdot w_{kj}^{[l+1]}\]
+    \begin{equation}
+      \delta_j^{[l]} = \sigma^\prime(z_j^{[l]}) \sum_{k=1}^{N^{[l+1]}} \delta_k^{[l+1]} \cdot w_{kj}^{[l+1]}
+    \end{equation}
     which gives the matrix form 
-    \[\boldsymbol{\delta}^{[l]} = \boldsymbol{\sigma}^\prime (\mathbf{z}^{[l]}) \odot (\mathbf{W}^{[l+1]})^T \boldsymbol{\delta}^{[l+1]} = \begin{bmatrix} \sigma^\prime (z_1^{[l]}) \\ \vdots \\ \sigma^\prime (z_{N^{[L]}}^{[l]})\end{bmatrix} \odot \begin{bmatrix} w_{11}^{[l+1]} & \ldots & w^{[l+1]}_{N^{[l+1]} 1} \\ \vdots & \ddots & \vdots \\ w^{[l+1]}_{1 N^{[l]}} & \ldots & w^{[l+1]}_{N^{[l+1]} N^{[l]}} \end{bmatrix} \begin{bmatrix} \delta_1^{[l+1]} \\ \vdots \\ \delta_{N^{[l+1]}}^{[l+1]} \end{bmatrix} \]
+    \begin{equation}
+      \boldsymbol{\delta}^{[l]} = \boldsymbol{\sigma}^\prime (\mathbf{z}^{[l]}) \odot (\mathbf{W}^{[l+1]})^T \boldsymbol{\delta}^{[l+1]} = \begin{bmatrix} \sigma^\prime (z_1^{[l]}) \\ \vdots \\ \sigma^\prime (z_{N^{[L]}}^{[l]})\end{bmatrix} \odot \begin{bmatrix} w_{11}^{[l+1]} & \ldots & w^{[l+1]}_{N^{[l+1]} 1} \\ \vdots & \ddots & \vdots \\ w^{[l+1]}_{1 N^{[l]}} & \ldots & w^{[l+1]}_{N^{[l+1]} N^{[l]}} \end{bmatrix} \begin{bmatrix} \delta_1^{[l+1]} \\ \vdots \\ \delta_{N^{[l+1]}}^{[l+1]} \end{bmatrix} 
+    \end{equation}
     and putting it all together, the partial derivative of the error function $E_n$ with respect to the weight in the hidden layers for $1 \leq l < L$ is 
-    \[\frac{\partial E_n}{\partial w_{ji}^{[l]}} = a_i^{[l-1]} \sigma^\prime(z_j^{[l]}) \sum_{k=1}^{N^{[l+1]}} \delta_k^{[l+1]} \cdot w_{kj}^{[l+1]} \]
+    \begin{equation}
+      \frac{\partial E_n}{\partial w_{ji}^{[l]}} = a_i^{[l-1]} \sigma^\prime(z_j^{[l]}) \sum_{k=1}^{N^{[l+1]}} \delta_k^{[l+1]} \cdot w_{kj}^{[l+1]} 
+    \end{equation}
+  \end{algo}
 
-    A little fact is that the time complexity of both forward prop and back prop should be the same, so if you ever notice that the time to compute these two functions scales differently, you're probably making some repeated calculations somewhere. 
+  A little fact is that the time complexity of both forward prop and back prop should be the same, so if you ever notice that the time to compute these two functions scales differently, you're probably making some repeated calculations somewhere. 
 
-    Therefore, let us summarize what a MLP does: 
+  \begin{algo}[Epoch of Training]
+    Before training, we initialize all the parameters to be 
+    \begin{equation}
+      \boldsymbol{\theta} = (\mathbf{W}^{[1]}, \mathbf{b}^{[1]}, \mathbf{W}^{[2]}, \ldots, \mathbf{W}^{[L]}, \mathbf{b}^{[L]})
+    \end{equation} 
+    Then, we repeat the following for one epoch of training. 
     \begin{enumerate}
-      \item \textit{Initialization}: We initialize all the parameters to be 
-      \[\boldsymbol{\theta} = (\mathbf{W}^{[1]}, \mathbf{b}^{[1]}, \mathbf{W}^{[2]}, \ldots, \mathbf{W}^{[L]}, \mathbf{b}^{[L]})\]
-      
       \item \textit{Choose Batch}: We choose an arbitrary data point $(\mathbf{x}^{(n)}, \mathbf{y}^{(n)})$, an minibatch, or the entire batch to compute the gradients on. 
       
       \item \textit{Forward Propagation}: Apply input vector $\mathbf{x}^{(n)}$ and use forward propagation to compute the values of all the hidden and activation units 
-      \[\mathbf{a}^{[0]} = \mathbf{x}^{(n)}, \mathbf{z}^{[1]}, \mathbf{a}^{[1]}, \ldots, \mathbf{z}^{[L]}, \mathbf{a}^{[L]} = h_{\boldsymbol{\theta}} (\mathbf{x}^{(n)})\]
+      \begin{equation}
+        \mathbf{a}^{[0]} = \mathbf{x}^{(n)}, \mathbf{z}^{[1]}, \mathbf{a}^{[1]}, \ldots, \mathbf{z}^{[L]}, \mathbf{a}^{[L]} = h_{\boldsymbol{\theta}} (\mathbf{x}^{(n)})
+      \end{equation}
       
       \item \textit{Back Propagation}: 
       \begin{enumerate}
-          \item Evaluate the $\boldsymbol{\delta}^{[l]}$'s starting from the back with the formula 
-          \begin{align*}
-              \boldsymbol{\delta}^{[L]} & = \bigg( \frac{\partial \mathbf{g}}{\partial \mathbf{z}^{[L]}} \bigg)^T \bigg( \frac{\partial E_n}{\partial \mathbf{a}^{[L]}} \bigg) \\
-              \boldsymbol{\delta}^{[l]} & = \boldsymbol{\sigma}^\prime (\mathbf{z}^{[l]}) \odot (\mathbf{W}^{[l+1]})^T \boldsymbol{\delta}^{[l+1]} \;\;\;\;\; l = 1, \ldots, L-1
-          \end{align*}
-          where $\frac{\partial \mathbf{g}}{\partial \mathbf{z}^{[L]}}$ can be found by taking the derivative of the known link function, and the rest of the terms are found by forward propagation (these are all functions which have been fixed in value by inputting $\mathbf{x}^{(n)}$).  
+        \item Evaluate the $\boldsymbol{\delta}^{[l]}$'s starting from the back with the formula 
+        \begin{align}
+          \boldsymbol{\delta}^{[L]} & = \bigg( \frac{\partial \mathbf{g}}{\partial \mathbf{z}^{[L]}} \bigg)^T \bigg( \frac{\partial E_n}{\partial \mathbf{a}^{[L]}} \bigg) \\
+          \boldsymbol{\delta}^{[l]} & = \boldsymbol{\sigma}^\prime (\mathbf{z}^{[l]}) \odot (\mathbf{W}^{[l+1]})^T \boldsymbol{\delta}^{[l+1]} \;\;\;\;\; l = 1, \ldots, L-1
+        \end{align}
+        where $\frac{\partial \mathbf{g}}{\partial \mathbf{z}^{[L]}}$ can be found by taking the derivative of the known link function, and the rest of the terms are found by forward propagation (these are all functions which have been fixed in value by inputting $\mathbf{x}^{(n)}$).  
 
-          \item Calculate the derivatives of the error as 
-          \[\frac{\partial E_n}{\partial \mathbf{W}^{[l]}} = \boldsymbol{\delta}^{[l]} (\mathbf{a}^{[l-1]})^T, \;\;\;\;\; \frac{\partial E_n}{\partial \mathbf{b}^{[l]}} = \boldsymbol{\delta}^{[l]}\]
+        \item Calculate the derivatives of the error as 
+        \begin{equation}
+          \frac{\partial E_n}{\partial \mathbf{W}^{[l]}} = \boldsymbol{\delta}^{[l]} (\mathbf{a}^{[l-1]})^T, \;\;\;\;\; \frac{\partial E_n}{\partial \mathbf{b}^{[l]}} = \boldsymbol{\delta}^{[l]}
+        \end{equation}
       \end{enumerate}
       
       \item \textit{Gradient Descent}: Subtract the derivatives with step size $\alpha$. That is, for $l = 1, \ldots, L$, 
-      \[\mathbf{W}^{[l]} = \mathbf{W}^{[l]} - \alpha \frac{\partial E_n}{\partial \mathbf{W}^{[l]}} , \;\;\;\;\; \mathbf{b}^{[l]} = \mathbf{b}^{[l]} - \alpha \frac{\partial E_n}{\partial \mathbf{b}^{[l]}}\]
+      \begin{equation}
+        \mathbf{W}^{[l]} = \mathbf{W}^{[l]} - \alpha \frac{\partial E_n}{\partial \mathbf{W}^{[l]}} , \;\;\;\;\; \mathbf{b}^{[l]} = \mathbf{b}^{[l]} - \alpha \frac{\partial E_n}{\partial \mathbf{b}^{[l]}}
+      \end{equation}
       The specific optimizer can differ, e.g. Adam, SGD, BFGS, etc., but the specific algorithm won't be covered here. It is common to use Adam, since it usually works better. If we can afford to iterate over the entire batch, L-BFGS may also be useful. 
     \end{enumerate}
+  \end{algo}
 
-    \begin{code}[Neural Net from Scratch]
-      Now it's time to implement what most newcomers fear most: a neural net from scratch using only numpy. Doing this will get you to understand the inner workings of a neural net, and you can find the relevant code \href{code/01_MLP/mlp_from_scratch.ipynb}{here}.  
-    \end{code} 
+  \begin{code}[Neural Net from Scratch]
+    Now it's time to implement what most newcomers fear most: a neural net from scratch using only numpy. Doing this will get you to understand the inner workings of a neural net, and you can find the relevant code \href{code/01_MLP/mlp_from_scratch.ipynb}{here}.  
+  \end{code} 
 
-    \begin{code}[Pytorch Implementation of Forward and Backward Propagation]
-      Once you have finished implementing from scratch, you can now use the PyTorch API to access the same model weights. The code \href{code/01_MLP/forward_backward.ipynb}{here} shows how to look at the forward propagation and backpropagation steps in PyTorch in intermediate layers and shows the backend behind storing gradients. 
-    \end{code}
+  \begin{code}[Pytorch Implementation of Forward and Backward Propagation]
+    Once you have finished implementing from scratch, you can now use the PyTorch API to access the same model weights. The code \href{code/01_MLP/forward_backward.ipynb}{here} shows how to look at the forward propagation and backpropagation steps in PyTorch in intermediate layers and shows the backend behind storing gradients. 
+  \end{code}
+
+\subsection{Overparamterization is Good?} 
+
+  Given that the input dimension is $D$, say that all the hidden layers are of dimension $D$ and we have $L$ layers. Then, we are storing a matrix (plus bias vector) at each layer, resulting in a scaling of $O(D^2 L)$. This quadratic scaling leads to overparameterized models, which should raise a red flag. This naturally leads to overfitting, but a strange phenomenon occurs.\footnote{I found this from Lex Fridman's podcast with Ilya Sutskever.}  
+  \begin{enumerate}
+    \item In the beginning, the training loss goes down along with the validation loss. 
+    \item Soon the validation loss starts to go up while the training loss goes down, leading to overfitting. 
+    \item The overfitting is worst when the training loss is $0$. 
+    \item At this point, the training loss remains at $0$, but generalization starts to improve, and mysteriously the validation loss starts going down. 
+  \end{enumerate}
+
+  There are many theories of why the last step ever happens. To interpret this, let's revisit what overfitting means. It means that small perturbations of the inputs will result in large variances in the outputs. If we generalize well, $x + \epsilon$ should also result in $f(x) + O(\epsilon)$. Therefore, this means that the more parameters it has, the better this stability is and therefore the more robust the model. How should we measure this sense of stability? In analysis, a metric to assess the robustness of a deep neural net $f_\theta: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ is its Lipshitz constant, which effectively bounds how much $f$ can change given some change in $x$. 
+
+  \begin{definition}[Lipshitz Continuity]
+    A function $f: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ is called \textbf{Lipshitz continuous} if there exists a constant $L$ such that for all $x, y \in \mathbb{R}^n$
+    \begin{equation}
+      ||f(x) - f(y)||_2 \leq L ||x - y||_2
+    \end{equation}
+    and the smallest $L$ for which the inequality is true is called the \textbf{Lipshitz constant}, denoted $\mathrm{Lip}(f)$. 
+  \end{definition}
+
+  \begin{theorem}[Lipschitz Upper Bound with Operator Norm of Total Derivative]
+    If $f: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ is Lipschitz continuous, then 
+    \begin{equation}
+      \mathrm{Lip}(f) = \sup_{x \in \mathbb{R}^n} ||D_x f||_{\mathrm{op}}
+    \end{equation}
+    where $||\cdot ||_{\mathrm{op}}$ is the operator norm of a matrix. In particular, if $f$ is scalar-valued, then its Lipschitz constant is the maximum norm of its gradient on its domain 
+    \begin{equation}
+      \mathrm{Lip}(f) = \sup_{x \in \mathbb{R}^n} ||\nabla f(x)||_2
+    \end{equation}
+  \end{theorem}
+
+  The above theorem makes sense, since indeed the stability of the function should be equal to the stability of its "maximum" linear approximation $D_x f$. 
+
+  \begin{theorem}[Lipschitz Upper Bound for MLPs]
+    It has already been shown that for a $K$-layer MLP
+    \begin{equation}
+      h_\theta (\mathbf{x}) \coloneqq \mathbf{T}_K \circ \boldsymbol{\rho}_{K-1} \circ \mathbf{T}_{K-1} \circ \cdots \circ \boldsymbol{\rho}_1 \circ \mathbf{T}_1 (\mathbf{x})
+    \end{equation}
+    the Lipshitz constant for an affine map $\mathbf{T}_k (\mathbf{x}) = M_k \mathbf{x} + b_k$ is simply the operator norm (largest singular value) of $M_k$, while that of an activation function is always bounded by some well-known constant, usually $1$. So, the Lipshitz constant of the entire composition $h$ is simply the product of all operator norms of $M_k$. 
+  \end{theorem}
+
+  What about $K$-computable functions in general? That is, given a function $f: \mathbb{R}^n \longrightarrow \mathbb{R}^m$ with 
+  \begin{align}
+    v_0 (\mathbf{x}) & = \mathbf{x} \\ 
+    v_1 (\mathbf{x}) & = g_1 \big(v_0(\mathbf{x}) \big) \\
+    v_2 (\mathbf{x}) & = g_2 \big(v_0(\mathbf{x}), v_1 (\mathbf{x}) \big) \\ 
+    \ldots & = \ldots \\
+    v_k (\mathbf{x}) & = g_k \big(v_0 (\mathbf{x}), v_1(\mathbf{x}), \ldots, v_{k-1} (\mathbf{x}) \big) \\
+    \ldots & = \ldots \\
+    v_K (\mathbf{x}) & = g_K \big(v_0(\mathbf{x}), v_1 (\mathbf{x}), \ldots, v_{K-2}(\mathbf{x}), v_{K-1}(\mathbf{x}) \big)
+  \end{align}
+  where $v_k: \mathbb{R}^n \longrightarrow \mathbb{R}^{n_k}$, with $n_0 = n$ and $n_K = m$, and 
+  \begin{equation}
+    g_k : \prod_{i=0}^{k-1} \mathbb{R}^{n_i} \longrightarrow \mathbb{R}^{n_k}
+  \end{equation}
+  To differentiate $v_k$ w.r.t. $\mathbf{x}$, we can use the chain rule, resulting in the total derivative 
+  \begin{equation}
+    \underbrace{\frac{\partial v_k}{\partial \mathbf{x}}}_{n_k \times n} = \sum_{i=1}^{k-1} \underbrace{\frac{\partial g_k}{\partial v_i}}_{n_k \times n_i} \, \underbrace{\frac{\partial v_i}{\partial \mathbf{x}}}_{n_i \times n}
+  \end{equation}
+
+  Therefore, it is this Lipschitz property that might entail how stable an MLP is. We have seen from the universal approximation theorems that for a data set of any size, we can always fit a one-layer perceptron that perfectly fits through all of them, given that the layer is large enough. In these cases, we are interested in fitting the data \textit{smoothly}, and theoretical research in bounding the Lipschitz constant is popular.
+
+  In practice this behavior is reflected in \textit{most} cases, but they may be very sensitive in some cases, which we call \textit{adversarial examples}. Adversarial examples take advantage of this weakness by adding carefully chosen perturbations that drastically change the output of the network. Adversarial machine learning attempts to study these weaknesses and hopefully use them to create more robust models. It is natural to expect that the precise configuration of the minimal necessary perturbations is a random artifact of the normal variability that arises in different runs of backpropagation learning. Yet, it has been found that adversarial examples are relatively robust, and are shared by neural networks with varied number of layers, activations or trained on different subsets of the training data. This suggest that the deep neural networks that are learned by backpropagation have \textit{intrinsic} blind spots, whose structure is connected to the data distribution in a non-obvious way. 
+
+\subsection{Engineering Heuristics}
 
   \subsection{Optimizers}
 
@@ -561,7 +659,9 @@
 
     \begin{definition}[Xavier Initialization]
       The \textbf{Xavier initialization} simply initializes each weight as a uniform distribution, with its range dependent on the size of the input. 
-        \[w_{ij}^{[l]} \sim U \bigg( -\frac{1}{\sqrt{N^{[l-1]}}}, \frac{1}{\sqrt{N^{[l-1]}}} \bigg)\]
+      \begin{equation}
+        w_{ij}^{[l]} \sim U \bigg( -\frac{1}{\sqrt{N^{[l-1]}}}, \frac{1}{\sqrt{N^{[l-1]}}} \bigg)
+      \end{equation}
       where $N^{[l-1]}$ is the number of neurons in the previous layer. This is a good rule of thumb for the weights, but the biases can be initialized to $0$ (though they are also initialized uniformly by default).
     \end{definition}
 
@@ -578,8 +678,9 @@
       \begin{enumerate}
         \item The saturated neurons ``kill" the gradients, since if the input at any one point in the layers is too positive or negative, the gradient will vanish, making very small updates. This is known as the \textbf{vanishing gradient problem}. Therefore, the more layers a neural network has, the more likely we are to see this vanishing gradient problem. 
         \item Sigmoid functions are not zero centered (i.e. its graph doesn't cross the point $(0, 0)$ ). Consider what happens when the input $x$ to a neuron is always positive. Then, the sigmoid $f$ will have a gradient of 
-        \[f \bigg( \sum_i w_i x_i + b \bigg) \implies \frac{\partial f}{\partial w_i} = f^\prime \bigg( \sum_i w_i x_i + b \bigg) 
-        \, x_i\]
+        \begin{equation}
+          f \bigg( \sum_i w_i x_i + b \bigg) \implies \frac{\partial f}{\partial w_i} = f^\prime \bigg( \sum_i w_i x_i + b \bigg)\, x_i
+        \end{equation}
         which means that the gradients $\nabla_\mathbf{w} f$ will always have all positive elements or all negative elements, meaning that we will be restricted to moving in certain nonoptimal directions when updating our parameters. 
       \end{enumerate}
     \end{definition} 
@@ -604,19 +705,27 @@
 
     \begin{definition}[Leaky ReLU]
       The leaky ReLU 
-      \[\sigma(x) = \max\{0.01 x, x\}\]
+      \begin{equation}
+        \sigma(x) = \max\{0.01 x, x\}
+      \end{equation}
       does not saturate (i.e. gradient will not die), is computationally efficient, and converges much faster than sigmoid/tanh in practice. We can also parameterize it with $\alpha$ and have the neural net optimize $\alpha$ along with the weights. 
-      \[\sigma(x) = \max\{\alpha x, x\}\]
+      \begin{equation}
+        \sigma(x) = \max\{\alpha x, x\}
+      \end{equation}
     \end{definition}
 
     \begin{definition}[ELU]
       The exponential linear unit has all the benefits of ReLU, with closer to mean outputs. It has a negative saturation regime compared with leaky ReLU, but it adds some robustness to noise. 
-        \[\sigma(x) = \begin{cases} x & \text{ if } x > 0 \\ \alpha \big(\exp{x} - 1 \big) & \text{ if } x \leq 0 \end{cases}\]
+      \begin{equation}
+        \sigma(x) = \begin{cases} x & \text{ if } x > 0 \\ \alpha \big(\exp{x} - 1 \big) & \text{ if } x \leq 0 \end{cases}
+      \end{equation}
     \end{definition}
 
     \begin{definition}[SELU]
       The scaled exponential linear unit is a self-normalizing activation function, which means that it preserves the mean and variance of the input. This is useful for deep networks, since the mean and variance of the input will be preserved through the layers. Its formula is 
-        \[\sigma(x) = \lambda \begin{cases} x & \text{ if } x > 0 \\ \alpha \big(\exp{x} - 1 \big) & \text{ if } x \leq 0 \end{cases}\]
+      \begin{equation}
+        \sigma(x) = \lambda \begin{cases} x & \text{ if } x > 0 \\ \alpha \big(\exp{x} - 1 \big) & \text{ if } x \leq 0 \end{cases}
+      \end{equation}
       where $\lambda$ and $\alpha$ are constants.
     \end{definition}
     
@@ -624,13 +733,17 @@
 
     \begin{definition}[Swish]
       The Swish activation function is defined as 
-      \[\sigma(x) = x \cdot \sigma(\beta x) \]
+      \begin{equation}
+        \sigma(x) = x \cdot \sigma(\beta x) 
+      \end{equation}
       where $\beta$ is a parameter that can be learned. 
     \end{definition}
 
     \begin{definition}[Mish]
       The Mish activation function is defined as 
-        \[\sigma(x) = x \cdot \tanh(\ln(1 + \exp(x))) \]
+      \begin{equation}
+        \sigma(x) = x \cdot \tanh(\ln(1 + \exp(x))) 
+      \end{equation}
     \end{definition}
 
     \begin{code}[Generating Graphs] 
@@ -668,13 +781,136 @@
       \item Batch size: The dataloader stores the dataset (which can be several hundred GBs) in the drive, and extracts batches into memory for processing. You should set your batch sizes so that they can fit into the GPU memory, which is often smaller than the CPU memory. 
     \end{enumerate}
 
-  \subsection{Diagnosing Neural Nets}
-    
-    We should learn how to diagnose neural nets by visualizing some of the information stored in it. In here, we give three different ways: 
+\subsection{Exercises} 
 
-    \begin{enumerate} 
-      \item Visualize the weights of the neural net with heatmap. 
-      \item Visualize the outputs of a neural net with UMAP. 
-      \item Visualize the gradients of the neural net with a heatmap. 
+  \begin{exercise}[Tarokh, ECE685 2021 Midterm 1.1]
+    Let $x \in \mathbb{R}$ denote a random variable with the following \textit{cumulative distribution function} 
+    \begin{equation}
+      F(x) = \exp \bigg( - \exp \bigg( - \frac{x - \mu}{\beta} \bigg) \bigg)
+    \end{equation}
+    where $\mu$ and $\beta > 0$ denote the location and scale parameters, respectively. Let $\mathcal{D} = \{x_1, \ldots, x_n\}$ be a set of $n$ iid observations of $x$. 
+    \begin{enumerate}
+      \item Write an equation for a cost function $L(\mu, \beta \mid \mathcal{D})$ whose minimization gives the maximum likelihood estimates for $\mu$ and $\beta$. 
+      \item Compute the derivatives of $L(\mu, \beta \mid \mathcal{D})$ with respect to $\mu$ and $\beta$ and write a system of equations whose solution gives the MLEs of $\mu$ and $\beta$. 
     \end{enumerate}
+  \end{exercise}
+  \begin{solution}
+    We can derive the PDF of the observation as 
+    \begin{equation}
+      f(x; \mu, \beta) = \frac{d F(x)}{dx} = \frac{1}{\beta} \exp \bigg\{ - \bigg( \frac{x - \mu}{\beta} + \exp \Big( - \frac{x - \mu}{\beta}\Big) \bigg) \bigg\}
+    \end{equation}
+    and the likelihood is then 
+    \begin{equation}
+      L(\mu, \beta \mid \mathcal{D}) = \prod_{i=1}^N \frac{1}{\beta} \exp \bigg\{ - \bigg( \frac{x^{(i)} - \mu}{\beta} + \exp \Big( - \frac{x^{(i)} - \mu}{\beta}\Big) \bigg) \bigg\}
+    \end{equation}
+    Rather than maximizing this likelihood, we minimize the negative log of it, defined as 
+    \begin{equation}
+      \ell(\mu, \beta \mid \mathcal{D}) = - \ln L(\mu, \beta \mid \mathcal{D}) = N \ln{\beta} + \frac{\sum_{i} x^{(I)} - N \mu}{\beta} + \sum_{i=1}^N \exp \Big( - \frac{x^{(i)} - \mu}{\beta} \Big)
+    \end{equation}
+    The derivatives of $\ell$ can be computed simply by using the derivative rules.  
+    \begin{align}
+      \frac{\partial \ell}{\partial \mu} & = - \frac{N}{\beta} + \frac{1}{\beta} \sum_{i=1}^N \exp \Big( - \frac{x^{(i)} - \mu}{\beta} \Big) \\
+      \frac{\partial \ell}{\partial \beta} & = \frac{N}{\beta} - \frac{\sum_{i} x^{(i)} - N \mu}{\beta^2} + \frac{1}{\beta^2} \sum_{i=1}^N (x^{(i)} - \mu) \exp \Big( - \frac{x^{(i)} - \mu}{\beta} \Big)
+    \end{align}
+    and so the MLE estimates that minimizes $\ell$ can be found by setting the equations above equal to $0$. 
+  \end{solution}
+
+  \begin{exercise}[ECE 685 Fall 2021 Midterm 1.2]
+    The figure depicts a simple neural network with one hidden layer. The inputs to the network are denoted by $x_1, x_2, x_3$, and the output is denoted by $y$. The activation functions of the neurons in the hidden layer are given by $h_1 (z) = \sigma(z), h_2 (z) = \tanh(z)$, and the output unit activation function is $g(z) = z$, where $\sigma(z) = \frac{1}{1 + \exp(-z)}$ and $\tanh(z) = \frac{\exp(z) - \exp(-z)}{\exp(z) + \exp(-z)}$ are the logistic sigmoid and hyperbolic tangent, respectively. The biases $b_1, b_2$ are added to the inputs of the neurons int he hidden layer before passing them through the activation functions. let 
+    \begin{equation}
+      \mathbf{w} = (b_1, b_2, w_{11}^{(1)}, w_{12}^{(1)}, w_{21}^{(1)}, w_{31}^{(1)}, w_{32}^{(1)}, w_1^{(2)}, w_2^{(2)})
+    \end{equation}
+    denote the vector of network parameters. 
+    \begin{enumerate}
+      \item Write the input output relation $y = f(x_1, x_2, x_3 ; \mathbf{w})$ in explicit form. 
+
+      \item Let $\mathcal{D} = \{(x_{1, n}, x_{2, n}, x_{3, n})\}$ denote a training dataset of $N$ points where $y_n \in \mathbb{R}$ are labels of the corresponding data points. We want to estimate the network parameters $\mathbf{w}$ using $\mathcal{D}$ by minimizing the mean squared error loss 
+      \begin{equation}
+        L(\mathbf{w}) = \frac{1}{2} \sum_{n=1}^N \big( f(x_{1, n}, x_{2, n}, x_{3, n}; \mathbf{w}) - y_n \big)^2
+      \end{equation}
+      Compute the gradient of $L(\mathbf{w})$ with respect to the network parameters $\mathbf{w}$. 
+
+      \item Write pseudo code for one iteration for minimizing $L(\mathbf{w})$ with respect to the network parameters $\mathbf{w}$ using SGD with learning rate $\eta > 0$. 
+    \end{enumerate}
+
+    \begin{center}
+      \includegraphics[scale=0.4]{img/01_MLP/tarokhfig1.png}
+    \end{center}
+  \end{exercise}
+  \begin{solution}
+    We can write the computation graph as 
+    \begin{align} 
+      z_1^{(1)} & = w_{11}^{(1)} x_1 + w_{21}^{(1)} x_2 + w_{31}^{(1)} x_3 + b_1 \\
+      z_2^{(1)} & = w_{12}^{(1)} x_1 + w_{32}^{(1)} x_3 + b_2 \\
+      a_1^{(1)} & = \sigma(z^{(1)})\\
+      a_2^{(1)} & = \tanh(z_2^{(1)}) \\
+      z^{(2)} & = w_{1}^{(2)} a_1^{(1)} + w_2^{(2)} a_2^{(1)} \\
+      y = a^{(2)} & = g(z^{(2)})
+    \end{align}
+    and composing these gives 
+    \begin{equation}
+      y = w_1^{(2)} \sigma(w_{11}^{(1)} x_1  + w_{21}^{(1)} x_2 + w_{31}^{(1)} x_3 + b_1) + w_2^{(2)} \tanh(w_{12}^{(1)} x_1 + w_{32}^{(1)} x_3 + b_2)
+    \end{equation}
+    The gradient of the network can be written as 
+    \begin{align}
+      \nabla_\mathbf{w} L(\mathbf{w}) & = \frac{1}{2} \sum_{n=1}^N \nabla_\mathbf{w} \big( f(x_{1, n}, x_{2, n}, x_{3, n}; \mathbf{w}) - y_n \big)^2 \\
+      & = \sum_{n=1}^N (f(x_{1, n}, x_{2, n}, x_{3, n}; \mathbf{w}) - y_n) \nabla_\mathbf{w} f(x_{1, n}, x_{2, n}, x_{3, n})
+    \end{align}
+    where 
+    \begin{equation}
+      \nabla_\mathbf{w} f(x_{1, n}, x_{2, n}, x_{3, n}) = \frac{\partial f}{\partial \mathbf{w}} \bigg|_{\mathbf{x} = \mathbf{x}^{(n)}}
+    \end{equation}
+    Now we can take derivatives using chain rule, working backwards, and using the derivative identities $\sigma^\prime (z)  = \sigma(z) (1 - \sigma(z))$ and $\tanh^\prime (z) = 1 - \tanh^2 (z)$. 
+    \begin{align}
+        \frac{\partial f}{\partial w_1^{(2)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial w_1^{(2)}} = a_1^{(1)} \\
+        \frac{\partial f}{\partial w_2^{(2)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial w_2^{(2)}} = a_2^{(1)} \\ 
+        \frac{\partial f}{\partial w_{11}^{(1)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_1} \frac{\partial a^{(1)}_1}{\partial z_1^{(1)}} \frac{\partial z_1^{(1)}}{\partial w_{11}^{(1)}} = w_1^{(2)} a_1^{(1)} (1 - a_1^{(1)}) x_1\\
+        \frac{\partial f}{\partial w_{21}^{(1)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_1} \frac{\partial a^{(1)}_1}{\partial z_1^{(1)}} \frac{\partial z_1^{(1)}}{\partial w_{21}^{(1)}} = w_1^{(2)} a_1^{(1)} (1 - a_1^{(1)}) x_2\\
+        \frac{\partial f}{\partial w_{31}^{(1)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_1} \frac{\partial a^{(1)}_1}{\partial z_1^{(1)}} \frac{\partial z_1^{(1)}}{\partial w_{31}^{(1)}} = w_1^{(2)} a_1^{(1)} (1 - a_1^{(1)}) x_3\\
+        \frac{\partial f}{\partial b_{1}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_1} \frac{\partial a^{(1)}_1}{\partial z_1^{(1)}} \frac{\partial z_1^{(1)}}{\partial b_{1}}  = w_1^{(2)} a_1^{(1)} (1 - a_1^{(1)}) \\
+        \frac{\partial f}{\partial w_{12}^{(1)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_2} \frac{\partial a^{(1)}_2}{\partial z_2^{(1)}} \frac{\partial z_2^{(1)}}{\partial w_{12}^{(1)}} = w_2^{(2)} (1 - (a_2^{(1)})^2 ) x_1\\
+        \frac{\partial f}{\partial w_{13}^{(1)}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_2} \frac{\partial a^{(1)}_2}{\partial z_2^{(1)}} \frac{\partial z_2^{(1)}}{\partial w_{13}^{(1)}} = w_2^{(2)} (1 - (a_2^{(1)})^2 ) x_3 \\
+        \frac{\partial f}{\partial b_{2}} & = \frac{\partial f}{\partial z^{(2)}} \frac{\partial z^{(2)}}{\partial a^{(1)}_2} \frac{\partial a^{(1)}_2}{\partial z_2^{(1)}} \frac{\partial z_2^{(1)}}{\partial b_{2}} = w_2^{(2)} (1 - (a_2^{(1)})^2 )
+    \end{align}
+    To compute one step of SGD, we must first choose a minibatch $\mathcal{M} \subset \mathcal{D}$ and then compute 
+    \begin{equation}
+      \nabla_{\mathbf{w}; \mathcal{M}} L(\mathbf{w}) = \sum_{(\mathbf{x}, y) \in \mathcal{M}} (f(\mathbf{x}; \mathbf{w}) - y) \nabla_{\mathbf{w}} f(\mathbf{x})
+    \end{equation}
+    where we compute the gradient simply over the minibatch. Then, we update the parameters according to 
+    \begin{equation}
+      \mathbf{w} = \mathbf{w} - \eta \nabla_{\mathbf{w}; \mathcal{M}} L(\mathbf{w})
+    \end{equation}
+  \end{solution}
+
+  \begin{exercise}[ECE 685 Fall 2021 Midterm 1.3]
+    Given the following neural network with 2 inputs $(x_1, x_2)$, fully-connected layers and ReLU activations. The weights and biases of hidden units are denoted $w$ and $b$, with $h$ as activation units. For example, 
+    \begin{equation}
+      h_1 = \mathrm{ReLU}(x_1 w_{11} + x_2 w_{21} + b_1)
+    \end{equation}
+    The outputs are denoted as $(y_1, y_2)$ and the ground truth targets are denoted as $(t_1, t_2)$. 
+    \begin{equation}
+      y_1  = \mathrm{ReLU} (h_1 w_{31} + h_2 w_{41} + b_3)
+    \end{equation}
+    \begin{center}
+      \includegraphics[scale=0.3]{img/01_MLP/nn_example.png} 
+    \end{center}
+    The values of the variables are given as follows: 
+    \begin{table}[H]
+      \centering
+      \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|c|}
+        \hline
+        $i_1$ & $i_2$ & $w_{11}$ & $w_{12}$ & $w_{21}$ & $w_{22}$ & $w_{31}$ & $w_{32}$ & $w_{41}$ & $w_{42}$ & $b_1$ & $b_2$ & $b_3$ & $b_4$ & $t_1$ & $t_2$ \\
+        \hline
+        1 & 2 & 1 & 0.5 & -0.5 & 1 & 0.5 & -2 & -1 & 0.5 & -0.5 & -0.5 & 1 & 1 & 2 & 4 \\
+        \hline
+      \end{tabular}
+    \end{table}
+    \begin{enumerate}
+      \item Compute the output $(y_1, y_2)$ of the input $(x_1, x_2)$ using the network parameters as specified above. 
+      \item Compute the mean squared error of the computed output and the target labels. 
+      \item Using the calculated MSE, update the weight $w_{31}$ using GD with $\eta = 0.01$. 
+      \item Do the same with weight $w_{42}$. 
+      \item Do the same with weight $w_{22}$.  
+    \end{enumerate}
+  \end{exercise}
 
