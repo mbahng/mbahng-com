@@ -3,9 +3,58 @@
   \subsection{Empirical Risk Minimizer} 
 
     You literally just try to build a hyperplane to minimize the number of misclassifications, but this is not really differentiable and is hard. It's just a stepwise function. Therefore, you use a \textbf{surrogate loss function} to approximate the 0-1 loss function. The logistic uses some function, and the SVM uses the smallest convex function to approximate the 0-1 loss function. Here are some examples: 
-    \begin{center}
-      \includegraphics[scale=0.35]{img/loss_functions_class.png}
-    \end{center}
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}
+          \draw[->] (-2.2,0) -- (2.2,0) node[right] {$yf(x)$};
+          \draw[->] (0,0) -- (0,3) node[above] {$1_{[yf(x)\leq0]}$};
+          \draw[red, thick] (-2,1) -- (0,1);
+          \draw[red, thick] (0,0) -- (2,0);
+          \node[align=center] at (0,-0.5) {Indicator Loss\\(0-1 Loss)};
+        \end{tikzpicture}
+        \caption{Indicator/0-1 Loss can't be easily optimized.}
+        \label{fig:indicator}
+      \end{subfigure}
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}
+          \draw[->] (-2.2,0) -- (2.2,0) node[right] {$yf(x)$};
+          \draw[->] (0,0) -- (0,3) node[above] {$e^{-yf(x)}$};
+          \draw[green!50!black, thick, domain=-2:2, samples=100] 
+            plot (\x, {0.5*exp(-0.7*\x)});
+        \end{tikzpicture}
+        \caption{Exponential Loss for Adaboost.}
+        \label{fig:exponential}
+      \end{subfigure}
+      
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}
+          \draw[->] (-2.2,0) -- (2.2,0) node[right] {$yf(x)$};
+          \draw[->] (0,0) -- (0,3) node[above] {$\log(1+e^{-yf(x)})$};
+          \draw[blue, thick, domain=-2:2, samples=100] 
+            plot (\x, {ln(1 + exp(-\x))});
+        \end{tikzpicture}
+        \caption{Log Loss for logistic regression. }
+        \label{fig:logistic}
+      \end{subfigure}
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}
+          \draw[->] (-2.2,0) -- (2.2,0) node[right] {$yf(x)$};
+          \draw[->] (0,0) -- (0,3) node[above] {$\max(0,1-yf(x))$};
+          \draw[cyan, thick] (-2,3) -- (1,0);
+          \draw[cyan, thick] (1,0) -- (2,0);
+        \end{tikzpicture}
+        \caption{Hinge Loss for support vector machines.}
+        \label{fig:hinge}
+      \end{subfigure}
+      \caption{Common loss functions used in classification}
+      \label{fig:loss_functions}
+    \end{figure}
 
   \subsection{Perceptron}
 
@@ -100,25 +149,29 @@
 
     \begin{theorem}[Maximum Likelihood Estimation for Logistic]
       Given a dataset $\mathcal{D} = \{(x^{(i)}, y^{(i)})\}_{i=1}^N$, our likelihood is 
-      \[L(\theta ; \mathcal{D}) = \prod_{i=1}^n p(y^{(i)} \;|\; x^{(i)} ; \theta) = \prod_{i=1}^N  \big( h_\theta (x^{(i)} )\big)^{y^{(i)}} \; \big( 1 - h_\theta (x^{(i)})\big)^{1-y^{(i)}}\]
+      \begin{equation}
+        L(\theta ; \mathcal{D}) = \prod_{i=1}^n p(y^{(i)} \;|\; x^{(i)} ; \theta) = \prod_{i=1}^N  \big( h_\theta (x^{(i)} )\big)^{y^{(i)}} \; \big( 1 - h_\theta (x^{(i)})\big)^{1-y^{(i)}}
+      \end{equation}
       We can equivalently minimize its negative log likelihood, giving us the \textbf{binary cross entropy} loss function
-      \begin{align*}
-          \ell(\theta) & = -\log L(\theta) \\
-          & = -\sum_{i=1}^n y^{(i)} \log h_\theta (x^{(i)}) + (1 - y^{(i)}) \log (1 - h_\theta (x^{(i)}))
-      \end{align*}
+      \begin{align}
+        \ell(\theta) & = -\log L(\theta) \\
+        & = -\sum_{i=1}^n y^{(i)} \log h_\theta (x^{(i)}) + (1 - y^{(i)}) \log (1 - h_\theta (x^{(i)}))
+      \end{align}
       Now taking the gradient for just a single sample $(x^{(i)}, y^{(i)})$ gives 
-      \begin{align*}
+      \begin{align}
           \frac{\partial \ell}{\partial \theta}  & = \bigg( \frac{y^{(i)}}{\sigma(\theta^T x^{(i)})} - \frac{1 - y^{(i)}}{1 - \sigma(\theta^T x^{(i)})} \bigg) \, \frac{\partial}{\partial \theta} \sigma (\theta^T x^{(i)}) \\
           & = \frac{\sigma(\theta^T x^{(i)}) - y^{(i)}}{\sigma(\theta^T x^{(i)}) \, \big( 1 - \sigma(\theta^T x^{(i)}) \big)} \sigma(\theta^T x^{(i)}) \, \big( 1 - \sigma(\theta^T x^{(i)}) \big) x^{(i)} \\
           & = \big( h_\theta (x^{(i)}) - y^{(i)} \big) x
-      \end{align*}
+      \end{align}
       and summing it over some minibatch $M \subset \mathcal{D}$ gives 
-      \[\nabla_\theta \ell_M = \sum_{(x, y) \in M} (y - h_\theta(x)) x\]
+      \begin{equation}
+        \nabla_\theta \ell_M = \sum_{(x, y) \in M} (y - h_\theta(x)) x
+      \end{equation}
       Therefore, the stochastic gradient descent algorithm is 
-      \begin{align*}
-          \theta & = \theta - \eta \nabla_\theta \ell (\theta) \\
-          & = \theta - \eta \sum_{(x, y) \in M} (y - h_\theta(x)) x
-      \end{align*}
+      \begin{align}
+        \theta & = \theta - \eta \nabla_\theta \ell (\theta) \\
+        & = \theta - \eta \sum_{(x, y) \in M} (y - h_\theta(x)) x
+      \end{align}
     \end{theorem}
 
     We would like to extend this to the multiclass case. 
@@ -126,7 +179,7 @@
     \begin{definition}[Softmax Function]
       The softmax function is defined 
       \begin{equation}
-      o(\mathbf{x}) = \frac{e^{\mathbf{x}}}{||e^{\mathbf{x}}||} = \frac{1}{\sum_j e^{x_j}}\begin{pmatrix} e^{x_1} \\ \vdots \\ e^{x_D} \end{pmatrix}
+        o(\mathbf{x}) = \frac{e^{\mathbf{x}}}{||e^{\mathbf{x}}||} = \frac{1}{\sum_j e^{x_j}}\begin{pmatrix} e^{x_1} \\ \vdots \\ e^{x_D} \end{pmatrix}
       \end{equation}
     \end{definition}
 
@@ -146,11 +199,11 @@
       We will provide a way that allows us not to use quotient rule. Given that we are taking the partial derivative of $y_i$ with respect to $x_j$, we can use the log of it to get 
       \[\frac{\partial}{\partial x_j} \log (y_i) = \frac{1}{y_i} \frac{\partial y_i}{\partial x_j} \implies \frac{\partial y_i}{\partial x_j} = y_i \, \frac{\partial}{\partial x_j} \log(y_i)\]
       Now the partial of the log term is 
-      \begin{align*}
+      \begin{align}
         \log{y_i} & = \log \bigg( \frac{e^{x_i}}{\sum_l e^{x_l}} = x_i - \log \bigg( \sum_l e^{x_l}\bigg) \\
         \frac{\partial}{\partial x_j} \log(y_i) & = \frac{\partial x_i}{\partial x_j} - \frac{\partial}{\partial x_j} \log \bigg( \sum_l e^{x_l}\bigg) \\
         & = 1_{i = j} - \frac{1}{\sum_l e^{x_l}} e^{x_j}
-      \end{align*}
+      \end{align}
       and plugging this back in gives 
       \begin{equation}
         \frac{\partial y_i}{\partial x_j} = y_i (1_{i = j} - y_j)
@@ -158,9 +211,13 @@
     \end{proof}
 
     It also turns out that the sigmoid is a specific case of the softmax. That is, given softmax for 2 classes, we have 
-    \[o\begin{pmatrix} x_1 \\ x_2 \end{pmatrix} = \frac{1}{e^{x_1} + e^{x_2}} \begin{pmatrix} e^{x_1} \\ e^{x_2} \end{pmatrix}\]
+    \begin{equation}
+      o\begin{pmatrix} x_1 \\ x_2 \end{pmatrix} = \frac{1}{e^{x_1} + e^{x_2}} \begin{pmatrix} e^{x_1} \\ e^{x_2} \end{pmatrix}
+    \end{equation}
     So, the probability of being in class $1$ is 
-    \[\frac{e^{x_1}}{e^{x_1} + e^{x_2}} = \frac{1}{1 + e^{x_2 - x_1}}\]
+    \begin{equation}
+      \frac{e^{x_1}}{e^{x_1} + e^{x_2}} = \frac{1}{1 + e^{x_2 - x_1}}
+    \end{equation}
     and the logistic sigmoid is just a special case of the softmax function that avoids using redundant parameters. We actually end up overparameterizing the softmax because the probabilities must add up to one. 
 
     \begin{definition}[Softmax Regression Model]
@@ -197,7 +254,9 @@
         L & = - \mathbf{y} \cdot \log (\mathbf{a}) = - \sum_{k=1}^K y_k \log(a_k)
       \end{align*}
       We must compute 
-      \[\frac{\partial L}{\partial \mathbf{W}} = \frac{\partial L}{\partial \mathbf{a}} \frac{\partial \mathbf{a}}{\partial \mathbf{z}} \frac{\partial \mathbf{z}}{\partial \boldsymbol{\theta}}\]
+      \begin{equation}
+        \frac{\partial L}{\partial \mathbf{W}} = \frac{\partial L}{\partial \mathbf{a}} \frac{\partial \mathbf{a}}{\partial \mathbf{z}} \frac{\partial \mathbf{z}}{\partial \boldsymbol{\theta}}
+      \end{equation}
       We can compute $\partial L /\partial \mathbf{z}$ as such, using our derivations for the softmax derivative above. We compute element wise. 
       \begin{align*}
         \frac{\partial L}{\partial z_j} & = - \sum_{k=1}^K y_k \, \frac{\partial}{\partial z_j} \log (a_k) \\
@@ -262,14 +321,67 @@
       \centering 
       \begin{subfigure}[b]{0.45\textwidth} 
         \centering 
-        \includegraphics[width=\textwidth]{img/svm_intro.png} 
+        \begin{tikzpicture}[scale=0.7]
+          % Draw axes
+          \draw[-] (-0.5,0) -- (9,0);
+          \draw[-] (0,-0.5) -- (0,7);
+          
+          % Intersection point
+          \coordinate (I) at (4,3);
+          
+          % Draw numbered lines
+          \draw[thick] (1,6) -- (7,1) node[right] {(1)};
+          \draw[thick] (1.5,5) -- (7,1.5) node[right] {(2)};
+          \draw[thick] (2,4) -- (7,2) node[right] {(3)};
+          \draw[thick] (0,3.2) -- (9,2.5) node[right] {(4)};
+          
+          % Add blue points (above lines)
+          \fill[blue] (3,4.6) circle (2pt);
+          \fill[blue] (4,4.2) circle (2pt);
+          \fill[blue] (5,4) circle (2pt);
+          \fill[blue] (6,3) circle (2pt);
+          \fill[blue] (4.5,4.5) circle (2pt);
+          
+          % Add red points (below lines)
+          \fill[red] (2,2.9) circle (2pt);
+          \fill[red] (3,2.4) circle (2pt);
+          \fill[red] (3.5,1.8) circle (2pt);
+          \fill[red] (4.5,2) circle (2pt);
+          \fill[red] (6,1.3) circle (2pt);
+        \end{tikzpicture}
         \caption{Planes such as (1) and (4) are ``too close" to the positive and negative samples. } 
         \label{fig:svm_intro_1}
       \end{subfigure}
       \hfill
       \begin{subfigure}[b]{0.45\textwidth} 
         \centering 
-        \includegraphics[width=\textwidth]{img/svm_intro_2.png}  
+        \begin{tikzpicture}[scale=0.7]
+          % Draw axes
+          \draw[-] (-0.5,0) -- (9,0);
+          \draw[-] (0,-0.5) -- (0,7);
+          
+          % Intersection point
+          \coordinate (I) at (4,3);
+          
+          % Draw numbered lines
+          \draw[thick] (1,5) -- (7,1.5);
+          \draw[dotted, thick] (1,5.8) -- (7,2.3);
+          \draw[dotted, thick] (1,4.2) -- (7,0.7);
+          
+          % Add blue points (above lines)
+          \fill[blue] (3,4.6) circle (2pt);
+          \fill[blue] (4,4.2) circle (2pt);
+          \fill[blue] (5,4) circle (2pt);
+          \fill[blue] (6,3) circle (2pt);
+          \fill[blue] (4.5,4.5) circle (2pt);
+          
+          % Add red points (below lines)
+          \fill[red] (2,2.9) circle (2pt);
+          \fill[red] (3,2.4) circle (2pt);
+          \fill[red] (3.5,1.8) circle (2pt);
+          \fill[red] (4.5,2) circle (2pt);
+          \fill[red] (6,1.3) circle (2pt);
+        \end{tikzpicture}
         \caption{SVMs try to find the separating hyperplane with the best minimum margin.} 
         \label{fig:svm_intro2}
       \end{subfigure} 
