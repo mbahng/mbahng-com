@@ -1,12 +1,10 @@
 \section{Multi-Layered Perceptrons} 
 
-  Why do we even \textit{need} deep neural networks in the first place? Well with classical machine learning, the models that we worked with were ``simple' enough\footnote{I am using simple in a very loose sense, since this doesn't really mean that the model space is finite-dimensional or have any correlation with complexity.} to interpret. For example, linear regression had a simple parametric form, and decision trees, though nonlinear and nonparametric, were very interpretable both in training and prediction. However, it may be that the very notion of interpretability is limiting the power of our models. Maybe the world is so complex that it may not be even possible to model it with these interpretable functions. Therefore, we should try to create a model with a simple enough parametrization, but something that is expressive enough to cover an extremely large space of functions. This may sound contradictory, but it is possible. We build upon what we already know: generalized linear models. 
-
-  In simple regression, we transform the inputs into the relevant features $\mathbf{x}_n \mapsto \boldsymbol{\phi} (\mathbf{x}_n) = \boldsymbol{\phi}_n$ and then, when we construct a generalized linear model, we assume that the conditional distribution $Y \mid X = x$ is in the canonical exponential family, with some natural parameter $\eta(x)$ and expected mean $\mu(x) = \mathbb{E}[Y \mid X = x]$. Then, to choose the link function $g$ that related $g(\mu(x)) = x^T \beta$, we can set it to be the canonical link $g$ that maps $\mu$ to $\eta$. That is, we have $g(\mu(x)) = x^T \beta = \eta (x)$ such that the natural parameter is linearly dependent on the input. The inverse $g^{-1}$ of the link function is called the \textbf{activation function}, which connects the expected mean to a linear function of $x$. 
+  We build upon what we already know: generalized linear models. In simple regression, we transform the inputs into the relevant features $\mathbf{x}_n \mapsto \boldsymbol{\phi} (\mathbf{x}_n) = \boldsymbol{\phi}_n$ and then, when we construct a generalized linear model, we assume that the conditional distribution $Y \mid X = x$ is in the canonical exponential family, with some natural parameter $\eta(x)$ and expected mean $\mu(x) = \mathbb{E}[Y \mid X = x]$. Then, to choose the link function $g$ that related $g(\mu(x)) = x^T \beta$, we can set it to be the canonical link $g$ that maps $\mu$ to $\eta$. That is, we have $g(\mu(x)) = x^T \beta = \eta (x)$ such that the natural parameter is linearly dependent on the input. The inverse $g^{-1}$ of the link function is called the \textbf{activation function}, which connects the expected mean to a linear function of $x$. 
   \begin{equation}
     h_\beta (x) = g^{-1} (x^T \beta) = \mu(x) = \mathbb{E}[Y \mid X = x]
   \end{equation}
-  Now, note that for a classification problem, the decision boundary defined in the $\boldsymbol{\phi}$ feature space is linear, but it may not be linear in the input space $\mathcal{X}$. 
+  Now, note that for a classification problem, the decision boundary defined in the $\boldsymbol{\phi}$ feature space is linear, but it may not be linear in the input space $\mathcal{X}$. We would like to extend this model by making the basis functions $\boldsymbol{\phi}_n$ depend on the parameters $\mathbf{w}$ and then allow these parameters to be adjusted during training. 
 
   \begin{figure}[H]
     \centering
@@ -41,8 +39,6 @@
     \label{fig:logistic_transformed}
   \end{figure}
 
-  We would like to extend this model by making the basis functions $\boldsymbol{\phi}_n$ depend on the parameters $\mathbf{w}$ and then allow these parameters to be adjusted during training. 
-
 \subsection{Feedforward Fully-Connected Networks}
 
   So how should we construct parametric nonlinear basis functions? One way is to have a similar architecture as GLMs by having a linear map followed by an activation function $f(x) = \sigma(w^T x + b)$. The simplest such function with the activation function as the step function 
@@ -71,15 +67,123 @@
       \item The inputs will be labeled $\mathbf{x} = a^{[0]}$ which is in $\mathbb{R}^{N^{[0]}} = \mathbb{R}^D$. 
       
       \item We map $a^{[l]} \in \mathbb{R}^{N^{[l]}} \mapsto W^{[l+1]} a^{[l]} + b^{[l+1]}= z^{[l+1]} \in \mathbb{R}^{N^{[l+1]}}$, where $z$ denotes a vector after an affine transformation. 
+
       \item We map $z^{[l+1]} \in \mathbb{R}^{N^{[l+1]}} \mapsto \sigma(z^{[l+1]}) = a^{[l+1]} \in \mathbb{R}^{N^{[l+1]}}$, where $a$ denotes a vector after an activation function. 
-      \item We keep doing this until we reach the second last layer with vector $a^{[L-1]}$. 
-      \item Now we want our last layer to be our predicted output. Based on our assumptions of the problem, we construct a generalized linear model with some inverse link function $g$. We perform one more affine transformation $a^{[L-1]} \mapsto W^{[L]} a^{[L-1]} + b^{[L]} = z^{[L]}$, followed by the link function to get our prediction: $a^{[L]} = g(z^{[L]}) = h_{\theta} (\mathbf{x}) \in \mathbb{R}^M$. 
+
+      \item We keep doing this until we reach the second last layer with vector $a^{[L-1]}$. Note that in the last layer we do \textit{not} apply an activation function. 
     \end{enumerate}
 
     \begin{figure}[H]
       \centering 
-      \includegraphics[scale=0.17]{img/01_MLP/Multilayer_Neural_Net.jpg}
-      \caption{If there does not exist any edge from a potential input $x$ to an output $y$, then this means that $x$ is not relevant in calculating $y$. However, we usually work with \textbf{fully-connected neural networks}, which means that every input is relevant to calculating every output, since we usually cannot make assumptions about which variables are relevant or not. We can stack multiple neurons such that one neuron passes its output as input into the next neuron, resulting in a more complex function. } 
+      \begin{tikzpicture}[
+        scale=0.8, 
+        node distance=2cm,
+        neuron/.style={circle, draw, minimum size=0.8cm, inner sep=1pt, font=\small},
+        annotation/.style={text width=3cm},
+        >=latex
+      ]
+        % Define some variables for consistent spacing
+        \def\layersep{2.3}
+        \def\neuronsep{1.4}
+        \def\boxwidth{1.7}
+        \def\boxheight{8}
+        
+        % Add dimension annotations above boxes in red
+        \node[red] at (0, \boxheight/2 + 0.8) {$x = a^{0]} \in \mathbb{R}^d$};
+        \node[red] at (\layersep, \boxheight/2 + 0.8) {$a^{[1]} \in \mathbb{R}^{m_1}$};
+        \node[red] at (2*\layersep, \boxheight/2 + 0.8) {$a^{[2]} \in \mathbb{R}^{m_2}$};
+        \node[red] at (3*\layersep, \boxheight/2 + 0.8) {$a^{[3]} \in \mathbb{R}^{m_3}$};
+        \node[red] at (4*\layersep, \boxheight/2 + 0.8) {$a^{[r-1]} \in \mathbb{R}^{m_{r-1}}$};
+        \node[red] at (5*\layersep, \boxheight/2 + 0.8) {$y \in a^{[r]} \in \mathbb{R}$};
+        
+        % Draw boxes
+        \foreach \x in {0,1,2,3,4,5} {
+            \draw[red!40] (\x*\layersep-\boxwidth/2, -\boxheight/2 + 0.5) rectangle (\x*\layersep+\boxwidth/2, \boxheight/2 + 0.4);
+        }
+        
+        % Input layer (x) with adjusted vertical spacing
+        \node[neuron] (x1) at (0, 3) {$x_1$};
+        \node[neuron] (x2) at (0, {3-\neuronsep}) {$x_2$};
+        \node[neuron] (x3) at (0, {3-2*\neuronsep}) {$x_3$};
+        \node at (0, {3-2.6*\neuronsep}) {$\vdots$};
+        \node[neuron] (xd) at (0, {3-3.4*\neuronsep}) {$x_d$};
+        
+        % Hidden layers with matching spacing pattern
+        \foreach \l in {1,2,3} {
+            \node[neuron] (a\l1) at (\l*\layersep, 3.5) {$a^{[\l]}_1$};
+            \node[neuron] (a\l2) at (\l*\layersep, {3.5-\neuronsep}) {$a^{[\l]}_2$};
+            \node[neuron] (a\l3) at (\l*\layersep, {3.5-2*\neuronsep}) {$a^{[\l]}_3$};
+            \node at (\l*\layersep, {3.5-2.6*\neuronsep}) {$\vdots$};
+            \node[neuron] (a\l m1) at (\l*\layersep, {3.5-3.4*\neuronsep}) {$a^{[\l]}_{m_{\l}-1}$};
+            \node[neuron] (a\l m) at (\l*\layersep, {3.5-4.4*\neuronsep}) {$a^{[\l]}_{m_{\l}}$};
+        }
+        
+        % Second-to-last layer (r-1)
+        \node[neuron] (ar1) at (4*\layersep, 3.5) {$a^{[r-1]}_1$};
+        \node[neuron] (ar2) at (4*\layersep, {3.5-\neuronsep}) {$a^{[r-1]}_2$};
+        \node[neuron] (ar3) at (4*\layersep, {3.5-2*\neuronsep}) {$a^{[r-1]}_3$};
+        \node at (4*\layersep, {3.5-2.6*\neuronsep}) {$\vdots$};
+        \node[neuron] (arm1) at (4*\layersep, {3.5-3.4*\neuronsep}) {$a^{[r-1]}_{m_{r-1}-1}$};
+        \node[neuron] (arm) at (4*\layersep, {3.5-4.4*\neuronsep}) {$a^{[r-1]}_{m_{r-1}}$};
+        
+        % Output layer
+        \node[neuron] (y) at (5*\layersep, 0) {$y$};
+        
+        % Add σ annotations below connections
+        \node[blue] at (0.5*\layersep, -3.8) {\small $a^{[1]} = \sigma(W^{[1]} x + b^{[1]})$};
+        \node[blue] at (1.5*\layersep, -4.4) {$a^{[2]} = \sigma(W^{[2]} a^{[1]} + b^{[2]})$};
+        \node[blue] at (2.5*\layersep, -3.8) {$a^{[3]} = \sigma(W^{[3]} a^{[2]} + b^{[3]})$};
+        \node[blue] at (3.5*\layersep, -4.4) {$\ldots$};
+        \node[blue] at (4.5*\layersep, -3.8) {$y = W^{[r]} a^{[r-1]} + b^{[r]}$};
+        
+        % Draw connections with thinner lines
+        \begin{scope}[blue!40, thin]
+            % From input to first hidden layer
+            \foreach \i in {1,2,3,d} {
+                \foreach \j in {1,2,3} {
+                    \draw (x\i) -- (a1\j);
+                }
+                \draw (x\i) -- (a1m1);
+                \draw (x\i) -- (a1m);
+            }
+            
+            % Between visible hidden layers
+            \foreach \l [remember=\l as \lastl (initially 1)] in {2,3} {
+                \foreach \i in {1,2,3} {
+                    \foreach \j in {1,2,3} {
+                        \draw (a\lastl\i) -- (a\l\j);
+                    }
+                    \draw (a\lastl\i) -- (a\l m1);
+                    \draw (a\lastl\i) -- (a\l m);
+                }
+                \draw (a\lastl m1) -- (a\l m);
+                \draw (a\lastl m1) -- (a\l m1);
+                \foreach \j in {1,2,3} {
+                    \draw (a\lastl m1) -- (a\l\j);
+                }
+                \draw (a\lastl m) -- (a\l m);
+                \draw (a\lastl m) -- (a\l m1);
+                \foreach \j in {1,2,3} {
+                    \draw (a\lastl m) -- (a\l\j);
+                }
+            }
+            
+            % Dotted connections between layer 3 and r-1
+            \foreach \i/\j in {1/1,2/2,3/3} {
+                \draw[dotted, thick] (a3\i) -- (ar\j);
+            }
+            \draw[dotted, thick] (a3m1) -- (arm1);
+            \draw[dotted, thick] (a3m) -- (arm);
+            
+            % From second-to-last to output
+            \foreach \i in {1,2,3} {
+                \draw (ar\i) -- (y);
+            }
+            \draw (arm1) -- (y);
+            \draw (arm) -- (y);
+        \end{scope}
+      \end{tikzpicture}
+      \caption{If there does not exist any edge from a potential input $x$ to an output $y$, then this means that $x$ is not relevant in calculating $y$, i.e. the weight is $0$. However, we usually work with \textbf{fully-connected neural networks}, which means that every input is relevant to calculating every output, since we usually cannot make assumptions about which variables are relevant or not. }
       \label{fig:multilayer_neural_net}
     \end{figure}
   \end{definition}

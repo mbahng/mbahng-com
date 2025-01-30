@@ -122,35 +122,6 @@
     \end{center}
     Again, to train this model, we do the same backpropagation algorithm on a normalized loss function with teacher forcing over a parallel dataset. What is nice about the encoder-decoder seq2seq is that it can be completely implemented end-to-end, so we can backpropagate through the entire decoder and encoder to train the both models simultaneously. 
 
-    \subsubsection{Decoding Schemes}
-
-      Note that every sequential output of the decoder takes the output of the final layer hidden cell, multiplies it by some matrix, and finally invokes some activation function on it. Consider a classification problem where we have $V$ classes, with a linear map mapping to $\mathbb{R}^{V}$, followed by a softmax activation. It seems most natural to choose the class that has the maximum probability from the softmax, but this greedy algorithmic approach may not be ideal since we may be giving up long term benefits for short term ones. What we really want to do find the sequence $y$ that maximizes 
-      \[\mathbb{P}(y \mid x) = \prod_{t=1}^T \mathbb{P}( y_t \mid y_{1}, \ldots, y_{t-1}, x)\]
-      Clearly, computing the joint probability distribution over all sequences is too expensive, so we can do \textbf{beam search decoding}. The main idea is that on each step of the decoder, we keep track of the $k$ (in practice around 5 to 10) most probable partial outputs. For example in the case of machine translation, given a beam size of $k = 2$, we can keep track of the (log) probabilities of the sequences and only keep track of the top $2$. 
-      \begin{enumerate}
-          \item Given the START token, say that the $k$ most probable next words were ``he" ($-0.7$) and ``I" ($-0.9$). 
-          \begin{center}
-              \includegraphics[scale=0.3]{img/05_Encoder_Decoder/beam1.png}
-          \end{center}
-
-          \item Now we look at the two most likely next words for each of ``he" and ``I" and out of the four possibilities, we compute the two most likely ones, which is ``he hit" ($-1.7$) and ``I was" ($-1.6$). 
-          \begin{center}
-              \includegraphics[scale=0.3]{img/05_Encoder_Decoder/beam2.png}
-          \end{center}
-
-          \item We keep track of ``he hit" and ``I was" and find the two most likely next words for each, leading us to another four possibilities. We compute the two most likely ones, which is ``he hit me" ($-2.5$) and ``he hit a" ($-2.8$). 
-          \begin{center}
-              \includegraphics[scale=0.3]{img/05_Encoder_Decoder/beam3.png}
-          \end{center}
-
-          \item We keep repeating this.  
-          \begin{center}
-              \includegraphics[scale=0.3]{img/05_Encoder_Decoder/beam4.png}
-          \end{center}
-      \end{enumerate}
-      One more condition to mention is when to stop generating words. In greedy decoding, we usually decode until the model produces an END token. In beam search decoding, different hypotheses may produce END tokens on different timestamps, and so every time we have a complete hypothesis, we can place it aside and continue exploring other hypotheses via beam search. We can continue beam searching until we reach some predetermined cutoff timestep $T$ or we have at least $n$ completed hypotheses (where $n$ is also some predetermined cutoff). We have a slight problem that longer hypotheses will have lower log probabilities, so we can choose the best output sequence by taking the average log probabilities (which corresponds to the geometric mean of the probabilities). 
-      \[\mathrm{score}(y_{t+1}, \ldots, y_T) = \frac{1}{T-t} \log \mathbb{P}_{LM} (y_1, \ldots, y_t \mid x) = \frac{1}{T-t} \sum_{k=t+1}^T \log \mathbb{P}_{LM} ( y_k \mid y_{t+1}, \ldots, y_{k-1}, x) \]
-
   \subsection{More Flexible Models} 
 
     By combining these neural nets, we can essentially create image captioning (with a CNN encoder and RNN decoder) and image generation (RNN encoder and CNN decoder). 
