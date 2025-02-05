@@ -12,11 +12,12 @@
     We are done! But which subspace do we choose? Let's formalize what the optimal subspace should be. 
 
     \begin{definition}[Principal Subspace]
-      Let $X \in \mathbb{R}^d$ and $\mathcal{L}_k$ denote all $k$-dimensional linear subspaces. The \textbf{$k$th principal subspace} is defined as 
+      Let $x \sim X \in \mathbb{R}^d$, with its normalized $\tilde{x} = x - \mathbb{E}[x]$, and $\mathcal{L}_k$ denote all $k$-dimensional linear subspaces of $\mathbb{R}^n$. The \textbf{$k$th principal subspace} is defined as 
       \begin{equation}
-        \ell_k = \argmin_{\ell \in \mathcal{L}_k} \mathbb{E} \big( \min_{y \in \ell} ||\Tilde{X} - y||^2 \big)
+        \ell_k = \argmin_{\ell \in \mathcal{L}_k} \mathbb{E}_{\Tilde{x}} \big( \min_{y \in \ell} ||\Tilde{x} - y||^2 \big)
       \end{equation}
-      where $\Tilde{X} = X - \mu$ and $\mu = \mathbb{E}[X]$. To parse this, let's fix a subspace $\ell$. Then, the normalized data $\Tilde{X}$ is a random vector and the minimum distance of $\Tilde{X}$ onto the subspace $\ell$ is the inner min term. Taking the expectation of that gives us the expected distance of the data onto the subspace. The principal subspace is the subspace that minimizes this expected distance. The dimension reduced version of $X$ is then $T_k (X) = \mu + \mathrm{proj}_{\ell_k} X$. 
+
+      To parse this, let's fix a subspace $\ell$. Then, the normalized data $\Tilde{x}$ is a random vector and the minimum distance of $\Tilde{x}$ onto the subspace $\ell$ is the inner min term. Taking the expectation of that gives us the expected distance of the data onto the subspace. The principal subspace is the subspace that minimizes this expected distance. The dimension reduced version of $x$ is then $T_k (x) = \mu + \mathrm{proj}_{\ell_k} x$. 
 
       \begin{figure}[H]
         \centering
@@ -127,8 +128,8 @@
     \end{enumerate}
     It turns out that we can solve all three problems with the singular value decomposition. 
 
-    \begin{theorem}[Calculating the kth Principle Subspace]
-      Given our data matrix $X \in \mathbb{R}^{n \times d}$, let us normalize it to $\Tilde{X} = X - \mu$ and then take the SVD of it. 
+    \begin{theorem}[Construction of the kth Principle Subspace] 
+      Given covariates $x^{(1)}, \ldots, x^{(n)} \sim X \in \mathbb{R}^{d}$, let $X \in \mathbb{R}^{n \times d}$ be our random matrix representing our data, and its normalized form to $\Tilde{X} = X - \mu$. We take the SVD of it. 
       \begin{equation}
         \Tilde{X} = U \Sigma V^T
       \end{equation}
@@ -148,10 +149,11 @@
       \begin{equation}
         e_j \xlongrightarrow{\Sigma_k} \sigma_j e_j \xlongrightarrow{V} \sigma_j v_j
       \end{equation}
-      where $V \in \mathbb{R}^{D \times D}$, and $\Sigma_k \in \mathbb{R}^{D \times k}$ is the submatrix of only the first $k$ rows of $\Sigma$. 
+      where $V \in \mathbb{R}^{D \times D}$, and $\Sigma_k \in \mathbb{R}^{D \times k}$ is the submatrix of only the first $k$ rows of $\Sigma$. Therefore, we can represent the random variable $x$ as the transformation of the variable $z$. 
       \begin{equation}
         x = \mu + V_k^T \Sigma_k z
       \end{equation}
+      The matrix $X_k = U \Sigma_k V^T$ is called the \textbf{denoised matrix} of $X$. 
     \end{theorem}
     \begin{proof}
       We see that 
@@ -165,9 +167,7 @@
       Therefore, we can see that the way $X^T X$ acts on $V$ That the $v_i$'s are the eigenvectors of $X^T X$, with $\sigma_i^2$ the associated eigenvalues. 
     \end{proof}
 
-    This theorem outlines the steps needed to do PCA. Now we state the algorithm. 
-    
-    \begin{algo}[PCA Using SVD] 
+    \begin{algo}[Fitting] 
       Given a dataset $X \in \mathbb{R}^{n \times d}$, let us denote the rows as $x_i$, and say that we are looking for a subspace of dimension $k$. 
       \begin{enumerate}
         \item Compute the mean 
@@ -183,22 +183,7 @@
 
         \item Define the projection operator $P_k (x) = \mu + \sum_{j=1}^k \langle x - \mu, v_j \rangle \, v_j$, the change of basis operator $T$, and the embedding operator $T^{-1} (z) = \mu + V_k \Sigma_k z$. 
       \end{enumerate} 
-    \end{algo}
-
-    \begin{algo}[Python Numpy Code]
-      Here is a Python snippet for reducing. 
-      \begin{lstlisting}
-        def PCA(X , num_components):
-          X_meaned = X - np.mean(X , axis = 0)
-          cov_mat = np.cov(X_meaned , rowvar = False)
-          eigen_values , eigen_vectors = np.linalg.eigh(cov_mat)
-          sorted_index = np.argsort(eigen_values)[::-1]
-          sorted_eigenvalue = eigen_values[sorted_index]
-          sorted_eigenvectors = eigen_vectors[:,sorted_index]
-          eigenvector_subset = sorted_eigenvectors[:,0:num_components]
-          X_reduced = np.dot(eigenvector_subset.transpose() , X_meaned.transpose() ).transpose()
-          return X_reduced
-      \end{lstlisting}
+      A demonstration is done \href{code/pca.html}{here}.
     \end{algo}
 
     Now a question arises: how do we know that this sample decomposition is a good approximation to the true decomposition? It comes from the fact that the sample covariance $\hat{\Sigma}$ is a good approximation of the true covariance $\Sigma$, which we will later prove using concentration of measure. 
@@ -206,11 +191,11 @@
     \begin{theorem}[Risk]
       The risk satisfies 
       \begin{equation}
-        R(k) = \mathbb{E}[|| X - P_k (X) ||^2 ] = \sum_{j=k+1}^D \lambda_j 
+        R(k) = \mathbb{E}[|| x - P_k (x) ||^2 ] = \sum_{j=k+1}^D \lambda_j 
       \end{equation}
     \end{theorem}
 
-    It is essential that you plot the spectrum in decreasing order. This allows you to analze how well PCA is working. People often use the ``elbow'' technique to determine where to choose $K$, and we value 
+    It is essential that you plot the spectrum in decreasing order. This allows you to analyze how well PCA is working. People often use the ``elbow'' technique to determine where to choose $K$, and we value 
     \begin{equation}
       \frac{\sum_{j=1}^k \lambda_j}{\sum_{j=1}^d \lambda_j} 
     \end{equation}
@@ -247,6 +232,17 @@
         ||\hat{v}_j - v_j|| \leq \frac{2^{3/2} ||\hat{\Sigma} - \Sigma||}{\lambda_j - \lambda_{j+1}}
       \end{equation}
     \end{theorem}
+
+    \begin{example}[Eigenfaces]
+      In 1991, Turk and Pentland presented an eigenface method of face recognition by taking the low-rank approximation of a dataset of face images. 
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.3]{img/eigenfaces.png}
+        \caption{Some eigenfaces from AT\&T Labs. } 
+        \label{fig:eigenfaces}
+      \end{figure}
+    \end{example}
 
     \subsubsection{Kernel PCA}
 
