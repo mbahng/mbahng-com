@@ -17,7 +17,7 @@
         \ell_k = \argmin_{\ell \in \mathcal{L}_k} \mathbb{E}_{\Tilde{x}} \big( \min_{y \in \ell} ||\Tilde{x} - y||^2 \big)
       \end{equation}
 
-      To parse this, let's fix a subspace $\ell$. Then, the normalized data $\Tilde{x}$ is a random vector and the minimum distance of $\Tilde{x}$ onto the subspace $\ell$ is the inner min term. Taking the expectation of that gives us the expected distance of the data onto the subspace. The principal subspace is the subspace that minimizes this expected distance. The dimension reduced version of $x$ is then $T_k (x) = \mu + \mathrm{proj}_{\ell_k} x$. 
+      To parse this, let's fix a subspace $\ell$. Then, the normalized data $\Tilde{x}$ is a random vector and the minimum distance of $\Tilde{x}$ onto the subspace $\ell$ is the inner min term. Taking the expectation of that gives us the expected distance of the data onto the subspace. The principal subspace is the subspace that minimizes this expected distance. The dimension reduced version of $x$ is then $P_k (x) = \mu + \mathrm{proj}_{\ell_k} x$. 
 
       \begin{figure}[H]
         \centering
@@ -129,11 +129,11 @@
     It turns out that we can solve all three problems with the singular value decomposition. 
 
     \begin{theorem}[Construction of the kth Principle Subspace] 
-      Given covariates $x^{(1)}, \ldots, x^{(n)} \sim X \in \mathbb{R}^{d}$, let $X \in \mathbb{R}^{n \times d}$ be our random matrix representing our data, and its normalized form to $\Tilde{X} = X - \mu$. We take the SVD of it. 
+      Given covariates $x^{(1)}, \ldots, x^{(n)} \in \mathbb{R}^{d}$, let $X \in \mathbb{R}^{n \times d}$ be our random matrix representing our data, and its normalized form to $\Tilde{X} = X - \mu$. We take the SVD of it. 
       \begin{equation}
         \Tilde{X} = U \Sigma V^T
       \end{equation}
-      where $U \in U(n) \subset \mathbb{R}^{n \times n}, V \in U(d) \subset \mathbb{R}^{d \times d}$ are orthogonal and $\Sigma \in \mathbb{R}^{n \times d}$ is diagonal that represents the singular values of $X$ in decreasing order\footnote{We can make it decreasing by permuting the rows/columns of the unitary matrices $U, V$.}. 
+      where $U \in U(n) \subset \mathbb{R}^{n \times n}, V \in U(d) \subset \mathbb{R}^{d \times d}$ are orthogonal and $\Sigma \in \mathbb{R}^{n \times d}$ is diagonal that represents the singular values of $X$ in decreasing order\footnote{We can make it decreasing by permuting the rows/columns of the unitary matrices $U, V$.}. The columns of $V$ (rows of $V^T$) denoted $v_1, \ldots, v_d$ are called the \textbf{principal axes} and the columns of $U\Sigma$ are called the \textbf{principal components}. 
       \begin{enumerate}
         \item Then $\ell_k = \mathrm{span}\{v_1, \ldots, v_k\} \subset \mathbb{R}^d$, i.e. is the subspace spanned by the columns of $V$. By shifting it by $\mu$, $\mu + \ell_k$ is the best affine subspace approximation of the $x_i$'s. 
 
@@ -143,17 +143,39 @@
         \end{equation}
         where we can rewrite it as the projection operator since the $v_j$'s are orthonormal. 
 
-        \item The change of basis $T$ is defined with the mapping $v_j \in L_k \mapsto \sigma_j e_j \in \mathbb{R}^k$. Note that the $v_j$'s form an orthogonal basis of $L_k$. 
+        \item The change of basis $T$ is defined with the mapping $v_j \in \mathcal{L}_k \mapsto \sigma_j e_j \in \mathbb{R}^k$. Note that the $v_j$'s form an orthogonal basis of $\mathcal{L}_k$. 
       \end{enumerate} 
-      Note that as an immediate consequence, since $T^{-1}$ maps $e_j$ to $\sigma_j v_j$, we can write 
+      Now let $V_k \in \mathbb{R}^{d \times k}$ represent the first $k$ columns of $V$, $U_k \in \mathbb{R}^{n \times k}$ represent the first $k$ columns of $U$, and $\Sigma_k \in \mathbb{R}^{k \times k}$ represent the upper-left $k \times k$ matrix of $\Sigma$.\footnote{Note that $V^T$, which was originally surjective, is now just injective.} The matrix $X_k = U_k \Sigma_k V^T$, which is the low-rank approximation of $X$, is called the \textbf{denoised matrix} of $X$. As an immediate consequence, since $T^{-1}$ maps $e_j$ to $\sigma_j v_j$, we can interpret $U_k \Sigma_k V_k^T$ with the decomposition 
+      \begin{center}
+        \begin{tikzpicture}[
+          node distance=2.5cm,
+          every node/.style={font=\small}
+        ]
+          % Nodes
+          \node (ej) {$e_j \in \mathbb{R}^k$};
+          \node[right of=ej] (vj) {$v_j \in \mathcal{L}_k$};
+          \node[right of=vj] (sigmavj) {$\Sigma_k v_j \in \mathcal{L}_k$};
+          \node[right of=sigmavj] (xhat) {$\hat{x} \in \mathbb{R}^d$};
+          \node[right of=xhat] (x) {$x \in \mathbb{R}^d$};
+          
+          % Arrows
+          \draw[->] (ej) -- node[above] {$V_k^T$} (vj);
+          \draw[->] (vj) -- node[above] {$\Sigma_k$} (sigmavj);
+          \draw[->] (sigmavj) -- node[above] {$U_k$} (xhat);
+          \draw[<-] (xhat) -- node[above] {$P$} (x);
+          
+          % Braces with increased thickness
+          \draw[line width=1pt] [decoration={brace,mirror,raise=5pt,amplitude=5pt},decorate] (ej.south west) -- 
+                node[below=6pt] {$T^{-1}$} (xhat.south east);
+          \draw[line width=1pt] [decoration={brace,raise=5pt,amplitude=5pt},decorate] (xhat.north west) -- 
+                node[above=7pt] {$P$} (x.north east);
+        \end{tikzpicture}
+      \end{center}
+
+      Therefore, we have two maps. The projection $x \mapsto \hat{x}$ and the transformation from $z$ to $\hat{x}$. Therefore, we can think of the transformation of the independent components $e_i \in \mathbb{R}^k$ to the independent components living in $\mathbb{R}^d$. 
       \begin{equation}
-        e_j \xlongrightarrow{\Sigma_k} \sigma_j e_j \xlongrightarrow{V} \sigma_j v_j
+        \hat{x} = \mu + U_k \Sigma_k V_k^T z \implies \hat{x}_i = \mu + U_k \Sigma_k V_k^T e_i = \mu + U_k \Sigma_k v_i 
       \end{equation}
-      where $V \in \mathbb{R}^{D \times D}$, and $\Sigma_k \in \mathbb{R}^{D \times k}$ is the submatrix of only the first $k$ rows of $\Sigma$. Therefore, we can represent the random variable $x$ as the transformation of the variable $z$. 
-      \begin{equation}
-        x = \mu + V_k^T \Sigma_k z
-      \end{equation}
-      The matrix $X_k = U \Sigma_k V^T$ is called the \textbf{denoised matrix} of $X$. 
     \end{theorem}
     \begin{proof}
       We see that 
