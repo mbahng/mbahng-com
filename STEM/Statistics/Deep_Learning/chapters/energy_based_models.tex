@@ -159,186 +159,193 @@
     \end{figure}
   \end{definition}
 
-  The fact that we can calculate $p(h \mid x)$ means that inferring the distribution over the hidden variables is easy. 
+  Note that this form of the probability $E(x)$ is equivalent to the product of max-cliques, which are of size 2 in this case. 
+  \begin{align}
+    p(v, h) & = \exp(-E(v, h)) / Z \\ 
+            & = \exp(v^T W h + b^T v + c^T h) / Z \\
+            & = \exp(v^T W h) \exp(b^T v) \exp (c^T h) / Z  \\
+            & = \frac{1}{Z} \prod_j \prod_k \exp(W_{jk} h_j v_k) \, \prod_k \exp(c_k v_k) \, \prod_j \exp(b_j h_j)
+  \end{align}
+  Therefore, we can think of the $\exp(h^T W x)$ as encoding the cliques of length $2$ and the others as cliques of length $1$. The fact that we can calculate $p(h \mid x)$ means that inferring the distribution over the hidden variables is easy. 
 
-  \begin{definition}[Bernoulli-Bernoulli RBM]
-    For now, let us assume that we are trying to estimate the distribution of a Bernoulli random vector $x \in \{0, 1\}^D$ with Bernoulli latent variables $h \in \{0, 1\}^F$. Then, the energy of the joint configuration is  
+  \subsubsection{Contrastive Divergence}
+
+    Now that we've done this, we can finally get to training the model. Now, essentially this is density estimation problem given dataset $\mathcal{D} = \{x^{(t)}\}$ of iid random variables, we want to maximize the likelihood of $p_{\theta}$, which is really just equivalent to optimizing $E_{\theta}$. So, let's take the average negative log-likelihood and take the derivative of it
     \begin{equation}
-      E(v, h; \theta) = - \sum_{ij} W_{ij} v_i h_j - \sum_i b_i v_i - \sum_j a_j h_j = - v^T W h - b^T v - a^T h
+      \frac{\partial}{\partial \theta} \frac{1}{T} \sum_t - \log p_{\theta} (x^{(t)}) = \frac{1}{T} \sum_t - \log{p_{\theta} (x^{(t)})}
     \end{equation}
-    where $\theta = \{W, a, b\}$ are the model parameters. So we have 
-    \begin{align} 
-      p_{\theta} (v, h) & = \frac{1}{Z} \exp \big( -E (v, h; \theta)\big) = \frac{1}{Z} \prod_{ij} e^{W_ij v_i h_j} \prod_i e^{b_i v_i} \prod_j e^{a_j h_j} \\
-      Z & = \sum_{h, v} \exp \big( -E(v, h; \theta) \big) 
-    \end{align}
-    where we can think of the $\exp(h^T W x)$ as encoding the cliques of length $2$ and the others as cliques of length $1$.  
-  \end{definition}
+    There's a lot of computation to do here, so let's focus on one sample $x^{(t)}$ and claim that the gradient ultimately ends up as the following. 
 
-  Let's get some calculations out of the way. 
+    \begin{theorem}
+      We decompose the derivative into two terms. 
+      \begin{align*} 
+        \frac{\partial}{\partial \theta} - \log p(x^{(t)}) & = \sum_{h}  p(h \mid x^{(t)}) \, \frac{ \partial E(x^{(t)}, h)}{\partial \theta} - \sum_{x, h} p(x, h) \, \frac{\partial E(x, h)}{\partial \theta} \\
+                                                           & = \underbrace{\mathbb{E}_{h} \bigg[ \frac{\partial E( x^{(t)}, h)}{\partial \theta} \; \bigg| \; x^{(t)} \bigg]}_{\text{positive phase}} - \underbrace{\mathbb{E}_{x, h} \bigg[ \frac{\partial E(x, h)}{\partial \theta} \bigg]}_{\text{negative phase}}
+      \end{align*}
+      The derivative of $E$ is easy since we already know the bilinear form by construction. In the left term, we are taking the expectation w.r.t. $p(h \mid x^{(t)})$, which we can factorize out due to conditional independence, so this is easy. However, the right term requires us to integrate over the joint $p(x, h)$, which is intractable, and so we just approximate this with Monte Carlo sampling. 
+    \end{theorem}
+    \begin{proof}
+      As a lemma, we first see that $\ln(Z) = \ln \big( \sum_{x, h} \exp \big( - E(x, h) \big) \big)$, and so
+      \begin{equation}
+        \frac{\partial \ln(Z)}{\partial \theta} = -\frac{1}{Z} \sum_{x, h} \exp \big(-E(x, h)\big) \, \frac{E(x, h)}{\partial \theta} = - \sum_{x, h} p(x, h) \, \frac{\partial E(x, h)}{\partial \theta}
+      \end{equation}
+      We have 
+      \begin{equation} 
+        -\ln p(x) = - \ln \bigg\{ \sum_{h} \exp \big( -E(x, h) \big) \bigg\} + \ln(Z)
+      \end{equation}
+      and so we can apply chain rule and multiply both numerator and denominator by $1/Z$ to get 
+      \begin{align} 
+        -\frac{\partial}{\partial \theta} \ln p(x) & = \frac{\sum_{h} \exp \big( -E(x, h) \big) \, \frac{\partial E(x, h)}{\partial \theta} / Z}{\sum_{h} \exp \big( -E (x, h) \big) / Z} + \frac{\partial \ln(Z)}{\partial \theta} \\
+                                                                         & = \frac{\sum_{h} p(x, h) \, \frac{\partial E(x, h)}{\partial \theta}}{p(x)} + \frac{\partial \ln(Z)}{\partial \theta} \\
+                                                                         & = \sum_{h} p(h \mid x) \, \frac{\partial E(x, h)}{\partial \theta} - \sum_{x, h} p(x, h) \, \frac{\partial E(x, h)}{\partial \theta} 
+      \end{align}
+    \end{proof} 
 
-  \begin{lemma}[Conditional Distributions] 
-    For the Bernoulli RBM, we have 
-    \begin{align} 
-      p(h_j = 1 \mid x) & = \sigma ( b_j + W_{j,:} x) \\
-      p(x_k = 1 \mid h) & = \sigma ( c_k + h^T W_{:, k})
-    \end{align}
-  \end{lemma}
-  \begin{proof}
-    Just use the definition of conditional probability and substitute the result below in the denominator. The terms will cancel out. 
-  \end{proof}
-
-  \begin{definition}[Softplus]
-    The softplus function is defined 
+    So to calculate the second expectation, we can use a Gibbs sampler to do some numerical integration, but before we do that, let's just find the partial of $E$, which should be simple. 
     \begin{equation}
-      \text{softplus}(x) = \ln(1 + e^x)
+      \frac{\partial E(x, h)}{\partial W_{j k}} = \frac{\partial}{\partial W_{j k}} \bigg( - \sum_{j k} W_{j k} h_j x_k - \sum_k c_k x_k - \sum_j b_j h_j \bigg) = h_j x_k
     \end{equation}
+    and so 
+    \begin{equation}
+      \mathbb{E}_{h} \bigg[ \frac{\partial E(x, h)}{\partial W_{j k}} \bigg| x \bigg] = \mathbb{E}_{h} [ -h_j x_k \mid x] = \sum_{h_j = 0, 1} - h_j x_k \, p(h_j \mid x) = - x_k p(h_j = 1 \mid x)
+    \end{equation}
+    where the final term is a sigmoid. Hence, we have 
+    \begin{equation}
+      \mathbb{E}_{h} [ \nabla_{W} E(w, h) \mid x] = - h(x) x^T, \text{ where } h(x) \coloneqq \begin{pmatrix} p(h_1 = 1 \mid x) \\ \vdots \\ p(h_H = 1 \mid x) \end{pmatrix} = \sigma(b + W x)
+    \end{equation}
+    Now we can substitute what we solved into the second expectation, but again this is infeasible to calculate 
+    \begin{equation}
+      \mathbb{E}_{x, h} \bigg[ \frac{\partial E(x, h)}{\partial\theta}\bigg] = \sum_{x, h} h(x) x^T p(x, h)
+    \end{equation}
+    The way we do this is through \textbf{contrastive divergence}, which estimates the expectation through Gibbs sampling. Since we know $p(x\mid h)$ and $p(h \mid x)$ easily, we can start sampling the chain for some predetermined $K$ steps (actually $2K$ since we are sampling the $x$ and $h$ back and forth), and whatever $\bar{x}$ you sample at the end is your estimate. So, once you should update your gradient, you start at the sample $x^{(t)}$, run Gibbs for $k$ steps, and use that to estimate your gradient, and then move onto the next sample. We can tweak this procedure, such as \textbf{persistent CD}, where instead of initializing the chain to $x^{(t)}$, we can initialize the chain to the negative sample of the last iteration. 
 
     \begin{figure}[H]
       \centering 
-      \begin{tikzpicture}[
-        scale=0.6,
-        declare function={
-            softplus(\x) = ln(1 + exp(\x));
-        }
-      ]
-        % Grid and axes
-        \draw[very thin,gray!30] (-5,-0.5) grid (5,5);
-        \draw[->] (-5,0) -- (5.2,0) node[right] {$x$};
-        \draw[->] (0,-0.5) -- (0,5.2) node[above] {$y$};
-
-        % Tick marks
-        \foreach \x in {-4,-3,-2,-1,1,2,3,4} {
-            \draw (\x,2pt) -- (\x,-2pt) node[below] {\x};
-        }
-        \foreach \y in {1,2,3,4} {
-            \draw (2pt,\y) -- (-2pt,\y) node[left] {\y};
-        }
-
-        % Function label
-        \node at (2,4) {softplus($\cdot$)};
-        \node[blue] at (3,1) {ReLU($\cdot$)};
-
-        % Dashed line (identity function after x>0)
-        \draw[thick, blue, dashed] (0,0) -- (5,5);
-        \draw[thick, blue, dashed] (0,0) -- (-5,0);
-
-        % Softplus function
-        \draw[thick] plot[domain=-5:5, samples=100] (\x,{softplus(\x)});
-      \end{tikzpicture}
-      \caption{A graph of the softplus activation function, with the dotted ReLU.} 
-      \label{fig:softplus}
+      \includegraphics[scale=0.4]{img/07_Boltzmann/contrastive_divergence.png}
+      \caption{Contrastive divergence. } 
+      \label{fig:contrastive_divergence}
     \end{figure}
-  \end{definition}
 
-  \begin{lemma}[Free Energy] 
-    For the Bernoulli RBM, we want to compute the marginal $p(x)$ as
-    \begin{align*} 
-    p(x) & = \frac{\exp(-F(x))}{Z} \\
-                  & = \frac{1}{Z} \exp \bigg( c^T x + \sum_{j=1}^H \log \big( 1 + \exp (b_j + W_{j, :} x) \big) \bigg) \\
-                  & = \frac{1}{Z} \exp \bigg( c^T x + \sum_{j=1}^H \mathrm{softplus}(b_j + W_{j, :} x ) \bigg)
-    \end{align*}
-    where $F$ is called the \textbf{free energy}. Therefore, $p(x)$ is calculated by taking the product of these terms, which is why it's known as a \textbf{product of experts model}. 
-  \end{lemma}
-  \begin{proof}
-  We have 
-  \begin{align*} 
-    p(x) & = \sum_{h \in \{0, 1\}^H} \exp \big( h W x + c^T x + b^T h\big) /Z \\
-                  & = \exp (c^T x) \sum_{h_1 = 0, 1} \ldots \sum_{h_H = 0, 1} \exp \bigg( \sum_j h_j W_{j, :} x + b_j h_j \bigg) / Z \\
-                  & = \exp (c^T x) \bigg( \sum_{h_1 = 0, 1} \exp (h_1 W_{1, :} x + b_1 h_1 ) \bigg) \ldots \bigg( \sum_{h_H = 0, 1} \exp (h_H W_{H, :} x + b_H h_H) \bigg) / Z \\
-                  & = \exp (c^T x) \big( 1 + \exp (b_1 + W_{1, :} x) \big) \ldots \big( 1 + \exp (b_H + W_{H, :} x)\big) / Z \\
-                  & = \exp (c^T x) \exp\big\{ \log \big( 1 + \exp (b_1 + W_{1, :} x) \big) \big\} \ldots \exp \big\{ \log \big( 1 + \exp (b_H + W_{H, :} x) \big) \big\} / Z \\
-                  & = \frac{1}{Z} \exp \bigg( c^T x + \sum_{j=1}^H \log \big( 1 + \exp (b_j + W_{j, :} x) \big) \bigg) 
-  \end{align*} 
-  \end{proof}
-
-  Now that we've done this, we can finally get to training the model. Now, essentially this is density estimation problem given dataset $\mathcal{D} = \{x^{(t)}\}$ of iid random variables, we want to maximize the likelihood of $p_{\theta}$, which is really just equivalent to optimizing $E_{\theta}$. So, let's take the average negative log-likelihood and take the derivative of it
-  \begin{equation}
-    \frac{\partial}{\partial \theta} \frac{1}{T} \sum_t - \log p_{\theta} (x^{(t)}) = \frac{1}{T} \sum_t - \log{p_{\theta} (x^{(t)})}
-  \end{equation}
-  There's a lot of computation to do here, so let's focus on one sample $x^{(t)}$ and claim that the gradient ultimately ends up as the following. 
-
-  \begin{theorem}
-    It turns out that
-    \begin{align*} 
-      \frac{\partial}{\partial \theta} - \log p(x^{(t)}) & = \sum_{h}  p(h \mid x^{(t)}) \, \frac{ \partial E(x^{(t)}, h)}{\partial \theta} - \sum_{x, h} p(x, h) \, \frac{\partial E(x, h)}{\partial \theta} \\
-                                                                               & = \mathbb{E}_{h} \bigg[ \frac{\partial E( x^{(t)}, h)}{\partial \theta} \; \bigg| \; x^{(t)} \bigg] - \mathbb{E}_{x, h} \bigg[ \frac{\partial E(x, h)}{\partial \theta} \bigg]  
-    \end{align*}
-    The derivative of $E$ is easy since we already know the bilinear form by construction. In the left term, we are taking the expectation w.r.t. $p(h \mid x^{(t)})$, which we can factorize out due to conditional independence, so this is easy. However, the right term requires us to integrate over the joint $p(x, h)$, which is intractable, and so we just approximate this with a Monte Carlo sample. 
-  \end{theorem}
-  \begin{proof}
-    As a lemma, we first see that $\ln(Z) = \ln \big( \sum_{x, h} \exp \big( - E(x, h) \big) \big)$, and so
-    \begin{equation}
-      \frac{\partial \ln(Z)}{\partial \theta} = -\frac{1}{Z} \sum_{x, h} \exp \big(-E(x, h)\big) \, \frac{E(x, h)}{\partial \theta} = - \sum_{x, h} p(x, h) \, \frac{\partial E(x, h)}{\partial \theta}
-    \end{equation}
-    We have 
-    \begin{equation} 
-      -\ln p(x) = - \ln \bigg\{ \sum_{h} \exp \big( -E(x, h) \big) \bigg\} + \ln(Z)
-    \end{equation}
-    and so we can apply chain rule and multiply both numerator and denominator by $1/Z$ to get 
+    Therefore, for updating $W$, we get the following 
     \begin{align} 
-      -\frac{\partial}{\partial \theta} \ln p(x) & = \frac{\sum_{h} \exp \big( -E(x, h) \big) \, \frac{\partial E(x, h)}{\partial \theta} / Z}{\sum_{h} \exp \big( -E (x, h) \big) / Z} + \frac{\partial \ln(Z)}{\partial \theta} \\
-                                                                       & = \frac{\sum_{h} p(x, h) \, \frac{\partial E(x, h)}{\partial \theta}}{p(x)} + \frac{\partial \ln(Z)}{\partial \theta} \\
-                                                                       & = \sum_{h} p(h \mid x) \, \frac{\partial E(x, h)}{\partial \theta} - \sum_{x, h} p(x, h) \, \frac{\partial E(x, h)}{\partial \theta} 
+      W & = W - \alpha \big( \nabla_{W}(- \log p(x^{(t)})) \big) \\
+                 & = W - \alpha \big( \mathbb{E}_{h} [ \nabla_{W} E(x^{(t)}, h) \mid x^{(t)} ] - \mathbb{E}_{x, h} [\nabla_{W} E(x, h) ]\big) \\
+                 & = W - \alpha \big( \mathbb{E}_{h} [ \nabla_{W} E(x^{(t)}, h) \mid x^{(t)} ] - \mathbb{E}_{h} [\nabla_{W} E(\bar{x}, h) \mid \bar{x} ]\big) \\
+                 & = W + \alpha \big( h(x^{(t)}) (x^{(t)})^T               - h(\bar{x}) \bar{x}^T \big)
     \end{align}
-  \end{proof} 
+    and doing this over all three parameters leads to 
+    \begin{align} 
+      W & \leftarrow W + \alpha \big( h (x^{(t)}) (x^{(t)})^T - h(\bar{x}) \bar{x}^T \big) \\
+      b & \leftarrow b + \alpha \big( h(x^{(t)}) - h(\bar{x}) \big) \\
+      c & = \leftarrow c + \alpha \big( x^{(t)} - \hat{x} \big) 
+    \end{align}
+    Therefore, contrastive divergence with $k$ iterations gives us the \textbf{CD-k algorithm}. In general, the bigger $k$ is, the less biased the estimate of the gradient will be, and in practice $k=1$ works well for learning good features. The reason this is called contrastive divergence is that in the gradient update step, we have a positive sample and a negative sample that both approximates the expected gradient, which constrasts to each other. 
 
-  So to calculate the second expectation, we can use a Gibbs sampler to do some numerical integration, but before we do that, let's just find the partial of $E$, which should be simple. 
-  \begin{equation}
-    \frac{\partial E(x, h)}{\partial W_{j k}} = \frac{\partial}{\partial W_{j k}} \bigg( - \sum_{j k} W_{j k} h_j x_k - \sum_k c_k x_k - \sum_j b_j h_j \bigg) = h_j x_k
-  \end{equation}
-  and so 
-  \begin{equation}
-    \mathbb{E}_{h} \bigg[ \frac{\partial E(x, h)}{\partial W_{j k}} \bigg| x \bigg] = \mathbb{E}_{h} [ -h_j x_k \mid x] = \sum_{h_j = 0, 1} - h_j x_k \, p(h_j \mid x) = - x_k p(h_j = 1 \mid x)
-  \end{equation}
-  where the final term is a sigmoid. Hence, we have 
-  \begin{equation}
-    \mathbb{E}_{h} [ \nabla_{W} E(w, h) \mid x] = - h(x) x^T, \text{ where } h(x) \coloneqq \begin{pmatrix} p(h_1 = 1 \mid x) \\ \vdots \\ p(h_H = 1 \mid x) \end{pmatrix} = \sigma(b + W x)
-  \end{equation}
-  Now we can substitute what we solved into the second expectation, but again this is infeasible to calculate 
-  \begin{equation}
-    \mathbb{E}_{x, h} \bigg[ \frac{\partial E(x, h)}{\partial\theta}\bigg] = \sum_{x, h} h(x) x^T p(x, h)
-  \end{equation}
-  The way we do this is through \textbf{contrastive divergence}, which estimates the expectation through Gibbs sampling. Since we know $p(x\mid h)$ and $p(h \mid x)$ easily, we can start sampling the chain for some predetermined $K$ steps (actually $2K$ since we are sampling the $x$ and $h$ back and forth), and whatever $\bar{x}$ you sample at the end is your estimate. So, once you should update your gradient, you start at the sample $x^{(t)}$, run Gibbs for $k$ steps, and use that to estimate your gradient, and then move onto the next sample. We can tweak this procedure, such as \textbf{persistent CD}, where instead of initializing the chain to $x^{(t)}$, we can initialize the chain to the negative sample of the last iteration. 
+  \subsubsection{Inference with Bernoulli-Bernoulli RBMs}
 
-  \begin{figure}[H]
-    \centering 
-    \includegraphics[scale=0.4]{img/07_Boltzmann/contrastive_divergence.png}
-    \caption{Contrastive divergence. } 
-    \label{fig:contrastive_divergence}
-  \end{figure}
+    Let's talk about a specific instance when $x, h$ are Bernoulli. 
 
-  Therefore, for updating $W$, we get the following 
-  \begin{align} 
-    W & = W - \alpha \big( \nabla_{W}(- \log p(x^{(t)})) \big) \\
-               & = W - \alpha \big( \mathbb{E}_{h} [ \nabla_{W} E(x^{(t)}, h) \mid x^{(t)} ] - \mathbb{E}_{x, h} [\nabla_{W} E(x, h) ]\big) \\
-               & = W - \alpha \big( \mathbb{E}_{h} [ \nabla_{W} E(x^{(t)}, h) \mid x^{(t)} ] - \mathbb{E}_{h} [\nabla_{W} E(\bar{x}, h) \mid \bar{x} ]\big) \\
-               & = W + \alpha \big( h(x^{(t)}) (x^{(t)})^T               - h(\bar{x}) \bar{x}^T \big)
-  \end{align}
-  and doing this over all three parameters leads to 
-  \begin{align} 
-    W & \leftarrow W + \alpha \big( h (x^{(t)}) (x^{(t)})^T - h(\bar{x}) \bar{x}^T \big) \\
-    b & \leftarrow b + \alpha \big( h(x^{(t)}) - h(\bar{x}) \big) \\
-    c & = \leftarrow c + \alpha \big( x^{(t)} - \hat{x} \big) 
-  \end{align}
-  Therefore, contrastive divergence with $k$ iterations gives us the \textbf{CD-k algorithm}. In general, the bigger $k$ is, the less biased the estimate of the gradient will be, and in practice $k=1$ works well for learning good features. The reason this is called contrastive divergence is that in the gradient update step, we have a positive sample and a negative sample that both approximates the expected gradient, which constrasts to each other. 
+    \begin{definition}[Bernoulli-Bernoulli RBM]
+      For now, let us assume that we are trying to estimate the distribution of a Bernoulli random vector $x \in \{0, 1\}^D$ with Bernoulli latent variables $h \in \{0, 1\}^F$. Then, the energy of the joint configuration is  
+      \begin{equation}
+        E(v, h; \theta) = - \sum_{ij} W_{ij} v_i h_j - \sum_i b_i v_i - \sum_j a_j h_j = - v^T W h - b^T v - a^T h
+      \end{equation}
+      where $\theta = \{W, a, b\}$ are the model parameters. 
+    \end{definition}
 
-  Now we can talk about Gaussian Bernoulli RBMs. 
+    Let's get some calculations out of the way. 
 
-  \begin{definition}[Gaussian-Bernoulli RBM] 
-    If we assume that $v$ is a real-valued (unbounded) input that follows a Gaussian distribution (with $h$ still Bernoulli), then we can add a quadratic term to the energy function 
-    \begin{equation} 
-      E(x, h) = - h^T W x - c^T x - b^T h - \frac{1}{2} x^T x
-    \end{equation}
-    In this case, $p(x \mid h)$ becomes a Gaussian distribution $N(c + W^T h, I)$. The training process is slightly harder for this, so what we usually do is normalize the training set by subtracting the mean off each input and dividing the input by the training set standard deviation to get  
-    \begin{equation} 
-      E(v, h; \theta) = \sum_i \frac{(v_i - b_i)^2}{2 \sigma_i^2} - \sum_{ij} W_{ij} h_j \frac{v_i}{\sigma_i} - \sum_j a_j h_j
-    \end{equation}
-    You should also use a smaller learning rate $\alpha$ compared to Bernoulli RBM. 
-  \end{definition} 
+    \begin{lemma}[Conditional Distributions] 
+      For the Bernoulli RBM, we have 
+      \begin{align} 
+        p(h_j = 1 \mid x) & = \sigma ( b_j + W_{j,:} x) \\
+        p(x_k = 1 \mid h) & = \sigma ( c_k + h^T W_{:, k})
+      \end{align}
+    \end{lemma}
+    \begin{proof}
+      Just use the definition of conditional probability and substitute the result below in the denominator. The terms will cancel out. 
+    \end{proof}
 
-  \begin{algo}[Implementation]
-    For an implementation with PyTorch, see \href{code/rbm.html}{here}. 
-  \end{algo}
+    \begin{lemma}[Free Energy] 
+      For the Bernoulli RBM, we want to compute the marginal $p(x)$ as
+      \begin{align*} 
+      p(x) & = \frac{\exp(-F(x))}{Z} \\
+                    & = \frac{1}{Z} \exp \bigg( c^T x + \sum_{j=1}^H \log \big( 1 + \exp (b_j + W_{j, :} x) \big) \bigg) \\
+                    & = \frac{1}{Z} \exp \bigg( c^T x + \sum_{j=1}^H \mathrm{softplus}(b_j + W_{j, :} x ) \bigg)
+      \end{align*}
+      where $F$ is called the \textbf{free energy} and the softplus is defined. 
+      \begin{equation}
+        \text{softplus}(x) = \ln(1 + e^x)
+      \end{equation}
+      Therefore, $p(x)$ is calculated by taking the product of these terms, which is why it's known as a \textbf{product of experts model}. 
+
+      \begin{figure}[H]
+        \centering 
+        \begin{tikzpicture}[
+          scale=0.6,
+          declare function={
+              softplus(\x) = ln(1 + exp(\x));
+          }
+        ]
+          % Grid and axes
+          \draw[very thin,gray!30] (-5,-0.5) grid (5,5);
+          \draw[->] (-5,0) -- (5.2,0) node[right] {$x$};
+          \draw[->] (0,-0.5) -- (0,5.2) node[above] {$y$};
+
+          % Tick marks
+          \foreach \x in {-4,-3,-2,-1,1,2,3,4} {
+              \draw (\x,2pt) -- (\x,-2pt) node[below] {\x};
+          }
+          \foreach \y in {1,2,3,4} {
+              \draw (2pt,\y) -- (-2pt,\y) node[left] {\y};
+          }
+
+          % Function label
+          \node at (2,4) {softplus($\cdot$)};
+          \node[blue] at (3,1) {ReLU($\cdot$)};
+
+          % Dashed line (identity function after x>0)
+          \draw[thick, blue, dashed] (0,0) -- (5,5);
+          \draw[thick, blue, dashed] (0,0) -- (-5,0);
+
+          % Softplus function
+          \draw[thick] plot[domain=-5:5, samples=100] (\x,{softplus(\x)});
+        \end{tikzpicture}
+        \caption{A graph of the softplus activation function, with the dotted ReLU.} 
+        \label{fig:softplus}
+      \end{figure}
+    \end{lemma}
+    \begin{proof}
+      We have 
+      \begin{align} 
+        p(x) & = \sum_{h \in \{0, 1\}^H} \exp \big( h W x + c^T x + b^T h\big) /Z \\
+                      & = \exp (c^T x) \sum_{h_1 = 0, 1} \ldots \sum_{h_H = 0, 1} \exp \bigg( \sum_j h_j W_{j, :} x + b_j h_j \bigg) / Z \\
+                      & = \exp (c^T x) \bigg( \sum_{h_1 = 0, 1} \exp (h_1 W_{1, :} x + b_1 h_1 ) \bigg) \ldots \bigg( \sum_{h_H = 0, 1} \exp (h_H W_{H, :} x + b_H h_H) \bigg) / Z \\
+                      & = \exp (c^T x) \big( 1 + \exp (b_1 + W_{1, :} x) \big) \ldots \big( 1 + \exp (b_H + W_{H, :} x)\big) / Z \\
+                      & = \exp (c^T x) \exp\big\{ \log \big( 1 + \exp (b_1 + W_{1, :} x) \big) \big\} \ldots \exp \big\{ \log \big( 1 + \exp (b_H + W_{H, :} x) \big) \big\} / Z \\
+                      & = \frac{1}{Z} \exp \bigg( c^T x + \sum_{j=1}^H \log \big( 1 + \exp (b_j + W_{j, :} x) \big) \bigg) 
+      \end{align} 
+    \end{proof}
+
+  \subsubsection{Inference with Gaussian-Bernoulli RBMs}
+
+    Now we can talk about Gaussian Bernoulli RBMs. 
+
+    \begin{definition}[Gaussian-Bernoulli RBM] 
+      If we assume that $v$ is a real-valued (unbounded) input that follows a Gaussian distribution (with $h$ still Bernoulli), then we can add a quadratic term to the energy function 
+      \begin{equation} 
+        E(x, h) = - h^T W x - c^T x - b^T h - \frac{1}{2} x^T x
+      \end{equation}
+      In this case, $p(x \mid h)$ becomes a Gaussian distribution $N(c + W^T h, I)$. The training process is slightly harder for this, so what we usually do is normalize the training set by subtracting the mean off each input and dividing the input by the training set standard deviation to get  
+      \begin{equation} 
+        E(v, h; \theta) = \sum_i \frac{(v_i - b_i)^2}{2 \sigma_i^2} - \sum_{ij} W_{ij} h_j \frac{v_i}{\sigma_i} - \sum_j a_j h_j
+      \end{equation}
+      You should also use a smaller learning rate $\alpha$ compared to Bernoulli RBM. 
+    \end{definition} 
+
+    \begin{algo}[Implementation]
+      For an implementation with PyTorch, see \href{code/rbm.html}{here}. 
+    \end{algo}
 
 \subsection{Deep Belief Network} 
 
