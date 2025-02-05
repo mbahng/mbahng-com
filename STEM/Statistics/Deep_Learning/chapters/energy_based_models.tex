@@ -1,103 +1,71 @@
 \section{Energy Models} 
 
-  Note from our machine learning notes that for unsupervised tasks, we have estimated the density of complex distributions by factoring them in \textit{graphical models}, e.g. Bayesian networks or Markov random fields. We will extend this into deep learning architectures.\footnote{This is \textit{not} to be confused with graph neural networks (GNNs), which are designed for tasks whose inputs are graphs.} 
+  Note from our machine learning notes that for unsupervised tasks, we have estimated the density of complex distributions by factoring them in \textit{graphical models}, e.g. Bayesian networks or Markov random fields. We will extend this into deep learning architectures.\footnote{This is \textit{not} to be confused with graph neural networks (GNNs), which are designed for tasks whose inputs are graphs.} If you are not familiar, you should probably go over graphical models in my ML notes before reading further. 
 
   Note that many of the theories behind energy models are very old (from the 1980s) and established. All of them essentially rely on the fact that we can model a probability density as 
   \begin{equation}
     p(x) = \frac{e^{-f(x)}}{Z}
   \end{equation}
-  for some function $f: \mathbb{R}^n \rightarrow \mathbb{R}$. We have seen this in the Hammersley-Clifford theorem in my machine learning notes. We will talk about RBMs, deep belief networks, and hopfield networks. Diffusion models, which can also be considered an energy model, will be talked separately. 
+  for some function $f: \mathbb{R}^n \rightarrow \mathbb{R}$, and $Z$ is what we call the \textbf{partition function}. We have seen from the Hammersley-Clifford theorem in my machine learning notes that we can model a joint probability distribution on an undirected graph with the product of potential functions on the max cliques.\footnote{But finding max cliques is NP-hard?} Therefore, we will take advantage of this in the specific instance of MRFs that are \textit{bipartite graphs}, i.e. a non-feedforward (since its cyclic) 2-layer neural network. We will talk about RBMs, deep belief networks, and hopfield networks. Diffusion models, which can also be considered an energy model, will be talked separately. 
 
-\subsection{Restricted Boltzmann Machines} 
+\subsection{Boltzmann Machines} 
 
-  Now that we've learned about graphical models, let's put them to use. We have some unknown joint distribution $\mathbf{x}$, and we want to represent it in a graph such that it is not too computationally hard to calculate probabilities and sample from them, but at the same time not so simple such that it doesn't richly capture a broad family of probability distributions. One architecture is to use \textbf{Markov Random Fields}, which represent these joint distributions with undirected graphs satisfying the Markov properties. 
-
-  The Hammersley-Clifford theorem states that the joint PDF of any MRF can be written a a Boltzmann distribution. For now, we will limit outselves to \textbf{parwise MRFs}, which only capture dependencies between cliques of maximum size $2$. For example, a MRF can be represented with the graph $G(V, E)$ below. 
-  \begin{center}
-  \begin{tikzpicture}[scale=0.8]
-    \foreach \i in {1,...,5} {
-      \foreach \j in {1,...,5} {
-        \node[circle, draw, minimum size=0.6cm] (node\i\j) at (\i, \j) {};
-      }
-    }
-
-    \foreach \i in {1,...,5} {
-      \foreach \j in {1,...,5} {
-        \pgfmathtruncatemacro{\right}{\i+1}
-        \pgfmathtruncatemacro{\down}{\j-1}
-        \pgfmathtruncatemacro{\up}{\j+1}
-        \pgfmathtruncatemacro{\left}{\i-1}
-        
-        \ifnum \i < 5
-          \draw (node\i\j) -- (node\right\j);
-        \fi
-        
-        \ifnum \j > 1
-          \draw (node\i\j) -- (node\i\down);
-        \fi
-      }
-    }
-  \end{tikzpicture}
-  \end{center}
-
-  \begin{definition}[Bernoulli Pairwise Markov Random Fields]
-    MRFs with binary variables are sometimes \textbf{Ising models} in statistical mechanics, and \textbf{Boltzmann machines} in machine learning. By Hammersley-Clifford, we don't even need to specify the individual functions over the maximal cliques, and rather we can just specify the energy function $E(\mathbf{x})$ of the Boltzmann distribution that the MRF encodes. We define it to capture the interactions between random variables $x_i$ up to order $2$. 
-      \[p_{\boldsymbol{\theta}} (\mathbf{x}) = \frac{1}{Z} \exp \bigg( \sum_{ij \in E} x_i x_j \theta_{ij} + \sum_{i \in V} x_i \theta_i \bigg) \]
-    Now let's check its conditional distribution. 
-      \begin{align*}
-        p(x_k = 1 \mid \mathbf{x}_{-k}) & = \frac{p(x_k = 1, \mathbf{x}_{-k})}{p(\mathbf{x}_{-k})} \\
-                                        & = \frac{p(x_k = 1, \mathbf{x}_{-k})}{p(x_k = 0, \mathbf{x}_{-k}) + p(x_k = 1, \mathbf{x}_{-k})} \\
-                                        & = \frac{\exp \Big( \sum_{k j \in E} x_j \theta_{kj} + x_k \theta_k \Big)}{\exp(0) + \exp \Big(\sum_{k j \in E} x_j \theta_{kj} + x_k \theta_k \Big)} \\
-                                        & = \sigma \bigg\{ - \theta_k x_k - \sum_{k j \in E} x_j \theta_{k j} \bigg\} 
-      \end{align*}
-    where the penultimate step comes from evaluating 
-      \begin{align*} 
-        p(x_k = 1, \mathbf{x}_{-k}) & = \frac{1}{Z(\boldsymbol{\theta})} \exp \bigg( \sum_{ij \in E, k \neq i, j} x_i x_j \theta_{ij} + \sum_{i j \in E, k = i, j} x_i x_j \theta_{ij} + \sum_{i \in V, i \neq k} x_i \theta_i + x_k \theta_k \bigg) \\
-                                    & =\frac{1}{Z(\boldsymbol{\theta})} \exp \bigg( \sum_{ij \in E, k \neq i, j} x_i x_j \theta_{ij} + \sum_{k j \in E} x_j \theta_{kj} + \sum_{i \in V, i \neq k} x_i \theta_i + \theta_k \bigg)  \\ 
-        p(x_k = 0, \mathbf{x}_{-k}) & = \frac{1}{Z(\boldsymbol{\theta})} \exp \bigg( \sum_{ij \in E, k \neq i, j} x_i x_j \theta_{ij} + \sum_{i \in V, i \neq k} x_i \theta_i\bigg)  
-      \end{align*}
-    and canceling out like terms in the numerator and denominator. This tells us that MRFs are related to logistic function.  
-  \end{definition}
-
-  We have given our first example of a Boltzmann machine. Let's generalize this a little bit by removing the restriction that there can only be pairwise connections. Then, we can model the second order interactions with the slightly more generalized energy function
-    \[E(\mathbf{x}) = -\mathbf{x}^T \mathbf{U} \mathbf{x} - \mathbf{b}^T \mathbf{x}\]
-  Now this slightly expands the coverage of probability distributions given our model, and we can see that this allows us to model Gaussian distributions. 
-
-  \begin{example}[Gaussian Markov Random Fields] 
-    If we assume that $p_{\boldsymbol{\theta}} ( \mathbf{x})$ folows a multivariate Gaussian distribution, we have 
-      \[p(\mathbf{x} \mid \boldsymbol{\mu}, \boldsymbol{\Sigma}) = \frac{1}{Z} \exp \bigg( -\frac{1}{2} (\mathbf{x} - \boldsymbol{\mu})^T \boldsymbol{\Sigma}^{-1} (\mathbf{x} - \boldsymbol{\mu}) \bigg)\]
-    Since the Gaussian distribution reprsents at most second-order relationships, it automatically encodes a pairwise MRF. Therefore, we can rewrite 
-      \[p(\mathbf{x}) = \frac{1}{Z} \exp \bigg( -\frac{1}{2} \mathbf{x}^T J\mathbf{x} + \mathbf{g}^T \mathbf{x} \bigg)\] 
-    where $J = \boldsymbol{\Sigma}^{-1}$ and $\boldsymbol{\mu} = J^{-1} \mathbf{g}$. 
-  \end{example}
-
-  Let's review what we had so far. There is a random vector $\mathbf{x}$ for which we would like to model the probability distribution of. 
-
+  Consider the graph $x_1, \ldots, x_D$ which represents a random vector $x$ for which we would like to model the probability distribution of. 
   \begin{center}
     \begin{tikzpicture}
-      % Define the nodes
       \node (x1) at (0,0) {$x_1$};
       \node (x2) at (2,0) {$x_2$};
       \node (xD) at (4,0) {$x_D$};
 
-      % Add the "..." text box
       \node at (3,0) {...};
       \draw[thick] (x1) circle (0.3);
       \draw[thick] (x2) circle (0.3);
       \draw[thick] (xD) circle (0.3);
     \end{tikzpicture}
   \end{center}
+  What we can do is model the dependencies between these random elements with linear parameters $W$ and $b$, which essentially gives us a Markov Random Field. Let's consider when $x_i$'s are all Bernoulli, so $x \in \{0, 1\}^D$, which are known as \textit{Ising models} in statistical mechanics. By Hammersley-Clifford, we don't even need to specify the individual functions over the maximal cliques, and rather we can just specify the energy function $E(x)$ of the Boltzmann distribution that the MRF encodes. We parameterize $\theta = \{W, b\}$. 
 
-  What we can do is model the dependencies between these random elements with linear parameters $\mathbf{W}$ and $\mathbf{b}$, which essentially gives us a Markov Random Field.  
+  \begin{example}[Bernoulli Pairwise Markov Random Fields]
+    We define it to capture the interactions between Bernoulli random variables $x_i$ up to order $2$. 
+    \begin{equation}
+      p_{\theta} (x) = \frac{1}{Z} \exp( E(x)) = \frac{1}{Z} \exp \bigg( \sum_{i j \in E} x_i x_j W_{ij} + \sum_{i \in V} x_i b_i \bigg) = \frac{1}{Z} \exp \big( x^T W x + b^T x \big)
+    \end{equation}
+    Now let's check its conditional distribution. Let $x_{-k}$ denote the joint distribution of all random variables minus $x_k$.  
+    \begin{align}
+      p(x_k = 1 \mid x_{-k}) & = \frac{p(x_k = 1, x_{-k})}{p(x_{-k})} \\
+                             & = \frac{p(x_k = 1, x_{-k})}{p(x_k = 0, x_{-k}) + p(x_k = 1, x_{-k})} \\
+                             & = \frac{\exp \Big( \sum_{k j \in E} x_j W_{kj} + x_k b_k \Big)}{\exp(0) + \exp \Big(\sum_{k j \in E} x_j W_{kj} + x_k b_k \Big)} \\
+                             & = \sigma \bigg\{ - b_k x_k - \sum_{k j \in E} x_j W_{k j} \bigg\} 
+    \end{align}
+    where the penultimate step comes from evaluating 
+    \begin{align} 
+      p(x_k = 1, x_{-k}) & = \frac{1}{Z(\theta)} \exp \bigg( \sum_{ij \in E, k \neq i, j} x_i x_j W_{ij} + \sum_{i j \in E, k = i, j} x_i x_j W_{ij} + \sum_{i \in V, i \neq k} x_i b_i + x_k b_k \bigg) \\
+                         & =\frac{1}{Z(\theta)} \exp \bigg( \sum_{ij \in E, k \neq i, j} x_i x_j W_{ij} + \sum_{k j \in E} x_j W_{kj} + \sum_{i \in V, i \neq k} x_i b_i + b_k \bigg)  \\ 
+      p(x_k = 0, x_{-k}) & = \frac{1}{Z(\theta)} \exp \bigg( \sum_{ij \in E, k \neq i, j} x_i x_j W_{ij} + \sum_{i \in V, i \neq k} x_i b_i\bigg)  
+    \end{align}
+    and canceling out like terms in the numerator and denominator. This tells us that MRFs are related to logistic function.  
+  \end{example}
 
-  However, this is still quite a limited model. For one, due to the linearity of the weight matrix, it always turns out that the probability of $x_k = 1$ is always given by a linear model (logistic regression) from the values of the other units. This family of distributions parameterized by $\boldsymbol{\theta} = \{\mathbf{W}, \mathbf{b}\}$ may not be broad enough to capture the true $p(\mathbf{x})$. Therefore, we can add latent variables that can act similarly to hidden uits in a MLP and model higher-order interactions among the visible units. Just as the addition of hidden units to convert logistic regression into MLP results in the MLP being a universal approximator of functions, a Boltzmann machine with hidden units is not longer limited to modeling linear relationships between variables. Instead, the Boltzmann machine becomes a universal approximator of probability mass functions over discrete random variables. 
+  \begin{example}[Gaussian Markov Random Fields] 
+    If we assume that $p_{\theta} (x)$ follows a multivariate Gaussian distribution, we have 
+    \begin{equation}
+      p(x \mid \mu, \Sigma) = \frac{1}{Z} \exp \bigg( -\frac{1}{2} (x - \mu)^T \Sigma^{-1} (x - \mu) \bigg)
+    \end{equation}
+    Since the Gaussian distribution represents at most second-order relationships, it automatically encodes a pairwise MRF. Therefore, we can rewrite 
+    \begin{equation}
+      p(x) = \frac{1}{Z} \exp \bigg( -\frac{1}{2} x^T Jx + g^T x \bigg)
+    \end{equation}
+    where $J = \Sigma^{-1}$ and $\mu = J^{-1} g$. 
+  \end{example}
+
+  However, this is still quite a limited model. For one, due to the linearity of the weight matrix, it always turns out that the probability of $x_k = 1$ is always given by a linear model (logistic regression) from the values of the other units. This family of distributions parameterized by $\theta = \{W, b\}$ may not be broad enough to capture the true $p(x)$. Therefore, we can add latent variables that can act similarly to hidden units in a MLP and model higher-order interactions among the visible units. Just as the addition of hidden units to convert logistic regression into MLP results in the MLP being a universal approximator of functions, a Boltzmann machine with hidden units is not longer limited to modeling linear relationships between variables. Instead, the Boltzmann machine becomes a universal approximator of probability mass functions over discrete random variables. 
 
   \begin{definition}[Boltzmann Machine]
     The original \textbf{Boltzmann machine} has the energy function 
     \begin{equation}
-      E(\mathbf{v}, \mathbf{h}) = - \mathbf{v}^T \mathbf{R} \mathbf{v} - \mathbf{v}^T \mathbf{W} \mathbf{h} - \mathbf{h}^T \mathbf{S} \mathbf{h} - \mathbf{b}^T \mathbf{v} - \mathbf{c}^T \mathbf{h}
+      E(v, h) = - v^T R v - v^T W h - h^T S h - b^T v - c^T h
     \end{equation}
-    It can represent the undirected graph that has connections within the $\mathbf{x}$, within the $\mathbf{h}$, and between the $\mathbf{x}$ and $\mathbf{h}$.
+    It can represent the undirected graph that has connections within the $x$, within the $h$, and between the $x$ and $h$.
 
     \begin{figure}[H]
       \centering 
@@ -143,10 +111,22 @@
     \end{figure}
   \end{definition} 
 
-  Therefore, by adding latent variables and connecting everything together, this gives us a very flexible model that can capture a lot of distributions. There were known problems with training this, and so the restricted Boltzmann machine allowed for efficient training. 
+  Therefore, by adding latent variables and connecting everything together, this gives us a very flexible model that can capture a lot of distributions.  
+
+\subsection{Restricted Boltzmann Machines} 
+
+  Unfortunately, there are problems with training this, and so the restricted Boltzmann machine allowed for efficient training. Therefore, we will limit ourselves to \textbf{pairwise MRFs}, which only capture dependencies between cliques of maximum size $2$. We usually write $x$ as the observed and $z$ as the latent, but in the literature $v$ and $h$ are used, respectively. Now, if we put a restriction saying that there cannot be any intra-connections in the $x$ and $h$, then we get the \textit{restricted Boltzmann machine}, which has a slightly more resticted form of the energy function than the general BM. 
 
   \begin{definition}[Restricted Boltzmann Machine] 
-    Now, if we put a restriction saying that there cannot be any intra-connections in the $\mathbf{x}$ and $\mathbf{h}$, then we get the \textbf{restricted Boltzmann machine}, which has a slightly more resticted form of the energy function than the general BM. The probability distributions that it can model has a graph that looks like 
+    The \textbf{restricted Boltzmann machine} has the energy function 
+    \begin{equation}
+      E(v, h) = - v^T W h - b^T v - c^T h
+    \end{equation}
+    with connections only allowed between $x_i$'s and $h_j$'s, known as a \textbf{bipartite graph}, implying that the maximum clique length is $2$. This model allows the elements of $x$ to be dependent, but this architecture allows for \textit{conditional independence}, and not just for $x$ given $h$, but also $h$ given $x$. Therefore, we already have the extremely nice property that 
+    \begin{align} 
+      p(x \mid h) & = \prod_{k=1}^{D} p(x_k \mid h) \\
+      p(h \mid x) & = \prod_{j=1}^F p(h_j \mid x) 
+    \end{align}
 
     \begin{figure}[H]
       \centering 
@@ -177,40 +157,31 @@
       \caption{2-layer undirected graph representing a restricted Boltzmann machine. Note that the intra-connections (blue and orange) are gone. } 
       \label{fig:rbm}
     \end{figure}
-
-    with connections only allowed between $x_i$'s and $h_j$'s, known as a \textbf{bipartite graph}, implying that the maximum clique length is $2$. This model allows the elements of $\mathbf{x}$ to be dependent, but this architecture allows for \textit{conditional independence}, and not just for $\mathbf{x}$ given $\mathbf{h}$, but also $\mathbf{h}$ given $\mathbf{x}$. Therefore, we already have the extremely nice property that 
-    \begin{align*} 
-      p(\mathbf{x} \mid \mathbf{h}) & = \prod_{k=1}^{D} p(x_k \mid \mathbf{h}) \\
-      p(\mathbf{h} \mid \mathbf{x}) & = \prod_{j=1}^F p(h_j \mid \mathbf{x}) 
-    \end{align*}
   \end{definition}
 
-  The fact that we can calculate $p(\mathbf{h} \mid \mathbf{x})$ means that inferring the distribution over the hidden variables is easy. Keep in mind that there are three architectures we've talked about: 
-  \begin{enumerate}
-    \item Markov Random Fields, which model just the original $\mathbf{x}$. 
-    \item Restricted Boltzmann machines, which models $\mathbf{x}, \mathbf{h}$ and not allowing intra-connections. 
-    \item Boltzmann machines, which models $\mathbf{x}, \mathbf{h}$. Boltzmann machines without latent variables are just MRFs.  
-  \end{enumerate}
+  The fact that we can calculate $p(h \mid x)$ means that inferring the distribution over the hidden variables is easy. 
 
   \begin{definition}[Bernoulli-Bernoulli RBM]
-    For now, let us assume that we are trying to estimate the distribution of a Bernoulli random vector $\mathbf{x} \in \{0, 1\}^D$ with Bernoulli latent variables $\mathbf{h} \in \{0, 1\}^F$. Then, the energy of the joint configuration is  
-      \[E(\mathbf{v}, \mathbf{h}; \boldsymbol{\theta}) = - \sum_{ij} W_{ij} v_i h_j - \sum_i b_i v_i - \sum_j a_j h_j = - \mathbf{v}^T \mathbf{W} \mathbf{h} - \mathbf{b}^T \mathbf{v} - \mathbf{a}^T \mathbf{h}\]
-    where $\boldsymbol{\theta} = \{\mathbf{W}, \mathbf{a}, \mathbf{b}\}$ are the model parameters. So we have 
-      \begin{align*} 
-        p_{\boldsymbol{\theta}} (\mathbf{v}, \mathbf{h}) & = \frac{1}{Z} \exp \big( -E (\mathbf{v}, \mathbf{h}; \boldsymbol{\theta})\big) = \frac{1}{Z} \prod_{ij} e^{W_ij v_i h_j} \prod_i e^{b_i v_i} \prod_j e^{a_j h_j} \\
-        Z & = \sum_{\mathbf{h}, \mathbf{v}} \exp \big( -E(\mathbf{v}, \mathbf{h}; \boldsymbol{\theta}) \big) 
-      \end{align*}
-    where we can think of the $\exp(\mathbf{h}^T \mathbf{W} \mathbf{x})$ as encoding the cliques of length $2$ and the others as cliques of length $1$.  
+    For now, let us assume that we are trying to estimate the distribution of a Bernoulli random vector $x \in \{0, 1\}^D$ with Bernoulli latent variables $h \in \{0, 1\}^F$. Then, the energy of the joint configuration is  
+    \begin{equation}
+      E(v, h; \theta) = - \sum_{ij} W_{ij} v_i h_j - \sum_i b_i v_i - \sum_j a_j h_j = - v^T W h - b^T v - a^T h
+    \end{equation}
+    where $\theta = \{W, a, b\}$ are the model parameters. So we have 
+    \begin{align} 
+      p_{\theta} (v, h) & = \frac{1}{Z} \exp \big( -E (v, h; \theta)\big) = \frac{1}{Z} \prod_{ij} e^{W_ij v_i h_j} \prod_i e^{b_i v_i} \prod_j e^{a_j h_j} \\
+      Z & = \sum_{h, v} \exp \big( -E(v, h; \theta) \big) 
+    \end{align}
+    where we can think of the $\exp(h^T W x)$ as encoding the cliques of length $2$ and the others as cliques of length $1$.  
   \end{definition}
 
   Let's get some calculations out of the way. 
 
   \begin{lemma}[Conditional Distributions] 
     For the Bernoulli RBM, we have 
-    \begin{align*} 
-      p(h_j = 1 \mid \mathbf{x}) & = \sigma ( b_j + W_{j,:} \mathbf{x}) \\
-      p(x_k = 1 \mid \mathbf{h}) & = \sigma ( c_k + \mathbf{h}^T \mathbf{W}_{:, k})
-    \end{align*}
+    \begin{align} 
+      p(h_j = 1 \mid x) & = \sigma ( b_j + W_{j,:} x) \\
+      p(x_k = 1 \mid h) & = \sigma ( c_k + h^T W_{:, k})
+    \end{align}
   \end{lemma}
   \begin{proof}
     Just use the definition of conditional probability and substitute the result below in the denominator. The terms will cancel out. 
@@ -260,90 +231,107 @@
   \end{definition}
 
   \begin{lemma}[Free Energy] 
-    For the Bernoulli RBM, we want to compute the marginal $p(\mathbf{x})$ as
+    For the Bernoulli RBM, we want to compute the marginal $p(x)$ as
     \begin{align*} 
-    p(\mathbf{x}) & = \frac{\exp(-F(\mathbf{x}))}{Z} \\
-                  & = \frac{1}{Z} \exp \bigg( \mathbf{c}^T \mathbf{x} + \sum_{j=1}^H \log \big( 1 + \exp (b_j + \mathbf{W}_{j, :} \mathbf{x}) \big) \bigg) \\
-                  & = \frac{1}{Z} \exp \bigg( \mathbf{c}^T \mathbf{x} + \sum_{j=1}^H \mathrm{softplus}(b_j + W_{j, :} \mathbf{x} ) \bigg)
+    p(x) & = \frac{\exp(-F(x))}{Z} \\
+                  & = \frac{1}{Z} \exp \bigg( c^T x + \sum_{j=1}^H \log \big( 1 + \exp (b_j + W_{j, :} x) \big) \bigg) \\
+                  & = \frac{1}{Z} \exp \bigg( c^T x + \sum_{j=1}^H \mathrm{softplus}(b_j + W_{j, :} x ) \bigg)
     \end{align*}
-    where $F$ is called the \textbf{free energy}. Therefore, $p(\mathbf{x})$ is calculated by taking the product of these terms, which is why it's known as a \textbf{product of experts model}. 
+    where $F$ is called the \textbf{free energy}. Therefore, $p(x)$ is calculated by taking the product of these terms, which is why it's known as a \textbf{product of experts model}. 
   \end{lemma}
   \begin{proof}
   We have 
   \begin{align*} 
-    p(\mathbf{x}) & = \sum_{\mathbf{h} \in \{0, 1\}^H} \exp \big( \mathbf{h} \mathbf{W} \mathbf{x} + \mathbf{c}^T \mathbf{x} + \mathbf{b}^T \mathbf{h}\big) /Z \\
-                  & = \exp (\mathbf{c}^T \mathbf{x}) \sum_{h_1 = 0, 1} \ldots \sum_{h_H = 0, 1} \exp \bigg( \sum_j h_j \mathbf{W}_{j, :} \mathbf{x} + b_j h_j \bigg) / Z \\
-                  & = \exp (\mathbf{c}^T \mathbf{x}) \bigg( \sum_{h_1 = 0, 1} \exp (h_1 \mathbf{W}_{1, :} \mathbf{x} + b_1 h_1 ) \bigg) \ldots \bigg( \sum_{h_H = 0, 1} \exp (h_H \mathbf{W}_{H, :} \mathbf{x} + b_H h_H) \bigg) / Z \\
-                  & = \exp (\mathbf{c}^T \mathbf{x}) \big( 1 + \exp (b_1 + \mathbf{W}_{1, :} \mathbf{x}) \big) \ldots \big( 1 + \exp (b_H + \mathbf{W}_{H, :} \mathbf{x})\big) / Z \\
-                  & = \exp (\mathbf{c}^T \mathbf{x}) \exp\big\{ \log \big( 1 + \exp (b_1 + \mathbf{W}_{1, :} \mathbf{x}) \big) \big\} \ldots \exp \big\{ \log \big( 1 + \exp (b_H + \mathbf{W}_{H, :} \mathbf{x}) \big) \big\} / Z \\
-                  & = \frac{1}{Z} \exp \bigg( \mathbf{c}^T \mathbf{x} + \sum_{j=1}^H \log \big( 1 + \exp (b_j + \mathbf{W}_{j, :} \mathbf{x}) \big) \bigg) 
+    p(x) & = \sum_{h \in \{0, 1\}^H} \exp \big( h W x + c^T x + b^T h\big) /Z \\
+                  & = \exp (c^T x) \sum_{h_1 = 0, 1} \ldots \sum_{h_H = 0, 1} \exp \bigg( \sum_j h_j W_{j, :} x + b_j h_j \bigg) / Z \\
+                  & = \exp (c^T x) \bigg( \sum_{h_1 = 0, 1} \exp (h_1 W_{1, :} x + b_1 h_1 ) \bigg) \ldots \bigg( \sum_{h_H = 0, 1} \exp (h_H W_{H, :} x + b_H h_H) \bigg) / Z \\
+                  & = \exp (c^T x) \big( 1 + \exp (b_1 + W_{1, :} x) \big) \ldots \big( 1 + \exp (b_H + W_{H, :} x)\big) / Z \\
+                  & = \exp (c^T x) \exp\big\{ \log \big( 1 + \exp (b_1 + W_{1, :} x) \big) \big\} \ldots \exp \big\{ \log \big( 1 + \exp (b_H + W_{H, :} x) \big) \big\} / Z \\
+                  & = \frac{1}{Z} \exp \bigg( c^T x + \sum_{j=1}^H \log \big( 1 + \exp (b_j + W_{j, :} x) \big) \bigg) 
   \end{align*} 
   \end{proof}
 
-  Now that we've done this, we can finally get to training the model. Now, essentially this is density estimation problem given dataset $\mathcal{D} = \{\mathbf{x}^{(t)}\}$ of iid random variables, we want to maximize the likelihood of $p_{\boldsymbol{\theta}}$, which is really just equivalent to optimizing $E_{\boldsymbol{\theta}}$. So, let's take the average negative log-likelihood and take the derivative of it
-  \[\frac{\partial}{\partial \boldsymbol{\theta}} \frac{1}{T} \sum_t - \log p_{\boldsymbol{\theta}} (\mathbf{x}^{(t)}) = \frac{1}{T} \sum_t - \log{p_{\boldsymbol{\theta}} (\mathbf{x}^{(t)})}\]
-  There's a lot of computation to do here, so let's focus on one sample $\mathbf{x}^{(t)}$ and claim that the gradient ultimately ends up as the following. 
+  Now that we've done this, we can finally get to training the model. Now, essentially this is density estimation problem given dataset $\mathcal{D} = \{x^{(t)}\}$ of iid random variables, we want to maximize the likelihood of $p_{\theta}$, which is really just equivalent to optimizing $E_{\theta}$. So, let's take the average negative log-likelihood and take the derivative of it
+  \begin{equation}
+    \frac{\partial}{\partial \theta} \frac{1}{T} \sum_t - \log p_{\theta} (x^{(t)}) = \frac{1}{T} \sum_t - \log{p_{\theta} (x^{(t)})}
+  \end{equation}
+  There's a lot of computation to do here, so let's focus on one sample $x^{(t)}$ and claim that the gradient ultimately ends up as the following. 
 
   \begin{theorem}
     It turns out that
     \begin{align*} 
-    \frac{\partial}{\partial \boldsymbol{\theta}} - \log p(\mathbf{x}^{(t)}) & = \sum_{\mathbf{h}}  p(\mathbf{h} \mid \mathbf{x}^{(t)}) \, \frac{ \partial E(\mathbf{x}^{(t)}, \mathbf{h})}{\partial \boldsymbol{\theta}} - \sum_{\mathbf{x}, \mathbf{h}} p(\mathbf{x}, \mathbf{h}) \, \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}} \\
-                                                                             & = \mathbb{E}_{\mathbf{h}} \bigg[ \frac{\partial E( \mathbf{x}^{(t)}, \mathbf{h})}{\partial \boldsymbol{\theta}} \; \bigg| \; \mathbf{x}^{(t)} \bigg] - \mathbb{E}_{\mathbf{x}, \mathbf{h}} \bigg[ \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}} \bigg]  
+      \frac{\partial}{\partial \theta} - \log p(x^{(t)}) & = \sum_{h}  p(h \mid x^{(t)}) \, \frac{ \partial E(x^{(t)}, h)}{\partial \theta} - \sum_{x, h} p(x, h) \, \frac{\partial E(x, h)}{\partial \theta} \\
+                                                                               & = \mathbb{E}_{h} \bigg[ \frac{\partial E( x^{(t)}, h)}{\partial \theta} \; \bigg| \; x^{(t)} \bigg] - \mathbb{E}_{x, h} \bigg[ \frac{\partial E(x, h)}{\partial \theta} \bigg]  
     \end{align*}
-    The derivative of $E$ is easy since we already know the bilinear form by construction. In the left term, we are taking the expectation w.r.t. $p(\mathbf{h} \mid \mathbf{x}^{(t)})$, which we can factorize out due to conditional independence, so this is easy. However, the right term requires us to integrate over the joint $p(\mathbf{x}, \mathbf{h})$, which is intractable, and so we just approximate this with a Monte Carlo sample. 
+    The derivative of $E$ is easy since we already know the bilinear form by construction. In the left term, we are taking the expectation w.r.t. $p(h \mid x^{(t)})$, which we can factorize out due to conditional independence, so this is easy. However, the right term requires us to integrate over the joint $p(x, h)$, which is intractable, and so we just approximate this with a Monte Carlo sample. 
   \end{theorem}
   \begin{proof}
-    As a lemma, we first see that $\ln(Z) = \ln \big( \sum_{\mathbf{x}, \mathbf{h}} \exp \big( - E(\mathbf{x}, \mathbf{h}) \big) \big)$, and so
-    \[\frac{\partial \ln(Z)}{\partial \boldsymbol{\theta}} = -\frac{1}{Z} \sum_{\mathbf{x}, \mathbf{h}} \exp \big(-E(\mathbf{x}, \mathbf{h})\big) \, \frac{E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}} = - \sum_{\mathbf{x}, \mathbf{h}} p(\mathbf{x}, \mathbf{h}) \, \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}}\]
+    As a lemma, we first see that $\ln(Z) = \ln \big( \sum_{x, h} \exp \big( - E(x, h) \big) \big)$, and so
+    \begin{equation}
+      \frac{\partial \ln(Z)}{\partial \theta} = -\frac{1}{Z} \sum_{x, h} \exp \big(-E(x, h)\big) \, \frac{E(x, h)}{\partial \theta} = - \sum_{x, h} p(x, h) \, \frac{\partial E(x, h)}{\partial \theta}
+    \end{equation}
     We have 
-    \begin{align*} 
-    -\ln p(\mathbf{x}) & = - \ln \bigg\{ \sum_{\mathbf{h}} \exp \big( -E(\mathbf{x}, \mathbf{h}) \big) \bigg\} + \ln(Z)
-    \end{align*}
+    \begin{equation} 
+      -\ln p(x) = - \ln \bigg\{ \sum_{h} \exp \big( -E(x, h) \big) \bigg\} + \ln(Z)
+    \end{equation}
     and so we can apply chain rule and multiply both numerator and denominator by $1/Z$ to get 
-    \begin{align*} 
-    -\frac{\partial}{\partial \boldsymbol{\theta}} \ln p(\mathbf{x}) & = \frac{\sum_{\mathbf{h}} \exp \big( -E(\mathbf{x}, \mathbf{h}) \big) \, \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}} / Z}{\sum_{\mathbf{h}} \exp \big( -E (\mathbf{x}, \mathbf{h}) \big) / Z} + \frac{\partial \ln(Z)}{\partial \boldsymbol{\theta}} \\
-                                                                     & = \frac{\sum_{\mathbf{h}} p(\mathbf{x}, \mathbf{h}) \, \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}}}{p(\mathbf{x})} + \frac{\partial \ln(Z)}{\partial \boldsymbol{\theta}} \\
-                                                                     & = \sum_{\mathbf{h}} p(\mathbf{h} \mid \mathbf{x}) \, \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}} - \sum_{\mathbf{x}, \mathbf{h}} p(\mathbf{x}, \mathbf{h}) \, \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial \boldsymbol{\theta}} 
-    \end{align*}
+    \begin{align} 
+      -\frac{\partial}{\partial \theta} \ln p(x) & = \frac{\sum_{h} \exp \big( -E(x, h) \big) \, \frac{\partial E(x, h)}{\partial \theta} / Z}{\sum_{h} \exp \big( -E (x, h) \big) / Z} + \frac{\partial \ln(Z)}{\partial \theta} \\
+                                                                       & = \frac{\sum_{h} p(x, h) \, \frac{\partial E(x, h)}{\partial \theta}}{p(x)} + \frac{\partial \ln(Z)}{\partial \theta} \\
+                                                                       & = \sum_{h} p(h \mid x) \, \frac{\partial E(x, h)}{\partial \theta} - \sum_{x, h} p(x, h) \, \frac{\partial E(x, h)}{\partial \theta} 
+    \end{align}
   \end{proof} 
 
   So to calculate the second expectation, we can use a Gibbs sampler to do some numerical integration, but before we do that, let's just find the partial of $E$, which should be simple. 
-  \[\frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial W_{j k}} = \frac{\partial}{\partial W_{j k}} \bigg( - \sum_{j k} W_{j k} h_j x_k - \sum_k c_k x_k - \sum_j b_j h_j \bigg) = h_j x_k\]
+  \begin{equation}
+    \frac{\partial E(x, h)}{\partial W_{j k}} = \frac{\partial}{\partial W_{j k}} \bigg( - \sum_{j k} W_{j k} h_j x_k - \sum_k c_k x_k - \sum_j b_j h_j \bigg) = h_j x_k
+  \end{equation}
   and so 
-  \[\mathbb{E}_{\mathbf{h}} \bigg[ \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial W_{j k}} \bigg| \mathbf{x} \bigg] = \mathbb{E}_{\mathbf{h}} [ -h_j x_k \mid \mathbf{x}] = \sum_{h_j = 0, 1} - h_j x_k \, p(h_j \mid \mathbf{x}) = - x_k p(h_j = 1 \mid \mathbf{x})\]
+  \begin{equation}
+    \mathbb{E}_{h} \bigg[ \frac{\partial E(x, h)}{\partial W_{j k}} \bigg| x \bigg] = \mathbb{E}_{h} [ -h_j x_k \mid x] = \sum_{h_j = 0, 1} - h_j x_k \, p(h_j \mid x) = - x_k p(h_j = 1 \mid x)
+  \end{equation}
   where the final term is a sigmoid. Hence, we have 
-  \[\mathbb{E}_{\mathbf{h}} [ \nabla_{\mathbf{W}} E(\mathbf{w}, \mathbf{h}) \mid \mathbf{x}] = - \mathbf{h}(\mathbf{x}) \mathbf{x}^T, \text{ where } \mathbf{h}(\mathbf{x}) \coloneqq \begin{pmatrix} p(h_1 = 1 \mid \mathbf{x}) \\ \vdots \\ p(h_H = 1 \mid \mathbf{x}) \end{pmatrix} = \sigma(\mathbf{b} + \mathbf{W} \mathbf{x}) \]
+  \begin{equation}
+    \mathbb{E}_{h} [ \nabla_{W} E(w, h) \mid x] = - h(x) x^T, \text{ where } h(x) \coloneqq \begin{pmatrix} p(h_1 = 1 \mid x) \\ \vdots \\ p(h_H = 1 \mid x) \end{pmatrix} = \sigma(b + W x)
+  \end{equation}
   Now we can substitute what we solved into the second expectation, but again this is infeasible to calculate 
-  \[\mathbb{E}_{\mathbf{x}, \mathbf{h}} \bigg[ \frac{\partial E(\mathbf{x}, \mathbf{h})}{\partial\boldsymbol{\theta}}\bigg] = \sum_{\mathbf{x}, \mathbf{h}} \mathbf{h}(\mathbf{x}) \mathbf{x}^T p(\mathbf{x}, \mathbf{h}) \]
-  The way we do this is through \textbf{contrastive divergence}, which estimates the expectation through Gibbs sampling. Since we know $p(\mathbf{x}\mid \mathbf{h})$ and $p(\mathbf{h} \mid \mathbf{x})$ easily, we can start sampling the chain for some predetermined $K$ steps (actually $2K$ since we are sampling the $x$ and $h$ back and forth), and whatever $\bar{\mathbf{x}}$ you sample at the end is your estimate. So, once you should update your gradient, you start at the sample $\mathbf{x}^{(t)}$, run Gibbs for $k$ steps, and use that to estimate your gradient, and then move onto the next sample. We can tweak this procedure, such as \textbf{persistent CD}, where instead of initializing the chain to $\mathbf{x}^{(t)}$, we can initialize the chain to the negative sample of the last iteration. 
-  \begin{center}
+  \begin{equation}
+    \mathbb{E}_{x, h} \bigg[ \frac{\partial E(x, h)}{\partial\theta}\bigg] = \sum_{x, h} h(x) x^T p(x, h)
+  \end{equation}
+  The way we do this is through \textbf{contrastive divergence}, which estimates the expectation through Gibbs sampling. Since we know $p(x\mid h)$ and $p(h \mid x)$ easily, we can start sampling the chain for some predetermined $K$ steps (actually $2K$ since we are sampling the $x$ and $h$ back and forth), and whatever $\bar{x}$ you sample at the end is your estimate. So, once you should update your gradient, you start at the sample $x^{(t)}$, run Gibbs for $k$ steps, and use that to estimate your gradient, and then move onto the next sample. We can tweak this procedure, such as \textbf{persistent CD}, where instead of initializing the chain to $x^{(t)}$, we can initialize the chain to the negative sample of the last iteration. 
+
+  \begin{figure}[H]
+    \centering 
     \includegraphics[scale=0.4]{img/07_Boltzmann/contrastive_divergence.png}
-  \end{center}
-  Therefore, for updating $\mathbf{W}$, we get the following 
-  \begin{align*} 
-    \mathbf{W} & = \mathbf{W} - \alpha \big( \nabla_{\mathbf{W}}(- \log p(\mathbf{x}^{(t)})) \big) \\
-               & = \mathbf{W} - \alpha \big( \mathbb{E}_{\mathbf{h}} [ \nabla_{\mathbf{W}} E(\mathbf{x}^{(t)}, \mathbf{h}) \mid \mathbf{x}^{(t)} ] - \mathbb{E}_{\mathbf{x}, \mathbf{h}} [\nabla_{\mathbf{W}} E(\mathbf{x}, \mathbf{h}) ]\big) \\
-               & = \mathbf{W} - \alpha \big( \mathbb{E}_{\mathbf{h}} [ \nabla_{\mathbf{W}} E(\mathbf{x}^{(t)}, \mathbf{h}) \mid \mathbf{x}^{(t)} ] - \mathbb{E}_{\mathbf{h}} [\nabla_{\mathbf{W}} E(\bar{\mathbf{x}}, \mathbf{h}) \mid \bar{\mathbf{x}} ]\big) \\
-               & = \mathbf{W} + \alpha \big( \mathbf{h}(\mathbf{x}^{(t)}) (\mathbf{x}^{(t)})^T               - \mathbf{h}(\bar{\mathbf{x}}) \bar{\mathbf{x}}^T \big)
-  \end{align*}
+    \caption{Contrastive divergence. } 
+    \label{fig:contrastive_divergence}
+  \end{figure}
+
+  Therefore, for updating $W$, we get the following 
+  \begin{align} 
+    W & = W - \alpha \big( \nabla_{W}(- \log p(x^{(t)})) \big) \\
+               & = W - \alpha \big( \mathbb{E}_{h} [ \nabla_{W} E(x^{(t)}, h) \mid x^{(t)} ] - \mathbb{E}_{x, h} [\nabla_{W} E(x, h) ]\big) \\
+               & = W - \alpha \big( \mathbb{E}_{h} [ \nabla_{W} E(x^{(t)}, h) \mid x^{(t)} ] - \mathbb{E}_{h} [\nabla_{W} E(\bar{x}, h) \mid \bar{x} ]\big) \\
+               & = W + \alpha \big( h(x^{(t)}) (x^{(t)})^T               - h(\bar{x}) \bar{x}^T \big)
+  \end{align}
   and doing this over all three parameters leads to 
-  \begin{align*} 
-    \mathbf{W} & \leftarrow \mathbf{W} + \alpha \big( \mathbf{h} (\mathbf{x}^{(t)}) (\mathbf{x}^{(t)})^T - \mathbf{h}(\bar{\mathbf{x}}) \bar{\mathbf{x}}^T \big) \\
-    \mathbf{b} & \leftarrow \mathbf{b} + \alpha \big( \mathbf{h}(\mathbf{x}^{(t)}) - \mathbf{h}(\bar{\mathbf{x}}) \big) \\
-    \mathbf{c} & = \leftarrow \mathbf{c} + \alpha \big( \mathbf{x}^{(t)} - \hat{\mathbf{x}} \big) 
-  \end{align*}
+  \begin{align} 
+    W & \leftarrow W + \alpha \big( h (x^{(t)}) (x^{(t)})^T - h(\bar{x}) \bar{x}^T \big) \\
+    b & \leftarrow b + \alpha \big( h(x^{(t)}) - h(\bar{x}) \big) \\
+    c & = \leftarrow c + \alpha \big( x^{(t)} - \hat{x} \big) 
+  \end{align}
   Therefore, contrastive divergence with $k$ iterations gives us the \textbf{CD-k algorithm}. In general, the bigger $k$ is, the less biased the estimate of the gradient will be, and in practice $k=1$ works well for learning good features. The reason this is called contrastive divergence is that in the gradient update step, we have a positive sample and a negative sample that both approximates the expected gradient, which constrasts to each other. 
 
   Now we can talk about Gaussian Bernoulli RBMs. 
 
   \begin{definition}[Gaussian-Bernoulli RBM] 
-    If we assume that $\mathbf{v}$ is a real-valued (unbounded) input that follows a Gaussian distribution (with $\mathbf{h}$ still Bernoulli), then we can add a quadratic term to the energy function 
+    If we assume that $v$ is a real-valued (unbounded) input that follows a Gaussian distribution (with $h$ still Bernoulli), then we can add a quadratic term to the energy function 
     \begin{equation} 
-      E(\mathbf{x}, \mathbf{h}) = - \mathbf{h}^T \mathbf{W} \mathbf{x} - \mathbf{c}^T \mathbf{x} - \mathbf{b}^T \mathbf{h} - \frac{1}{2} \mathbf{x}^T \mathbf{x}
+      E(x, h) = - h^T W x - c^T x - b^T h - \frac{1}{2} x^T x
     \end{equation}
-    In this case, $p(\mathbf{x} \mid \mathbf{h})$ becomes a Gaussian distribution $N(\mathbf{c} + \mathbf{W}^T \mathbf{h}, \mathbf{I})$. The training process is slightly harder for this, so what we usually do is normalize the training set by subtracting the mean off each input and dividing the input by the training set standard deviation to get  
+    In this case, $p(x \mid h)$ becomes a Gaussian distribution $N(c + W^T h, I)$. The training process is slightly harder for this, so what we usually do is normalize the training set by subtracting the mean off each input and dividing the input by the training set standard deviation to get  
     \begin{equation} 
-      E(\mathbf{v}, \mathbf{h}; \boldsymbol{\theta}) = \sum_i \frac{(v_i - b_i)^2}{2 \sigma_i^2} - \sum_{ij} W_{ij} h_j \frac{v_i}{\sigma_i} - \sum_j a_j h_j
+      E(v, h; \theta) = \sum_i \frac{(v_i - b_i)^2}{2 \sigma_i^2} - \sum_{ij} W_{ij} h_j \frac{v_i}{\sigma_i} - \sum_j a_j h_j
     \end{equation}
     You should also use a smaller learning rate $\alpha$ compared to Bernoulli RBM. 
   \end{definition} 
