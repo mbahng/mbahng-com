@@ -142,7 +142,7 @@
     \end{align*}
   \end{proof} 
 
-  The next step is to actually maximize the ELBO with respect to both $\theta$ and $\phi$. To do this we need to compute the derivatives of $\elbo$ w.r.t. to $\phi$ and $\theta$. 
+  Therefore, maximizing the ELBO will simultaneously allow us to obtain an accurate generative model $p_\theta (x \mid z) \approx p^\ast (x \mid z)$ and an accurate discriminative model $q_\phi (z \mid x) \approx p_\theta (z \mid x)$. The next step is to actually maximize the ELBO with respect to both $\theta$ and $\phi$. To do this we need to compute the derivatives of $\elbo$ w.r.t. to $\phi$ and $\theta$. 
 
   \begin{equation}
     \max_{\phi, \theta} \elbo(\mathcal{D}, \phi, \theta)
@@ -179,7 +179,7 @@
   Now that we have approximate closed form solutions for the gradients, we can optimize the two using coordinate ascent. 
 
   \begin{algo}[Coordinate Ascent Variational Inference]
-    A common approach to maximize the ELBO is coordinate ascent, where we alternatively optimize with respect to $q_\phi$ and $\theta$:
+    A common approach to maximize the ELBO is coordinate ascent, where we alternatively optimize with respect to $\phi$ and $\theta$:
 
     \begin{algorithm}[H]
       \caption{Coordinate Ascent Variational Inference (CAVI)}
@@ -193,37 +193,349 @@
         \EndWhile
       \end{algorithmic}
     \end{algorithm}
-  \end{algo}
+  \end{algo} 
+
+  Once we are done, we have our optimized encoder and decoders $p_\theta$ and $q_\phi$. 
   
-\subsection{EM Algorithm}
+\subsection{EM Algorithm} 
 
-  The coordinate ascent approach reveals the deep connection between variational inference and the EM algorithm. In fact, the EM algorithm can be viewed as a special case where:
-
-  \begin{itemize}
-    \item The E-step finds the exact posterior $q_\phi(z|x) = p_\theta(z|x)$ rather than approximating it
-    \item The M-step maximizes the expected complete data log-likelihood
-  \end{itemize}
-
-  When the exact posterior is intractable, variational inference provides an approximate alternative to EM by:
+  Let's consider a slightly different problem where we have covariates $x^{(i)} \sim X$ coming from distribution $p(x)$. We can again add latent random variables $Z$ but rather than being fixed, the prior $p_\theta (z)$ is also parameterized by $\theta$. Therefore, we would like to find 
   \begin{equation}
-    q_\phi(z|x) \approx p_\theta(z|x)
-  \end{equation}
+    \argmax_\theta p_\theta (x) = \argmax_\theta \int p_\theta (x \mid z) \, p_\theta (z) \,dz
+  \end{equation} 
+  Even though this integral is not tractable, we will assume that $p_\theta (z \mid x)$ can be computed for a given $\theta$. Note that there is a duality between the true parameters $\theta$ and the latent variables $z$. If $\theta$ is known, then the values of $z$ can be found by maximizing the log-likelihood over all possible values of $z$. Conversely, if we know the value of the latent variables $z$, then we can find an estimate of the parameters by grouping the data points into each value of $z$ and optimizing $p_\theta (x \mid z)$, e.g. by averaging the values. This suggests an iterative algorithm in the case where both $\theta$ and $z$ are unknown. We assume that we know $\theta$ and optimize $z$, then optimize $\theta$, and so on, similar to $k$-means clustering. 
 
-  This leads to the variational EM algorithm:
+  \begin{algo}[EM Algorithm]
+    The \textbf{Expectation-Maximization algorithm} optimizes the likelihood above with the following steps. 
+    \begin{enumerate}
+      \item First initialize $\theta = \theta^{(0)}$ in some way.\footnote{Note that within this $\theta$ are the parametizations of the initial multinomial density $p_Z$, which is our initial ``guess'' of the distribution of $Z$.}
 
-  \begin{enumerate}
-    \item Variational E-step: Find $q_\phi$ that best approximates the posterior
+      \item \textit{Expectation Step}. Define 
+
+      \begin{equation}
+        Q(\theta \mid \theta^{(t)}) = \mathbb{E}_{p_\theta (z \mid x)}[ \log p_\theta(x, z) ] = \int p_{\theta^{(t)}} (z \mid x) \log{p_\theta (x, z)} \,dz
+      \end{equation}
+
+      as the expected value of the log-likehihood with respect to the current conditional distribution of $z$, given $x$ and $\theta^{(t)}$. 
+
+      \item \textit{Maximization Step}. Find the parameters that maximize this quantity. 
+      \begin{equation}
+        \theta^{(t+1)} = \argmax_\theta Q(\theta \mid \theta^{(t)})
+      \end{equation}
+    \end{enumerate}
+  \end{algo}
+
+  \begin{theorem}[EM Monotonicity]
+    The EM algorithm monotonically increases the observed data log-likelihood:
     \begin{equation}
-      \phi^{(t+1)} = \argmin_\phi KL(q_\phi(z|x) || p_{\theta^{(t)}}(z|x))
+      \log p_{\theta^{(t+1)}}(x) \geq \log p_{\theta^{(t)}}(x)
     \end{equation}
-    
-    \item M-step: Maximize the expected complete data log-likelihood under $q_\phi$
+    Therefore, though there is no guarantee that this will hit the global maximum, it will hit a local maximum. 
+  \end{theorem}
+  \begin{proof}
+    Let's consider the difference in log-likelihoods between iterations:
+    \begin{align}
+      \log p_{\theta^{(t+1)}}(x) - \log p_{\theta^{(t)}}(x) &= \left[Q(\theta^{(t+1)}|\theta^{(t)}) - H(\theta^{(t+1)}|\theta^{(t)})\right] \\
+      &\quad - \left[Q(\theta^{(t)}|\theta^{(t)}) - H(\theta^{(t)}|\theta^{(t)})\right]
+    \end{align}
+    where $H(\theta|\theta^{(t)}) = \mathbb{E}_{z|x,\theta^{(t)}}[\log p_{\theta}(z|x)]$. By the M-step, we know $Q(\theta^{(t+1)}|\theta^{(t)}) \geq Q(\theta^{(t)}|\theta^{(t)})$. Also, by Jensen's inequality:
     \begin{equation}
-      \theta^{(t+1)} = \argmax_\theta \mathbb{E}_{q_{\phi^{(t+1)}}(z|x)}[\log p_\theta(x,z)]
+      H(\theta^{(t+1)}|\theta^{(t)}) \leq H(\theta^{(t)}|\theta^{(t)})
     \end{equation}
-  \end{enumerate}
+    Therefore, the difference is non-negative.
+  \end{proof}
 
-  This framework provides a systematic way to perform approximate inference when exact EM is intractable.
+  \begin{corollary}[Connection to ELBO]
+    The EM algorithm can be viewed as coordinate ascent on the ELBO where:
+    \begin{itemize}
+      \item E-step: Sets $q(z) = p_{\theta^{(t)}}(z|x)$, maximizing ELBO over q
+      \item M-step: Maximizes ELBO over $\theta$ with fixed q
+    \end{itemize}
+    This is because when $q(z) = p_{\theta^{(t)}}(z|x)$, the KL divergence term in ELBO becomes zero, and:
+    \begin{equation}
+      \elbo(x, q, \theta) = \mathbb{E}_{p_{\theta^{(t)}}(z|x)}[\log p_\theta(x,z)] - \mathbb{E}_{p_{\theta^{(t)}}(z|x)}[\log p_{\theta^{(t)}}(z|x)] = Q(\theta|\theta^{(t)}) + \text{const}
+    \end{equation}
+  \end{corollary}
+
+\subsection{Gaussian Mixture Models}
+
+  Given a training set ${x^{(i)}}_{i=1}^n$ (without the $y$-labels and so in the unsupervised setting), there are some cases where it may seem like we can fit multiple Gaussian distributions in the input space $\mathcal{X}$. For example, the points below seem like they can be fitted well with 3 Gaussians.
+
+  \begin{figure}[H]
+    \centering
+    \begin{tikzpicture}
+      % Draw axes
+      \draw[black, ->, line width=0.8pt] (-0.5,0) -- (10,0);
+      \draw[black, ->, line width=0.8pt] (0,-0.5) -- (0,6);
+      
+      % Equations at top
+      \node[blue] at (4,5.5) {$X|Z=1 \sim \mathcal{N}(\mu_1, \Sigma_1)$};
+      \node[green!50!black] at (4,4.8) {$X|Z=2 \sim \mathcal{N}(\mu_2, \Sigma_2)$};
+      \node[red] at (4,4.1) {$X|Z=3 \sim \mathcal{N}(\mu_3, \Sigma_3)$};
+      
+      % First Gaussian (blue)
+      \draw[blue, rotate around={45:(2,2)}] (2,2) ellipse (2 and 1);
+      \draw[blue, rotate around={45:(2,2)}] (2,2) ellipse (1.4 and 0.7);
+      \draw[blue, rotate around={45:(2,2)}] (2,2) ellipse (0.8 and 0.4);
+      
+      % Blue cluster points - more spread out
+      \fill[black] (1.7,1.7) circle (1.5pt);
+      \fill[black] (1.8,2.1) circle (1.5pt);
+      \fill[black] (2.1,2.4) circle (1.5pt);
+      \fill[black] (2.2,1.8) circle (1.5pt);
+      \fill[black] (1.9,2.3) circle (1.5pt);
+      \fill[black] (1.4,1.7) circle (1.5pt);
+      \fill[black] (2.5,2.2) circle (1.5pt);
+      \fill[black] (2.7,2.4) circle (1.5pt);
+      \fill[black] (1.2,1.5) circle (1.5pt);
+      \fill[black] (2.9,2.6) circle (1.5pt);
+      \fill[black] (3.0,2.7) circle (1.5pt);
+      \fill[black] (1.0,1.3) circle (1.5pt);
+      
+      % Second Gaussian (green)
+      \draw[green!50!black, rotate around={-30:(5,3)}] (5,3) ellipse (1.5 and 0.6);
+      \draw[green!50!black, rotate around={-30:(5,3)}] (5,3) ellipse (1 and 0.4);
+      \draw[green!50!black, rotate around={-30:(5,3)}] (5,3) ellipse (0.5 and 0.2);
+      
+      % Green cluster points - more oval shaped
+      \fill[black] (4.8,2.7) circle (1.5pt);
+      \fill[black] (4.9,3.2) circle (1.5pt);
+      \fill[black] (5.0,2.9) circle (1.5pt);
+      \fill[black] (5.1,3.3) circle (1.5pt);
+      \fill[black] (5.2,2.8) circle (1.5pt);
+      \fill[black] (4.5,2.9) circle (1.5pt);
+      \fill[black] (5.5,3.0) circle (1.5pt);
+      \fill[black] (4.3,2.8) circle (1.5pt);
+      \fill[black] (5.7,3.1) circle (1.5pt);
+      
+      % Third Gaussian (red)
+      \draw[red, rotate around={60:(8,2)}] (8,2) ellipse (1.8 and 0.7);
+      \draw[red, rotate around={60:(8,2)}] (8,2) ellipse (1.2 and 0.5);
+      \draw[red, rotate around={60:(8,2)}] (8,2) ellipse (0.6 and 0.3);
+      
+      % Red cluster points - more spread out
+      \fill[black] (7.8,1.7) circle (1.5pt);
+      \fill[black] (7.9,2.2) circle (1.5pt);
+      \fill[black] (8.0,1.9) circle (1.5pt);
+      \fill[black] (8.1,2.4) circle (1.5pt);
+      \fill[black] (8.2,2.0) circle (1.5pt);
+      \fill[black] (7.5,1.9) circle (1.5pt);
+      \fill[black] (8.5,2.3) circle (1.5pt);
+      \fill[black] (7.3,1.7) circle (1.5pt);
+      \fill[black] (8.7,2.5) circle (1.5pt);
+      \fill[black] (8.9,2.3) circle (1.5pt);
+      \fill[black] (7.1,1.6) circle (1.5pt);
+    \end{tikzpicture}
+    \caption{Example of data that can be fitted with 3 Gaussians}
+  \end{figure}
+
+  \begin{definition}[Gaussian Mixture Model]
+    Therefore, we can construct a best-fit model as a composition of a multinomial distribution (to decide which one of the Gaussians $x$ should follow) followed by a Gaussian. That is, to find the distribution of $x$ and get the density function $p(x)$, we condition it on the random variable $Z$. More specifically, we let
+    \begin{equation}
+      Z \sim \text{Multinomial}(\phi), \;\;\;\;\; \phi = \begin{pmatrix} \phi_1 \ \phi_2 \ \ldots \ \phi_k \end{pmatrix} \text{ such that } \sum_{i=1}^k \phi_i = 1
+    \end{equation}
+    and define the conditional distributions as
+    \begin{align*}
+      X \mid Z = 1 & \sim \mathcal{N}(\mu_1, \Sigma_1) \\
+      X \mid Z = 2 & \sim \mathcal{N}(\mu_2, \Sigma_2) \\
+      \ldots & \sim \ldots \\
+      X \mid Z = j & \sim \mathcal{N}(\mu_j, \Sigma_j) \\
+      \ldots & \sim \ldots \\
+      X \mid Z = k & \sim \mathcal{N}(\mu_k, \Sigma_k)
+    \end{align*}
+    Therefore, our model says that each $x^{(i)}$ was generated by randomly choosing $z^{(i)}$ from ${1, \ldots, k}$ according to some multinomial, and then the $x^{(i)}$ was drawn from one of the $k$ Gaussians depending on $z^{(i)}$. This model is called the \textbf{mixture of Gaussians model}. The parameters of our model are: 
+    \begin{itemize}
+      \item The vector $\phi \in \mathbb{R}^k$ (which really has $k-1$ parameters) characterizing the multinomial distribution.
+      \item The set of vectors $\mu_1, \mu_2, \ldots, \mu_k$ representing the mean vectors of each multivariate Gaussian. For simplicity, we'll denote this set of vectors as $\mu$.
+      \item The set of symmetric, positive-definite matrices $\Sigma_1, \Sigma_2, \ldots, \Sigma_k$ representing the covariance matrices of each multivariate Gaussian. For simplicity, we'll denote this set of matrices as $\Sigma$.
+    \end{itemize}
+  \end{definition}
+
+  We can write down the log-likelihood of the given data $x^{(i)}$'s as a function of all the parameters above as:
+
+  \begin{align*}
+    l (\phi, \mu, \Sigma) & = \sum_{i=1}^n \log, p\big( x^{(i)} ;  \phi, \mu, \Sigma \big) \\
+    & = \sum_{i=1}^n \log \bigg( \sum_{j=1}^k  p\big( x^{(i)} \mid z^{(i)} = j ; \mu, \Sigma \big) , p\big( z^{(i)} = j; \phi\big) \bigg)
+  \end{align*}
+
+  \begin{example}[Dual Nature of Latents and Parameters]
+    Note that since we only know that the \textit{final} value of the $i$th sample is $x^{(i)}$ and not anything at all about which value $z^{(i)}$ the $i$th sample had, there is an extra unknown in this model. If we did know the values of the hidden variables $z^{(i)}$ (i.e. if we knew which of the $k$ Gaussians each $x^{(i)}$ was generated from), then our log likelihood function would be much more simple since now, our givens will be both $x^{(i)}$ \textit{and} $z^{(i)}$. Therefore, we don't have to condition on the $z^{(i)}$ and can directly calculate the log of the probability of us having sample values $(z^{(1)}, x^{(1)}), (z^{(2)}, x^{(2)}), \ldots, (z^{(n)}, x^{(n)})$.
+
+    \begin{align*}
+      l(\phi, \mu, \Sigma) & = \sum_{i=1}^n \log , p\big( x^{(i)}; \phi, \mu ,\Sigma\big) \\
+      & = \sum_{i=1}^n \log, p\big( x^{(i)}, z^{(i)}; \phi, \mu ,\Sigma\big) \\
+      & = \sum_{i=1}^n \log, p\big( x^{(i)} \mid z^{(i)}; \mu, \Sigma) \; p\big( z^{(i)}; \phi \big)
+    \end{align*}
+
+    This model, with known $z^{(i)}$'s, is basically the GDA model, which is easy to calculate. That is, the maximum values of $\phi, \mu, \Sigma$ are:
+
+    \begin{align*}
+      \phi_j & = \frac{1}{n} \sum_{i=1}^n \mathbbm{1}_{z^{(i)} = j} \\
+      \mu_j & = \frac{\sum_{i=1}^n \mathbbm{1}_{z^{(i)} = j} x^{(i)}}{\sum_{i=1}^n \mathbbm{1}_{z^{(i)} = j}} \\
+      \Sigma_j & = \frac{1}{\sum_{i=1}^n \mathbbm{1}_{z^{(i)} = j}} \sum_{i=1}^n \mathbbm{1}_{z^{(i)}} \big( x^{(i)} - \mu_j \big),\big(x^{(i)} - \mu_j \big)^T
+    \end{align*}
+    for $j = 1, \ldots, d$. 
+  \end{example}
+
+  But since we do \textit{not} know the values of $z^{(i)}$, we first try to "guess" the values of the $z^{(i)}$'s and then update the parameters of our model assuming our guesses are correct. 
+
+  \begin{algo}[EM Algorithm on GMMs]
+    The EM Algorithm applied to GMMs has the following steps:
+
+    \begin{enumerate}
+      \item We initialize our values of $\theta$, which can be chosen randomly or by \textbf{K-means initialization} (not explained here).
+      \begin{itemize}
+        \item We can randomly assign our values of $\mu_j$'s and the $\Sigma_j$'s in $\mathbb{R}^d$.
+        \item We can randomly assign the density of our guess multinomial $p_Z(z)$, represented by vector
+        \[\phi = \begin{pmatrix} \phi_1 \\ \vdots \\ \phi_k \end{pmatrix} \text{ with } \sum_{j=1}^k \phi_j = 1\]
+        where $p_Z(z) \equiv \phi_z$ for $z = 1, \ldots, k$.
+      \end{itemize}
+
+      \item \textbf{(E Step)} Now that we have our prior guess of what $Z$ and its density function $p_Z$ is, we can calculate its posterior density function by taking one observed example $x^{(i)}$ and modifying $p_Z$ to $p_Z^{(i)}$. This superscript $(i)$ on the distribution $p_Z$ indicates that this is a posterior density created from observing $x^{(i)}$. (The motivation for this construction is explained more specifically in the next section involving Jensen's inequality.) Using Bayes' rule, we should calculate $n$ density functions 
+      \begin{equation}
+        p_Z^{(i)}(z) \equiv p_Z(z\,|\,x^{(i)}; \phi, \mu, \Sigma) \text{ for } i = 1, \ldots, n
+      \end{equation}
+      For easier notation, we let $\phi^{(i)}$ be the vector representation of the density $p_Z^{(i)}$. That is,
+      \begin{equation}
+        \phi^{(i)} = \begin{pmatrix} \phi_1^{(i)} \\ \vdots \\ \phi_k^{(i)} \end{pmatrix} \text{ with } \sum_{j=1}^k \phi_j^{(i)} = 1
+      \end{equation}
+      where $p_Z^{(i)}(z) \equiv \phi^{(i)}_z$ for $z = 1, \ldots, k$ and $0$ otherwise. Then, we can calculate $\phi^{(i)}$ (and therefore $p_Z^{(i)}$) component-wise by calculating each $\phi_j^{(i)}$ (which is the probability of a point being in the $j$th cluster, given that we observe example $x^{(i)}$):
+      \begin{align*}
+        \phi_j^{(i)} &= p_Z^{(i)}\big(z = j;\, \phi, \mu, \Sigma\big) \\
+        &= p_Z\big(z = j\,|\,x^{(i)};\,\phi, \mu, \Sigma\big) \\
+        &= \frac{p_{\mathcal{N}_j}\big(x^{(i)}\,|\,z^{(i)} = j;\,\mu, \Sigma\big) \; p_Z\big(z^{(i)} = j;\,\phi\big)}{p_X\big(x^{(i)};\,\phi, \mu, \Sigma\big)} \\
+        &= \frac{p_{\mathcal{N}_j}\big(x^{(i)}\,|\,z^{(i)} = j;\,\mu, \Sigma\big) \; p_Z\big(z^{(i)} = j;\,\phi\big)}{\sum_{l=1}^k p_{\mathcal{N}_j}\big(x^{(i)}\,|\,z^{(i)} = l;\,\mu, \Sigma\big)\; p_Z\big(z^{(i)} = l;\,\phi\big)}
+      \end{align*}
+      Note that we have everything we need to calculate the posterior probability distribution $p_Z^{(i)}(z)$ of a point being in any cluster.
+      \begin{itemize}
+        \item $p_{\mathcal{N}_j}(x^{(i)}\,|\,z^{(i)} = j)$ represents the conditional Gaussian density, which is completely defined because the parameters $\mu_j, \Sigma_j$ are already defined in initialization.
+        \item $p_Z(z^{(i)} = j; \phi)$ is really just the probability $\phi_j$ that a given point is in the $j$th cluster, which we've also defined in initialization.
+        \item $p_X(x^{(i)})$ represents the distribution of the entire random variable $X$ of the entire training set. Knowing the first two and taking the sum gives this density function $p_X$.
+      \end{itemize}
+      Therefore, we should end up with $n$ different $k$-vectors $\phi^{(1)}, \phi^{(2)}, \ldots, \phi^{(n)}$, each representing our best guess of what multinomial density $p_Z^{(i)}$ each $x^{(i)}$ had followed in order to be at the given points.
+
+      \begin{figure}[H]
+        \centering
+        \begin{subfigure}[b]{0.48\textwidth}
+          \centering
+          \begin{tikzpicture}[scale=1.]
+            \draw[->] (-0.5,0) -- (5,0);
+            \draw[->] (0,-0.5) -- (0,3.5);
+            
+            % Points and labels
+            \fill[red] (1,1) circle (3pt);
+            \fill[red] (1.5,0.8) circle (3pt);
+            \fill[red] (2,1.5) circle (3pt);
+            \node[red] at (3,1.5) {$\phi_1=\frac{3}{6}$};
+            
+            \fill[blue] (3,2.5) circle (3pt);
+            \fill[blue] (3.2,2) circle (3pt);
+            \node[blue] at (4,2.5) {$\phi_2=\frac{2}{6}$};
+            
+            \fill[green!50!black] (4,1) circle (3pt);
+            \node[green!50!black] at (4.5,1) {$\phi_3=\frac{1}{6}$};
+          \end{tikzpicture}
+          \caption{Hard label assignments.}
+          \label{fig:hard-guesses}
+        \end{subfigure}
+        \hfill 
+        \begin{subfigure}[b]{0.48\textwidth}
+          \centering
+          \begin{tikzpicture}[scale=1]
+            \draw[->] (-0.5,0) -- (5,0);
+            \draw[->] (0,-0.5) -- (0,3.5);
+            
+            % Points and colored vectors
+            \fill (0.5,0.5) circle (2pt);
+            \node[right] at (0.2,0.2) {$\phi^{(1)} = ($\textcolor{red}{.8}, \textcolor{blue}{.03}, \textcolor{green!50!black}{.17}$)$};
+            
+            \fill (1.5,2) circle (2pt);
+            \node[above] at (1.5,2.4) {$\phi^{(2)} = ($\textcolor{red}{.9}, \textcolor{blue}{.05}, \textcolor{green!50!black}{.05}$)$};
+            
+            \fill (1,1.5) circle (2pt);
+            \node[right] at (0.2,1.2) {$\phi^{(3)} = ($\textcolor{red}{.7}, \textcolor{blue}{.1}, \textcolor{green!50!black}{.2}$)$};
+            
+            \fill (3.5,2.7) circle (2pt);
+            \node[above] at (4,2.7) {$\phi^{(4)} = ($\textcolor{red}{.15}, \textcolor{blue}{.8}, \textcolor{green!50!black}{.05}$)$};
+            
+            \fill (3.2,2) circle (2pt);
+            \node[right] at (3.2,1.7) {$\phi^{(5)} = ($\textcolor{red}{.2}, \textcolor{blue}{.6}, \textcolor{green!50!black}{.2}$)$};
+            
+            \fill (4,0.9) circle (2pt);
+            \node[right] at (3,0.6) {$\phi^{(6)} = ($\textcolor{red}{.1}, \textcolor{blue}{.05}, \textcolor{green!50!black}{.85}$)$};
+          \end{tikzpicture}
+          \caption{Soft probability assignments.}
+          \label{fig:soft-guesses}
+        \end{subfigure}
+        \caption{Let us elaborate further on the intuition of this step. In the normal GDA with given values of $z^{(i)}$, we have $\phi_j = \frac{1}{n} \sum_{i=1}^n 1\{z^{(i)} = j\} = \frac{1}{n}\big(\text{Number of Samples in }j\text{th Gaussian}\big)$, which is a sum of "hard" guesses, meaning that each $x^{(i)}$ is undoubtedly in cluster $j$ or not, and so to find out our best guess for the true vector $\phi$, all we have to do is find out the proportion of all examples in each of the $k$ groups and we're done (without needing to iterate). However, in our EM model, we do not know the $z^{(i)}$'s, and so the best we can do is give the \textit{probability} $\phi^{(i)}_j$ that $x^{(i)}$ is in cluster $j$. So for each point $x^{(i)}$, the model has changed from it being undoubtedly in group $z^{(i)} = j$ to it having a probability of being in $\phi^{(i)}_j$ for $j = 1, \ldots, k$.}
+        \label{fig:guesses-comparison}
+      \end{figure}
+
+      \item \textbf{(M Step)} With these $n$ separate posterior estimates of $Z$ for each observation $x^{(i)}$, we can simply average all of them and say that our best estimate of $\phi$ is
+      \begin{equation}
+        \phi = \frac{1}{n} \sum_{i=1}^n \phi^{(i)}
+      \end{equation}
+      We can interpret the vectors $\phi^{(i)}$ as tuples where $\phi^{(i)}_j$ describes the expected "portion" of each sample $x^{(i)}$ to be in group $j$. So, we are adding up all the "portions" of the points that are expected to be in cluster $j$ to get $\phi_j = \sum_{i=1}^n \phi_j^{(i)}$.
+
+      Now, given the $j$th Gaussian cluster, we would like to compute its mean $\mu_j$. Since each $x^{(i)}$ has probability $\phi^{(i)}_j$ of being in cluster $j$, we can weigh each of the $n$ points by $\phi^{(i)}_j$ (which determines how "relevant" $x^{(i)}$ is to cluster $j$) and average these (already weighted) points to get our "best-guess" of the mean $\mu_j$.
+      \begin{equation}
+        \mu_j = \frac{\sum_{i=1}^n \phi^{(i)}_j x^{(i)}}{\sum_{i=1}^n \phi_j^{(i)}}
+      \end{equation}
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.27]{img/weighted_means.jpg}
+        \caption{} 
+        \label{fig:weighted_means}
+      \end{figure}
+
+      With this logic of weighted points, we finally update the covariance matrices $\Sigma_j$ as below:
+      \begin{equation}
+        \Sigma_j = \frac{1}{\sum_{i=1}^n \phi_j^{(i)}} \sum_{i=1}^n \phi^{(i)}_j \,\big(x^{(i)} - \mu_j\big)\big(x^{(i)} - \mu_j\big)^T
+      \end{equation}
+
+      \item Now, we have new values of $\phi, \mu_1, \ldots, \mu_k, \Sigma_1, \ldots, \Sigma_k$ that we can work with. With these new values, repeat steps 2 and 3 until convergence.
+    \end{enumerate}
+  \end{algo}
+
+  In summary, this entire algorithm results from modifying the "hard" data of each point $x^{(i)}$ being undoubtedly in one cluster to a model containing points $x^{(i)}$ that have been "smeared" around different clusters, with a probability $\phi_j^{(i)}$ being in cluster $j$. 
+
+  \begin{definition}[Mixture of Gaussians Algorithm: Summary]
+    Given a training set $\{x^{(i)}\}_{i=1}^n \in \mathbb{R}^d$, let us assume that the random variable $X$ that these examples follow can be modeled by specifying a joint distribution of a multinomial and Gaussians. 
+    That is, it follows a Gaussian mixture model (GMM) of $k$ Gaussian clusters. Let
+    \begin{itemize}
+      \item $Z$ be the multinomial distribution representing which Gaussian cluster each example $x$ falls in, with density represented by vector $\phi \in \mathbb{R}^k$ so that $\mathbb{P}(Z = j) \equiv \phi_j$.
+      \item The set of conditional distributions 
+      \begin{equation}
+        X\,|\,Z = j \sim \mathcal{N}(\mu_j, \Sigma_j) \text{ for } j = 1, 2, \ldots, k
+      \end{equation}
+      are multivariate Gaussian, with mean vectors $\mu_1, \ldots, \mu_k$ and covariance matrices $\Sigma_1, \ldots, \Sigma_k$. 
+    \end{itemize}
+    Let all the parameters be denoted as $\theta$. Then, the EM algorithm is as such: 
+    \begin{enumerate}
+      \item Initialize the multinomial vector $\phi$, the $\mu_j$'s, and the $\Sigma_j$'s.
+
+      \item \textbf{(E Step)} Calculate the $n$ vectors
+      \begin{equation}
+        \phi^{(i)} = \begin{pmatrix} \phi_1^{(i)} \\ \vdots \\ \phi_k^{(i)} \end{pmatrix} \text{ for all } i = 1, \ldots, n
+      \end{equation}
+      that represent the posterior distribution of $Z$ given observed $x^{(i)}$ by computing 
+      \begin{align*} 
+        \phi_j^{(i)} & = p_Z^{(i)} \big(z = j;\, \phi, \mu, \Sigma \big) \\
+        & = p_Z \big(z = j\,|\, x^{(i)}; \, \phi, \mu, \Sigma \big) \\
+        & = \frac{p_{\mathcal{N}_j} \big(x^{(i)}\,|\,z^{(i)} = j; \, \mu, \Sigma\big) \; p_Z \big(z^{(i)} = j;\, \phi \big)}{p_X \big(x^{(i)};\, \phi, \mu, \Sigma\big)} \\
+        & = \frac{p_{\mathcal{N}_j} \big(x^{(i)}\,|\,z^{(i)} = j; \, \mu, \Sigma\big) \; p_Z \big(z^{(i)} = j;\, \phi \big)}{\sum_{l=1}^k p_{\mathcal{N}_j} \big( x^{(i)}\,|\, z^{(i)} = l;\, \mu, \Sigma \big)\; p_Z \big(z^{(i)} = l; \,\phi\big)}
+      \end{align*}
+
+      \item \textbf{(M Step)} Reassign the value of $\theta$ as 
+      \begin{align*} 
+        \phi & = \frac{1}{n} \sum_{i=1}^n \phi^{(i)} \\
+        \mu_j & = \frac{\sum_{i=1}^n \phi_j^{(i)} x^{(i)}}{\sum_{i=1}^n w_j^{(i)}} \text{ for } j = 1, \ldots, n \\
+        \Sigma_j & = \frac{1}{\sum_{i=1}^n \phi_j^{(i)}} \sum_{i=1}^n \phi^{(i)}_j \, \big(x^{(i)} - \mu_j \big) \big(x^{(i)} - \mu_j\big)^T \text{ for } j = 1, \ldots, n 
+      \end{align*}
+      \item Repeat steps 2 and 3 until convergence.
+    \end{enumerate}
+  \end{definition}
 
 \subsection{Bruh}
 
@@ -345,277 +657,6 @@
         & = \text{arg}\; \max_\theta \sum_{i=1}^n \sum_{j = 1}^k p_Z \big(j\,|\, x^{(i)}; \, \theta \big)\, \log \bigg( \frac{p(x^{(i)}, Z = j; \, \theta)}{p_Z \big(j\,|\, x^{(i)}; \, \theta \big)} \bigg)
       \end{align*}
       \item We have successfully updated $\theta$. Now, we repeat steps 2 and 3 until convergence. Step 2 can bring improvements because we have changed the $\theta$, which means that there is a new sum of ELBO functions of the $\theta$ that serves as a new lower bound.
-    \end{enumerate}
-  \end{definition}
-
-\subsection{Gaussian Mixture Models}
-
-  Given a training set ${\mathbf{x}^{(i)}}_{i=1}^n$ (without the $y$-labels and so in the unsupervised setting), there are some cases where it may seem like we can fit multiple Gaussian distributions in the input space $\mathcal{X}$. For example, the points below seem like they can be fitted well with 3 Gaussians.
-
-  \begin{figure}[H]
-    \centering
-    \begin{tikzpicture}
-      % Draw axes
-      \draw[black, ->, line width=0.8pt] (-0.5,0) -- (10,0);
-      \draw[black, ->, line width=0.8pt] (0,-0.5) -- (0,6);
-      
-      % Equations at top
-      \node[blue] at (4,5.5) {$X|Z=1 \sim \mathcal{N}(\mu_1, \Sigma_1)$};
-      \node[green!50!black] at (4,4.8) {$X|Z=2 \sim \mathcal{N}(\mu_2, \Sigma_2)$};
-      \node[red] at (4,4.1) {$X|Z=3 \sim \mathcal{N}(\mu_3, \Sigma_3)$};
-      
-      % First Gaussian (blue)
-      \draw[blue, rotate around={45:(2,2)}] (2,2) ellipse (2 and 1);
-      \draw[blue, rotate around={45:(2,2)}] (2,2) ellipse (1.4 and 0.7);
-      \draw[blue, rotate around={45:(2,2)}] (2,2) ellipse (0.8 and 0.4);
-      
-      % Blue cluster points - more spread out
-      \fill[black] (1.7,1.7) circle (1.5pt);
-      \fill[black] (1.8,2.1) circle (1.5pt);
-      \fill[black] (2.1,2.4) circle (1.5pt);
-      \fill[black] (2.2,1.8) circle (1.5pt);
-      \fill[black] (1.9,2.3) circle (1.5pt);
-      \fill[black] (1.4,1.7) circle (1.5pt);
-      \fill[black] (2.5,2.2) circle (1.5pt);
-      \fill[black] (2.7,2.4) circle (1.5pt);
-      \fill[black] (1.2,1.5) circle (1.5pt);
-      \fill[black] (2.9,2.6) circle (1.5pt);
-      \fill[black] (3.0,2.7) circle (1.5pt);
-      \fill[black] (1.0,1.3) circle (1.5pt);
-      
-      % Second Gaussian (green)
-      \draw[green!50!black, rotate around={-30:(5,3)}] (5,3) ellipse (1.5 and 0.6);
-      \draw[green!50!black, rotate around={-30:(5,3)}] (5,3) ellipse (1 and 0.4);
-      \draw[green!50!black, rotate around={-30:(5,3)}] (5,3) ellipse (0.5 and 0.2);
-      
-      % Green cluster points - more oval shaped
-      \fill[black] (4.8,2.7) circle (1.5pt);
-      \fill[black] (4.9,3.2) circle (1.5pt);
-      \fill[black] (5.0,2.9) circle (1.5pt);
-      \fill[black] (5.1,3.3) circle (1.5pt);
-      \fill[black] (5.2,2.8) circle (1.5pt);
-      \fill[black] (4.5,2.9) circle (1.5pt);
-      \fill[black] (5.5,3.0) circle (1.5pt);
-      \fill[black] (4.3,2.8) circle (1.5pt);
-      \fill[black] (5.7,3.1) circle (1.5pt);
-      
-      % Third Gaussian (red)
-      \draw[red, rotate around={60:(8,2)}] (8,2) ellipse (1.8 and 0.7);
-      \draw[red, rotate around={60:(8,2)}] (8,2) ellipse (1.2 and 0.5);
-      \draw[red, rotate around={60:(8,2)}] (8,2) ellipse (0.6 and 0.3);
-      
-      % Red cluster points - more spread out
-      \fill[black] (7.8,1.7) circle (1.5pt);
-      \fill[black] (7.9,2.2) circle (1.5pt);
-      \fill[black] (8.0,1.9) circle (1.5pt);
-      \fill[black] (8.1,2.4) circle (1.5pt);
-      \fill[black] (8.2,2.0) circle (1.5pt);
-      \fill[black] (7.5,1.9) circle (1.5pt);
-      \fill[black] (8.5,2.3) circle (1.5pt);
-      \fill[black] (7.3,1.7) circle (1.5pt);
-      \fill[black] (8.7,2.5) circle (1.5pt);
-      \fill[black] (8.9,2.3) circle (1.5pt);
-      \fill[black] (7.1,1.6) circle (1.5pt);
-    \end{tikzpicture}
-    \caption{Example of data that can be fitted with 3 Gaussians}
-  \end{figure}
-
-  Therefore, we can construct a best-fit model as a composition of a multinomial distribution (to decide which one of the Gaussians $\mathbf{x}$ should follow) followed by a Gaussian. That is, to find the distribution of $\mathbf{x}$ and get the density function $p(\mathbf{x})$, we condition it on the random variable $Z$. More specifically, we let
-  \begin{equation}
-    Z \sim \text{Multinomial}(\boldsymbol{\phi}), \;\;\;\;\; \boldsymbol{\phi} = \begin{pmatrix} \phi_1 \ \phi_2 \ \ldots \ \phi_k \end{pmatrix} \text{ such that } \sum_{i=1}^k \phi_i = 1
-  \end{equation}
-  and define the conditional distributions as
-  \begin{align*}
-    \mathbf{X} \mid Z = 1 & \sim \mathcal{N}(\boldsymbol{\mu}_1, \boldsymbol{\Sigma}_1) \\
-    \mathbf{X} \mid Z = 2 & \sim \mathcal{N}(\boldsymbol{\mu}_2, \boldsymbol{\Sigma}_2) \\
-    \ldots & \sim \ldots \\
-    \mathbf{X} \mid Z = j & \sim \mathcal{N}(\boldsymbol{\mu}_j, \boldsymbol{\Sigma}_j) \\
-    \ldots & \sim \ldots \\
-    \mathbf{X} \mid Z = k & \sim \mathcal{N}(\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)
-  \end{align*}
-  Therefore, our model says that each $\mathbf{x}^{(i)}$ was generated by randomly choosing $z^{(i)}$ from ${1, \ldots, k}$ according to some multinomial, and then the $\mathbf{x}^{(i)}$ was drawn from one of the $k$ Gaussians depending on $z^{(i)}$. This model is called the \textbf{mixture of Gaussians model}. The parameters of our model are: 
-
-  \begin{itemize}
-    \item The vector $\boldsymbol{\phi} \in \mathbb{R}^k$ (which really has $k-1$ parameters) characterizing the multinomial distribution.
-    \item The set of vectors $\boldsymbol{\mu}_1, \boldsymbol{\mu}_2, \ldots, \boldsymbol{\mu}_k$ representing the mean vectors of each multivariate Gaussian. For simplicity, we'll denote this set of vectors as $\bm{\mu}$.
-    \item The set of symmetric, positive-definite matrices $\boldsymbol{\Sigma}_1, \boldsymbol{\Sigma}_2, \ldots, \boldsymbol{\Sigma}_k$ representing the covariance matrices of each multivariate Gaussian. For simplicity, we'll denote this set of matrices as $\bm{\Sigma}$.
-  \end{itemize}
-
-  We can write down the log-likelihood of the given data $\mathbf{x}^{(i)}$'s as a function of all the parameters above as:
-
-  \begin{align*}
-    l (\boldsymbol{\phi}, \bm{\mu}, \bm{\Sigma}) & = \sum_{i=1}^n \log, p\big( \mathbf{x}^{(i)} ;  \boldsymbol{\phi}, \bm{\mu}, \bm{\Sigma} \big) \\
-    & = \sum_{i=1}^n \log \bigg( \sum_{j=1}^k  p\big( \mathbf{x}^{(i)} \mid z^{(i)} = j ; \bm{\mu}, \bm{\Sigma} \big) , p\big( z^{(i)} = j; \boldsymbol{\phi}\big) \bigg)
-  \end{align*}
-
-  This equation above tells us the (log-) likelihood of the data landing on the $\mathbf{x}^{(i)}$'s given that we have parameters $\boldsymbol{\phi}, \bm{\mu}, \bm{\Sigma}$. Note that since we only know that the \textit{final} value of the $i$th sample is $\mathbf{x}^{(i)}$ and not anything at all about which value $z^{(i)}$ the $i$th sample had, there is an extra unknown in this model. That is, we do not know which one of the $k$ Gaussians the $\mathbf{x}^{(i)}$ was generated from. These values $z^{(i)}$ are called the \textbf{hidden/latent variables}.
-
-  If we did know the values of the hidden variables $z^{(i)}$ (i.e. if we knew which of the $k$ Gaussians each $\mathbf{x}^{(i)}$ was generated from), then our log likelihood function would be much more simple since now, our givens will be both $\mathbf{x}^{(i)}$ \textit{and} $z^{(i)}$. Therefore, we don't have to condition on the $z^{(i)}$ and can directly calculate the log of the probability of us having sample values $(z^{(1)}, \mathbf{x}^{(1)}), (z^{(2)}, \mathbf{x}^{(2)}), \ldots, (z^{(n)}, \mathbf{x}^{(n)})$.
-
-  \begin{align*}
-    l(\boldsymbol{\phi}, \bm{\mu}, \bm{\Sigma}) & = \sum_{i=1}^n \log , p\big( \mathbf{x}^{(i)}; \boldsymbol{\phi}, \bm{\mu} ,\bm{\Sigma}\big) \\
-    & = \sum_{i=1}^n \log, p\big( \mathbf{x}^{(i)}, z^{(i)}; \boldsymbol{\phi}, \bm{\mu} ,\bm{\Sigma}\big) \\
-    & = \sum_{i=1}^n \log, p\big( \mathbf{x}^{(i)} \mid z^{(i)}; \bm{\mu}, \bm{\Sigma}) \; p\big( z^{(i)}; \boldsymbol{\phi} \big)
-  \end{align*}
-
-  This model, with known $z^{(i)}$'s, is basically the GDA model, which is easy to calculate. That is, the maximum values of $\boldsymbol{\phi}, \bm{\mu}, \bm{\Sigma}$ are:
-
-  \begin{align*}
-    \phi_j & = \frac{1}{n} \sum_{i=1}^n \mathbbm{1}_{z^{(i)} = j} \\
-    \boldsymbol{\mu}_j & = \frac{\sum_{i=1}^n \mathbbm{1}_{z^{(i)} = j} \mathbf{x}^{(i)}}{\sum_{i=1}^n \mathbbm{1}_{z^{(i)} = j}} \\
-    \boldsymbol{\Sigma}_j & = \frac{1}{\sum_{i=1}^n \mathbbm{1}_{z^{(i)} = j}} \sum_{i=1}^n \mathbbm{1}_{z^{(i)}} \big( \mathbf{x}^{(i)} - \boldsymbol{\mu}_j \big),\big(\mathbf{x}^{(i)} - \boldsymbol{\mu}_j \big)^T
-  \end{align*}
-
-  for $j = 1, \ldots, d$. But since we do \textit{not} know the values of $z^{(i)}$, we first try to "guess" the values of the $z^{(i)}$'s and then update the parameters of our model assuming our guesses are correct. Let us clarify some notation:
-
-  \begin{itemize}
-    \item The distribution that we will iteratively reassign over and over again is $Z$, with density $p_Z (z)$ that maps $z \mapsto \phi_z$, where $\boldsymbol{\phi}$ is a vector that represents the density. The algorithm will initialize $p_Z$ and have it converge to the true multinomial density. Note that $Z$ in this context could represent the true multinomial distribution $Z$ or could represent the distributions iteratively produced by the algorithm that should converge onto the true $Z$ (usually the latter).
-
-    \item The $k$ Gaussian distributions that we will iteratively reassign over and over again is $\mathcal{N}_1, \mathcal{N}_2, \ldots, \mathcal{N}k$, with densities $p_{\mathcal{N}1}(\mathbf{x}), \ldots, p_{\mathcal{N}k}(\mathbf{x})$ that maps $\mathbf{x} \mapsto p_{\mathcal{N}j}(\mathbf{x})$.
-
-    \item The distribution of the entire random variable $\mathbf{X}$ will have density $p_X(\mathbf{x})$. Since we are iteratively reassigning the densities $p_Z$ and $p{\mathcal{N}_j}$, this joint distribution of $\mathbf{X}$ will also get modified.
-  \end{itemize}
-
-  \begin{definition}[EM Algorithm]
-    The \textbf{Expectation-Maximization (EM) Algorithm} has the following steps:
-
-    \begin{enumerate}
-      \item We initialize our values of $\theta$, which can be chosen randomly or by \textbf{K-means initialization} (not explained here).
-      \begin{itemize}
-        \item We can randomly assign our values of $\mu_j$'s and the $\Sigma_j$'s in $\mathbb{R}^d$.
-        \item We can randomly assign the density of our guess multinomial $p_Z(z)$, represented by vector
-        \[\phi = \begin{pmatrix} \phi_1 \\ \vdots \\ \phi_k \end{pmatrix} \text{ with } \sum_{j=1}^k \phi_j = 1\]
-        where $p_Z(z) \equiv \phi_z$ for $z = 1, \ldots, k$.
-      \end{itemize}
-
-      \item \textbf{(E Step)} Now that we have our prior guess of what $Z$ and its density function $p_Z$ is, we can calculate its posterior density function by taking one observed example $x^{(i)}$ and modifying $p_Z$ to $p_Z^{(i)}$. This superscript $(i)$ on the distribution $p_Z$ indicates that this is a posterior density created from observing $x^{(i)}$. (The motivation for this construction is explained more specifically in the next section involving Jensen's inequality.) Using Bayes' rule, we should calculate $n$ density functions
-      \[p_Z^{(i)}(z) \equiv p_Z(z\,|\,x^{(i)}; \phi, \mathbf{\mu}, \mathbf{\Sigma}) \text{ for } i = 1, \ldots, n\]
-      For easier notation, we let $\phi^{(i)}$ be the vector representation of the density $p_Z^{(i)}$. That is,
-      \[\phi^{(i)} = \begin{pmatrix} \phi_1^{(i)} \\ \vdots \\ \phi_k^{(i)} \end{pmatrix} \text{ with } \sum_{j=1}^k \phi_j^{(i)} = 1\]
-      where $p_Z^{(i)}(z) \equiv \phi^{(i)}_z$ for $z = 1, \ldots, k$ and $0$ otherwise. Then, we can calculate $\phi^{(i)}$ (and therefore $p_Z^{(i)}$) component-wise by calculating each $\phi_j^{(i)}$ (which is the probability of a point being in the $j$th cluster, given that we observe example $x^{(i)}$):
-      \begin{align*}
-          \phi_j^{(i)} &= p_Z^{(i)}\big(z = j;\, \phi, \mathbf{\mu}, \mathbf{\Sigma}\big) \\
-          &= p_Z\big(z = j\,|\,x^{(i)};\,\phi, \mathbf{\mu}, \mathbf{\Sigma}\big) \\
-          &= \frac{p_{\mathcal{N}_j}\big(x^{(i)}\,|\,z^{(i)} = j;\,\mathbf{\mu}, \mathbf{\Sigma}\big) \; p_Z\big(z^{(i)} = j;\,\phi\big)}{p_X\big(x^{(i)};\,\phi, \mathbf{\mu}, \mathbf{\Sigma}\big)} \\
-          &= \frac{p_{\mathcal{N}_j}\big(x^{(i)}\,|\,z^{(i)} = j;\,\mathbf{\mu}, \mathbf{\Sigma}\big) \; p_Z\big(z^{(i)} = j;\,\phi\big)}{\sum_{l=1}^k p_{\mathcal{N}_j}\big(x^{(i)}\,|\,z^{(i)} = l;\,\mathbf{\mu}, \mathbf{\Sigma}\big)\; p_Z\big(z^{(i)} = l;\,\phi\big)}
-      \end{align*}
-      Note that we have everything we need to calculate the posterior probability distribution $p_Z^{(i)}(z)$ of a point being in any cluster.
-      \begin{itemize}
-          \item $p_{\mathcal{N}_j}(x^{(i)}\,|\,z^{(i)} = j)$ represents the conditional Gaussian density, which is completely defined because the parameters $\mu_j, \Sigma_j$ are already defined in initialization.
-          \item $p_Z(z^{(i)} = j; \phi)$ is really just the probability $\phi_j$ that a given point is in the $j$th cluster, which we've also defined in initialization.
-          \item $p_X(x^{(i)})$ represents the distribution of the entire random variable $X$ of the entire training set. Knowing the first two and taking the sum gives this density function $p_X$.
-      \end{itemize}
-      Therefore, we should end up with $n$ different $k$-vectors $\phi^{(1)}, \phi^{(2)}, \ldots, \phi^{(n)}$, each representing our best guess of what multinomial density $p_Z^{(i)}$ each $x^{(i)}$ had followed in order to be at the given points.
-
-
-      \begin{figure}[H]
-        \centering
-        \begin{subfigure}[b]{0.48\textwidth}
-          \centering
-          \begin{tikzpicture}[scale=1.]
-            \draw[->] (-0.5,0) -- (5,0);
-            \draw[->] (0,-0.5) -- (0,3.5);
-            
-            % Points and labels
-            \fill[red] (1,1) circle (3pt);
-            \fill[red] (1.5,0.8) circle (3pt);
-            \fill[red] (2,1.5) circle (3pt);
-            \node[red] at (3,1.5) {$\phi_1=\frac{3}{6}$};
-            
-            \fill[blue] (3,2.5) circle (3pt);
-            \fill[blue] (3.2,2) circle (3pt);
-            \node[blue] at (4,2.5) {$\phi_2=\frac{2}{6}$};
-            
-            \fill[green!50!black] (4,1) circle (3pt);
-            \node[green!50!black] at (4.5,1) {$\phi_3=\frac{1}{6}$};
-          \end{tikzpicture}
-          \caption{Hard label assignments.}
-          \label{fig:hard-guesses}
-        \end{subfigure}
-        \hfill 
-        \begin{subfigure}[b]{0.48\textwidth}
-          \centering
-          \begin{tikzpicture}[scale=1]
-            \draw[->] (-0.5,0) -- (5,0);
-            \draw[->] (0,-0.5) -- (0,3.5);
-            
-            % Points and colored vectors
-            \fill (0.5,0.5) circle (2pt);
-            \node[right] at (0.2,0.2) {$\phi^{(1)} = ($\textcolor{red}{.8}, \textcolor{blue}{.03}, \textcolor{green!50!black}{.17}$)$};
-            
-            \fill (1.5,2) circle (2pt);
-            \node[above] at (1.5,2.4) {$\phi^{(2)} = ($\textcolor{red}{.9}, \textcolor{blue}{.05}, \textcolor{green!50!black}{.05}$)$};
-            
-            \fill (1,1.5) circle (2pt);
-            \node[right] at (0.2,1.2) {$\phi^{(3)} = ($\textcolor{red}{.7}, \textcolor{blue}{.1}, \textcolor{green!50!black}{.2}$)$};
-            
-            \fill (3.5,2.7) circle (2pt);
-            \node[above] at (4,2.7) {$\phi^{(4)} = ($\textcolor{red}{.15}, \textcolor{blue}{.8}, \textcolor{green!50!black}{.05}$)$};
-            
-            \fill (3.2,2) circle (2pt);
-            \node[right] at (3.2,1.7) {$\phi^{(5)} = ($\textcolor{red}{.2}, \textcolor{blue}{.6}, \textcolor{green!50!black}{.2}$)$};
-            
-            \fill (4,0.9) circle (2pt);
-            \node[right] at (3,0.6) {$\phi^{(6)} = ($\textcolor{red}{.1}, \textcolor{blue}{.05}, \textcolor{green!50!black}{.85}$)$};
-          \end{tikzpicture}
-          \caption{Soft probability assignments.}
-          \label{fig:soft-guesses}
-        \end{subfigure}
-        \caption{Let us elaborate further on the intuition of this step. In the normal GDA with given values of $z^{(i)}$, we have $\phi_j = \frac{1}{n} \sum_{i=1}^n 1\{z^{(i)} = j\} = \frac{1}{n}\big(\text{Number of Samples in }j\text{th Gaussian}\big)$, which is a sum of "hard" guesses, meaning that each $x^{(i)}$ is undoubtedly in cluster $j$ or not, and so to find out our best guess for the true vector $\phi$, all we have to do is find out the proportion of all examples in each of the $k$ groups and we're done (without needing to iterate). However, in our EM model, we do not know the $z^{(i)}$'s, and so the best we can do is give the \textit{probability} $\phi^{(i)}_j$ that $x^{(i)}$ is in cluster $j$. So for each point $x^{(i)}$, the model has changed from it being undoubtedly in group $z^{(i)} = j$ to it having a probability of being in $\phi^{(i)}_j$ for $j = 1, \ldots, k$.}
-        \label{fig:guesses-comparison}
-      \end{figure}
-
-      \item \textbf{(M Step)} With these $n$ separate posterior estimates of $Z$ for each observation $x^{(i)}$, we can simply average all of them and say that our best estimate of $\phi$ is
-      \[\phi = \frac{1}{n} \sum_{i=1}^n \phi^{(i)}\]
-      We can interpret the vectors $\phi^{(i)}$ as tuples where $\phi^{(i)}_j$ describes the expected "portion" of each sample $x^{(i)}$ to be in group $j$. So, we are adding up all the "portions" of the points that are expected to be in cluster $j$ to get $\phi_j = \sum_{i=1}^n \phi_j^{(i)}$.
-
-      Now, given the $j$th Gaussian cluster, we would like to compute its mean $\mu_j$. Since each $x^{(i)}$ has probability $\phi^{(i)}_j$ of being in cluster $j$, we can weigh each of the $n$ points by $\phi^{(i)}_j$ (which determines how "relevant" $x^{(i)}$ is to cluster $j$) and average these (already weighted) points to get our "best-guess" of the mean $\mu_j$.
-      \[\mu_j = \frac{\sum_{i=1}^n \phi^{(i)}_j x^{(i)}}{\sum_{i=1}^n \phi_j^{(i)}}\]
-
-      \begin{figure}[H]
-        \centering 
-        \includegraphics[scale=0.27]{img/weighted_means.jpg}
-        \caption{} 
-        \label{fig:weighted_means}
-      \end{figure}
-
-      With this logic of weighted points, we finally update the covariance matrices $\Sigma_j$ as below:
-      \[\Sigma_j = \frac{1}{\sum_{i=1}^n \phi_j^{(i)}} \sum_{i=1}^n \phi^{(i)}_j \,\big(x^{(i)} - \mu_j\big)\big(x^{(i)} - \mu_j\big)^T\]
-
-      \item Now, we have new values of $\phi, \mu_1, \ldots, \mu_k, \Sigma_1, \ldots, \Sigma_k$ that we can work with. With these new values, repeat steps 2 and 3 until convergence.
-    \end{enumerate}
-  \end{definition}
-
-  In summary, this entire algorithm results from modifying the "hard" data of each point $x^{(i)}$ being undoubtedly in one cluster to a model containing points $x^{(i)}$ that have been "smeared" around different clusters, with a probability $\phi_j^{(i)}$ being in cluster $j$. 
-
-  \begin{definition}[Mixture of Gaussians Algorithm: Summary]
-    Given a training set $\{x^{(i)}\}_{i=1}^n \in \mathbb{R}^d$, let us assume that the random variable $X$ that these examples follow can be modeled by specifying a joint distribution of a multinomial and Gaussians. 
-    That is, it follows a Gaussian mixture model (GMM) of $k$ Gaussian clusters. Let
-    \begin{itemize}
-      \item $Z$ be the multinomial distribution representing which Gaussian cluster each example $x$ falls in, with density represented by vector $\phi \in \mathbb{R}^k$ so that $\mathbb{P}(Z = j) \equiv \phi_j$.
-      \item The set of conditional distributions 
-        \[X\,|\,Z = j \sim \mathcal{N}(\mu_j, \Sigma_j) \text{ for } j = 1, 2, \ldots, k\]
-      are multivariate Gaussian, with mean vectors $\mu_1, \ldots, \mu_k$ and covariance matrices $\Sigma_1, \ldots, \Sigma_k$. 
-    \end{itemize}
-    Let all the parameters be denoted as $\theta$. Then, the EM algorithm is as such: 
-    \begin{enumerate}
-      \item Initialize the multinomial vector $\phi$, the $\mu_j$'s, and the $\Sigma_j$'s.
-      \item \textbf{(E Step)} Calculate the $n$ vectors
-        \[\phi^{(i)} = \begin{pmatrix} \phi_1^{(i)} \\ \vdots \\ \phi_k^{(i)} \end{pmatrix} \text{ for all } i = 1, \ldots, n\]
-      that represent the posterior distribution of $Z$ given observed $x^{(i)}$ by computing 
-        \begin{align*} 
-          \phi_j^{(i)} & = p_Z^{(i)} \big(z = j;\, \phi, \mathbf{\mu}, \mathbf{\Sigma} \big) \\
-          & = p_Z \big(z = j\,|\, x^{(i)}; \, \phi, \mathbf{\mu}, \mathbf{\Sigma} \big) \\
-          & = \frac{p_{\mathcal{N}_j} \big(x^{(i)}\,|\,z^{(i)} = j; \, \mathbf{\mu}, \mathbf{\Sigma}\big) \; p_Z \big(z^{(i)} = j;\, \phi \big)}{p_X \big(x^{(i)};\, \phi, \mathbf{\mu}, \mathbf{\Sigma}\big)} \\
-          & = \frac{p_{\mathcal{N}_j} \big(x^{(i)}\,|\,z^{(i)} = j; \, \mathbf{\mu}, \mathbf{\Sigma}\big) \; p_Z \big(z^{(i)} = j;\, \phi \big)}{\sum_{l=1}^k p_{\mathcal{N}_j} \big( x^{(i)}\,|\, z^{(i)} = l;\, \mathbf{\mu}, \mathbf{\Sigma} \big)\; p_Z \big(z^{(i)} = l; \,\phi\big)}
-        \end{align*}
-      \item \textbf{(M Step)} Reassign the value of $\theta$ as 
-        \begin{align*} 
-          \phi & = \frac{1}{n} \sum_{i=1}^n \phi^{(i)} \\
-          \mu_j & = \frac{\sum_{i=1}^n \phi_j^{(i)} x^{(i)}}{\sum_{i=1}^n w_j^{(i)}} \text{ for } j = 1, \ldots, n \\
-          \Sigma_j & = \frac{1}{\sum_{i=1}^n \phi_j^{(i)}} \sum_{i=1}^n \phi^{(i)}_j \, \big(x^{(i)} - \mu_j \big) \big(x^{(i)} - \mu_j\big)^T \text{ for } j = 1, \ldots, n 
-        \end{align*}
-      \item Repeat steps 2 and 3 until convergence.
     \end{enumerate}
   \end{definition}
 
