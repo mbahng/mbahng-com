@@ -1,13 +1,43 @@
 \section{Linear Latent Variable Models}
 
-  Note that in PCA, we have taken some data $x$ in high-dimension $D$ and reduced it to a lower-dimensional orthogonal representation in $\mathbb{R}^k$. In other words, the corresponding $z$ represents $x$ in another space, which we call a \textbf{latent space}. This concept of representing data from one space to another are called \textbf{factor analysis}, or \textbf{latent variable analysis}, and is an extremely important concept for state-of-the-art models. 
+  Note that in PCA, we have taken some data $x$ in high-dimension $D$ and reduced it to a lower-dimensional orthogonal representation in $\mathbb{R}^k$. In other words, the corresponding $z$ represents $x$ in another space, which we call a \textbf{latent space}. A model that represents data from the original space $\mathcal{X}$ to a latent space $\mathcal{Z}$ is called a \textit{latent variable model}. We will extend on this. 
 
-  Say that we want to do density estimation for the probability distribution of the covariates $X$, a random variable. We can try to model it directly, but this may be infeasible. Rather, what we do is ``add" a latent distribution $Z$, creating the joint distribution $(X, Z)$. This may look more complicated, but make two simplifying assumptions: we hope that we can model the latent $Z$ in a simple form (like a Gaussian), and we can model the conditional probability $p(x \mid z)$ as some function $f_\theta$ parameterized by $\theta$. We can therefore marginalize and find that 
-  \begin{equation} 
-    p_X (x) = \int_{z \in \mathbb{R}^k} p (x \mid z) \, p_Z (z) \,dz = \mathbb{E}_Z [p(X \mid Z)] 
+  Say that we have some covariates $x^{(i)} \sim X$ and we want to find its true distribution $p^\ast$. In density estimation so far, what we have done is define a family of distributions $\{p_\theta\}$ and optimize the loss by maximizing the MLE or something else. 
+  \begin{equation}
+    \min_\theta L(p_\theta, p^\ast) = \max_\theta \prod_{i} p_\theta(x^{(i)})
   \end{equation}
+  In order to do this we work with explicitly parameterized distribution families (e.g. Gaussian, Gamma, multinomial, etc.), but this is too simple to model complex things in real like (e.g. the distribution of faces). Therefore, we consider \textit{implicitly parameterized} probability distributions by ``adding'' a latent distribution $Z$, creating the joint distribution $(X, Z)$. This may look more complicated, but it captures a much richer family of distributions. 
 
-  Like we do with everything else in math, we take a look at the simplest example: linear functions. In \textbf{linear factor models}, we start with the unknown covariate distribution $X \in \mathbb{R}^d$, and we create a latent variable $Z \in \mathbb{R}^k$ with some simple assumed distribution $Z \sim p_Z (z)$.\footnote{Usually, we also constrain it to be factorable (i.e. is the product of its marginal distributions: $p(z) = \prod_i p(z_i)$) so that it is easy to sample from. Occasionally, the stronger assumption of the $z_i$'s being iid is made.} For general latent variable models, we have a \textbf{latent transform} $g: \mathbb{R}^k \rightarrow \mathbb{R}^d$ that links the two distributions together as $X = g(Z)$. Then, we assume that 
+  \begin{definition}[Generative Latent Variable Model]
+    A \textbf{latent variable model} is a model of a distribution $p^\ast (x)$ over a space $\mathcal{X}$ using implicitly parameterized probability distributions $p_\theta$ constructed as such: 
+    \begin{enumerate}
+      \item We define a simple random variable $Z$ over $\mathcal{Z}$ with its distribution $p(z)$, called the \textbf{prior}.\footnote{Usually a uniform or normal distribution suffices.} 
+      \item We define a family of functions $\{f_\theta\}$ defined over $z$ and parameterized by $\theta$. 
+      \item We define a way to convert any $f_\theta(z)$ into a distribution $p(x \mid z)$, called the \textbf{likelihood} or \textbf{generative component}. There are generally two ways to do this: 
+      \begin{enumerate}
+        \item Let the random variable $X \mid Z = z$ be an explicitly parameterized distribution, and have $f_\theta (z)$ be the parameters of $X \mid Z = z$. Therefore, we take the output of $f_\theta (z)$ and plug in these values as the parameters of $X \mid Z = z$.\footnote{For example, let $f_\theta (z) = (f_1 (z), f_2(z))$. Then we define the corresponding distribution $X \mid Z = z \sim \mathcal{N}(f_1 (z), e^{f_2 (z)} )$.}
+        \item Have $f_\theta$ be a transformation of random variables, i.e. $X = f(Z)$. This may result in a conditional pdf that is not explicitly parameterizable.
+      \end{enumerate}
+    \end{enumerate}
+    This defines the family of joint distributions $p_\theta$ over $(\mathcal{Z}, \mathcal{X})$. It is easy to sample $(x, z) \sim p_\theta$: sample $z \sim p$, then compute $f_\theta (z)$, use this to define $p_\theta (x \mid z)$, and finally sample from the likelihood. Therefore, the joint is also of a simple nature. 
+
+    While we assume simple, explicitly parameterized forms for the prior and the likelihood, we do not assume anything about 
+    \begin{enumerate}
+      \item the \textbf{marginal} $p_\theta (x)$. Usually this is an extremely complicated distribution, which is equivalent to 
+      \begin{equation} 
+        p_X (x) = \int_{z \in \mathbb{R}^k} p (x \mid z) \, p_Z (z) \,dz = \mathbb{E}_Z [p(X \mid Z)] 
+      \end{equation} 
+      from marginalizing but is computationally impossible to integrate. 
+
+      \item the \textbf{posterior} $p_\theta (z \mid x)$ that describes the hidden features given some data point. This is also known as the \textbf{inference component}. By Bayes rule, we have 
+      \begin{equation}
+        p_\theta (z \mid x) = \frac{p_\theta (x \mid z) \, p(z)}{p_\theta (z \mid x)} \iff p_\theta (z \mid x) \propto p_\theta (x \mid z) \, p(z)
+      \end{equation}
+      which we might be able to sample from using MCMC. 
+    \end{enumerate}
+  \end{definition} 
+
+  Like we do with everything else in math, we take a look at the simplest example: linear functions. In \textbf{(linear) factor analysis}, we use \textbf{linear factor models} and start with the unknown covariate distribution $X \in \mathbb{R}^d$, and we create a latent variable $Z \in \mathbb{R}^k$ with some simple assumed distribution $Z \sim p_Z (z)$.\footnote{Usually, we also constrain it to be factorable (i.e. is the product of its marginal distributions: $p(z) = \prod_i p(z_i)$) so that it is easy to sample from. Occasionally, the stronger assumption of the $z_i$'s being iid is made.} For general latent variable models, we have a \textbf{latent transform} $g: \mathbb{R}^k \rightarrow \mathbb{R}^d$ that links the two distributions together as $X = g(Z)$. Then, we assume that 
   \begin{equation}
     X = \mu + W Z + \epsilon
   \end{equation}
@@ -157,7 +187,6 @@
   \begin{equation}
     \min_\theta \mathbb{E}_t \big[ \big( f(x^{(t+1)})_i - f(x^{(t)})_i \big)^2 \big]
   \end{equation}
-
 
 \subsection{Latent Dirichlet Allocation} 
 
