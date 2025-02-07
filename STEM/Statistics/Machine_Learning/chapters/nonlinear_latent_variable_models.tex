@@ -147,22 +147,33 @@
   \begin{equation}
     \max_{\phi, \theta} \elbo(\mathcal{D}, \phi, \theta)
   \end{equation}
-  It turns out that this itself is a nonconvex optimization problem, and to make it doable we iterate between updating $\phi$ and $\theta$. 
+  It turns out that this itself is a nonconvex optimization problem, and to make it doable we iterate between updating $\phi$ and $\theta$. Remember that the ELBO is really an expectation, i.e. an integral, and to get a good estimate of its derivative we must try to change it from the derivative of an expectation to the expectation of a derivative. The gradient with respect to $\theta$ is very easy since from measure theory, we are deriving and integrating over different variables. 
 
   \begin{lemma}[Gradient of ELBO w.r.t. $\theta$]
-    For $\theta$, we can obtain its unbiased gradient as such
-    \begin{align} 
-      \nabla_\theta \elbo(x, \theta, \phi) & = \nabla_\theta \big\{ \mathbb{E}_{q_\phi (z \mid x)} [ \log p_\theta (x, z)] - \mathbb{E}_{q_\phi (z \mid x)} [\log q_{\phi} (z \mid x)] \} \\
-                                           & = \mathbb{E}_{q_\phi (z \mid x)} \big[ \nabla_\theta \{ \log p_\theta (x, z) - \log q_{\phi} (z \mid x) \}  \big] \\
-                                           & \approx \nabla_\theta \big\{ \log p_\theta(x, z) - \log q_\theta (z \mid x) \big\} \\
-                                           & = \nabla_\theta \log p_\theta (x, z) 
-    \end{align}
-    where the step with the $\approx$ just indicates that we approximate the expectation with a sample of size $1$ over some minibatch. 
+    For $\theta$, its unbiased gradient is 
+    \begin{equation}
+      \nabla_\theta \elbo(x, \theta, \phi) = \mathbb{E}_{q_\phi (z \mid x)} \big[ \nabla_\theta \log p_\theta (x \mid z) \big]
+    \end{equation}
+    and therefore we can approximate the gradient by sampling $L$ points $p^{(1)}, \ldots, p^{(L)}$ from $p(z)$ and computing the gradient of the log (since we know the closed form of the conditional distribution given $z$), and finally averaging them. 
+    \begin{equation}
+      \nabla_\theta \elbo(x, \theta, \phi) \approx \frac{1}{L} \sum_{l=1}^L \nabla_\theta \log p_\theta (x \mid z^{(l)})
+    \end{equation}
+    which is guaranteed to converge by the law of large numbers, and furthermore, we can do this for any batch size $L$.  
   \end{lemma}
+  \begin{proof}
+    Note that the KL divergence does not depend on $\theta$ and neither does the prior, so they can be removed 
+    \begin{align} 
+      \nabla_\theta \elbo(x, \theta, \phi) & = \nabla_\theta \big\{ \mathbb{E}_{q_\phi (z \mid x)} [ \log p_\theta (x, z)] - \mathbb{E}_{q_\phi (z \mid x)} [\log q_{\phi} (z \mid x)] \} \\ 
+                                           & = \nabla_\theta \big\{ \mathbb{E}_{q_\phi (z \mid x)} [ \log p_\theta (x, z)] \} \\ 
+                                           & = \mathbb{E}_{q_\phi (z \mid x)} \big[ \nabla_\theta \{ \log p_\theta (x, z) \big] \\
+                                           & = \mathbb{E}_{q_\phi (z \mid x)} \big[ \nabla_\theta \{ \log p_\theta (x \mid z) - \log p_(z) \} \big] \\
+                                           & = \mathbb{E}_{q_\phi (z \mid x)} \big[ \nabla_\theta \log p_\theta (x \mid z) \big] 
+    \end{align}
+  \end{proof}
 
   However, taking the gradient w.r.t. $\phi$ is more complicated since we cannot put the gradient in the expectation, i.e. swap the derivative and integral (since we are deriving and integrating w.r.t. $\phi$). 
 
-  \begin{lemma}[Gradient of ELBO w.r.t. $\phi$ with Score Function Estimators]
+  \begin{lemma}[REINFORCE]
     To handle the gradient with respect to $\phi$, we can use the score function estimator (also known as REINFORCE):
 
     \begin{align}
@@ -176,27 +187,71 @@
     \end{equation}
   \end{lemma}
 
-  Now that we have approximate closed form solutions for the gradients, we can optimize the two using coordinate ascent. 
+  However, REINFORCE is known to have high variance, and so we need large batch sizes $L$ for good convergence. An alternative is known as the \textit{reparamaterization trick}, which is just an application of a change of basis. This is much more stable, but the only limitation to this is that the posterior $p_\phi (z \mid x)$ should be an absolutely continuous distribution that can be modeled as the transformation of a simple random variable $\epsilon$. 
+
+  \begin{theorem}[Reparameterization Trick]
+    Let $q_\phi(z|x)$ be a continuous distribution that can be sampled by first sampling $\epsilon \sim p(\epsilon)$ from a parameter-free distribution and then applying a differentiable transformation $g_\phi(\epsilon, x)$. Then:
+    \begin{equation}
+       \nabla_\phi \mathbb{E}_{q_\phi(z|x)} [f(z)] = \nabla_\phi \mathbb{E}_{p(\epsilon)} [f(g_\phi(\epsilon, x))] = \mathbb{E}_{p(\epsilon)} [\nabla_\phi f(g_\phi(\epsilon, x))] 
+     \end{equation}
+    or in integrals, 
+    \begin{equation}
+     \nabla_\phi \int f(z) \, q_\phi (z \mid x) \,dz = \nabla_\phi \int f(g_\phi (\epsilon, x)) \, p(\epsilon) \,d\epsilon = \int \nabla_\phi f(g_\phi (\epsilon, x)) \, p(\epsilon) \, d\epsilon 
+    \end{equation}
+
+    where $f$ is any differentiable function. 
+  \end{theorem}
+
+  Note that this isn't really anything special. Any distribution that is differentiable with respect to its parameters can be reparamaterized by inverting the multivariate CDF function and applying the implicit method. 
+
+  \begin{example}
+    In particular, for the Gaussian case where $q_\phi(z|x) = \mathcal{N}(\mu_\phi(x), \sigma^2_\phi(x))$, we can use:
+
+    \begin{equation}
+      g_\phi(\epsilon, x) = \mu_\phi(x) + \sigma_\phi(x) \odot \epsilon, \quad \epsilon \sim \mathcal{N}(0, I)
+    \end{equation}
+  \end{example}
+
+  \begin{corollary}
+    Applying the reparamaterization trick to the gradient of the ELBO gives the following corollary. 
+    \begin{equation}
+      \nabla_\phi \elbo(x, \phi, \theta) = \mathbb{E}_{p(\epsilon)}[\nabla_\phi \log p_\theta (x \mid z) - \nabla_\phi \log q_\phi (z \mid x) + \nabla_\phi \log p(z)]
+    \end{equation}
+    Therefore we can unbiasedly approximate the gradient by sampling $L$ points $\epsilon^{(1)}, \ldots, \epsilon^{(L)}$ from $p(\epsilon)$, transforming them to $z^{(1)}, \ldots, z^{(L)}$ through the function $g_\phi$, and finally computing the gradient of the log posterior (which is easy since we know the closed form of the conditional distribution given $z$), and finally averaging them. 
+    \begin{align*}
+      \nabla_\phi \elbo(x, \phi, \theta) & \approx \frac{1}{L} \sum_{l=1}^L [\nabla_\phi \log p_\theta (x \mid z^{(l)}) - \nabla_\phi \log q_\phi (z^{(l)} \mid x) + \nabla_\phi \log p(z^{(l)})] \\
+                                         & = \frac{1}{L} \sum_{l=1}^L [\nabla_\phi \log p_\theta (x \mid g_\phi (\epsilon^{(l)}, x)) - \nabla_\phi \log q_\phi (g_\phi (\epsilon^{(l)}, x) \mid x) + \nabla_\phi \log p(g_\phi (\epsilon^{(l)}, x))]
+    \end{align*}
+    which is guaranteed to converge by the law of large numbers, and furthermore we can do this for any batch size $L$. 
+  \end{corollary}
+
+  Now that we have approximate closed form solutions for the gradients, we can optimize the two using coordinate ascent. Note that we have shown this for a single sample $x$, and ideally we would do this for a minibatch of samples $x^{(i)}$. 
 
   \begin{algo}[Coordinate Ascent Variational Inference]
     A common approach to maximize the ELBO is coordinate ascent, where we alternatively optimize with respect to $\phi$ and $\theta$:
 
     \begin{algorithm}[H]
-      \caption{Coordinate Ascent Variational Inference (CAVI)}
+      \caption{Coordinate Ascent Variational Inference (CAVI) with Reparameterization}
       \begin{algorithmic}[1]
-        \Require Initial parameters $\theta^{[0]}$, $\phi^{[0]}$
+        \Require Initial parameters $\theta^{[0]}$, $\phi^{[0]}$, batch size B, number of samples L
         \While{not converged}
           \State // E-step: optimize variational parameters
-          \State $\phi^{[t+1]} \gets \argmax_\phi \elbo(\mathcal{D}, \phi, \theta^{[t]}]$
+          \State Sample minibatch $\{x^{(1)}, \ldots, x^{(B)}\}$ from dataset $\mathcal{D}$
+          \State Sample noise $\{\epsilon^{(1)}, \ldots, \epsilon^{(L)}\} \sim p(\epsilon)$ for reparameterization
+          \State Transform noise to latent variables: $z^{(l)} = g_{\phi^{[t]}}(\epsilon^{(l)}, x)$ for $l=1,\ldots,L$
+          \State // Approximate gradient using Monte Carlo samples
+          \State $\hat{g}_\phi \gets \frac{1}{BL} \sum_{i=1}^B \sum_{l=1}^L [\nabla_\phi \log p_{\theta^{[t]}}(x^{(i)} \mid z^{(l)}) - \nabla_\phi \log q_{\phi^{[t]}}(z^{(l)} \mid x^{(i)}) + \nabla_\phi \log p(z^{(l)})]$
+          \State $\phi^{[t+1]} \gets \phi^{[t]} + \eta_\phi \hat{g}_\phi$ \Comment{Update with learning rate $\eta_\phi$}
           \State // M-step: optimize model parameters
-          \State $\theta^{[t+1]} \gets \argmax_\theta \elbo(\mathcal{D}, \phi^{[t+1]}, \theta]$
+          \State $\hat{g}_\theta \gets \frac{1}{BL} \sum_{i=1}^B \sum_{l=1}^L \nabla_\theta \log p_{\theta^{[t]}}(x^{(i)} \mid z^{(l)})$
+          \State $\theta^{[t+1]} \gets \theta^{[t]} + \eta_\theta \hat{g}_\theta$ \Comment{Update with learning rate $\eta_\theta$}
         \EndWhile
       \end{algorithmic}
     \end{algorithm}
   \end{algo} 
 
   Once we are done, we have our optimized encoder and decoders $p_\theta$ and $q_\phi$. 
-  
+
 \subsection{EM Algorithm} 
 
   Let's consider a slightly simpler sub-problem where we have covariates $x^{(i)} \sim X$ coming from distribution $p(x)$. We can again add latent random variables $Z$ but rather than being fixed, the prior $p_\theta (z)$ is also parameterized by $\theta$. Therefore, we would like to find 
