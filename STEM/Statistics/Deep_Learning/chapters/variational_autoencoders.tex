@@ -90,7 +90,85 @@
   \begin{equation}
     \sum_{i=1}^N \log p_{\theta} (x^{(i)}) \geq \sum_{i=1}^N \mathbb{E}_{q_\phi (z \mid x^{(i)})} [ \log p_{\theta} (x^{(i)}, z)] - \sum_{i=1}^N \mathbb{E}_{q_{\phi} (z \mid x^{(i)})} [ \log q_{\phi} (z \mid x^{(i)}) ] = \elbo(\mathcal{D}, \phi, \theta)
   \end{equation}
-  Therefore, minimizing the KL divergence is equivalent to maximizing the ELBO w.r.t. $\theta$ and $\phi$. As we have seen in my ML notes, the gradient of the ELBO w.r.t. $\theta$ be solved by computing the gradient directly and using SGD. However, taking the gradient w.r.t. $\phi$ is more complicated since we cannot put the gradient in the expectation (since we are deriving and integrating w.r.t. $\phi$). We can use REINFORCE, from my ML notes, but this is known to have high variance. Therefore, we use the \textit{reparamaterization trick}, which works for continuous RVs that are differentiable almost everywhere. 
+  Therefore, minimizing the KL divergence is equivalent to maximizing the ELBO w.r.t. $\theta$ and $\phi$. As we have seen in my ML notes, the gradient of the ELBO w.r.t. $\theta$ be solved by computing the gradient directly and using SGD. However, taking the gradient w.r.t. $\phi$ is more complicated since we cannot put the gradient in the expectation (since we are deriving and integrating w.r.t. $\phi$). We can use the log-derivative trick\footnote{explained in my ML notes}, but this is known to have high variance and is not sufficient to backpropagate huge neural nets. 
+
+  An alternative introduced in \cite{vae} is known as the \textit{reparamaterization trick}, which is just an application of a change of basis. This is much more stable, but the only limitation to this is that the posterior $p_\phi (z \mid x)$ should be an absolutely continuous distribution that can be modeled as the transformation of a simple random variable $\epsilon$. Let's take a look at a motivating example. 
+  
+  \begin{theorem}[Reparameterization Trick]
+    Let $q_\phi(z|x)$ be a continuous distribution that can be sampled by first sampling $\epsilon \sim p(\epsilon)$ from a parameter-free distribution and then applying a differentiable transformation $g_\phi(\epsilon, x)$. Then:
+    \begin{equation}
+       \nabla_\phi \mathbb{E}_{q_\phi(z|x)} [f(z)] = \nabla_\phi \mathbb{E}_{p(\epsilon)} [f(g_\phi(\epsilon, x))] = \mathbb{E}_{p(\epsilon)} [\nabla_\phi f(g_\phi(\epsilon, x))] 
+     \end{equation}
+    or in integrals, 
+    \begin{equation}
+     \nabla_\phi \int f(z) \, q_\phi (z \mid x) \,dz = \nabla_\phi \int f(g_\phi (\epsilon, x)) \, p(\epsilon) \,d\epsilon = \int \nabla_\phi f(g_\phi (\epsilon, x)) \, p(\epsilon) \, d\epsilon 
+    \end{equation}
+
+    where $f$ is any differentiable function. 
+  \end{theorem}
+  \begin{proof}
+    
+  \end{proof}
+
+  \begin{example}[Gradient of Expection of $f(x) = x^2$ w.r.t. Gaussian]
+    Assume we have a normal distribution $q$ that is parameterized by $\phi$, specifically
+    $q_\phi(x) = N(\phi, 1)$. We want to solve the below problem
+    \begin{equation}
+      \min_\phi \mathbb{E}_q[x^2]
+    \end{equation}
+
+    This is of course a rather silly problem and the optimal $\phi = 0$ is obvious. One way to calculate $\nabla_\phi \mathbb{E}[x^2]$ is using the log-derivative trick as follows
+    \begin{align}
+      \nabla_\phi \mathbb{E}_q[x^2] &= \nabla_\phi\int q_\phi(x)x^2dx \\
+      &= \int x^2\nabla_\phi q_\phi(x)\frac{q_\phi(x)}{q_\phi(x)}dx \\
+      &= \int q_\phi(x)\nabla_\phi\log q_\phi(x)x^2dx \\
+      &= \mathbb{E}_q[x^2\nabla_\phi\log q_\phi(x)]
+    \end{align}
+
+    For our example where $q_\phi(x) = N(\phi, 1)$, this method gives
+    \begin{equation}
+      \nabla_\phi \mathbb{E}[x^2] = \mathbb{E}_q[x^2(x-\phi)]
+    \end{equation}
+    and we can sample from $q \sim N(\phi, 1)$. Reparameterization trick is a way to rewrite the expectation so that the distribution with respect to which we take the gradient is independent of parameter $\phi$. To achieve this, we need to make the stochastic element in $q$ independent of $\phi$. Hence, we write $x$ as
+    \begin{equation}
+      x = \phi+ \epsilon, \quad \epsilon \sim N(0,1)
+    \end{equation}
+
+    Then, we can write
+    \begin{equation}
+      \mathbb{E}_q[x^2] = \mathbb{E}_{\epsilon} [(\phi+ \epsilon)^2]
+    \end{equation}
+
+    where $p(\epsilon)$ is the distribution of $\epsilon$, i.e., $N(0,1)$. Now we can write the derivative of $\mathbb{E}_q[x^2]$ as
+    follows
+    \begin{equation}
+      \nabla_\phi \mathbb{E}[x^2] = \nabla_\phi \mathbb{E}_p[(\phi+ \epsilon)^2] = \mathbb{E}_p[2(\phi+ \epsilon)]
+    \end{equation}
+    If we actually plot the variances, for sample sizes of $N = 10, 100, 1000, 10000, 100000$, we can see that the reparamaterization trick produces estimates where the variances of the sampling distribution is an order of magnitude smaller. 
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.6]{img/reparam.png}
+      \caption{Credits to \href{https://stats.stackexchange.com/questions/199605/how-does-the-reparameterization-trick-for-vaes-work-and-why-is-it-important}{here}.} 
+      \label{fig:reparam}
+    \end{figure}
+  \end{example}
+
+  Note that this is quite general and doesn't require strong assumptions, since any distribution that is differentiable with respect to its parameters can be reparamaterized by inverting the multivariate CDF function and applying the implicit method. 
+
+  \begin{corollary}
+    Applying the reparamaterization trick to the gradient of the ELBO gives the following corollary. 
+    \begin{equation}
+      \nabla_\phi \elbo(x, \phi, \theta) = \mathbb{E}_{p(\epsilon)}[\nabla_\phi \log p_\theta (x \mid z) - \nabla_\phi \log q_\phi (z \mid x) + \nabla_\phi \log p(z)]
+    \end{equation}
+    Therefore we can unbiasedly approximate the gradient by sampling $L$ points $\epsilon^{(1)}, \ldots, \epsilon^{(L)}$ from $p(\epsilon)$, transforming them to $z^{(1)}, \ldots, z^{(L)}$ through the function $g_\phi$, and finally computing the gradient of the log posterior (which is easy since we know the closed form of the conditional distribution given $z$), and finally averaging them. 
+    \begin{align*}
+      \nabla_\phi \elbo(x, \phi, \theta) & \approx \frac{1}{L} \sum_{l=1}^L [\nabla_\phi \log p_\theta (x \mid z^{(l)}) - \nabla_\phi \log q_\phi (z^{(l)} \mid x) + \nabla_\phi \log p(z^{(l)})] \\
+                                         & = \frac{1}{L} \sum_{l=1}^L [\nabla_\phi \log p_\theta (x \mid g_\phi (\epsilon^{(l)}, x)) - \nabla_\phi \log q_\phi (g_\phi (\epsilon^{(l)}, x) \mid x) + \nabla_\phi \log p(g_\phi (\epsilon^{(l)}, x))]
+    \end{align*}
+    which is guaranteed to converge by the law of large numbers, and furthermore we can do this for any batch size $L$. 
+  \end{corollary}
+
 
   Really the VAEs were just a straightforward application of CAVI with the reparamaterization trick, plus the extra variables $\alpha, \beta$ that are used to generate the $\theta, \phi$. This can be backpropagated easily. Now we talk about more implementation details. 
 
