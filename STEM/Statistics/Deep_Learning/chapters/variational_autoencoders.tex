@@ -21,98 +21,70 @@
     \label{fig:motivation_vae}
   \end{figure}
 
-  In 2013, Kigma introduced this generative model that bridges between latent variable models and deep neural nets. 
+  In 2013, Kigma introduced this generative model that bridges between latent variable models and deep neural nets. We can think of the relationship between the linear model PCA and its latent counterpart PPCA as the relationship between the nonlinear autoencoders and variational autoencoders. This is a good time to review linear and nonlinear latent variable models in my ML notes. Note that in a LVM, the family of functions $\{D_\alpha\}$ is used to map a latent variable $z$ to the likelihood $p(x \mid z)$. This can be done by a direct transformation of the random variable $Z$ (e.g. PPCA or as we will see later, \textit{normalizing flows}), or we can have $D_\alpha (z)$ be an explicit parameterization (e.g. Gaussian mixture models and variational autoencoders). Given neural networks, we can do the latter method quite easily, and we are already familiar with the architectures to do so. 
 
-  In a classification neural network, it takes in an input $\mathbf{x}$ and outputs a softmax vector $NN(\mathbf{x}) =(p_1, \ldots, p_K)^T$. This basically means that $NN(\mathbf{x}) = \boldsymbol{\theta}$ parameterizes the conditional distribution (in this case, multinomial) of $\mathbf{y}$ given $\mathbf{x}$. 
+  \begin{example}[Classification Nets Parameterize Multinomials]
+    In a classification neural network with parameters $\beta$, it takes in an input $x$ and outputs a softmax vector $f_\beta (x) =(p_1, \ldots, p_K)^T$. This basically means that $f_\beta (x) = \theta$ parameterizes the conditional distribution (in this case, multinomial) of $y$ given $x$. 
+    \begin{equation}
+      Y \mid X = x \sim \mathrm{Multinomial}(\theta = f_\beta (x))
+    \end{equation}
+    This is a much more efficient way to store conditional distributions than a $\dim(X) (K - 1)$ lookup table. 
+  \end{example}
+
+  Therefore, by generating a latent variable $p(z)$ (that is simple and fixed), we can use a deep neural network $D_\beta$ to generate $\theta = D_\beta (z)$ which serve as the parameters of the conditional distribution $p_\theta (x \mid z)$, and then sampling from this distribution is easy because we assume that $p_\theta (x \mid z)$ is in an explicitly parameterized family of distributions. This allows us to easily sample from the joint distribution. 
   \begin{equation}
-    Y \mid X = x \sim \mathrm{Multinomial}(\boldsymbol{\theta} = NN(\mathbf{x}))
+    p_\theta (x, z) = p_\theta (x \mid z) \, p(z)
   \end{equation}
-  This is a much more efficient way to store conditional distributions than a $\dim(X) (K - 1)$ lookup table. 
+  This is all great, but computing 
+  \begin{equation}
+    p(x) = \int p(x, z) \,dz = \int p_\theta (x \mid z) \, p(z) \,dz
+  \end{equation}
+  is computationally intractable. With strong assumptions, like conditional independence of not just $p(x \mid z)$ but \textit{also} $p(z \mid x)$, in RBMs, we can construct pretty good approximations. Recall that for RBMs, the derivative of the log of $p(x)$ decomposes into a positive phase that requires you to integrate over $p(z \mid x)$, which is easy, and $p(x, h)$, which is hard to do in general. But through contrastive divergence, we can approximate the integral by sampling a $\Tilde{x}$ and constructing another integral over $p(z \mid x)$, which is then easy to compute. 
 
-  \subsection{Deep Latent Variable Models}
+  \begin{example}[Bernoulli-Bernoulli RBM] 
+    We would like to approximate a $d$-dimensional Bernoulli vector $x$ with a latent variable $z \in \mathbb{R}^K$. We will assume a prior $p(z) \sim N(0, I)$, and let us have a neural net $D_{\beta}$ that parameterizes the random vector $x$, where $x_i \sim \mathrm{Bernoulli}(\theta_i)$ for $\theta_i$. Then, by conditional independence, 
+    \begin{equation}
+      p(x \mid z) = \prod_{i=1}^d p_\theta (x_i \mid z) = \prod_{i=1}^d \theta_i^{x_i} (1 - \theta_i)^{1 - x_i} = \prod_{i=1}^d \big[ D_\alpha (z) \big]_i^{x_i} \big( 1 - [D_\alpha (z)]_d \big)^{1 - x_i}
+    \end{equation}
+    and we can see that since $p$ has the flexibility of whatever vector in $[0, 1]^D$ it can be captured by the neural net $D_\alpha$. It encompasses a broad family of Bernoulli probability distributions. We can see that we have some method to compute $p(x \mid z)$. We train a neural net (somehow) and do forward prop on it to generate the correct parameters modeling the distribution of $x$. Note that in RBMs the conditional independence allowed us to integrate over $z$ easily. To see why, in the example above, the integral becomes
+    \begin{equation}
+      p(x) = \sum_{z \in \{0, 1\}^k} \bigg\{ \prod_{i=1}^d \big[ D_\alpha (z) \big]_i^{x_i} \big( 1 - [D_\alpha (z)]_d \big)^{1 - x_i} \bigg\} p(z) 
+    \end{equation}
+    where $k$ is the dimension of the latent space. However, integrating over all $z$'s for more complex spaces is not feasible. 
+  \end{example}
 
-    Latent variable models that uses some deep learning architecture is pretty much what DLVMs are. Given a latent sample $\mathbf{z}$ we want to find the conditional probability distribution of $\mathbf{x}$ given $\mathbf{z}$. We can also assume a simple prior $p(\mathbf{z})$ and calculate 
-    \[p(\mathbf{x}, \mathbf{z}) = p(\mathbf{x} \mid \mathbf{z}) \, p(\mathbf{z}) \]
-    That is, we generate a latent variable from $p(\mathbf{z})$ and want to use this value to get the parameters of $x \sim p_{\boldsymbol{\theta}} (\mathbf{x} \mid \mathbf{z})$ with some decoder neural network $D_{\boldsymbol{\theta}}$ that parameterizes the distribution. Clearly put, $D_{\boldsymbol{\theta}} (\mathbf{z})$ are the parameters of $\mathbf{X} \mid \mathbf{Z} = \mathbf{z}$. 
+  $D_\alpha$ is clearly nonlinear and we can't just do some simple closed form optimization, so we must use the tools introduced in nonlinear latent variable models. Namely, we revisit the variational lower bound. Recall that estimating the true $p(x)$ can be reduced to the problem of finding a good approximate of the true $p(z \mid x)$, the \textit{posterior} or \textit{inference component}, with some family of distributions $\{ q_\phi \}$. Just like the generation model, we can build another neural network $E_{\alpha}$ such that $\phi = E_{\alpha} (x)$ parameterizes the conditional distribution of $z$, called our \textit{encoder}. 
+  \begin{equation}
+    p(z \mid x) \approx q_\phi (z \mid x) = q_{E_\alpha (x)} (z)
+  \end{equation}
 
-    \begin{example}[Bernoulli Random Vector] 
-      We would like to approximate a $D$-dimensional Bernoulli vector $\mathbf{x}$ with a latent variable $\mathbf{z} \in \mathbb{R}^K$. We will assume a prior $p(\mathbf{z}) \sim N(\mathbf{0}, \mathbf{I})$, and let us have a neural net $\mathcal{D}_{\boldsymbol{\theta}}$ that parameterizes the random vector $\mathbf{x}$, where $x_i \sim \mathrm{Bernoulli}(p_i)$ for $p_i$. Then,
-      \begin{align*}
-        p(\mathbf{x} \mid \mathbf{z}) & = \prod_{d=1}^D p(x_d \mid \mathbf{z}) = \prod_{d=1}^D p_d^{x_d} (1 - p_d)^{1 - x_d} = \prod_{d=1}^D [\mathcal{D}_{\boldsymbol{\theta}} (\mathbf{z})]_d^{x_d} \, \big( 1 - [\mathcal{D}_{\boldsymbol{\theta}} (\mathbf{z})]_d\big)^{1 - x_d}
-      \end{align*} 
-      and we can see that since $\mathbf{p}$ has the flexibility of whatever vector in $[0, 1]^D$ it can be captured by the neural net $\mathcal{D}$. It encompasses a broad family of Bernoulli probability distributions. 
-    \end{example}
+  \begin{example}[Encoder Neural Net Generates Parameters of Likelihood]
+    If $\phi = (\mu, \sigma)$, where $\sigma$ is just the vector representing variances of independent Gaussians, then we can use the neural network $E$ to get $\phi = E_{\alpha} (x)$. In the example, $\phi = (\mu, \log \sigma^2)$ since we want to allow negative values, and 
+    \begin{equation}
+      q_\phi (z \mid x) \sim \mathcal{N}(E_\alpha (x)) = \mathcal{N}(\phi) = \mathcal{N} (\mu, \sigma^2)
+    \end{equation}
+  \end{example} 
 
-    From the example above, we can see that we have some method to compute $p(\mathbf{x} \mid \mathbf{z})$. We train a neural net (somehow) and do forward prop on it to generate the correct parameters modeling the distribution of $\mathbf{x}$. However, computing 
-    \[p(\mathbf{x}) = \int p(\mathbf{x}, \mathbf{z}) \,d\mathbf{z} = \int p_{\boldsymbol{\theta}} (\mathbf{x} \mid \mathbf{z}) \, p(\mathbf{z}) \,d\mathbf{z} \]
-    is computationally intractable (note that in RBMs the conditional independence allowed us to integrate over $\mathbf{z}$ easily). To see why, in the example above, the integral becomes
-    \[p(\mathbf{x}) = \sum_{\mathbf{z} \in \{0, 1\}^K} \underbrace{\prod_{d=1}^D [\mathcal{D}_{\boldsymbol{\theta}} (\mathbf{z})]_d^{x_d} \big( 1 - \mathcal{D}_{\boldsymbol{\theta}} (\mathbf{z})]_d \big)^{1 - x_d}}_{\text{complex}} \, p(\mathbf{z}) \, d\mathbf{z}\]
-    and integrating over all $\mathbf{z}$'s for more complex spaces is not feasible. Now let's focus on $p(\mathbf{z} | \mathbf{x})$. By Bayes rule, we can calculate 
-    \[p(\mathbf{z} \mid \mathbf{x}) = \frac{p(\mathbf{x} \mid \mathbf{z}) p(\mathbf{z})}{p(\mathbf{x})}\]
-    Where we have established the intractability of the denominator. The first thing that comes to mind is to just do MCMC since $p(\mathbf{z} \mid \mathbf{x}) \propto p(\mathbf{x} \mid \mathbf{z}) p(\mathbf{z})$, but the forward propagation is too slow to sample efficiently. So, we must use our other trick in the book: \textbf{variational Bayes/inference}. 
+  Therefore, by modeling both the likelihood and posterior with probability distributions that can be parameterized by an output of neural networks, we have a \textit{variational autoencoder}. 
 
-    To do this, we construct another family of probability distributions parameterized by $\lambda$: $\{ q_{\lambda} (\mathbf{z} \mid \mathbf{x})\}$, and we want to find a $\lambda$ such that $q_{\lambda} (\mathbf{z} \mid \mathbf{x}) \approx p_{\boldsymbol{\theta}} (\mathbf{z} \mid \mathbf{x})$. Just like the generation model, we can build another neural network $\mathcal{E}_{\phi}$ such that $\lambda = \mathcal{E}_{\phi} (\mathbf{x})$ parameterizes the conditional distribution of $\mathbf{z}$. 
-    Essentially we are trying to construct an encoder and a decoder, which can be represented by the diagram below. 
-    \begin{center}
-        \includegraphics[scale=0.4]{img/08_VAE/VAE_framework.png}
-    \end{center}
-    If $q_{\lambda} = p_{\boldsymbol{\theta}}$, then the diagram commutes, i.e. $p(\mathbf{z}) p_{\boldsymbol{\theta}}(\mathbf{x} \mid \mathbf{z}) = p(\mathbf{x}) p_{\boldsymbol{\theta}}(\mathbf{z} \mid \mathbf{x}) = p_{\boldsymbol{\theta}} (\mathbf{x}, \mathbf{z})$. 
-     
-    \begin{example}
-        If $\lambda = (\boldsymbol{\mu}, \boldsymbol{\sigma})$, where $\boldsymbol{\sigma}$ is just the vector representing variances of independent Gaussians, then we can use the neural network $\mathcal{E}$ to get 
-        \[\lambda = \mathrm{EncoderNN}_{\phi} ( \mathbf{x}) = \mathcal{E}_{\phi} (\mathbf{x})\]
-        In the example, $\lambda = (\boldsymbol{\mu}, \log \boldsymbol{\sigma}^2 )$ since we want to allow negative values, and $q_{\lambda} (\mathbf{z} \mid \mathbf{x}) = N(\mathbf{z} \mid \mathcal{E}_{\phi} (\mathbf{x})) = N(\mathbf{z} ; \, \boldsymbol{\mu} , \boldsymbol{\sigma}^2)$. 
-    \end{example}
-
-    Now, just like in RBMs and really any density estimation problem, our job is to maximize the log likelihood of the training set: 
-    \[\sum_{t} \log p(\mathbf{x}^{(t)})\]
-
-    In order to do this for this problem, we need a little fact to help us: 
-
-    \begin{theorem}
-    We have 
-    \[KL \big( q_\lambda (\mathbf{z} \mid \mathbf{x}) \mid\mid p_{\boldsymbol{\theta}} (\mathbf{z} \mid \mathbf{x}) \big) = \mathbb{E}_{q_\lambda(\mathbf{z} \mid \mathbf{x})} [ \log q_{\lambda} (\mathbf{z} \mid \mathbf{x})] + \log p_{\boldsymbol{\theta}} (\mathbf{x}) - \mathbb{E}_{q_{\lambda} (\mathbf{z} \mid \mathbf{x})} [\log p_{\boldsymbol{\theta}} (\mathbf{x}, \mathbf{z})] \]
-    and hence 
-    \[\log p(\mathbf{x}) = KL \big( q_\lambda (\mathbf{z} \mid \mathbf{x}) \mid\mid p_{\boldsymbol{\theta}} (\mathbf{z} \mid \mathbf{x}) \big) + \mathbb{E}_{q_{\lambda} (\mathbf{z} \mid \mathbf{x})} [\log p_{\boldsymbol{\theta}} (\mathbf{x}, \mathbf{z})] - \mathbb{E}_{q_\lambda(\mathbf{z} \mid \mathbf{x})} [ \log q_{\lambda} (\mathbf{z} \mid \mathbf{x})]  \]
-    \end{theorem}
-    \begin{proof}
-    TBD 
-    \end{proof}
-
-    So I have to maximize $\log  p(\mathbf{x})$ with what we have derived just now, but the KL divergence part is intractable, since $p_{\boldsymbol{\theta}} (\mathbf{z} \mid \mathbf{x})$ is intractable. That is the entire reason we chose $q_\lambda$! Using the fact that the KL divergence is always greater than or equal to $0$, we can drop the term and set a lower bound on the log likelihoods. This lower bound is called the \textbf{variational lower bound}.  
-    \[\sum_{i=1}^N \log p_{\boldsymbol{\theta}} (\mathbf{x}^{(i)}) \geq \sum_{i=1}^N \mathbb{E}_{q_\lambda (\mathbf{z} \mid \mathbf{x}^{(i)})} [ \log p_{\boldsymbol{\theta}} (\mathbf{x}^{(i)}, \mathbf{z})] - \sum_{i=1}^N \mathbb{E}_{q_{\lambda} (\mathbf{z} \mid \mathbf{x}^{(i)})} [ \log q_{\lambda} (\mathbf{z} \mid \mathbf{x}^{(i)}) ] = \mathrm{ELBO}\]
-    If we assume that no two data points share their latent variables with each other, then ELBO decomposes into the sum of
-    \begin{align*} 
-        \mathrm{ELBO} & = \sum_{i=1}^N \mathrm{ELBO}_i \\
-                      & = \sum_{i=1}^N  \mathbb{E}_{q_\lambda (\mathbf{z} \mid \mathbf{x}^{(i)})} [\log p_{\boldsymbol{\theta}} (\mathbf{x}^{(i)}, \mathbf{z})] - \sum_{ i=1}^N \mathbb{E}_{q_\lambda (\mathbf{z} \mid \mathbf{x}^{(i)})}[ \log  q_{\lambda} (\mathbf{z} \mid \mathbf{x}^{(i)})] \\
-                      & = \underbrace{\mathbb{E}_{q_\lambda (\mathbf{z} \mid \mathbf{x}^{(i)})} [\log p_{\boldsymbol{\theta}} (\mathbf{x}^{(i)} \mid \mathbf{z})]}_{\substack{\text{likelihood term} \\ \text{(reconstruction part)}}}- \underbrace{KL(q_{\lambda} (\mathbf{z} \mid \mathbf{x}^{(i)}) \mid\mid p(\mathbf{z}))}_{\substack{\text{closeness of encoding to } p(\mathbf{z}) \\ \text{(typically Gaussian)}}}
-    \end{align*} 
-    Typtically, $p(\mathbf{z})$ is chosen to be standard normal. This process is true regardless of it model classes $p_{\boldsymbol{\theta}} (\mathbf{x}^{(i)} \mid \mathbf{z})$ and $q_\lambda (\mathbf{z} \mid \mathbf{x})$ are given by deep neural nets or not. If it is a deep neural net, then it's called a deep latent model. 
-
-    Now to compute gradients, let us denote the ELBO w.r.t. the decoder and encoder paramters as $\mathcal{L}_{\theta, \lambda}(\mathbf{x})$. Then, we can obtain the unbiased gradient w.r.t. $\theta$ as such: 
-    \begin{align*} 
-        \nabla_\theta \mathcal{L}_{\theta, \lambda} (\mathbf{x}) & = \nabla_\theta \big\{ \mathbb{E}_{q_\lambda (\mathbf{z} \mid \mathbf{x})} [ \log p_\theta (\mathbf{x}, \mathbf{z})] - \mathbb{E}_{q_\lambda (\mathbf{z} \mid \mathbf{x})} [\log q_{\lambda} (\mathbf{z} \mid \mathbf{x})] \} \\
-                                                                 & = \mathbb{E}_{q_\lambda (\mathbf{z} \mid \mathbf{x})} \big[ \nabla_\theta \{ \log p_[\theta (\mathbf{x}, \mathbf{z}) - \log q_{\lambda} (\mathbf{z} \mid \mathbf{x}) \}  \big] \\
-                                                                 & \approx \nabla_\theta \big\{ \log p_\theta(\mathbf{x}, \mathbf{z}) - \log q_\theta (\mathbf{z} \mid \mathbf{x}) \big\} \\
-                                                                 & = \nabla_\theta \log p_\theta (\mathbf{x}, \mathbf{z}) 
-    \end{align*}
-    where the step with the $\approx$ just indicates that we approximate the expectation with a sample of size $1$ over some minibatch. However, taking the gradient w.r.t. $\lambda$ is more complicated since we cannot put the gradient in the expectation (since we are deriving and integrating w.r.t. $\lambda$).  Fortunately, for continuous RVs, the unbiased estimator of the gradient can be obtained through the \textbf{reparamaterization trick}, which is some change of variable. 
-
-    \subsubsection{Reparameterization Trick} 
-
-  \subsection{Variational Autoencoders} 
-
-    In a VAE, the $q_{\lambda} (\mathbf{z} \mid \mathbf{x})$ is the encoder and the $p_{\boldsymbol{\theta}} (\mathbf{x} \mid \mathbf{z})$ is the decoder. 
+  \begin{definition}[Variational Autoencoders]
+    In a VAE, the $q_{\phi} (z \mid x)$ is the encoder and the $p_{\theta} (x \mid z)$ is the decoder. 
     \begin{enumerate} 
-        \item \textbf{Encoding Neural Network}: Upon observing $\mathbf{x}$, the neural network $\mathcal{E}$ outputs parameters $\lambda$. 
-        \item \textbf{Decoding Neural Network}: Upon observing $\mathbf{z}$, the neural network $\mathcal{D}$ outputs parameters $\boldsymbol{\theta}$. 
+      \item 
+        \textbf{Encoding Neural Network}: Upon observing $x$, the neural network $E$ outputs parameters $\phi$. 
+      \item \textbf{Decoding Neural Network}: Upon observing $z$, the neural network $D$ outputs parameters $\theta$. 
     \end{enumerate} 
+  \end{definition} 
 
-    We want to optimize $(\boldsymbol{\theta}, \lambda)$. To generate new samples, we just sample from $p(\mathbf{z})$ (usually standard Gaussian) and use the decoder to sample from $\mathbf{x}$.  
+  We want to optimize $(\theta, \phi)$. To generate new samples, we just sample from $p(z)$ (usually standard Gaussian) and use the decoder to sample from $x$.  
 
-    This can be extended to deep layers. 
+  Recall that the KL divergence can be decomposed into the sum of conditional entropies, and hence . 
 
-  \subsection{Conditional VAEs}
+  However, taking the gradient w.r.t. $\phi$ is more complicated since we cannot put the gradient in the expectation (since we are deriving and integrating w.r.t. $\phi$).  Fortunately, for continuous RVs, the unbiased estimator of the gradient can be obtained through the \textbf{reparamaterization trick}, which is some change of variable. 
 
-  \subsection{Importance Weighted Autoencoders}
+\subsection{Reparameterization Trick} 
+
+\subsection{Conditional VAEs}
+
+\subsection{Importance Weighted Autoencoders}
 
