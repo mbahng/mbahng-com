@@ -171,61 +171,75 @@
     \end{align}
   \end{proof}
 
-  However, taking the gradient w.r.t. $\phi$ is more complicated since we cannot put the gradient in the expectation, i.e. swap the derivative and integral (since we are deriving and integrating w.r.t. $\phi$). 
+  However, taking the gradient w.r.t. $\phi$ is more complicated since we cannot put the gradient in the expectation, i.e. swap the derivative and integral (since we are deriving and integrating w.r.t. $\phi$). Fortunately, we have a well-known mathematical identity often used in policy gradient algorithms in reinforcement learning. \cite{W92} 
 
-  \begin{lemma}[REINFORCE]
-    To handle the gradient with respect to $\phi$, we can use the score function estimator (also known as REINFORCE):
-
-    \begin{align}
-      \nabla_\phi \elbo(x, \theta, \phi) &= \nabla_\phi \mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x,z) - \log q_\phi(z|x)] \\
-      &= \mathbb{E}_{q_\phi(z|x)}[\nabla_\phi \log q_\phi(z|x)(\log p_\theta(x,z) - \log q_\phi(z|x))]
-    \end{align}
-
-    This identity follows from the log-derivative trick:
+  \begin{lemma}[Log-Derivative Trick]
+    The following identity holds. 
     \begin{equation}
       \nabla_\phi \mathbb{E}_{q_\phi(z)}[f(z)] = \mathbb{E}_{q_\phi(z)}[f(z)\nabla_\phi \log q_\phi(z)]
     \end{equation}
   \end{lemma}
+  \begin{proof}
+    First, let's write out the left-hand side using the definition of expectation:
+    \begin{align*}
+    \nabla_\phi \mathbb{E}_{q_\phi(z)}[f(z)] &= \nabla_\phi \int f(z)q_\phi(z)dz
+    \end{align*}
 
-  However, REINFORCE is known to have high variance, and so we need large batch sizes $L$ for good convergence. An alternative is known as the \textit{reparamaterization trick}, which is just an application of a change of basis. This is much more stable, but the only limitation to this is that the posterior $p_\phi (z \mid x)$ should be an absolutely continuous distribution that can be modeled as the transformation of a simple random variable $\epsilon$. 
+    Under suitable regularity conditions, we can exchange the gradient and integral operators:
+    \begin{align*}
+    &= \int f(z)\nabla_\phi q_\phi(z)dz
+    \end{align*}
 
-  \begin{theorem}[Reparameterization Trick]
-    Let $q_\phi(z|x)$ be a continuous distribution that can be sampled by first sampling $\epsilon \sim p(\epsilon)$ from a parameter-free distribution and then applying a differentiable transformation $g_\phi(\epsilon, x)$. Then:
+    Now, we multiply and divide by $q_\phi(z)$ inside the integral:
+    \begin{align*}
+    &= \int f(z) q_\phi(z) \frac{\nabla_\phi q_\phi(z)}{q_\phi(z)} dz
+    \end{align*}
+
+    Recognize that $\nabla_\phi \log q_\phi(z) = \frac{\nabla_\phi q_\phi(z)}{q_\phi(z)}$ by the chain rule:
+    \begin{align*}
+    &= \int f(z) q_\phi(z) \nabla_\phi \log q_\phi(z) dz
+    \end{align*}
+
+    Finally, we can rewrite this back as an expectation:
+    \begin{align*}
+    &= \mathbb{E}_{q_\phi(z)}[f(z)\nabla_\phi \log q_\phi(z)]
+    \end{align*}
+  \end{proof}
+
+  \begin{example}[Gradient of Expection of $f(x) = x^2$ w.r.t. Gaussian]
+    Assume we have a normal distribution $q$ that is parameterized by $\phi$, specifically
+    $q_\phi(x) = N(\phi, 1)$. We want to solve the below problem
     \begin{equation}
-       \nabla_\phi \mathbb{E}_{q_\phi(z|x)} [f(z)] = \nabla_\phi \mathbb{E}_{p(\epsilon)} [f(g_\phi(\epsilon, x))] = \mathbb{E}_{p(\epsilon)} [\nabla_\phi f(g_\phi(\epsilon, x))] 
-     \end{equation}
-    or in integrals, 
-    \begin{equation}
-     \nabla_\phi \int f(z) \, q_\phi (z \mid x) \,dz = \nabla_\phi \int f(g_\phi (\epsilon, x)) \, p(\epsilon) \,d\epsilon = \int \nabla_\phi f(g_\phi (\epsilon, x)) \, p(\epsilon) \, d\epsilon 
+      \min_\phi \mathbb{E}_q[x^2]
     \end{equation}
 
-    where $f$ is any differentiable function. 
-  \end{theorem}
+    This is of course a rather silly problem and the optimal $\phi = 0$ is obvious. One way to calculate $\nabla_\phi \mathbb{E}[x^2]$ is using the log-derivative trick as follows
+    \begin{align}
+      \nabla_\phi \mathbb{E}_q[x^2] &= \nabla_\phi\int q_\phi(x)x^2dx \\
+      &= \int x^2\nabla_\phi q_\phi(x)\frac{q_\phi(x)}{q_\phi(x)}dx \\
+      &= \int q_\phi(x)\nabla_\phi\log q_\phi(x)x^2dx \\
+      &= \mathbb{E}_q[x^2\nabla_\phi\log q_\phi(x)]
+    \end{align}
 
-  Note that this isn't really anything special. Any distribution that is differentiable with respect to its parameters can be reparamaterized by inverting the multivariate CDF function and applying the implicit method. 
-
-  \begin{example}
-    In particular, for the Gaussian case where $q_\phi(z|x) = \mathcal{N}(\mu_\phi(x), \sigma^2_\phi(x))$, we can use:
-
+    For our example where $q_\phi(x) = N(\phi, 1)$, this method gives
     \begin{equation}
-      g_\phi(\epsilon, x) = \mu_\phi(x) + \sigma_\phi(x) \odot \epsilon, \quad \epsilon \sim \mathcal{N}(0, I)
+      \nabla_\phi \mathbb{E}[x^2] = \mathbb{E}_q[x^2(x-\phi)]
     \end{equation}
   \end{example}
 
-  \begin{corollary}
-    Applying the reparamaterization trick to the gradient of the ELBO gives the following corollary. 
-    \begin{equation}
-      \nabla_\phi \elbo(x, \phi, \theta) = \mathbb{E}_{p(\epsilon)}[\nabla_\phi \log p_\theta (x \mid z) - \nabla_\phi \log q_\phi (z \mid x) + \nabla_\phi \log p(z)]
-    \end{equation}
-    Therefore we can unbiasedly approximate the gradient by sampling $L$ points $\epsilon^{(1)}, \ldots, \epsilon^{(L)}$ from $p(\epsilon)$, transforming them to $z^{(1)}, \ldots, z^{(L)}$ through the function $g_\phi$, and finally computing the gradient of the log posterior (which is easy since we know the closed form of the conditional distribution given $z$), and finally averaging them. 
-    \begin{align*}
-      \nabla_\phi \elbo(x, \phi, \theta) & \approx \frac{1}{L} \sum_{l=1}^L [\nabla_\phi \log p_\theta (x \mid z^{(l)}) - \nabla_\phi \log q_\phi (z^{(l)} \mid x) + \nabla_\phi \log p(z^{(l)})] \\
-                                         & = \frac{1}{L} \sum_{l=1}^L [\nabla_\phi \log p_\theta (x \mid g_\phi (\epsilon^{(l)}, x)) - \nabla_\phi \log q_\phi (g_\phi (\epsilon^{(l)}, x) \mid x) + \nabla_\phi \log p(g_\phi (\epsilon^{(l)}, x))]
-    \end{align*}
-    which is guaranteed to converge by the law of large numbers, and furthermore we can do this for any batch size $L$. 
-  \end{corollary}
+  Using this on the gradient of ELBO w.r.t. $\phi$ gives the following form as the expectation of the gradient. 
 
-  Now that we have approximate closed form solutions for the gradients, we can optimize the two using coordinate ascent. Note that we have shown this for a single sample $x$, and ideally we would do this for a minibatch of samples $x^{(i)}$. 
+  \begin{lemma}
+    We can use the score function estimator. 
+    \begin{align}
+      \nabla_\phi \elbo(x, \theta, \phi) & = \nabla_\phi \mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x,z) - \log q_\phi(z|x)] \\
+                                         & = \mathbb{E}_{q_\phi(z|x)}\big[ \nabla_\phi \big\{ \log q_\phi(z|x)(\log p_\theta(x,z) - \log q_\phi(z|x)) \big\} \big]
+    \end{align}
+  \end{lemma}
+  \begin{proof}
+  \end{proof}
+
+  However, REINFORCE is known to have high variance, and so we need large batch sizes $L$ for good convergence. Many methods such as $\cite{reduce, reduce2}$ were developed to reduce this. Later it was shown in \cite{vae} that the \textit{reparamaterization trick} beat everything else, allowing us to efficiently train neural-net-based nonlinear latent variable models, e.g. the variational autoencoder. We will focus on the reparameterization trick in my deep learning notes and omit it here.  Now that we have approximate closed form solutions for the gradients, we can optimize the two using coordinate ascent. Note that we have shown this for a single sample $x$, and ideally we would do this for a minibatch of samples $x^{(i)}$. 
 
   \begin{algo}[Coordinate Ascent Variational Inference]
     A common approach to maximize the ELBO is coordinate ascent, where we alternatively optimize with respect to $\phi$ and $\theta$:
