@@ -420,7 +420,7 @@
     g_\phi (x, \epsilon^{(l)}) = \mu^{(i)} + e^{\phi_\sigma/2} \odot \epsilon^{(l)} = \mu^{(i)} + \sigma^{(i)} \odot \epsilon^{(l)} \qquad \epsilon^{(l)} \sim \mathcal{N}(0, I)
   \end{equation}
 
-  where $\odot$ is element-wise multiplication, can be used to model $p(z)$. The intuition behind this is to ``push'' the stochastic node $z^{(i)}$ back so that we don't have to go through it to reach $\alpha$. Therefore, to compute the noisy gradient for $\alpha$, we can sample $\epsilon^{(l)} \sim \mathcal{N}(0, I)$ and treat it as a fixed variable when doing backpropagation. Then we do this $L$ times to get $L$ gradients, and average them to get the unbiased estimate of the gradient of the single sample $x^{(i)}$. Then we must do this for all $x^{(i)}$ in a minibatch in SGD. Since this is still too computationally heavy, we usually set $L=1$. 
+  where $\odot$ is element-wise multiplication, can be used to model $p(z)$.\footnote{This is called \textbf{factorized Gaussian posterior}, but it can be extended to the \textbf{full-variance Gaussian posterior} where the variance is parameterized through a lower triangular matrix $L$, from the Cholesky decomposition.} The intuition behind this is to ``push'' the stochastic node $z^{(i)}$ back so that we don't have to go through it to reach $\alpha$. Therefore, to compute the noisy gradient for $\alpha$, we can sample $\epsilon^{(l)} \sim \mathcal{N}(0, I)$ and treat it as a fixed variable when doing backpropagation, which essentially means that the mapping $g_\phi$ is a deterministic function (and so $g_\phi \circ E_\alpha$ is a deterministic neural net). Then we do this $L$ times to get $L$ gradients, and average them to get the unbiased estimate of the gradient of the single sample $x^{(i)}$. Then we must do this for all $x^{(i)}$ in a minibatch in SGD. Since this is still too computationally heavy, we usually set $L=1$. 
 
   \begin{figure}[H]
     \centering 
@@ -512,6 +512,23 @@
 
   Another advantage is that this is more general. Although we must meet the conditions that the posterior $p_\phi (z \mid x)$ should be an absolutely continuous distribution that can be modeled as the transformation of a simple random variable $\epsilon$, since any distribution that is differentiable with respect to its parameters can be reparamaterized by inverting the multivariate CDF function and applying the implicit method. 
 
+  In order to see how the gradients are calculated, recall the following theorem. 
+
+  \begin{theorem}[Change of Basis]
+    We have 
+    \begin{equation}
+      \log q_\phi (z \mid x) = \log p(\epsilon) - \log \bigg| \mathrm{det} \bigg( \frac{\partial z}{\partial \epsilon}\bigg)\bigg| 
+    \end{equation}
+    where $\partial z / \partial \epsilon$ denotes the Jacobian matrix computed through $g_\phi(x, \epsilon)$. 
+  \end{theorem}
+  
+  \begin{corollary}
+    This applied to the affine function $g_\phi$ above defined for the log-variance gives 
+    \begin{equation}
+      \frac{\partial z}{\partial \epsilon} = \mathrm{diag}(\sigma) \implies \log \bigg| \mathrm{det} \bigg( \frac{\partial z}{\partial \epsilon}\bigg)\bigg| = \sum_i \log \sigma_i
+    \end{equation}
+  \end{corollary}
+
   \begin{corollary}[Auto-Encoding VB (AEVB) Algorithm]
     Applying the reparamaterization trick to the gradient of the ELBO gives the following corollary. 
     \begin{equation}
@@ -530,9 +547,19 @@
 
   \begin{algo}[Implementation of VAE]
     To see an implementation of a VAE with PyTorch, see \href{code/vae.html}{here}. 
-  \end{algo}
+  \end{algo} 
+
+\subsection{Importance Weighted Autoencoders}
 
 \subsection{Conditional VAEs}
 
-\subsection{Importance Weighted Autoencoders}
+  Note that once our VAE is trained, we have no control on the data generation process. That is, if we want to generate only the digit 2, we can't since we must just sample from the Gaussian $p(z)$ in the latent space. Therefore, conditioning all the distributions on what we want is the objective of \textit{conditional VAEs}, which uses the \textit{conditional ELBO}. 
+
+  \begin{definition}[Conditional ELBO]
+    The \textbf{conditional ELBO} of $x, \theta, \phi$ given some conditioning vector $c$\footnote{Analogous to the digit we want in MNIST.}, is defined 
+    \begin{equation}
+      \mathbb{E}_{q_\phi(z \mid x)} \big[ \log p_\theta(x \mid z,c) - \mathrm{KL}(q_\phi (z \mid x,c) || p(z \mid c)) \big] 
+    \end{equation}
+  \end{definition}
+
 
