@@ -110,8 +110,10 @@
 
   So let's walk through the forward propagation with the likelihood set to Bernoulli. We have a dataset $\{x^{(i)}\}$. For each $x^{(i)}$
   \begin{enumerate}
-    \item We put it into our encoder network and get out the parameters $\phi^{(i)} = E_\alpha (x^{(i)})$ for our latent Gaussian. 
+    \item We put it into our encoder network and get out the parameters $\phi^{(i)} = E_\alpha (x^{(i)})$ for our latent Gaussian. We output the mean $\mu_\alpha^{(i)}$ and either the variance $(\sigma_{\alpha}^{(i)})^2$, or the log-variance $\log (\sigma_{\alpha}^{(i)})^2$.\footnote{Since variances must always be positive, sometimes a slight tweaking of transformations is needed. For example, if an encoder network has a final linear layer, then the variances may not be always positive, which is a problem, so we may do an exponential or a ReLU at the end. You may notice that the log may often return negative numbers, but as we will see later, we can add a corresponding transformation in our \textit{reparamaterization trick}, which will exponentiate the log-variances (this is how it's implemented in the code) before using them as variances. Calculating the log-variance first and then exponentiating it may also bring better numerical stability.}
+
     \item We sample a $z^{(i)}$ from this Gaussian and feed it into the decoder network $D_\beta(z^{(i)})$, which returns the parameters $\theta^{(i)} = D_\beta (z^{(i)})$ for our Bernoulli likelihood. 
+
     \item We sample $\hat{x}^{(i)}$ from this Bernoulli and retrieve another sampled version of our input. 
   \end{enumerate} 
 
@@ -120,7 +122,7 @@
   \begin{example}[Softmax]
     In the graph below, note that our ``prediction'' $\hat{y}^{(i)}$ for the data point $x^{(i)}$ is not really a prediction at all. If we have three categories (cat, dog, fish) and I give you an image, the model will output a vector of probabilities, e.g. $\hat{y}^{(i)} = [0.1, 0.2, 0.7]$. While we can easily infer that the probability of a fish is highest, and therefore should be our prediction, the model didn't actually output one answer. Rather, we should interpret this output vector $\hat{y}^{(i)}$ as a \textit{parameter} $\theta$ of a multinomial distribution. From this we can \textit{sample} an actual prediction $\hat{y}^{(i)} \sim \mathrm{Multinomial}(\theta)$. 
 
-    When we compute the loss of a sample, we compute the likelihood by taking the true output $y^{(i)}$ and one-hot encoding it. One-hot encoding allows us to convert the label $y^{(i)}$ into a parameter of a multinomial itself, and this process is hidden inside $\mathcal{L}$. Therefore we want to maximize
+    When we compute the loss of a sample, we compute the likelihood by taking the true output $y^{(i)}$ and one-hot encoding it. One-hot encoding allows us to convert the label $y^{(i)}$ into a parameter of a multinomial itself, and this process is hidden inside $\ell$. Therefore we want to maximize
     \begin{equation}
       \log p(y^{(i)} \mid x^{(i)}) = p_{\hat{\theta^{(i)}}} (y^{(i)}) = \sum_j y_j^{(i)} \log  \hat{\theta}^{(i)}_j 
     \end{equation}
@@ -168,11 +170,11 @@
         % Text Node
         \draw (336.67,94.33) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle =\hat{\theta }$};
       \end{tikzpicture}
-      \caption{ When we draw a computation graph to visualize the backpropagation of a softmax regression function, note that we need to have the gradients start from the likelihood $\mathcal{L}$ and reach ``back'' to $W$ and $b$, our model parameters. }
+      \caption{ When we draw a computation graph to visualize the backpropagation of a softmax regression function, note that we need to have the gradients start from the log-likelihood $\ell$ and reach ``back'' to $W$ and $b$, our model parameters. }
       \label{fig:softmax1}
     \end{figure}
 
-    Another way to approximate the log likelihood $\mathcal{L}$ is to simply take the output parameter $\hat{\theta}^{(i)}$, keep on sampling $y$'s from it, penalizing when needed, and averaging the penalties.\footnote{This is useful if we can easily sample, but do not know the closed form of the likelihood distribution.}
+    Another way to approximate the log likelihood $\ell$ is to simply take the output parameter $\hat{\theta}^{(i)}$, keep on sampling $y$'s from it, penalizing when needed, and averaging the penalties.\footnote{This is useful if we can easily sample, but do not know the closed form of the likelihood distribution.}
     \begin{align}
       \log p(y^{(i)} \mid x^{(i)}) & = \log \mathbb{E}_{y \sim \hat{\theta}^{(i)}} \big[ \mathbbm{1}_{y^{i} = y} \big] \\
                                    & = \log \int \mathbbm{1}_{y^{(i)} = y} p_{\hat{\theta}^{(i)}} (y) \,dy \\
@@ -234,7 +236,37 @@
     Therefore, we can think of backpropagating as either one of two things. Either backpropagate straight through the parameter like we did first, or sample from the estimated distribution and sum up to approximate the samples. 
   \end{example}
 
-  With this in mind, let's take a look at the computation graph of the VAE. We can see that since we know the closed form of $p_\theta (x \mid z)$, backpropagating over $\theta^{(i)}$ is no problem. However, we must reach $\alpha$ to update the neural network weights, and to do this we must go backprop through $z^{(i)}$ and $\phi^{(i)}$, which requires expensive sampling. 
+  Let's keep this in the back of our mind, and focus on the computation for a bit. By the simplifying form that $q_\phi$ is a Gaussian, we can even get a nearly closed form of the ELBO. 
+
+  \begin{theorem}
+    Given the assumptions above, 
+    \begin{align}
+      \elbo(x, \phi, \theta) & \coloneqq \mathbb{E}_{q_\phi(z \mid x)} [ \log p_\theta (x \mid z)] + \mathbb{E}_{q_\phi (z \mid x)} [ \log p(z)] - \mathbb{E}_{q_\phi (z \mid x)} [ \log q_\phi (z \mid x)] \\
+                             & = \mathbb{E}_{q_\phi(z \mid x)} [ \log p_\theta (x \mid z)] + \frac{1}{2} \sum_{d=1}^D \bigg( 1 + \log( (\sigma_d)^2 ) - (\mu_d)^2 - (\sigma_d)^2 \bigg)
+    \end{align}
+    Therefore, the derivative of last two terms are \textit{exact}, i.e. we don't need to estimate them with SGD. 
+  \end{theorem}
+  \begin{proof}
+    Let's evaluate the last two expectations. 
+    \begin{align}
+      \mathbb{E}_{q_\phi (z \mid x)} [ \log p(z)] & = \int \log p(z) \cdot q_\phi (z \mid x) \,dx \\
+                                                  & = \int \log \{\mathcal{N} (z \mid 0, I) \}  \cdot \mathcal{N}(z \mid \mu, \sigma^2) \,dz  \\
+                                                  & = - \frac{D}{2} \log (2 \pi) - \frac{1}{2} \sum_{d=1}^D \mu_d^2 + \sigma_d^2) \\
+      \mathbb{E}_{q_\phi (z \mid x)} [ \log q_\phi (z \mid x)] & = \int \log q_\phi (z \mid x) \, q_\phi (z \mid x) \,dz \\
+                                                               & = \int \log \{ \mathcal{N}(z \mid \mu, \sigma^2) \} \mathcal{N}(z \mid \mu, \sigma^2) \,dx \\
+                                                               & = -\frac{D}{2} \sum_{d=1}^D 1 + \log (\sigma_d^2)
+    \end{align}
+  \end{proof} 
+
+  \begin{corollary}[Bernoulli Likelihood]
+    If $p\theta (x \mid z)$ is Bernoulli, then the ELBO can be estimated by estimating the likelihood 
+    \begin{equation}
+      \elbo(x, \phi, \theta) = \frac{1}{L} \sum_{l=1}^L + \frac{1}{2} \sum_{d=1}^D \bigg( 1 + \log( (\sigma_d)^2 ) - (\mu_d)^2 - (\sigma_d)^2 \bigg)
+    \end{equation}
+  \end{corollary}
+
+
+  With these two things, let's take a look at the computation graph of the VAE. 
 
   \begin{figure}[H]
     \centering 
@@ -304,38 +336,19 @@
     \label{fig:vae_comp1}
   \end{figure}
 
-  By the simplifying form that $q_\phi$ is a Gaussian, we can even get a nearly closed form of the ELBO. 
+  Note that since we have shown that the derivative of the last two expectations (i.e. the derivative of the KL divergence) is dependent on the outputs $\sigma$ and $\mu$ of the neural net, we must also backpropagate amongst them as well, which is why you see the giant arrow from $\phi$ to $\ell$. 
 
-  \begin{theorem}
-    Given the assumptions above, 
-    \begin{align}
-      \elbo(x, \phi, \theta) & \coloneqq \mathbb{E}_{q_\phi(z \mid x)} [ \log p_\theta (x \mid z)] + \mathbb{E}_{q_\phi (z \mid x)} [ \log p(z)] - \mathbb{E}_{q_\phi (z \mid x)} [ \log q_\phi (z \mid x)] \\
-                             & = \mathbb{E}_{q_\phi(z \mid x)} [ \log p_\theta (x \mid z)] + \frac{1}{2} \sum_{d=1}^D \bigg( 1 + \log( (\sigma_d)^2 ) - (\mu_d)^2 - (\sigma_d)^2 \bigg)
-    \end{align}
-    Therefore, the derivative of last two terms are \textit{exact}, i.e. we don't need to estimate them with SGD. 
-  \end{theorem}
-  \begin{proof}
-    Let's evaluate the last two expectations. 
-    \begin{align}
-      \mathbb{E}_{q_\phi (z \mid x)} [ \log p(z)] & = \int \log p(z) \cdot q_\phi (z \mid x) \,dx \\
-                                                  & = \int \log \{\mathcal{N} (z \mid 0, I) \}  \cdot \mathcal{N}(z \mid \mu, \sigma^2) \,dz  \\
-                                                  & = - \frac{D}{2} \log (2 \pi) - \frac{1}{2} \sum_{d=1}^D \mu_d^2 + \sigma_d^2) \\
-      \mathbb{E}_{q_\phi (z \mid x)} [ \log q_\phi (z \mid x)] & = \int \log q_\phi (z \mid x) \, q_\phi (z \mid x) \,dz \\
-                                                               & = \int \log \{ \mathcal{N}(z \mid \mu, \sigma^2) \} \mathcal{N}(z \mid \mu, \sigma^2) \,dx \\
-                                                               & = -\frac{D}{2} \sum_{d=1}^D 1 + \log (\sigma_d^2)
-    \end{align}
-  \end{proof} 
+  We can see that since we know the closed form of $p_\theta (x \mid z)$, backpropagating over $\theta^{(i)}$ is no problem. However, we must reach $\alpha$ to update the neural network weights, and to do this we must go backprop through the stochastic node $z^{(i)}$, which may stump you. In fact, how do you even backpropagate against something that's a random variable? Remember that in our softmax example, we could simply compute the log likelihood of a bunch of samples at this node to get an approximate average log likelihood. This is a start, but in this case we want to compute the \textit{gradient} of the log likelihood. Fortunately, the \textit{log-derivative trick}\footnote{Mentioned in my ML notes} allows us to swap the gradient and expectation under a certain form, putting the expectation on the outside and therefore allowing us to sample gradients. 
+  \begin{equation}
+    \nabla_\phi \mathbb{E}_{q_\phi (z)} [f(z)] = \mathbb{E}_{q_\phi (z)} [ f(z) \nabla_\phi \log q_{\phi} (z)]
+  \end{equation}
 
-  \begin{corollary}[Bernoulli Likelihood]
-    If $p\theta (x \mid z)$ is Bernoulli, then the ELBO can be estimated by estimating the likelihood 
-    \begin{equation}
-      \elbo(x, \phi, \theta) = \frac{1}{L} \sum_{l=1}^L + \frac{1}{2} \sum_{d=1}^D \bigg( 1 + \log( (\sigma_d)^2 ) - (\mu_d)^2 - (\sigma_d)^2 \bigg)
-    \end{equation}
-  \end{corollary}
+  So we apply the same idea by sampling $z^{(1)}, \ldots, z^{(L)}$ from the Gaussian with parameters $\phi^{(i)}$ and for each sample we fix $z^{(l)}$, allowing us to backpropagate to $\alpha$ to get a noisy estimate. By averaging these noisy gradients we have an approximation of the true gradient w.r.t. $x^{(i)}$.\footnote{This like a SGD inside a SGD, since we're sampling over minibatches of the samples $x^{(i)}$ as well.} Unfortunately, when doing this for gradients the variance tends to be very high up to a point where it is impractical, and even with a lot of sampling this frequently undershoots or overshoots the actual gradient. Therefore, we must come up with an alternative solution to estimate the gradient efficiently. 
+
 
 \subsection{Reparamaterization Trick} 
 
-  An alternative introduced in \cite{vae} is known as the \textit{reparamaterization trick}, which is just an application of a change of basis. 
+  The solution is introduced in \cite{vae} is known as the \textit{reparamaterization trick}, which is just an application of a change of basis. 
 
   \begin{theorem}[Reparameterization Trick]
     Let $q_\phi(z|x)$ be a continuous distribution that can be sampled by first sampling $\epsilon \sim p(\epsilon)$ from a parameter-free distribution and then applying a differentiable transformation $g_\phi(\epsilon, x)$. Then:
@@ -398,92 +411,102 @@
     \end{figure}
   \end{example}
 
-  Therefore, we can see that 
+  Therefore, given that $\phi_\mu = \mu^{(i)}$ and $\phi_\sigma = (\sigma^{(i)})^2$ are the outputs of our encoder neural net, our transformation is 
   \begin{equation}
-    g_\phi (x, \epsilon^{(l)}) = \mu^{(i)} + \sigma^{(i)} \odot \epsilon^{(l)} \qquad \epsilon^{(l)} \sim \mathcal{N}(0, I)
+    g_\phi (x, \epsilon^{(l)}) = \phi_\mu + \sqrt{\phi_\sigma} \odot \epsilon^{(l)} = \mu^{(i)} + \sigma^{(i)} \odot \epsilon^{(l)} \qquad \epsilon^{(l)} \sim \mathcal{N}(0, I)
   \end{equation}
+  or in the log-variance case, where the encoder outputs $\phi_\sigma = \log (\sigma^{(i)})^2 = 2 \log \sigma^{(i)}$, we have 
+  \begin{equation}
+    g_\phi (x, \epsilon^{(l)}) = \mu^{(i)} + e^{\phi_\sigma/2} \odot \epsilon^{(l)} = \mu^{(i)} + \sigma^{(i)} \odot \epsilon^{(l)} \qquad \epsilon^{(l)} \sim \mathcal{N}(0, I)
+  \end{equation}
+
   where $\odot$ is element-wise multiplication, can be used to model $p(z)$. The intuition behind this is to ``push'' the stochastic node $z^{(i)}$ back so that we don't have to go through it to reach $\alpha$. Therefore, to compute the noisy gradient for $\alpha$, we can sample $\epsilon^{(l)} \sim \mathcal{N}(0, I)$ and treat it as a fixed variable when doing backpropagation. Then we do this $L$ times to get $L$ gradients, and average them to get the unbiased estimate of the gradient of the single sample $x^{(i)}$. Then we must do this for all $x^{(i)}$ in a minibatch in SGD. Since this is still too computationally heavy, we usually set $L=1$. 
 
   \begin{figure}[H]
     \centering 
     \tikzset{every picture/.style={line width=0.75pt}} %set default line width to 0.75pt        
     \begin{tikzpicture}[x=0.75pt,y=0.75pt,yscale=-1,xscale=1]
-      %uncomment if require: \path (0,187); %set diagram left start at 0, and has height of 187
+      %uncomment if require: \path (0,230); %set diagram left start at 0, and has height of 230
 
       %Straight Lines [id:da549284335951172] 
-      \draw    (68.09,34.33) -- (101.79,55.28) ;
-      \draw [shift={(103.49,56.33)}, rotate = 211.86] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      \draw    (40.09,43.33) -- (73.79,64.28) ;
+      \draw [shift={(75.49,65.33)}, rotate = 211.86] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
       %Straight Lines [id:da6162521420944999] 
-      \draw    (67.67,80.33) -- (102.51,64.49) ;
-      \draw [shift={(104.33,63.67)}, rotate = 155.56] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      \draw    (39.67,89.33) -- (74.51,73.49) ;
+      \draw [shift={(76.33,72.67)}, rotate = 155.56] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
       %Straight Lines [id:da12977974645980606] 
-      \draw    (130.09,61.67) -- (162.33,62.09) ;
-      \draw [shift={(164.33,62.11)}, rotate = 180.74] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      \draw    (102.09,70.67) -- (134.33,71.09) ;
+      \draw [shift={(136.33,71.11)}, rotate = 180.74] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
       %Curve Lines [id:da5962854824857341] 
-      \draw    (216,118.33) .. controls (244.56,97.1) and (224.3,136.89) .. (259.36,113.24) ;
-      \draw [shift={(261,112.11)}, rotate = 145.15] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      \draw    (188,127.33) .. controls (216.56,106.1) and (196.3,145.89) .. (231.36,122.24) ;
+      \draw [shift={(233,121.11)}, rotate = 145.15] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
       %Straight Lines [id:da19986172160423643] 
-      \draw    (422.09,93) -- (455.79,113.94) ;
-      \draw [shift={(457.49,115)}, rotate = 211.86] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      \draw    (394.09,102) -- (427.79,122.94) ;
+      \draw [shift={(429.49,124)}, rotate = 211.86] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
       %Straight Lines [id:da563527517377988] 
-      \draw    (421.67,139) -- (456.51,123.16) ;
-      \draw [shift={(458.33,122.33)}, rotate = 155.56] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      \draw    (393.67,148) -- (428.51,132.16) ;
+      \draw [shift={(430.33,131.33)}, rotate = 155.56] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
       %Straight Lines [id:da9810030545590435] 
-      \draw    (491.42,117.67) -- (523.67,118.09) ;
-      \draw [shift={(525.67,118.11)}, rotate = 180.74] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      \draw    (463.42,126.67) -- (495.67,127.09) ;
+      \draw [shift={(497.67,127.11)}, rotate = 180.74] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
       %Curve Lines [id:da27917860120610793] 
-      \draw    (540.67,106.33) .. controls (569.23,85.1) and (515.33,95.78) .. (549.38,71.26) ;
-      \draw [shift={(551,70.11)}, rotate = 145.15] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      \draw    (515.67,119.33) .. controls (544.23,98.1) and (490.33,108.78) .. (524.38,84.26) ;
+      \draw [shift={(526,83.11)}, rotate = 145.15] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
       %Straight Lines [id:da46048578655946304] 
-      \draw    (558.75,120.33) -- (592.46,141.28) ;
-      \draw [shift={(594.16,142.33)}, rotate = 211.86] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      \draw    (533.75,133.33) -- (567.69,164.66) ;
+      \draw [shift={(569.16,166.01)}, rotate = 222.71] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
       %Straight Lines [id:da4526948376904725] 
-      \draw    (558.33,166.33) -- (593.18,150.49) ;
-      \draw [shift={(595,149.67)}, rotate = 155.56] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      \draw    (533.33,201.67) -- (568.34,178.03) ;
+      \draw [shift={(570,176.91)}, rotate = 145.97] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
       %Straight Lines [id:da8633959975997318] 
-      \draw    (291.42,63.67) -- (325.13,84.61) ;
-      \draw [shift={(326.82,85.67)}, rotate = 211.86] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      \draw    (263.42,72.67) -- (297.13,93.61) ;
+      \draw [shift={(298.82,94.67)}, rotate = 211.86] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
       %Straight Lines [id:da9054037281263334] 
-      \draw    (291,109.67) -- (325.85,93.83) ;
-      \draw [shift={(327.67,93)}, rotate = 155.56] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      \draw    (263,118.67) -- (297.85,102.83) ;
+      \draw [shift={(299.67,102)}, rotate = 155.56] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
       %Straight Lines [id:da29559166512265533] 
-      \draw    (358.09,91.67) -- (390.33,92.09) ;
-      \draw [shift={(392.33,92.11)}, rotate = 180.74] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      \draw    (330.09,100.67) -- (362.33,101.09) ;
+      \draw [shift={(364.33,101.11)}, rotate = 180.74] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
+      %Straight Lines [id:da24075226630898383] 
+      \draw    (149,85.67) -- (149,172.67) ;
+      %Straight Lines [id:da4542808940553933] 
+      \draw    (149,172.67) -- (567,171.67) ;
+      \draw [shift={(569,171.67)}, rotate = 179.86] [color={rgb, 255:red, 0; green, 0; blue, 0 }  ][line width=0.75]    (10.93,-3.29) .. controls (6.95,-1.4) and (3.31,-0.3) .. (0,0) .. controls (3.31,0.3) and (6.95,1.4) .. (10.93,3.29)   ;
 
       % Text Node
-      \draw (42,22) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle x^{( i)}$};
+      \draw (14,31) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle x^{( i)}$};
       % Text Node
-      \draw (44,76.33) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle \alpha $};
+      \draw (16,85.33) node [anchor=north west][inner sep=0.75pt]  [color={rgb, 255:red, 77; green, 74; blue, 226 }  ,opacity=1 ] [align=left] {$\displaystyle \alpha $};
       % Text Node
-      \draw (106,51.33) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle E_{\alpha }$};
+      \draw (78,60.33) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle E_{\alpha }$};
       % Text Node
-      \draw (168.67,49.33) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle \phi ^{( i)} =\left( \mu _{\alpha }^{( i)} ,\ \sigma _{\alpha }^{( i)}\right)$};
+      \draw (140.67,58.33) node [anchor=north west][inner sep=0.75pt]  [color={rgb, 255:red, 74; green, 87; blue, 226 }  ,opacity=1 ] [align=left] {$\displaystyle \phi ^{( i)} =\left( \mu _{\alpha }^{( i)} ,\ \sigma _{\alpha }^{( i)}\right)$};
       % Text Node
-      \draw (216.67,125) node [anchor=north west][inner sep=0.75pt]  [font=\footnotesize] [align=left] {$\displaystyle \text{\text{sample}}$};
+      \draw (188.67,134) node [anchor=north west][inner sep=0.75pt]  [font=\footnotesize] [align=left] {$\displaystyle \text{\text{sample}}$};
       % Text Node
-      \draw (397.33,81) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle z^{( i)}$};
+      \draw (369.33,90) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle z^{( i)}$};
       % Text Node
-      \draw (402.67,129.67) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle \beta $};
+      \draw (374.67,138.67) node [anchor=north west][inner sep=0.75pt]  [color={rgb, 255:red, 77; green, 74; blue, 226 }  ,opacity=1 ] [align=left] {$\displaystyle \beta $};
       % Text Node
-      \draw (463.33,108) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle D_{\beta }$};
+      \draw (435.33,117) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle D_{\beta }$};
       % Text Node
-      \draw (532.67,107) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle \theta ^{( i)}$};
+      \draw (507.67,120) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle \theta ^{( i)}$};
       % Text Node
-      \draw (494,80.33) node [anchor=north west][inner sep=0.75pt]  [font=\footnotesize] [align=left] {$\displaystyle \text{\text{sample}}$};
+      \draw (469,93.33) node [anchor=north west][inner sep=0.75pt]  [font=\footnotesize] [align=left] {$\displaystyle \text{\text{sample}}$};
       % Text Node
-      \draw (538.67,43) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle \hat{x}^{( i)}$};
+      \draw (513.67,56) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle \hat{x}^{( i)}$};
       % Text Node
-      \draw (536.67,157) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle x^{( i)}$};
+      \draw (513.67,189) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle x^{( i)}$};
       % Text Node
-      \draw (602.67,135) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle \ell $};
+      \draw (576.67,160) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle \ell $};
       % Text Node
-      \draw (266,103.67) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle \epsilon ^{( l)}$};
+      \draw (238,112.67) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle \epsilon ^{( l)}$};
       % Text Node
-      \draw (196.67,110.33) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle \epsilon$};
+      \draw (168.67,120.33) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle \epsilon $};
       % Text Node
-      \draw (331.33,78.33) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle g_{\phi }$};
+      \draw (303.33,87.33) node [anchor=north west][inner sep=0.75pt]   [align=left] {$\displaystyle g_{\phi }$};
     \end{tikzpicture}
-    \caption{Note that the $\epsilon$ variable was added into the graph. Therefore the path from $\ell$ to $\alpha$ does not directly go through a stochastic node. A similar figure can be found in Kigma's workshop presentation in NIPS. } 
+    \caption{Note that the $\epsilon$ variable was added into the graph, and the blue variables are the parameters we want to backpropagate and optimize. Therefore the path from $\ell$ to $\alpha$ does not directly go through a stochastic node. Note that autograd calculates gradients for $\phi$ while on its way to $\alpha$. But since $\ell$ is directly dependent on $\phi^{(i)}$, we want to make sure to update the $\phi^{(i)}$ directly with a step in the right direction. The rest of the parameters, while they do have their gradients computed, do not need to be updated with a step. A similar figure on a smaller scale can be found in Kigma's workshop presentation in NIPS. } 
     \label{fig:reparam_trick}
   \end{figure}
 
@@ -503,7 +526,7 @@
   \end{corollary}
 
 
-  Really the VAEs were just a straightforward application of CAVI with the reparamaterization trick, plus the extra variables $\alpha, \beta$ that are used to generate the $\theta, \phi$. This can be backpropagated easily. 
+  Really the VAEs were just a straightforward application of CAVI with the reparamaterization trick, plus the extra variables $\alpha, \beta$ that are used to generate the $\theta, \phi$. 
 
   \begin{algo}[Implementation of VAE]
     To see an implementation of a VAE with PyTorch, see \href{code/vae.html}{here}. 
