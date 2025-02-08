@@ -345,10 +345,9 @@
 
   So we apply the same idea by sampling $z^{(1)}, \ldots, z^{(L)}$ from the Gaussian with parameters $\phi^{(i)}$ and for each sample we fix $z^{(l)}$, allowing us to backpropagate to $\alpha$ to get a noisy estimate. By averaging these noisy gradients we have an approximation of the true gradient w.r.t. $x^{(i)}$.\footnote{This like a SGD inside a SGD, since we're sampling over minibatches of the samples $x^{(i)}$ as well.} Unfortunately, when doing this for gradients the variance tends to be very high up to a point where it is impractical, and even with a lot of sampling this frequently undershoots or overshoots the actual gradient. Therefore, we must come up with an alternative solution to estimate the gradient efficiently. 
 
-
 \subsection{Reparamaterization Trick} 
 
-  The solution is introduced in \cite{vae} is known as the \textit{reparamaterization trick}, which is just an application of a change of basis. 
+  In 2013, Durk Kigma, then a PhD student in machine learning at the University of Amsterdam, introduced a solution in \cite{vae} called the \textit{reparamaterization trick}, which is just an application of a change of basis. 
 
   \begin{theorem}[Reparameterization Trick]
     Let $q_\phi(z|x)$ be a continuous distribution that can be sampled by first sampling $\epsilon \sim p(\epsilon)$ from a parameter-free distribution and then applying a differentiable transformation $g_\phi(\epsilon, x)$. Then:
@@ -362,8 +361,41 @@
     where $f$ is any differentiable function. 
   \end{theorem}
   \begin{proof}
-    
+    We clearly state our assumptions:
+    \begin{itemize}
+      \item We have a distribution $q_\phi(z|x)$ that can be reparameterized using $g_\phi(\epsilon, x)$
+      \item $\epsilon$ is sampled from a parameter-free distribution $p(\epsilon)$
+      \item $g_\phi$ is differentiable with respect to $\phi$
+      \item $f$ is any differentiable function
+    \end{itemize}
+
+    The first equality to prove is:
+    \begin{equation*}
+        \nabla_\phi \mathbb{E}_{q_\phi(z|x)} [f(z)] = \nabla_\phi \mathbb{E}_{p(\epsilon)} [f(g_\phi(\epsilon, x))]
+    \end{equation*}
+
+    This follows directly from the reparameterization property. Since $z = g_\phi(\epsilon, x)$ where $\epsilon \sim p(\epsilon)$, we can rewrite any expectation over $q_\phi(z|x)$ as an expectation over $p(\epsilon)$:
+    \begin{equation*}
+        \mathbb{E}_{q_\phi(z|x)} [f(z)] = \mathbb{E}_{p(\epsilon)} [f(g_\phi(\epsilon, x))]
+    \end{equation*}
+
+    Taking $\nabla_\phi$ of both sides gives us the first equality. The second equality to prove is:
+    \begin{equation}
+      \nabla_\phi \mathbb{E}_{p(\epsilon)} [f(g_\phi(\epsilon, x))] = \mathbb{E}_{p(\epsilon)} [\nabla_\phi f(g_\phi(\epsilon, x))] \iff \nabla_\phi \int f(g_\phi(\epsilon, x)) p(\epsilon) d\epsilon = \int \nabla_\phi f(g_\phi(\epsilon, x)) p(\epsilon) d\epsilon
+    \end{equation}
+
+    To justify exchanging the gradient and integral, we invoke the Leibniz integral rule. This exchange is valid when $f \circ g_\phi$ is differentiable with respect to $\phi$ (given in our assumptions), the domain of integration (support of $p(\epsilon)$) is independent of $\phi$, and there are suitable integrability conditions (which we assume hold). Then we exchange the gradient and expectation:
+    \begin{equation}
+      \nabla_\phi \int f(g_\phi(\epsilon, x)) p(\epsilon) d\epsilon = \int \nabla_\phi f(g_\phi(\epsilon, x)) p(\epsilon) d\epsilon
+    \end{equation}
+
+    A crucial observation is that $p(\epsilon)$ does not depend on $\phi$ (it is parameter-free), which is essential for this exchange to work.
+    \begin{equation}
+        \nabla_\phi \mathbb{E}_{q_\phi(z|x)} [f(z)] = \nabla_\phi \mathbb{E}_{p(\epsilon)} [f(g_\phi(\epsilon, x))] = \mathbb{E}_{p(\epsilon)} [\nabla_\phi f(g_\phi(\epsilon, x))]
+    \end{equation}
   \end{proof}
+
+  This result is fundamental to variational inference and deep learning, particularly in training Variational Autoencoders (VAEs). The key insight is that by reparameterizing the random variable $z$ in terms of a parameter-free random variable $\epsilon$, we can separate the stochastic sampling (which is not differentiable) from the deterministic transformation $g_\phi$ (which is differentiable).
 
   The biggest advantage to this is that we although we do not avoid sampling to approximate the log likelihood, the rate at which it converges is much faster than simple sampling or the log-derivative trick, which is demonstrated in the example below. 
 
