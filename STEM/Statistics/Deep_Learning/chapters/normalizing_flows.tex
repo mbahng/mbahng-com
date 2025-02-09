@@ -153,7 +153,7 @@
 
     This general method allowing linear-time computation of Jacobian determinants is an example of a \textbf{general normalizing flow}. Before, we have just constructed some family of invertible functions $\{f\}$ to transform the data, such that it was simple enough to calculate the Jacobian determinants in linear time. But note that in general, computing determinants requires you to have an triangular matrix (multiply all the diagonals). Therefore, if we can create a neural network $f$ such that its Jacobian is triangular, we will be done. In order to have such an architecture to support this, we should introduce a special type of layer.  
 
-    \begin{definition}[Coupling Layer]
+    \begin{definition}[Affine Coupling Layer]
       Let us have an input $z \in \mathbb{R}^D$ such that it can be partitioned into its first $d$ elements and the rest. 
       \begin{equation}
         z = [z_{1:d}, z_{d+1:D}]
@@ -221,19 +221,108 @@
 
     \begin{figure}[H]
       \centering 
-      \includegraphics[scale=0.3]{img/nice_coupling.png}
+      \includegraphics[scale=0.4]{img/nice_coupling.png}
       \caption{An additive coupling layer. } 
       \label{fig:nice_coupling}
     \end{figure}
 
-\subsection{GLOW}
+\subsection{GLOW} 
 
-  A lot of hacks to improve it (no math). Improved normalizing flow dramatically. 
+  Even with all these improvements with coupling-layers, flow models did not do as well as GANs. Therefore in 2018 Kingma, having invented the VAE, made a comeback by taking flow models and adding a lot of hacks in \cite{glow} to improve it, resulting in the GLOW model. There wans't really much theoretical backing to it, but it improved normalizing flow dramatically, finally resulting in a competitor for GANs. 
+
+  \begin{definition}[Flow Step in GLOW]
+    The GLOW layer consists of 3 components. 
+    \begin{enumerate}
+      \item \textit{Actnorm}. 
+      \item \textit{Invertible $1 \times 1$ Convolution}. 
+      \item \textit{Affine Coupling Layer}. 
+    \end{enumerate}
+  \end{definition} 
+
+  \begin{figure}[H]
+    \centering 
+    \includegraphics[scale=0.4]{img/glow_step.png}
+    \caption{One step of GLOW.} 
+    \label{fig:glow_step}
+  \end{figure}
+
+  After each layer, this is followed by a \textit{squeeze} operation. 
+
+  \begin{definition}[Squeeze Operation]
+    For each channel, \textbf{squeezing} divides the image into sub-squares of shape $2 \times 2 \times c$, and then reshapes them into sub-squares of shape $1 \times 1 \times 4c$. 
+  \end{definition}
+
+
+  \begin{definition}[Split and Concatenation Operation]
+    The \textbf{split operation} passes half of the input variables to further layers and shave off the other half as ``finished.'' The \textbf{concatenation operation} performs the corresponding reverse operation: concatenation into a single tensor. 
+  \end{definition}
+
+  This results in the GLOW architecture. 
+
+  \begin{figure}[H]
+    \centering 
+    \includegraphics[scale=0.4]{img/glow_architecture.png}
+    \caption{The complete glow architecture. $L = 6$ was known the be the best, but there's lots of fine-tuning. } 
+    \label{fig:glow_architecture}
+  \end{figure}
+
   You have a flow and squeeze a bunch of times is GLOW. 
 
-\subsection{Augoregressive Flows} 
+  \subsubsection{c-GLOW} 
+  
+    There were further improvements by Lu in 2019, where in introduced conditional GLOW in \cite{cglow}. It conditions on input noise, calculates the pdf of the noise, and subtracts it. 
+
+    There are also applications in inpainting. You condition on the visible part and sample from conditional distribution. 
+
+
+\subsection{Autoregressive Flows} 
+
+  The nice form of flow models allows us to apply this to sequential data, i.e. in autoregressive models. Given words $x_1, \ldots, x_n$, sampled from $p(x_1, \ldots, x_n) = p(x_1) \, p(x_2 \mid x_1) \ldots p(x_n \mid x_1 \ldots x_{n-1})$, we would like to generate the next word. Doing so with RNNs can require lots of computation, so we can use \textit{autoregressive models as flow models}. Consider a Gaussian nonlinear autoregressive model. 
+
+  \begin{equation}
+    p(x) = \prod_{i=1}^n p(x_i \mid x_{<i}), \text{ where } p(x_i \mid x_{<i}) = \mathcal{N} \big( \mu(x_1, \ldots, x_{i-1}), \exp(\alpha_i (x_1, \ldots, x_{i-1}))^2 \big) 
+  \end{equation}
+  where $\mu_i, \alpha_i$ are deep neural networks (but not too deep due to computation, e.g. they can be fixed-length input resnets). Assuming that this is optimized somehow, we can sample from a Gaussian and run it through the neural nets to get the parameters of the next Gaussian distribution, sample them, and then do it again. 
+  \begin{equation}
+    z_i \sim \mathcal{N}(0, 1), \qquad x_i = \mu_i + \exp(\alpha_i) z_i = \mu_i (x_{<i}) + \exp(\alpha_i (x_{<i})) z_i 
+  \end{equation}
+
+  This is the key idea to autoregressive normalizing flows. What we have just talked about is called a \textbf{masked autoregressive flow}. 
+
+  \begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.45\textwidth}
+      \centering
+      \includegraphics[scale=0.36]{img/maf.png}
+      \caption{}
+      \label{fig:maf}
+    \end{subfigure}
+    \hfill 
+    \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+      \includegraphics[width=\textwidth]{img/iaf.png}
+      \caption{}
+      \label{fig:iaf}
+    \end{subfigure}
+    \caption{}
+    \label{fig:maf_vs_iaf}
+  \end{figure}
+
+  In an \textbf{inverse autoregressive flow}, the equations remain the same but the role of forward and backward passes have been reversed. 
+
+  We can see a trade-off. 
+  \begin{enumerate}
+    \item \textit{Calculating log-likelihood}. MAFs are better since we can calculate it easy (remember we need determinant). IAFs requires us to go back and forth. 
+    \item \textit{Sampling}. IAFs are easier since we can sample from $z_i$'s and sequentially calculate $x_i$'s. 
+  \end{enumerate}
+
+  Can we get the benefits of both? Yes, and the general idea is to train the MAF first and then have the IAF student model imitate it. 
+
+  \begin{example}[Video Flows]
+    We can model a video as as a time series generated by a fancy random Gaussian walk, where the normal distributions are transformed by a neural network. This leads to \textit{WaveNet}. 
+  \end{example}
 
 \subsection{Infinitesimal Flows} 
 
-
+\subsection{Wasserstein Flows} 
 
