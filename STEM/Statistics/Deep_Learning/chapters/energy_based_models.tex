@@ -1,6 +1,7 @@
 \section{Energy Models} 
 
-  Now this is the first time we talk about unsupervised learning. Note from our machine learning notes that for unsupervised tasks, we have estimated the density of complex distributions by factoring them in \textit{graphical models}, e.g. Bayesian networks or Markov random fields. We will extend this into deep learning architectures.\footnote{This is \textit{not} to be confused with graph neural networks (GNNs), which are designed for tasks whose inputs are graphs.} If you are not familiar, you should probably go over graphical models in my ML notes before reading further. 
+  Now this is the first time we talk about unsupervised learning. Note from our machine learning notes \ref{ml-graphical-models} that for unsupervised tasks, we have estimated the density of complex distributions by factoring them in \textit{graphical models}, e.g. Bayesian networks or Markov random fields. 
+  We will extend this into deep learning architectures.\footnote{This is \textit{not} to be confused with graph neural networks (GNNs), which are designed for tasks whose inputs are graphs.} If you are not familiar, you should probably go over graphical models in my ML notes before reading further. 
 
   Note that many of the theories behind energy models are very old (from the 1980s) and established, especially in the prevalence of the \textit{Boltzmann distribution} in statistical mechanics. All of them essentially rely on the fact that we can model a probability density as 
   \begin{equation}
@@ -8,7 +9,11 @@
   \end{equation}
   for some function $E: \mathbb{R}^n \rightarrow \mathbb{R}$, which we call the \textit{negative energy}, and $Z$ is what we call the \textbf{partition function}. We have seen from the Hammersley-Clifford theorem in my machine learning notes that we can model a joint probability distribution on an undirected graph with the product of potential functions on the max cliques.\footnote{But finding max cliques is NP-hard?} Therefore, we will take advantage of this in the specific instance of MRFs that are \textit{bipartite graphs}, i.e. a non-feedforward (since its cyclic) 2-layer neural network. We will talk about RBMs, deep belief networks, and hopfield networks. Diffusion models, which can also be considered an energy model, will be talked separately. 
 
-  The most straightforward application is that we can just have a neural network approximate this function $E_\theta$, which gives us a parameterized family of distributions $p_\theta (x) = \frac{1}{Z} e^{-E_\theta (x)}$ that would hopefully approximate the true distribution $p^\ast (x)$. This is called an \textbf{energy based model (EBM)}. Therefore, we could like to maximize the log-likelihood (which gets rid of the partition function term), giving us 
+  The most straightforward application is that we can just have a neural network approximate this function $E_\theta$, which gives us a parameterized family of distributions $p_\theta (x) = \frac{1}{Z} e^{-E_\theta (x)}$ that would hopefully approximate the true distribution $p^\ast (x)$. This is called an \textbf{energy based model (EBM)}. 
+
+\subsection{Training with MCMC}
+
+  Therefore, we could like to maximize the log-likelihood (which gets rid of the partition function term), giving us 
   \begin{align}
     \argmax_\theta \mathbb{E}_{x \sim p^\ast} \big[ \log p_\theta (x) \big] & = \argmax_\theta \mathbb{E}_{x \sim p^\ast}\big[ -E_\theta (x) \big] - \mathbb{E}_{x \sim p^\ast} \big[ \log{Z_\theta} \big] \\
                                                                             & \approx \argmin_\theta \sum_{i=1}^N E_\theta (x^{(i)}) + \sum_{i=1}^N \log Z_\theta
@@ -34,6 +39,37 @@
   \end{align}
   where the final step is from using a Monte Carlo sample with a size $M$ batch of $\Tilde{x}$ from $p_\theta (x)$. We can draw samples using MCMC, with Langevin dynamics MCMC being the most popular. 
 
+\subsection{Score Matching}
+
+  We have built several types of generative models so far that estimated densities. While calculating PDFs is called \textit{density estimation}, we can indirectly estimate it by calculating the gradient of the PDF (with respect to the sample), which is known as \textbf{score matching}. 
+
+  \begin{definition}[Score]
+    Let $X$ be a continuous random variable defined on $\mathbb{R}^n$, and let $p$ be its pdf, parameterized by $\theta$. The score function of $p$ is the gradient of the log-pdf with respect to the sample.\footnote{Note that this is w.r.t. the sample, not the parameter, unlike what we do usually in machine learning.}
+    \begin{equation}
+      \psi (x; \theta) = \begin{bmatrix} \frac{\partial \log{p(x;\theta)}}{\partial x_1} \\ \vdots \\ \frac{\partial \log{p(x;\theta)}}{\partial x_n} \end{bmatrix} =  
+      \begin{bmatrix}
+        \psi_1 (x;\theta) \\ \vdots \\ \psi_n (x;\theta)
+      \end{bmatrix} = 
+      \nabla_x \log{p (x; \theta)}
+    \end{equation}
+    Note that the score is a function $\psi: \mathbb{R}^n \rightarrow \mathbb{R}^n$. 
+  \end{definition} 
+
+  The reason Hyvarinen introduced this score function in 2005 is because we want to have such a score is that it does not depend on the normalizing constant $Z$ (since the log derivative gets rid of it). \cite{orig_score} Therefore, rather than maximizing the likelihood, we want to minimize the L2 distance between the score functions. 
+
+  \begin{equation}
+    R(\theta) = \mathbb{E}_{X} \big[ || \psi(x\;\theta) - \psi_{\mathcal{D}} (x) ||^2 \big]
+  \end{equation}
+
+  \cite{score}. 
+
+  Note that Fisher score is a number. They use the same notation $s$ to denote gradient of log of the distribution, which is confusing. 
+
+  The relationship is the dual prime inequality, aka 2nd law of thermodynamics. 
+  \begin{equation}
+    \lim_{t \rightarrow 0} \frac{D_{KL}(p_t || q_t) - D_{KL}(p||q)}{t}
+  \end{equation}
+  
 \subsection{Boltzmann Machines}  
 
   Okay, so we've learned to model an arbitrary distribution by approximating it with an energy model. While they are not explicitly build into energy models, it is possible to include them. One such method is through \textit{Boltzmann machines}. Consider the graph $x_1, \ldots, x_D$ which represents a random vector $x$ for which we would like to model the probability distribution of. 
@@ -440,7 +476,11 @@
 
 \subsection{Deep Belief Network} 
 
+  Proposed in 2006
+
   So far, BMs and RBMs aren't really \textit{deep} since they are shallow 2-layer networks, and I could have placed them in my machine learning notes in graphical models. However, RBMs provided the foundations for deep belief networks, a pivotal moment in deep learning, and thus they are considered part of the deep learning curriculum. 
 
 \subsection{Hopfield Networks}
+
+  They are EBMs and RNNs!
 
