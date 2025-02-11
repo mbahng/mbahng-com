@@ -502,7 +502,7 @@
 
     The reason the Fisher divergence is so attractive is that under some mild regularity conditions, the parameter estimated by minimizing the Fisher divergence converges to the true parameters in the limit of infinite data. Furthermore, we can decompose it into the following. 
 
-    \begin{theorem}
+    \begin{theorem}[No Need for True Score to Optimize Fisher Divergence Objective]
       The Fisher divergence can be decomposed to 
       \begin{equation}
         D_F (p(x) || p_\theta (x)) = \mathbb{E}_{p(x)} \bigg[ \underbrace{\frac{1}{2} || \nabla_x \log p_\theta (x)}_{s_P (x, p)} ||^2 + \Delta_x \log p_\theta (x) \bigg] + c^\ast
@@ -526,13 +526,32 @@
       and since the log probability is bounded the first term is $0$, leaving us with the expectation of the Hessian. 
     \end{proof} 
 
+    This is the key theorem in Hyvarinen's paper. In the original objective, we must minimize the L2 distance between the original score and the score that we can compute by the neural network (at this point, we are assuming still that the neural net $E_\theta (x) \approx \log p_\theta (x)$, and the score is obtained by backpropagating through $x$). But we have no clue what the true score it, so how are we supposed to minimize the L2 distance of our model outputs with something that we don't even know? The theorem states that by minimizing the reformulated objective above (which does \textit{not} depend on the true score at all), we can actually have our output converge onto the true score without ever having to know the true score! 
+
     Therefore, by taking the gradient w.r.t. $\theta$, we can put this inside the expectation and get an unbiased estimator to optimize this objective. 
     \begin{align}
       \nabla_\theta  D_F (p(x) || p_\theta (x)) & = \nabla_\theta \mathbb{E}_{p(x)} \bigg[ \frac{1}{2} || \nabla_x \log p_\theta (x) ||^2 + \Delta_x \log p_\theta (x) \bigg] \\
                                                 & = \frac{1}{2} \mathbb{E}_{p(x)} \bigg[ \nabla_\theta || \nabla_x \log p_\theta (x) ||^2 + \nabla_\theta \Delta_x \log p_\theta (x) \bigg] \\ 
                                                 & \approx \frac{1}{2N} \sum_{i=1}^N \nabla_\theta || \nabla_x \log p_\theta (x^{(i)}) ||^2 + \nabla_\theta \Delta_x \log p_\theta (x^{(i)}) 
     \end{align}
-    where $x^{(i)}$ are the true samples generated from $p(x)$. A downside is that computing the Fisher divergence and the corresponding gradient is $O(d^2)$ since we are computing the Hessian. Even though it only requires the trace of the Hessian, this does not scale well to large dimensions. 
+    where $x^{(i)}$ are the true samples generated from $p(x)$. 
+
+    Now when we try to actually optimize this with SGD, note what would happen if we modeled our neural net $E_\theta(x) \approx \log p(x)$ to output to log probability. There are two huge problems. 
+    \begin{enumerate}
+      \item We would have to backprop on $x$ not just once, but twice due to the Hessian calculation. This is already $O(d^2)$ in dimension $d$. Even though it only requires the trace of the Hessian, this does not scale well to large dimensions. 
+      \item After backpropagating with $x$, in PyTorch we can't just backprop on $\theta$ after since it still computes first derivatives. The feature to compute the second derivatives w.r.t. $x$ and $\theta$ is not possible in PyTorch, and it also scales terribly. 
+    \end{enumerate} 
+    To solve the first problem, note that one can immediately see that the Fisher divergence objective requires us to know the Fisher score, which is itself a gradient, and so the model that we should be training $E_\theta (x)$ should really be outputting the Fisher score, not the log-probability! 
+    \begin{equation}
+      E_\theta (x) \approx \nabla_x \log p_\theta (x)
+    \end{equation} 
+    If we can rather have the neural network output the score itself rather than the log-probability, then we won't have to take the second derivative. This also does not affect inference since we can use the score to sample from the distribution using MCMC, such as Langevin dynamics which directly requires the value of $\nabla_x \log p_\theta (x)$ in each iteration. Therefore, modifying the neural net to output scores rather than the log probability helps us with training, and at the same time, does not hinder our ability to sample from the model.\footnote{Note that before we can model our estimated pdf as $p_\theta (x) = \frac{1}{Z} e^{-E_\theta (x)}$, but now there is no simple form. But we haven't really lost anything. Since even in the old model, we must use MCMC to sample since $Z$ is intractable, and in our score-output model, our sampling is still identically done with MCMC.} Essentially, assuming that $s_\theta (x^{(i)}) = E_\theta (x^{(i)}$, our gradient update step would look like this
+    \begin{align}
+      \nabla_\theta  D_F (p(x) || p_\theta (x)) & \approx \frac{1}{2N} \sum_{i=1}^N \nabla_\theta || s_\theta (x^{(i)}) ||^2 + \nabla_\theta \nabla_x s_\theta (x^{(i)}) \\ 
+                                                & \approx \frac{1}{2N} \sum_{i=1}^N \nabla_\theta || E_\theta (x^{(i)}) ||^2 + \nabla_\theta \nabla_x E_\theta (x^{(i)})
+    \end{align}
+
+    This is better, but the second problem remains. That is, once we backprop on $x$ we get $\nabla_x E_\theta (x)$, but we must treat this as a function itself and do a second derivative w.r.t. $\theta$. This still isn't possible in PyTorch, and to solve this, the next models we introduce---denoising score matching and sliced score matching---estimates noisy versions of the Hessian with first-order approximations. In summary, both models avoid having to calculate the derivative w.r.t. $x$ at all, and rather approximate it in some way $\nabla_\theta \nabla_x E_\theta (x) \approx \nabla_\theta g(E_\theta(x))$ for some simple function $g$. 
 
   \subsubsection{Denoising Score Matching} 
 
@@ -588,7 +607,86 @@
     \end{equation}
     Since both the variances of $\frac{\|z\|_2^2}{\sigma}$ and $s_\theta(x + \sigma z)^T \frac{z}{\sigma}$ will both grow unbounded as $\sigma \rightarrow 0$, we must fine-tune $\sigma$, and \cite{score} in 2019 suggested to choose a decreasing sequence of positive numbers $\sigma_1 > \sigma_2 > \ldots > \sigma_L$, and use the denoising score matching objective with Gaussian noise of variance $\sigma_i$ to train the score function at the $i$th epoch. 
 
+    \begin{algo}[Denoised Score Matching]
+      Now we are finally ready to present the algorithm. Note that in here, we never know the \textit{true} scores! 
+      \begin{algorithm}[H]
+      \caption{Denoised Score Matching}
+      \label{alg:denoised_score_matching}
+      \begin{algorithmic}[1]  
+        \Require{Input data $x^{(i)}$} 
+        \Require{Batch size $B$}
+        \Require{Neural network that outputs the score $s_\theta (x) = E_\theta (x)$. }
+
+        \While{ not converged} 
+          \State Sample minibatch of datapoints $x^{(1)}, \ldots, x^{(B)} \sim p(x)$ 
+          \State Sample minibatch of Gaussian noise $z^{(1)}, \ldots, z^{(B)} \sim \mathcal{N}(0, I)$ 
+          \State Sample some small, but not too small, standard deviations $\sigma^{(1)}, \ldots, \sigma^{(B)}$.\footnote{There should really be a scheduler to fine-tune these values. }
+          \State Forward prop through the neural net to generate noisy scores 
+          \begin{equation}
+            s_\theta (x^{(i)}) = E_\theta(x^{(i)} + \sigma^{(i)} z^{(i)})
+          \end{equation}
+          \State Compute the noisy Fisher divergence with empirical means 
+          \begin{equation}
+            \frac{1}{B} \sum_{i=1}^B \bigg\| \frac{z^{(i)}}{\sigma^{(i)}} + s_\theta (x^{(i)}) \bigg\|_2^2
+          \end{equation} 
+          \State Backprop the equation through $E$. 
+        \EndWhile
+      \end{algorithmic}
+      \end{algorithm}
+      Note that we can use more than one projections per data point as well. 
+    \end{algo}
+
   \subsubsection{Sliced Score Matching}
+
+    By adding noise to the data, DSM avoids the expensive computation of the second-order derivatives. However, the optimal EBM that minimizes the DSM objective corresponds to the distribution of the noise-perturbed data $q(\Tilde{x})$, not the original $p(x)$. Therefore, in 2019, Song introduced in \cite{sliced_score} as an alternative that is \textit{both} consistent and computationally efficient. The general idea is that instead of minimizing the Fisher divergence between two vector-valued scores, \textit{sliced score matching} randomly samples a projection vector $v$, takes the inner product between $v$ and the two scores, and then compare the resulting two scalars. More specifically, it minimizes the following. 
+
+    \begin{definition}[Sliced Fisher Divergence]
+      The \textbf{sliced Fisher divergence} is 
+      \begin{equation}
+        D_{SF} (p(x) || p_\theta (x)) = \mathbb{E}_{p(x)} \mathbb{E}_{p(v)} \bigg[ \frac{1}{2} \big( v^T \nabla_x \log p (x) - v^T \nabla_x \log p_\theta (x) \big)^2 \bigg]
+      \end{equation}
+      where $p(v)$ denotes a projection distribution such that $\mathbb{E}_{p(v)} [v v^T]$ is positive definite. A common distribution to sample from is $v \sim \mathcal{N}(0, I)$ or the multivariate normal with unit length. 
+    \end{definition} 
+
+    Similar to Fisher divergence, we can again decompose this into a form that does not involve the unknown $\nabla_x \log p(x)$, given by 
+    \begin{equation}
+      D_{SF} (p(x) || p_\theta(x)) = \mathbb{E}_{p(x)} \mathbb{E}_{p(v)} \bigg[ \frac{1}{2} \{ v^T \nabla_x \log p_\theta (x) \}^2 + v^T [\Delta_x \log p_\theta (x)]v \bigg] + c
+    \end{equation}
+    At first glance, it may seem like we have the problematic Hessian term, but by contracting $v$ first with the first derivatives before computing the second derivatives, we can get a linear cost in $d$. 
+    \begin{equation}
+      v^T [\Delta_x \log p_\theta (x)]v = \sum_{i=1}^d \sum_{j=1}^d \frac{\partial^2 \log p_\theta (x)}{\partial x_i \partial x_j} v_i v_j = \sum_{i=1}^d \frac{\partial}{\partial x_i} \underbrace{\bigg( \sum_{j=1}^d \frac{\partial \log p_\theta (x)}{\partial x_i} v_i \bigg)}_{\text{contract first}} v_i
+    \end{equation}
+    Since the contracted part is the same for different values for $i$, we only need to compute the value once, backprop on this scalar, and then take the linear combination with weights $v_i$, which requires two linear passes. 
+
+    \begin{algo}[Sliced Score Matching]
+      Now we are finally ready to present the algorithm. Note that in here, we never know the \textit{true} scores! 
+      \begin{algorithm}[H]
+      \caption{Sliced Score Matching}
+      \label{alg:sliced_score_matching}
+      \begin{algorithmic}[1]  
+        \Require{Input data $x^{(i)}$} 
+        \Require{Batch size $B$}
+        \Require{Neural network that outputs the score $s_\theta (x) = E_\theta (x)$. }
+
+        \While{ not converged} 
+          \State Sample minibatch of datapoints $x^{(1)}, \ldots, x^{(B)} \sim p(x)$ 
+          \State Sample minibatch of projection directions $v^{(1)}, \ldots, v^{(B)} \sim p(v)$ 
+          \State Forward prop through the neural net to generate scores 
+          \begin{equation}
+            s_\theta (x^{(i)}) = E_\theta(x^{(i)})
+          \end{equation}
+          \State Compute the sliced score matching loss with empirical means 
+          \begin{equation}
+            \frac{1}{B} \sum_{i=1}^B \Big[ (v^{(i)})^T [\nabla_x s_\theta (x^{(i)})] v^{(i)} + \frac{1}{2} \big\{ (v^{(i)})^T s_\theta(x^{(i)}) \big\}^2 \Big]
+          \end{equation} 
+          Note that this can be done in linear time by contracting it first. That is, compute $s_\theta (x) \cdot v^{(i)}$, and then backprop on $x$, and then contract it with $v^{(i)}$ again. 
+
+          \State Backprop the equation through $E$, treating $v^{(i)}$ as fixed.\footnote{Remember this is the reparamaterization trick!}
+        \EndWhile
+      \end{algorithmic}
+      \end{algorithm}
+      Note that we can use more than one projections per data point as well. 
+    \end{algo}
 
 \subsection{Deep Belief Network} 
 
