@@ -1,12 +1,12 @@
 \section{Energy Models} 
 
-  Now this is the first time we talk about unsupervised learning. Note from our  \hyperref[ml-sec:graphical_models]{machine learning notes} that for unsupervised tasks, we have estimated the density of complex distributions by factoring them in \textit{graphical models}, e.g. Bayesian networks or Markov random fields. We will extend this into deep learning architectures.\footnote{This is \textit{not} to be confused with graph neural networks (GNNs), which are designed for tasks whose inputs are graphs.} If you are not familiar, you should probably go over graphical models in my ML notes before reading further. 
+  Now this is the first time we talk about unsupervised learning. Note from our  \hyperref[ml-sec:graphical-models]{machine learning notes} that for unsupervised tasks, we have estimated the density of complex distributions by factoring them in \textit{graphical models}, e.g. Bayesian networks or Markov random fields. We will extend this into deep learning architectures.\footnote{This is \textit{not} to be confused with graph neural networks (GNNs), which are designed for tasks whose inputs are graphs.} 
 
   Note that many of the theories behind energy models are very old (from the 1980s) and established, especially in the prevalence of the \textit{Boltzmann distribution} in statistical mechanics. All of them essentially rely on the fact that we can model a probability density as 
   \begin{equation}
     p(x) = \frac{e^{-E(x)}}{Z}
   \end{equation}
-  for some function $E: \mathbb{R}^n \rightarrow \mathbb{R}$, which we call the \textit{negative energy}, and $Z$ is what we call the \textbf{partition function}. We have seen from the Hammersley-Clifford theorem in my machine learning notes that we can model a joint probability distribution on an undirected graph with the product of potential functions on the max cliques.\footnote{But finding max cliques is NP-hard?} Therefore, we will take advantage of this in the specific instance of MRFs that are \textit{bipartite graphs}, i.e. a non-feedforward (since its cyclic) 2-layer neural network. We will talk about RBMs, deep belief networks, and hopfield networks. Diffusion models, which can also be considered an energy model, will be talked separately. 
+  for some function $E: \mathbb{R}^n \rightarrow \mathbb{R}$, which we call the \textit{negative energy}, and $Z$ is what we call the \textbf{partition function}. We have seen from the \hyperref[ml-hammersley]{Hammersley-Clifford theorem} that we can model a joint probability distribution on an undirected graph with the product of potential functions on the \hyperref[algo-max-clique-np-hard]{max cliques}.\footnote{But finding max cliques is NP-hard?} Therefore, we will take advantage of this in the specific instance of MRFs that are \textit{bipartite graphs}, i.e. a non-feedforward (since its cyclic) 2-layer neural network. We will talk about RBMs, deep belief networks, and hopfield networks. Diffusion models, which can also be considered an energy model, will be talked separately. 
 
   The most straightforward application is that we can just have a neural network approximate this function $E_\theta$, which gives us a parameterized family of distributions $p_\theta (x) = \frac{1}{Z} e^{-E_\theta (x)}$ that would hopefully approximate the true distribution $p^\ast (x)$. This is called an \textbf{energy based model (EBM)}. 
 
@@ -38,36 +38,91 @@
   \end{align}
   where the final step is from using a Monte Carlo sample with a size $M$ batch of $\Tilde{x}$ from $p_\theta (x)$. We can draw samples using MCMC, with Langevin dynamics MCMC being the most popular. 
 
-\subsection{Score Matching}
+\subsection{Score Matching} 
 
-  We have built several types of generative models so far that estimated densities. While calculating PDFs is called \textit{density estimation}, we can indirectly estimate it by calculating the gradient of the PDF (with respect to the sample), which is known as \textbf{score matching}. 
+  Due to the computational cost of MCMC algorithms in graphical models in general, Hyvarinen in 2005 introduced an indirect method to estimate the log likelihood by calculating the gradient of the PDF with respect to the sample, called \textit{score matching}. It is motivated by the following theorem. 
+
+  \begin{theorem}
+    If two continuously differentiable real-valued functions $f(x), g(x)$ have equal first derivatives everywhere, then $f(x) = g(x) + c$ for some constant $c$. 
+  \end{theorem}
+
+  If we apply this to our energy model, due to the normalization requirement it is sufficient that $f(x) = g(x)$ if they match in their first derivatives. This gradient has a special name. 
 
   \begin{definition}[Score]
-    Let $X$ be a continuous random variable defined on $\mathbb{R}^n$, and let $p$ be its pdf, parameterized by $\theta$. The score function of $p$ is the gradient of the log-pdf with respect to the sample.\footnote{Note that this is w.r.t. the sample, not the parameter, unlike what we do usually in machine learning.}
+    Let $X$ be a continuous random variable defined on $\mathbb{R}^n$, and let $p$ be its pdf. The \textbf{score function} of $p$ is the gradient of the log-pdf with respect to the sample.\footnote{Note that this is w.r.t. the sample, not the parameter, unlike what we do usually in machine learning.}
     \begin{equation}
-      \psi (x; \theta) = \begin{bmatrix} \frac{\partial \log{p(x;\theta)}}{\partial x_1} \\ \vdots \\ \frac{\partial \log{p(x;\theta)}}{\partial x_n} \end{bmatrix} =  
+      \psi (x) = \nabla_x \log p(x) = \begin{bmatrix} \frac{\partial \log{p(x)}}{\partial x_1} \\ \vdots \\ \frac{\partial \log{p(x)}}{\partial x_n} \end{bmatrix} =  
       \begin{bmatrix}
-        \psi_1 (x;\theta) \\ \vdots \\ \psi_n (x;\theta)
-      \end{bmatrix} = 
-      \nabla_x \log{p (x; \theta)}
+        \psi_1 (x) \\ \vdots \\ \psi_n (x)
+      \end{bmatrix} 
     \end{equation}
     Note that the score is a function $\psi: \mathbb{R}^n \rightarrow \mathbb{R}^n$. 
   \end{definition} 
 
-  The reason Hyvarinen introduced this score function in 2005 is because we want to have such a score is that it does not depend on the normalizing constant $Z$ (since the log derivative gets rid of it). \cite{orig_score} Therefore, rather than maximizing the likelihood, we want to minimize the L2 distance between the score functions. 
-
+  The reason Hyvarinen introduced this score function in 2005 is because we want to have such a score is that it does not depend on the normalizing constant $Z$. Our original problem was having the normalizing constant 
   \begin{equation}
-    R(\theta) = \mathbb{E}_{X} \big[ || \psi(x\;\theta) - \psi_{\mathcal{D}} (x) ||^2 \big]
-  \end{equation}
+    Z = \int p_\theta (x) \,dx
+  \end{equation} 
+  indeed changes w.r.t. $\theta$, but is stays constantly $1$ with respect to $z$, and so by taking the log-derivative w.r.t. $x$, we can actually get rid of this term completely. \cite{orig_score} Therefore, rather than maximizing the likelihood, we want to minimize the expected L2 distance between the score functions, called the \textit{Fisher divergence}.\footnote{Not to be confused with the Fisher score, which is a scalar and uses the same notation $s$ in some of the papers.} 
+
+  \begin{definition}[Fisher divergence]
+    The \textbf{Fisher divergence} of two probability distributions $p, p_\theta$ is 
+    \begin{align}
+      D_F (p(x) || p_\theta (x)) & \coloneqq \mathbb{E}_{p(x)} \bigg[ \frac{1}{2} || \psi(x) - \psi_\theta(x) ||^2 \bigg] \\
+                                 & = \mathbb{E}_{p(x)} \bigg[ \frac{1}{2} || \nabla_x \log p(x) - \nabla_x \log p_\theta (x) ||^2 \bigg]
+    \end{align}
+  \end{definition} 
+
+  Therefore, rather than minimizing the KL-divergence, i.e. maximizing the log-likelihood, we can choose to minimize the Fisher divergence. Let's prove some theoretical properties about the Fisher divergence. 
+
+  \begin{theorem}
+    The Fisher divergence can be decomposed to 
+    \begin{equation}
+      D_F (p(x) || p_\theta (x)) = \mathbb{E}_{p(x)} \bigg[ \underbrace{\frac{1}{2} || \nabla_x \log p_\theta (x)}_{s_P (x, p)} ||^2 + \Delta_x \log p_\theta (x) \bigg] + c^\ast
+    \end{equation}
+    where $\Delta$ represents the trace of the Hessian, $s_P$ is called the Fisher score, and $c^\ast$ is  term that depends only on $p$ the true data generating distribution. 
+  \end{theorem}
+  \begin{proof}
+    The full proof is on the appendix of \cite{orig_score}, but we show for one variable gone through class. 
+    \begin{align}
+      D_F (p(x) || p_\theta (x)) & = \frac{1}{2} \int p(x) \big( |\nabla_x \log p_\theta (x)|^2 + | \nabla_x \log p(x) |^2 - 2 \nabla_x \log p(x) \, \nabla_x \log p_\theta (x)\} \big) \,dx
+    \end{align}
+    The first term is $\frac{1}{2} \mathbb{E}_p(x) [|\nabla_x \log p_\theta (x)|^2]$, the second term is only dependent on $p$ and we set that as $c^\ast$, and the third term can be decomposed by integration by parts into  
+    \begin{align}
+      \int p(x) \frac{[p(x)]^\prime}{p(x)} \cdot \nabla_x \log p_\theta (x) \,dx & = \int [p(x)]^\prime \cdot \nabla_x \log p_\theta (x) \,dx \\ 
+                                         & = p(x) \nabla_x \log p_\theta (x) \Big|_{-\infty}^{+\infty} - \int p(x) \Delta_x \log p_\theta (x) \,dx 
+    \end{align}
+    As a hand-wavy way, we can see that since $p(x)$ is a pdf, it must be the case that 
+    \begin{equation}
+      0 = \lim_{x \rightarrow +\infty} p(x) = \lim_{x \rightarrow -\infty} p(x) 
+    \end{equation}
+    and since the log probability is bounded the first term is $0$, leaving us with the expectation of the Hessian. 
+  \end{proof}
+
+  So we have come up with another way to conduct inference by an alternative objective to minimize. But unsurprisingly, the KL and Fisher divergences are related.  
+
+  \begin{theorem}[Relationship Between Fisher and KL Divergnces]
+    Consider two random variables $X, Y$ with pdfs $p(x), q(y)$, and let us take the continuous time stochastic process perturbed by \textit{independent} normals 
+    \begin{equation}
+      X_t = X + \mathcal{N}(0, t), \qquad Y_t = Y + \mathcal{N}(0, t)
+    \end{equation}
+    and let $p_t (x), q_t (y)$ be the pdfs of $X_t, Y_t$. Then we have 
+    \begin{equation}
+      D_F (p, q) = -2 \frac{d}{dt} D_{KL} (p_t, q_t) \bigg|_{t = 0}
+    \end{equation}
+    This leads to the dual prime inequality, aka 2nd law of thermodynamics.\footnote{What Tarokh said but need to confirm on this.}
+    \begin{equation}
+      \lim_{t \rightarrow 0} \frac{D_{KL}(p_t || q_t) - D_{KL}(p||q)}{t}
+    \end{equation}
+  \end{theorem}
+  \begin{proof}
+    Follows from de Bruijn equality. 
+    \begin{equation}
+      J_F (X) = 2 \frac{d}{dt} [H(X_t)]
+    \end{equation}
+  \end{proof}
 
   \cite{score}. 
-
-  Note that Fisher score is a number. They use the same notation $s$ to denote gradient of log of the distribution, which is confusing. 
-
-  The relationship is the dual prime inequality, aka 2nd law of thermodynamics. 
-  \begin{equation}
-    \lim_{t \rightarrow 0} \frac{D_{KL}(p_t || q_t) - D_{KL}(p||q)}{t}
-  \end{equation}
   
 \subsection{Boltzmann Machines}  
 
