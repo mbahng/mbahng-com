@@ -1353,4 +1353,387 @@ A course on intermediate Python that developers should be aware of. These aren't
 
   If you find yourself nesting built-in types, this is prob an indicator to compose classes. @dataclass.dataclass operator to define simple data structures. 
 
+\section{Web Scraping}
+
+  The relevant packages that must be imported are $\texttt{bs4, urllib.request}$. 
+
+  We first define the URL of the website that we want to scrape. For example, let us take the wikipedia article on the Eastern Front of WWII. 
+  \begin{python}
+  from bs4 import BeautifulSoup
+  from urllib.request import Request, urlopen
+  import urllib.request
+
+  #Define the URL we want to scrape
+  wiki_url = r"https://en.wikipedia.org/wiki/Eastern_Front_(World_War_II)"
+  \end{python}
+  Then, we use the $\texttt{request}$ function in $\texttt{urllib.request}$ (which is a library for opening URLs) to make a \textbf{HTTP request} to the website. More information can be found in the HTTP section in this book, but in general once the Python program identifies the IP address of the host computer hosting the requested URL, it sends the HTTP request (usually $\texttt{HTTP/1.1}$). The host computer then sends back an HTTP response with both the content and metadata about it. We usually set this HTTP response as a variable: 
+  \begin{python}
+  >>>response_object = urllib.request.urlopen(wiki_url)
+  >>>print(type(response_object)) 
+  >>>print(response_object)
+  <class 'http.client.HTTPResponse'>
+  <http.client.HTTPResponse object at 0x7fa3382de280>
+  \end{python}
+
+  \begin{definition}
+  The $\texttt{urlopen}$ function has the following paramaters: 
+  \begin{python}
+  urllib.request.urlopen(url, data=None, timeout, cafile=None, capath=None, cadefault=False, context=None)
+  \end{python}
+  \begin{enumerate}
+      \item Open the URL $\texttt{url}$, which can either be a string or a $\texttt{Request}$ object. 
+      \item $\texttt{data}$ must be an object specifying additional data to be sent to the server, or $\texttt{None}$ if no such data is needed. 
+      \item The optional $\texttt{timeout}$ parameter specifies a timeout in seconds for blocking operations like the connection attempt. Default is the global default timeout setting. 
+      \item The optional $\texttt{cafile, capath}$ parameters specify a set of trusted CA certificates for HTTPS requests. 
+      \item $\texttt{cadefault}$ parameter is ignored. 
+      \item $\texttt{context}$ can be set to $\texttt{None}$. 
+  \end{enumerate}
+  \end{definition}
+  With this, HTML request object, we can input it into the $\texttt{BeautifulSoup}$ function of the $\texttt{bs4}$ library, which gives us a $\texttt{BeautifulSoup}$ object that represents the document as a nested data structure (note that this is not a string!). 
+  \begin{python}
+  soup = BeautifulSoup(response_object, "html.parser")
+  print(type(soup))     #<class 'bs4.BeautifulSoup'>
+  print(soup)
+  #This gives us a nice representation of the HTML as a nested data structure.
+  \end{python}
+  One may notice the second argument $\texttt{"html.parser"}$; we can leave this alone. HTML parsing is basically taking in HTML code and extracting relevant information like the title of the page, paragraphs in the page, headings in the page, links, bold text, etc. This is really what $\texttt{BeautifulSoup}$ does. 
+
+  To make the returned BeautifulSoup object a bit easier to read, we can use $\texttt{.prettify()}$. 
+  \begin{python}
+  html_doc = 
+  """<html><head><title>The Dormouse's story</title></head>
+  <body>
+  <p class="title"><b>The Dormouse's story</b></p>
+  <p class="story">Once upon a time there were three little sisters; and their names were
+  <a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>,
+  <a href="http://example.com/lacie" class="sister" id="link2">Lacie</a> and
+  <a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
+  and they lived at the bottom of a well.</p>
+  <p class="story">...</p>
+  """
+  soup2 = BeautifulSoup(html_doc, 'html.parser')
+  print(soup2.prettify())
+  # <html>
+  #  <head>
+  #   <title>
+  #    The Dormouse's story
+  #   </title>
+  #  </head>
+  #  <body>
+  #   <p class="title">
+  #    <b>
+  #     The Dormouse's story
+  #    </b>
+  #   </p>
+  #   <p class="story">
+  #    Once upon a time there were three little sisters; and their names were
+  #    <a class="sister" href="http://example.com/elsie" id="link1">
+  #     Elsie
+  #    </a>
+  #    ,
+  #    <a class="sister" href="http://example.com/lacie" id="link2">
+  #     Lacie
+  #    </a>
+  #    and
+  #    <a class="sister" href="http://example.com/tillie" id="link3">
+  #     Tillie
+  #    </a>
+  #    ; and they lived at the bottom of a well.
+  #   </p>
+  #   <p class="story">
+  #    ...
+  #   </p>
+  #  </body>
+  # </html>
+  \end{python}
+
+  \begin{definition}[Find method]
+  The $\texttt{find}$ method finds the first instance of a HTML element with a certain tag. 
+  \begin{python}
+      soup = BeautifulSoup(response_object, "html.parser") 
+      print(soup.find("a"))
+      #<a id="top"></a>
+  \end{python}
+  We can confirm that this is indeed the first element with tag $\texttt{<a>}$ when looking at the page source in the browser. 
+  \begin{enumerate}
+      \item If we would like it to have an additional attribute of a $\texttt{href}$ (which means that it has a link attached), then we can just write
+      \begin{python}
+      link = soup.find("a", href=True)
+      print(link)
+      #<a class="mw-jump-link" href="#mw-head">Jump to navigation</a>
+      #Note that this is not a string, even though it looks like a string. 
+      print(type(link))     #What is the type? It is a tag.
+      #bs4.element.Tag 
+      print(link.name)      #What is the name of this tag? 
+      #'a'
+      \end{python}
+      
+      \item We can look for other attributes in the $\texttt{<a att1 = ' ' att2 = ' ' >}$ and use them to find the elements with tag $\texttt{tag}$ that have these attributes. 
+      \begin{python}
+      link = soup.find("tag", att1=True, att2 = "This")
+      print(link) 
+      \end{python}
+      
+      \item We can also get the dictionary of all the attributes with the $\texttt{.attrs}$ method. 
+      \begin{python}
+      print(link.attrs) 
+      #{'class': ['mw-jump-link'], 'href': '#mw-head'}
+      \end{python}
+      
+      \item The $\texttt{text}$ attribute returns the text (i.e. the text that is actually shown on the website) of the element with the tag. 
+  \end{enumerate}
+  \end{definition}
+
+  \begin{definition}[Find\_all method]
+  The $\texttt{find\_all}$ method works exactly like the $\texttt{find}$ method, but it displays a $\texttt{ResultSet}$ object (which acts like a list) with all the elements having the required tag and meeting certain attribute requirements. 
+      \begin{python}
+      links = soup.find_all('a', href=True)
+      print(type(links))     #type of this find_all object
+      print(len(links))      
+      #bs4.element.ResultSet
+      #3098                  #This website contains 3098 links! 
+      \end{python}
+  \begin{enumerate}
+      \item We can loop through this $\texttt{ResultSet}$ as if it were a list, but we can't assume that every element of this set is going to have the same attributes. For example, every element has a $\texttt{href}$ attribute (since we built the list that way), but not every element has the $\texttt{title}$ attribute. Therefore, we must use $\texttt{try, except}$. 
+      \begin{python}
+      for link in links[0:10]:
+          print(link['href'])
+          try: 
+              print(link['title'])
+          except:
+              continue
+      \end{python}
+      
+      \item We can $\texttt{find\_all}$ elements that have either one of multiple tags by inputting a list rather than a string as the argument: 
+      \begin{python}
+      #search for tables and a tags
+      tables_and_a = soup.find_all(['table', 'a'])
+      \end{python}
+      
+      \item We can add additional arguments to make the attributes more specific: 
+      \begin{python}
+      #table headers with style attribute
+      table_headers = soup.find_all('th', style='width: 10\%;')
+      print(table_headers)
+      #[<th style="width: 10\%;">Date </th>]
+      
+      #find all the wiki tables
+      wiki_tables = soup.find_all('table', class_='wikitable')
+      \end{python}
+      Since $\texttt{class}$ is already a keyword in Python, the attribute is $\texttt{class\_}$. 
+      
+      \item We can $\texttt{find\_all}$ with multiple attributes, by inputting a dictionary. 
+      \begin{python}
+      #a list of all tags that have a href and a title, and have the class value mw-direct. 
+      a_tags_multi = soup.find_all('a', {'href':True, 'title':True, 'class':"mu=redirect"})
+      \end{python}
+      
+      \item We can also define a function to find the items
+      \begin{python}
+      def list_with_links(tag): 
+          return tag.name == 'li' and len(tag.find_all('a'))>7
+          
+      #list items with a tags a
+      list_with_a = soup.find_all(list_with_links)
+      \end{python}
+  \end{enumerate}
+  \end{definition}
+
+  \subsubsection{Family Tree}
+  \begin{definition}[Children and Descendants]
+  Given a HTML code, a \textbf{child} of a tag is the direct subtag, and the \textbf{descendants} of a tag are all the children and children of those children, etc. 
+  \begin{python}
+  #define the simple tree
+  simple_tree = 
+  '''<html><body><a><b>text1</b><c>text2</c></a></body></html>'''
+
+  #pass the simple tree into our parser to create some simple soup. 
+  simple_soup = BeautifulSoup(simple_tree, 'html.parser')
+
+  #we can always print it in a familiar structure. 
+  print(simple_soup.prettify())
+
+  #<html>
+  # <body>
+  #  <a>
+  #   <b>
+  #    text1
+  #   </b>
+  #   <c>
+  #    text2
+  #   </c>
+  #  </a>
+  # </body>
+  #</html>
+  \end{python}
+  If we want just a list of the children we can use the content attribute:
+  \begin{python}
+  a_content = simple_soup.a.contents  #the 'a' stands for the a tag
+  display(a_content)
+  [<b>text1</b>, <c>text2</c>]  #this is actually not a list!
+
+  #an identical way to get the list of children is as such:
+  print(simple_soup.a.children) #this is a list!
+  \end{python}
+  All of the descendants of a tag can be gotten as such: 
+  \begin{python}
+  print(simple_soup.a.descendants)
+  [<b>text1</b>, text1, <c>text2</c>, text2]
+  \end{python}
+  \end{definition}
+
+  \begin{definition}[Parents]
+  We can go backwards to get the parent tag: 
+  \begin{python}
+  #get the parent of the 'a' tag 
+  print(simple_soup.a.parent)
+  #<body><a><b>text1</b><c>text2</c></a></body>
+
+  #get the parent of the parent of the 'a' tag
+  print(simple_soup.a.parent.parent)
+  #<html><body><a><b>text1</b><c>text2</c></a></body></html>
+  \end{python}
+  Now, just like the descendants, we can get all the parents of the 'a' tag. 
+  \begin{python}
+  for parent in simple_soup.a.parents: 
+      print(parent) 
+  #<body><a><b>text1</b><c>text2</c></a></body>
+  #<html><body><a><b>text1</b><c>text2</c></a></body></html>
+  #<html><body><a><b>text1</b><c>text2</c></a></body></html>
+  \end{python}
+  The first line is the body tag, the second is the html tag, and the final line is the entire document itself. This can also be found with the $\texttt{find\_parent}$ method: 
+  \begin{python}
+  print(simple_soup.b.find_parent())   #find parent of b tag
+  print(simple_soup.b.find_parents())  #find all parents of b tag
+  #<a><b>text1</b><c>text2</c></a>
+  #[<a><b>text1</b><c>text2</c></a>,
+  #<body><a><b>text1</b><c>text2</c></a></body>,
+  #<html><body><a><b>text1</b><c>text2</c></a></body></html>,
+  #<html><body><a><b>text1</b><c>text2</c></a></body></html>]
+  \end{python}
+  \end{definition}
+
+  We've learned how to go up or down, but we can do sideways to get a tag's \textbf{siblings}. 
+
+  \begin{definition}
+  A tag can have either a sibling after it or before it, denoted by the $\texttt{next\_sibling}$ and $\texttt{previous\_sibling}$ method. 
+  \begin{python}
+  #print the element with tag b
+  print(simple_soup.b)
+  #<b>text1</b>
+
+  #print the next sibling (what comes after) of b
+  print(simple_soup.b.next_sibling)
+  #<c>text2</c>
+
+  #print the previous sibling of b
+  print(simple_soup.b.previous_sibling) 
+  #None
+  \end{python}
+  We can see that b has one sibling after it, which is c, but since it is the first element in its generation, there is no previous sibling. This can also be done with the $\texttt{find\_next\_sibling}$ method. 
+  \begin{python}
+  simple_soup.b.find_next_sibling()      #find the next sibling of b tag
+  simple_soup.b.find_next_siblings()     #find all next siblings of b tag 
+  simple_soup.b.find_previous_sibling()  #find the previous sibling of b tag
+  simple_soup.b.find_previous_siblings() #find all previous siblings of b tag 
+  \end{python}
+  \end{definition}
+
+  \begin{definition}[Order of Parsing using next\_element]
+  The order in which a HTML file was parsed can be determined by the $\texttt{next\_element}$ method. 
+  \begin{python}
+  #grab the body
+  print(simple_soup.body) 
+  #<body><a><b>text1</b><c>text2</c></a></body>
+
+  print(simple_soup.body.next_element)
+  #<a><b>text1</b><c>text2</c></a>
+  \end{python}
+
+  However, the order in which it is parsed does not align always with the sibling order. Therefore, the $\texttt{next\_element}$ and $\texttt{previous\_element}$ method simply refers to the order in which the HTML was parsed, nothing more. This can also be found using the $\texttt{find\_next}$ method. 
+  \begin{python}
+  simple_soup.a.find_next()        #find the next element of a tag
+  simple_soup.a.find_all_next()    #find all next elements of a tag
+  simple_soup.a.find_previous()    #find the previous element of a tag
+  simple_soup.a.find_all_previous()#find all previous elements of a tag
+  \end{python}
+  \end{definition}
+
+  \subsubsection{Adding Attributes to Certain Tags}
+  Say that you have parsed a HTML file and you have the, say, first a-tag element. We can display its $\texttt{href}$ attribute normally as such: 
+  \begin{python}
+  a_tag = table.a 
+  print(a_tag) 
+  #<a href="#cite_note-37">[37]</a>
+
+  print(a_tag['href'])
+  # '#cite_note-37'
+  \end{python}
+  We can also \textit{add our own attribute $\texttt{style}$ to this tag} as such: 
+  \begin{python}
+  a_tag['style'] = 'my new width'
+  print(a_tag)
+  #<a href="#cite_note-37" style="my new width">[37]</a>
+  \end{python}
+
+  This is extremely useful since it allows us to \textit{tag} certain elements with an attribute for easy identification of these elements for later on when we're analyzing data. 
+
+  We can also \textit{add text/string to the tag}. 
+  \begin{python}
+  #here we add a new string to the a tag
+  a_tag.string = "My New String"
+  print(a_tag) 
+  #<a href="#cite_note-37" style="my new width">My New String</a>
+  \end{python}
+
+  Since we can add values, we also have the capability to delete them. The $\texttt{clear}$ method clear all the string in the tag. 
+  \begin{python}
+  #grab the first a tag
+  tag = table.a
+  print(tag)
+  #<a href="#cite_note-37" style="my new width">My New String</a>
+
+  tag.clear()
+  print(tag)
+  #<a href="#cite_note-37" style="my new width"></a>
+  \end{python}
+
+  \textit{Note that all the changes that you do to the tags are permanent! You must re-request the HTML and parse through it again to get the original version!}
+
+  \begin{definition}[Extracting a tag]
+  Given a certain section of HTML code, we can choose to \textbf{extract} a certain portion of the code that has a specific tag, which basically removes that portion from the original code. We can take this extracted portion and store it as a variable.
+  \begin{python}
+  #grab a table body
+  print(table.tbody)
+
+  #extrac the first table header 
+  th_tag = table.tbody.tr.extract()
+
+  #display the extracted tag
+  print(th_tag)
+  #<th style="width: 10\%;">Date</th>
+  \end{python}
+  Again, note that every time you extract a portion of the HTML code, you're permanently removing it! After extracting enough times, there won't be any more tags to extract and you'll get an error statement (which is a drawback). 
+  \end{definition}
+
+  \begin{definition}
+  To get the strings that belong to a certain tag, we do the following: 
+  \begin{python}
+  #printing the first string that you find in the table header tag
+  print(table.th.string)  
+
+  #get all the strings that belong to a table body
+  for string in list(table.tbody.strings)[0:10]: 
+      print(string)
+  \end{python}
+  We have to convert $\texttt{table.tbody.strings}$ to a list in order to slice it (since we only want to show the first 10 strings). 
+
+  However, this will produce a lot of line breaks, so the more popular one to go to is the $\texttt{stripped\_strings}$ method. 
+  \begin{python}
+  for string in list(table.tbody.stripped_strings)[0:10]: 
+      print(string)
+  \end{python}
+  \end{definition}
+
+
 \end{document}
