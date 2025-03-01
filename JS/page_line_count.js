@@ -28,6 +28,7 @@ Promise.all(promises)
   page_count.className = "intro_text";
   page_count.id = "total_page_count"; 
   page_count.textContent = `Total Pages : ${total_page_count}`; 
+  page_count.style = "display: none;";
 
   let firstHtmlRow = document.querySelector('.html_row');
   firstHtmlRow.parentNode.insertBefore(page_count, firstHtmlRow);
