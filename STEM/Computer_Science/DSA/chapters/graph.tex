@@ -149,40 +149,61 @@
 
   Now, in order to traverse this graph, we basically want to make an algorithm that starts at a node, prints it value, and then goes to all of its neighbors (which we can access through the adjacency list) to print them out. Thus, this is by nature recursive. We don't want the algorithm to loop around printing nodes infinitely often, so we must create a base case that tells the algorithm to not print out a node. It makes sense to create a set of visited nodes, which we can add to whenever we reach a new node. So, if we ever come onto a node that we have visited, we can just tell the function to do nothing. 
 
+  \begin{algo}[Recursive Depth-First Search]
+    The recursive implementation of Depth-First Search explores a graph by recursively visiting each unvisited neighbor, going as deep as possible along each branch before backtracking.
+    \begin{algorithm}[H]
+      \label{alg:dfs_recursive}
+      \begin{algorithmic}[1]
+        \Require{Graph $G(V, E)$, start vertex $s$}
+        
+        \Function{DFS-Recursive}{$G, s$}
+          \State visited $\gets \emptyset$ \Comment{Initialize empty set of visited vertices}
+          \State \Call{DFS-Visit}{$G, s$, visited}
+        \EndFunction
+        
+        \Function{DFS-Visit}{$G, u$, visited}
+          \State Add $u$ to visited
+          \State \textit{/* Process vertex $u$ here */}
+          \For{each neighbor $v$ of $u$ in $G$}
+            \If{$v \notin$ visited}
+              \State \Call{DFS-Visit}{$G, v$, visited}
+            \EndIf
+          \EndFor
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
+
   Though recursion really makes this simple, we can construct an iterative approach that uses stacks. Note that in recursion, we are really making a call stack of different functions. We can be explicit about this by actually implementing a stack, which would store all the nodes that we have discovered, but not yet explored from )i.e. all the current nodes). At each iteration, we would pick a node to continue exploring, and since this is a DFS, we would want to implement a LIFO stack so that the last element we input in is the first thing that we should explore from, i.e. we always explore from the last node discovered. 
 
-  \begin{definition}[DFS]
-    The recursive algorithm is 
-    \begin{lstlisting}
-      visited = set() 
-      def dfs(start): 
-        if start not in visited: 
-          visited.add(start) 
-          # do something 
-          neighbors = ... 
-          for neighbor in neighbors: 
-            dfs(neighbor)
-    \end{lstlisting}
-
-    The iterative algorithm uses a stack, which mirrors the function call stack. 
-    \begin{lstlisting}
-      visited = set() 
-
-      def dfs(start): 
-        toExplore = [] 
-        current = start; 
-        toExplore.append(current) 
-        visited.add(current) 
-        while toExplore: 
-          current = toExplore.pop() 
-          # Do something
-          neighbors = ... 
-          for neighbor in neighbors: 
-            if neighbor not in visited: 
-              visited.add(neighbor) 
-              toExplore.append(neighbor)
-    \end{lstlisting}
-  \end{definition}
+  \begin{algo}[Iterative Depth-First Search]
+    The iterative implementation of Depth-First Search uses a stack to mimic the function call stack of the recursive implementation. It explores vertices in the same order as the recursive version.
+    \begin{algorithm}[H]
+      \label{alg:dfs_iterative}
+      \begin{algorithmic}[1]
+        \Require{Graph $G(V, E)$, start vertex $s$}
+        
+        \Function{DFS-Iterative}{$G, s$}
+          \State visited $\gets \emptyset$ \Comment{Initialize empty set of visited vertices}
+          \State stack $\gets$ empty stack
+          \State Push $s$ onto stack
+          \State Add $s$ to visited
+          
+          \While{stack is not empty}
+            \State $u \gets$ Pop from stack
+            \State \textit{/* Process vertex $u$ here */}
+            
+            \For{each neighbor $v$ of $u$ in $G$}
+              \If{$v \notin$ visited}
+                \State Add $v$ to visited
+                \State Push $v$ onto stack
+              \EndIf
+            \EndFor
+          \EndWhile
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
 
   \begin{theorem}[Runtime of DFS]
     The runtime of DFS is $O(n+m)$. 
@@ -193,74 +214,142 @@
 
   \begin{example}[DFS in a Maze]
     We can represent a grid graph, like a maze, with a two dimensional array that stores whether it is connected north, east, south, and west, where boolean of true represents that there is a wall, and false means there isn't a wall (so connected). 
-    \begin{center}
-      \includegraphics[scale=0.3]{img/grid_graph.png}
-    \end{center}
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+        \begin{tikzpicture}[scale=0.9]
+          % Outer boundary
+          \draw[line width=2pt] (0,0) -- (4,0) -- (4,4) -- (0,4) -- (0,0);
+          
+          % Internal walls
+          % Top section
+          \draw[line width=2pt] (1,4) -- (1,3);
+          \draw[line width=2pt] (2,4) -- (2,3) -- (3,3) -- (3,4);
+          
+          % Middle section
+          \draw[line width=2pt] (1,2) -- (2,2) -- (2,1);
+          \draw[line width=2pt] (3,2) -- (3,1);
+          
+          % Bottom section
+          \draw[line width=2pt] (1,1) -- (1,0);
+          \draw[line width=2pt] (2,1) -- (2,0);
+          
+          % Entry and exit points (just colored circles)
+          \filldraw[green!70!black] (0.5,3.5) circle (0.15);
+          \filldraw[red!70!black] (3.5,0.5) circle (0.15);
+        \end{tikzpicture}
+        \caption{4×4 maze representation}
+        \label{fig:maze}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+        \begin{tikzpicture}[
+          scale=0.9,
+          node/.style={circle, draw, minimum size=0.7cm},
+          edge/.style={draw, -, shorten >=1pt, shorten <=1pt}
+        ]
+          % Create a 4x4 graph for the new maze
+          % Top row
+          \node[node, fill=green!70!black, text=white] (A) at (0,3.6) {};
+          \node[node] (B) at (1.2,3.6) {};
+          \node[node] (C) at (2.4,3.6) {};
+          \node[node] (D) at (3.6,3.6) {};
+          
+          % Second row
+          \node[node] (E) at (0,2.4) {};
+          \node[node] (F) at (1.2,2.4) {};
+          \node[node] (G) at (2.4,2.4) {};
+          \node[node] (H) at (3.6,2.4) {};
+          
+          % Third row
+          \node[node] (I) at (0,1.2) {};
+          \node[node] (J) at (1.2,1.2) {};
+          \node[node] (K) at (2.4,1.2) {};
+          \node[node] (L) at (3.6,1.2) {};
+          
+          % Bottom row
+          \node[node] (M) at (0,0) {};
+          \node[node] (N) at (1.2,0) {};
+          \node[node] (O) at (2.4,0) {};
+          \node[node, fill=red!70!black, text=white] (P) at (3.6,0) {};
+          
+          % Add edges based on available paths in the maze
+          % Vertical connections
+          \draw[edge] (A) -- (E);
+          \draw[edge] (E) -- (I);
+          \draw[edge] (I) -- (M);
+          
+          \draw[edge] (B) -- (F);
+          
+          \draw[edge] (D) -- (H);
+          \draw[edge] (H) -- (L);
+          \draw[edge] (L) -- (P);
+          
+          \draw[edge] (J) -- (N);
+          
+          % Horizontal connections
+          \draw[edge] (A) -- (B);
+          
+          \draw[edge] (E) -- (F);
+          \draw[edge] (F) -- (G);
+          
+          \draw[edge] (I) -- (J);
+          \draw[edge] (J) -- (K);
+          \draw[edge] (K) -- (L);
+          
+          \draw[edge] (M) -- (N);
+          \draw[edge] (N) -- (O);
+          \draw[edge] (O) -- (P);
+        \end{tikzpicture}
+        \caption{Graph representation of the maze.}
+        \label{fig:maze-graph}
+      \end{subfigure}
+      \caption{A 4×4 maze (left) and its corresponding graph representation (right). Start and end points are shown in green and red respectively.}
+      \label{fig:maze-and-graph}
+    \end{figure}
+
     But remember that in a tree traversal, we recursively searched down and down until we hit a null node, in which case we backtrack up to look in another branch. For graphs, this is a bit more complicated, since we could go in loops. Therefore, we want to keep track of all the visited nodes to avoid infinite recursion. We have three base cases: 
     \begin{enumerate}
-        \item If we search off the grid, then this is not a valid path 
-        \item If we already explored here, then we don't want to repeat it 
-        \item If we reached the goal of the maze, then we output the length of the path. 
+      \item If we search off the grid, then this is not a valid path 
+      \item If we already explored here, then we don't want to repeat it 
+      \item If we reached the goal of the maze, then we output the length of the path. 
     \end{enumerate}
-    The recursive case would take each node and recurse on its 4 adjacent neighbors, if they are connected. So, the entire function, which takes in a location $(x, y)$ in the grid and the depth that it took to traverse to this point, would look like this: 
-    \begin{lstlisting}
-
-    private boolean[][] visited; 
-
-    private int solveDFS(int x, int y, int depth) {
-        if (x == 0 || y == 0 || x == mySize + 1 || y == mySize + 1) {
-            return 0; 
-        }
-        if (visited[x][y]) return 0; 
-        
-        visited[x][y] = true; 
-        
-        if (x == mySize/2 && y == mySize/2) {
-            return depth; 
-        }
-        
-        if (!north[x][y]) { // if there is no wall above
-            int d = solveDFS(x, y + 1, depth + 1); 
-            if (d > 0) return d; 
-        }
-        if (!east[x][y]) {
-            int d = solveDFS(x + 1, y, depth + 1); 
-            if (d > 0) return d; 
-        }
-        if (!south[x][y]) {
-            int d = solveDFS(x, y - 1, depth + 1); 
-            if (d > 0) return d; 
-        }
-        if (!west[x][y]) {
-            int d = solveDFS(x - 1, y, depth + 1); 
-            if (d > 0) return d; 
-        }
-    }
-    \end{lstlisting}
-    Note that this algorithm recurses on each of the $N$ nodes $4$ times (for each direction, and each recursive call is $O(1)$), so the complexity is $O(N)$. 
+    The recursive case would take each node and recurse on its 4 adjacent neighbors, if they are connected. Note that this algorithm recurses on each of the $N$ nodes $4$ times (for each direction, and each recursive call is $O(1)$), so the complexity is $O(N)$. 
   \end{example}
 
-  Note that the main idea of DFS is to always explore a new adjacent vertex if possible, and if not, then backtrack to the most recent vertex adjacent to an unvisited vertex and continue. On the contrary, the main idea of BFS is to explore \textit{all} your neighbors before you visit any of your neighbors' neighbors. It exhaustively searches for the closest regions of your search space before you look any further. Unlike DFS, which finds the some arbitrary path to a node, BFS finds the shortest (perhaps nonunique) path to a node. This can be simply done with a queue. 
+  Note that the main idea of DFS is to always explore a new adjacent vertex if possible, and if not, then backtrack to the most recent vertex adjacent to an unvisited vertex and continue. On the contrary, the main idea of BFS is to explore \textit{all} your neighbors before you visit any of your neighbors' neighbors. It exhaustively searches for the closest regions of your search space before you look any further. Unlike DFS, which finds the some arbitrary path to a node, BFS finds the shortest (perhaps non-unique) path to a node. This can be simply done with a queue. 
 
-  \begin{definition}[BFS]
-    The iterative version is shown.\footnote{The recursive version of BFS is very nontrivial.}
-    \begin{lstlisting}
-      visited = set() 
-      def bfs(start): 
-        toExplore = collections.deque() 
-        current = start; 
-        toExplore.append(current) 
-        visited.add(current) 
-        while toExplore: 
-          current = toExplore.popleft() 
-          # Do something 
-          neighbors = ... 
-          for neighbor in neighbors: 
-            if neighbor not in visited: 
-              visited.add(neighbor) 
-              toExplore.append(neighbor)
-    \end{lstlisting}
-  \end{definition}
+  \begin{algo}[Iterative Breadth-First Search]
+    Breadth-First Search (BFS) explores a graph by visiting all neighbors at the current depth before moving to nodes at the next depth level. It uses a queue to process nodes in the order they are discovered.
+    \begin{algorithm}[H]
+      \label{alg:bfs}
+      \begin{algorithmic}[1]
+        \Require{Graph $G(V, E)$, start vertex $s$}
+        
+        \Function{BFS}{$G, s$}
+          \State visited $\gets \emptyset$ \Comment{Initialize empty set of visited vertices}
+          \State queue $\gets$ empty queue
+          \State Enqueue $s$ onto queue
+          \State Add $s$ to visited
+          
+          \While{queue is not empty}
+            \State $u \gets$ Dequeue from queue \Comment{Get the next vertex to process}
+            \State \textit{/* Process vertex $u$ here */}
+            
+            \For{each neighbor $v$ of $u$ in $G$}
+              \If{$v \notin$ visited}
+                \State Add $v$ to visited
+                \State Enqueue $v$ onto queue
+              \EndIf
+            \EndFor
+          \EndWhile
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
 
   \begin{theorem}[Runtime of BFS]
     The runtime of BFS is $O(n+m)$. 
@@ -307,10 +396,64 @@
   \end{proof} 
 
   \begin{definition}[Search Trees]
-    Once we have traversed a graph using BFS or DFS, we can label the directed path that this traversal algorithm takes into a \textbf{search tree}. If we look at the search trees generated by DFS and BFS, we can see that the path from A to C is always shorter for BFS than for DFS. 
-    \begin{center}
-      \includegraphics[scale=0.4]{img/search_trees.png}
-    \end{center}
+    Once we have traversed a graph using BFS or DFS, we can label the directed path that this traversal algorithm takes into a \textbf{search tree}. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+        \begin{tikzpicture}[
+            node/.style={circle, draw, fill=gray!40, minimum size=0.8cm},
+            edge/.style={->, thick}
+        ]
+        % Create nodes
+        \node[node] (A1) at (0,2) {A};
+        \node[node] (B1) at (2,2) {B};
+        \node[node] (C1) at (4,2) {C};
+        \node[node] (D1) at (0,0) {D};
+        \node[node] (E1) at (2,0) {E};
+        \node[node] (F1) at (4,0) {F};
+        
+        % Create edges
+        \draw[edge] (A1) -- (B1);
+        \draw[edge, red, thick] (A1) -- (D1);
+        \draw[edge, red, thick] (D1) -- (E1);
+        \draw[edge, red, thick] (E1) -- (F1);
+        \draw[edge, red, thick] (F1) -- (C1);
+        \end{tikzpicture}
+        \caption{After DFS traversal, we can store the previous nodes in a hashmap $\{B \mapsto A, D \mapsto A, E \mapsto D, F \mapsto E, C \mapsto F\}$. From this we can see the path to get to $C$ is $A \mapsto D \mapsto E \mapsto F \mapsto C$ of length 4. }
+        \label{fig:graph1}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+        \begin{tikzpicture}[
+            node/.style={circle, draw, fill=gray!40, minimum size=0.8cm},
+            edge/.style={->, thick}
+        ]
+        % Create nodes
+        \node[node] (A2) at (0,2) {A};
+        \node[node] (B2) at (2,2) {B};
+        \node[node] (C2) at (4,2) {C};
+        \node[node] (D2) at (0,0) {D};
+        \node[node] (E2) at (2,0) {E};
+        \node[node] (F2) at (4,0) {F};
+        
+        % Create edges
+        \draw[edge, red, thick] (A2) -- (B2);
+        \draw[edge] (A2) -- (D2);
+        \draw[edge] (B2) -- (E2);
+        \draw[edge, red, thick] (B2) -- (F2);
+        \draw[edge, red, thick] (F2) -- (C2);
+        \end{tikzpicture}
+        \caption{After BFS traversal, we can store the previous nodes in a hashmap $\{B \mapsto A, D \mapsto A, E \mapsto B, F \mapsto B, C \mapsto F\}$. From this we can see the path to get to $C$ is $A \mapsto B \mapsto F \mapsto C$ of length 3. }
+        \label{fig:graph2}
+      \end{subfigure}
+      \caption{Comparison of two directed graphs with different path lengths from A to C.}
+      \label{fig:graph-comparison}
+    \end{figure}
+
+    By construction, we can see that the path from A to C is always shorter for BFS than for DFS. 
   \end{definition}
 
 \subsection{Directed Acyclic Graphs and Topological Sorting}
@@ -369,7 +512,7 @@
         \begin{tikzpicture}[
             scale=0.8,
             node/.style={circle, draw, thick, minimum size=1.0cm},
-            edge/.style={->, green!50!black, thick}
+            edge/.style={->, black, thick}
         ]
 
         % Center and bottom nodes
@@ -1172,7 +1315,6 @@
 
           \end{tikzpicture}
           \caption{}
-          \label{fig:}
         \end{subfigure}
         \label{fig:mst_cut_prop}
         \caption{In the left cut, the edges are $(a,d), (b, c), (a, c)$. The minimum weight is $5$ on the $(a, d)$ edge, so it must be in the MST. For the right cut, $(c, d)$ must be in the MST. }
