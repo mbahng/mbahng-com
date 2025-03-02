@@ -1,0 +1,134 @@
+\section{Hash-Based Data Structures} 
+
+\subsection{Hashing}
+
+  One of the most important applications of hashing and probabilistic algorithms is in cryptography. For example, when you generate a RSA keypair, you must choose two 128-bit prime numbers which serve as your private key. State of the art methods simply generate a random 128-bit prime number perform \textit{independent} randomized probabilistic tests with error rate $\epsilon$. Given that this is independent, simply running this tests $k$ times reduces our error exponentially to $\epsilon^k$, practically guaranteeing primality. In Bitcoin and Ethereum wallets, hardened child key derivation functions in hierarchical determinstic wallets hash subsets of the parent key to generate both the child keys and their seeds.\footnote{For an implementation of both, look at my blockchain implementation \href{https://github.com/mbahng/blade/blob/main/backend/src/crypt/primes.js\#L61}{here}} 
+
+  Assume we want to map keys from some \textbf{universe} $U$ into a smaller set $[N] = \{1, \ldots, N\}$ of $N$ bins. The algorithm will have to handle some dataset $S \subset U$ of $|S| = M$ keys.\footnote{For example, think of all possible strings as $U$ and all $256$-bit numbers as $N = 2^{256}$. $S$ in this case $S$ may be the set of all addresses on a blockchain. This is SHA256, and to date there is no known hash collisions, though there are a few for SHA1.} We want to store $S$ with efficient performance in 
+  \begin{enumerate}
+    \item \texttt{Find(x)}, which returns true if $x \in S$
+    \item \texttt{Insert(x)} 
+    \item \texttt{Delete(x)}
+    \end{enumerate}
+  This is essentially a set. If one is new to hashing, we could try to use a balanced binary search tree or a heap (implemented as a red-black tree or some other variant), which can do all three operations in $O(\log(N))$ time. If we had access to a randomized function $h: U \rightarrow [N]$, with the property that for a fixed $x \in U$, $h(x) \sim \mathrm{Multinomial}(N)$, then by linearity of expectation\footnote{Note that this is not $\mathbb{P}_{x, y}$ since $x, y$ are not random variables. They are fixed, and $h(x), h(y)$ are the random variables. }
+  \begin{equation}
+    \mathbb{P}(h(x) = h(y)) = \mathbb{E}[\mathbbm{1}_{h(x) = h(y)}] = \frac{N}{N^2} = \frac{1}{N}
+  \end{equation}
+  This is great, but this is also random, which means that we are not guaranteed to map to the same bin across time. If we add time-invariance, this is pretty much a hash function, which is really deterministic, but we like to call it psuedo-random. 
+
+  So what if there are collisions? They are inevitable anyways even with a completely random function, but minimizing them will give us the best runtime performance. There are a two main ways to approach this. 
+  \begin{enumerate}
+    \item At each bin, store the head of a linked list, BST, or another hash table. You would incur an additional linear, logarithmic, or constant cost of traversing this data structure for each operation.  
+    \item Look for another bin. We can just look at $h(x) + 1$ or $h(h(x))$ (or really any deterministic function $f(h(x))$) if $h(x)$ is occupied. 
+  \end{enumerate}
+
+  This is what we have to work with here, so we would like to modify our assumptions. Therefore, we can achieve good performance by reducing the collisions and by improving how we deal with collisions. We will focus on the first part, and we would like for our hash functions to have some nice properties, which we will define. The most intuitive way is to treat $x, y$ as random variables uniformly sampled from $U$, and then we would like $\mathbb{P}(h(x) = H(y)) \approx 1/N$. However in practice, this is not the case since our subdomain $S$ is already fixed, yet may be unknown. Therefore given any function $h$, we can construct an adversarial sequences of inputs that will all map to the same bin. We must therefore consider a \textit{family} of hash functions. 
+
+  \begin{definition}[Universal Hashing]
+    A family of hash functions $H = \{h : U \rightarrow [N] \}$ is \textbf{universal} if for any fixed $x, y \in U$, 
+    \begin{equation}
+      \mathbb{P}_{h} \big( h(x) = h(y) \big) \leq \frac{1}{N}
+    \end{equation}
+    where $h$ is drawn uniformly. If the bound is $2/N$ then it is called \textbf{near-universal}, and what's important is the $N$ in the denominator. This polynomial decay in collision probabilities is exactly what we need for constant operation time. That is, given query $x$, let the random variable $X$ be the number of operations we must do to find $X$, which consists of $1$ pointer traversal plus some other amount of traversals (e.g. through a linked list) if collision, say which is $C_n$. So we have 
+    \begin{equation}
+      X = 1 + \sum_{y \in S} Q_y
+    \end{equation}
+    where $1$ comes from the initial pointer traversal in hashing, and Bernoulli $Q_y = 1$ if $h(y) = h(x)$.\footnote{This may not be $1$ since we may have to do more than 1 additional traversal, e.g. in linked lists. But we assume the extra cost is bounded by a constant.} Then, by linearity of expectation combined with the bound on probability of collision we have 
+    \begin{equation}
+      \mathbb{E}[X] = 1 + \sum_{y \in S} \mathbb{E}[Q_y] = 1 + |S| \cdot \mathbb{P}(h(x) = h(y)) = 1 + \frac{|S|}{N}
+    \end{equation} 
+    which is constant. 
+  \end{definition} 
+
+  If $H$ is the set of all functions from $U$ to $[N]$, then this universal property is trivially satisfied since 
+  \begin{equation}
+      \mathbb{P}_{h} \big( h(x) = h(y) \big) = \frac{1}{N}
+  \end{equation}
+  But this is quite a complex function class and $h$ may not be easy to store, i.e. may not be analytic. The question now becomes whether we can achieve universality with a smaller class. It turns out yes, and the obvious use is to use cyclic groups. 
+
+  \begin{lemma}[Carter-Wegman 71]
+    Suppose $U = \{0, 1, \ldots, M-1\}$. We choose a prime $p \geq M$\footnote{It is guaranteed that a prime exists between $m$ and $2m$.} and construct the family 
+    \begin{equation}
+      H = \{h_a (x) = (ax \mathrm{ mod } p ) \mathrm{ mod } N \mid a = 0, \ldots, p-1 \}
+    \end{equation}
+    We claim this is near-universal. 
+  \end{lemma}
+  \begin{proof}
+    We treat $x$ as the generator of this group, and then $ax \mathrm{ mod } p = a^\prime x { mod } p$ iff $a = a^\prime$. Therefore, 
+    \begin{equation}
+      \mathbb{P}_a (h_a (x) = h_a (y)) = \mathbb{P}_a \big( (ax - ay) \mathrm{ mod } p = N k \big)
+    \end{equation}
+    for some $k$. If $a = 0$, then everything collides, but if $a \neq 0$ and $x \neq y$, then $ax - ay$ must have a difference of exactly a multiply of $N$, which happens with probability $1/N$. Therefore, we have 
+    \begin{equation}
+      \mathbb{P}_a (h_a (x) = h_a (y)) = \mathbb{P}(a = 0) + \mathbb{P}(a \neq 0) \cdot \frac{1}{N} = \frac{1}{p} + \frac{p-1}{p} \cdot \frac{1}{N} < \frac{2}{N} 
+    \end{equation}
+    since $p > N$. 
+  \end{proof}
+
+  Therefore, to hash, 
+  \begin{enumerate}
+    \item we choose a prime $p \geq m = |U|$. 
+    \item choose $a \in \{0, 1, \ldots, p-1\}$ at random. 
+    \item Use $h_a(x) = (ax \mathrm{ mod } p ) \mathrm{ mod } N$ to hash everything.\footnote{We do not change $a$ every time we hash. }
+  \end{enumerate}
+
+  \begin{example}
+    Let $n$ be a fixed prime number and 
+    \begin{equation}
+      H = \{h_{a, b} (x, y) = ax + by \mathrm{ mod } n : a, b \in [n] \}
+    \end{equation} 
+    We claim that this is universal. Let $x = (x_1, x_2)$ and $y = (y_1, y_2)$ be arbitrary pairs of integers where $x \neq y$. WLOG, assume $x_2 \neq y_2$. Then 
+    \begin{equation}
+      \mathbb{P}(h_{a, b} (x) = h_{a, b} (y)) = \mathbb{P}(a x_1 + b x_2 = a y_1 + b y_2) = \mathbb{P}\big( a (x_1 - y_1) = b (y_2 - x_2) \big)
+    \end{equation} 
+    Suppose that we pick $a$ first and we compute the conditional probability. Then the LHS is a constant, and for this to hold in a cyclic group, $b$ must equal $c (y_2 - x_2)^{-1}$, which occurs with probability $1/N$. Using LOTP the joint probability is also $1/N$. 
+  \end{example}
+
+\subsection{Set} 
+
+  Sets are conceptually the same as mathematical sets. 
+
+  \begin{definition}[Set]
+    A \textbf{set} is an unordered data structure that stores unique elements. 
+    \begin{enumerate}
+      \item Add is $O(1)$. 
+      \item Remove is $O(1)$. 
+      \item Retrieval and contains is $O(1)$. 
+    \end{enumerate}
+  \end{definition}
+
+\subsection{Map} 
+
+  A hash table is an array of key value pairs. But rather than adding to positions in order from 0, 1, 2, ..., we will calculate the hash of the key, which would return an int that specifies where we store this key-value pair. So to store, $\texttt{<"ok", 8>}$, we will calculate $\texttt{hash("ok") == 5}$ and store it in the 5th index.
+  \begin{lstlisting}
+    0 
+    1 
+    2 <"hi", 5>
+    3 
+    4 
+    5 <"ok", 8>
+    6 
+    7 
+  \end{lstlisting}
+  We can immediately see how this makes search easier, since if we want to find the value associated with the key "ok", then we can calculate the hash of it to find the index and look it up on the array. 
+
+  \begin{definition}[Maps]
+    A \textbf{map}, also called a \textbf{hash table}, is an unordered data data structure that stores key-value pairs.   
+    \begin{enumerate}
+      \item Add is $O(1)$. 
+      \item Remove is $O(1)$. 
+      \item Retrieval and contains is $O(1)$. 
+    \end{enumerate}
+  \end{definition}
+
+  So running $\texttt{get(key)}$ on a HashMap looks up position $\texttt{hash(key)}$ in the hash table and returns the value there. Immediately, we see that if $\texttt{hash}$ is not injective (which it isn't), then we can run into collisions. This is solved using chaining or bucketing. Bucketing basically takes each index in the array and stores not just one key-value pair, but a list of key-value pairs. So basically, when we want to search for the value of a key, we compute the index of it with $\texttt{hash(key)}$, which would return a list of key-value pairs. 
+
+  Obviously, if we create a custom $\texttt{hashCode()}$ method that trivially maps to 0, then we would just have one giant list in the bucket at index 0, which is no more efficient than a list search. So, we should ideally assume that given N pairs with M buckets, our hashing function is built so that the probability of two random (unequal keys) hash to the same bucket is 1/M. Note that this hash function is completely deterministic. We should talk about runtime/memory tradeoff. Given N pairs and M buckets (with SUHA): 
+  \begin{enumerate}
+      \item $N >> M$ means too many pairs in too few buckets, so runtime inefficient 
+      \item $M >> N$ means too many buckets for too few pairs, so memory wasteful 
+      \item $M$ slightly larger than $N$ is the sweet spot.
+  \end{enumerate}
+  To maintain an ideal ratio, we basically create a new larger table (with geometric resizing) and rehash/copy everything until we reach it.
+
+
