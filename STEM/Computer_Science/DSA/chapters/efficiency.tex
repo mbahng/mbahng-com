@@ -103,14 +103,81 @@
 \subsection{Logic and Satisfiability}
 
   \begin{definition}[CircuitSAT]
-    Consider a black box circuit $f$, with input $\mathbf{x} \in \{0, 1\}^n$. We want to answer the question of whether there exists some $\mathbf{x}$ s.t. $f(\mathbf{x}) = 1$, i.e. whether the circuit is \textbf{satisfiable}? 
+    Consider a black box circuit $f$, with input $\mathbf{x} \in \{0, 1\}^n$. We want to answer the question of whether there exists some $\mathbf{x}$ s.t. $f(\mathbf{x}) = 1$, i.e. whether the circuit is \textbf{satisfiable} (i.e. outputs a 1 bit). 
 
     \begin{figure}[H]
       \centering 
-      \includegraphics[scale=0.4]{img/circuit.png}
+      \begin{tikzpicture}[scale=1.0]
+        % Input labels
+        \node (x1) at (0,3) {$x_1$};
+        \node (x2) at (0,2) {$x_2$};
+        \node (x3) at (0,1) {$x_3$};
+
+        % NOT gate for x1
+        \node[american not port, scale=0.7] (not1) at (2,3) {};
+
+        % AND gate
+        \node[american and port, scale=0.7] (and1) at (4,2.5) {};
+
+        % OR gate
+        \node[american or port, scale=0.7] (or1) at (6,1.5) {};
+
+        % Final output
+        \node (out) at (8,1.5) {$f(x_1,x_2,x_3)$};
+
+        % Connections
+        % x1 to NOT gate
+        \draw (x1) -- (not1.in);
+        
+        % NOT output to AND input 1
+        \draw (not1.out) -- ++(0.5,0) |- (and1.in 1);
+        
+        % x2 to AND input 2
+        \draw (x2) -- ++(3,0) |- (and1.in 2);
+        
+        % AND output to OR input 1
+        \draw (and1.out) -- ++(0.5,0) |- (or1.in 1);
+        
+        % x3 to OR input 2
+        \draw (x3) -- ++(5,0) |- (or1.in 2);
+        
+        % OR output to final output
+        \draw (or1.out) -- (out);
+
+        % Gate reference symbols at bottom
+        % AND gate reference
+        \node[american and port, scale=0.7] (and-ref) at (2,-1) {};
+        \node (and-x) at (1,-0.8) {$x$};
+        \node (and-y) at (1,-1.2) {$y$};
+        \node (and-out) at (3,-1) {$x \wedge y$};
+
+        % OR gate reference
+        \node[american or port, scale=0.7] (or-ref) at (5,-1) {};
+        \node (or-x) at (4,-0.8) {$x$};
+        \node (or-y) at (4,-1.2) {$y$};
+        \node (or-out) at (6,-1) {$x \vee y$};
+
+        % NOT gate reference
+        \node[american not port, scale=0.7] (not-ref) at (8,-1) {};
+        \node (not-x) at (7,-1) {$x$};
+        \node (not-out) at (9,-1) {$\neg x$};
+
+        % Connections for reference gates
+        \draw (and-x) -- (and-ref.in 1);
+        \draw (and-y) -- (and-ref.in 2);
+        \draw (and-ref.out) -- (and-out);
+
+        \draw (or-x) -- (or-ref.in 1);
+        \draw (or-y) -- (or-ref.in 2);
+        \draw (or-ref.out) -- (or-out);
+
+        \draw (not-x) -- (not-ref.in);
+        \draw (not-ref.out) -- (not-out);
+      \end{tikzpicture}
       \caption{Some random circuit where $n = 5$.} 
       \label{fig:random_circuit}
     \end{figure}
+
     The obvious way is to brute force is an check all $2^n$ combinations, and this is the only way since this is black-box. However, even if we knew the circuit itself, the amount of computations that we need to solve this is conjectured to be still $O(2^n)$, though we may be able to cleverly shave off some calculations here and there.\footnote{It is not proven that there exists no exponential algorithm.}
   \end{definition}
 
@@ -198,9 +265,63 @@
       \end{equation}
       Following our reduction, we construct graph $G$ as follows:
 
-      \begin{figure}[H]
+      \begin{figure}[H] 
         \centering 
-        \includegraphics[scale=0.4]{img/mis_graph.png}
+        \begin{tikzpicture}[scale=0.8]
+          % Define styles for nodes
+          \tikzset{
+            regular node/.style={circle, draw, minimum size=0.7cm, inner sep=0pt},
+            highlighted node/.style={circle, draw, fill=yellow!30, minimum size=0.8cm, inner sep=0pt, double},
+          }
+          
+          % Position nodes in an octagonal arrangement
+          % Top nodes
+          \node[highlighted node] (a) at (0,4) {$a$};
+          \node[regular node] (c1) at (2,4) {$c$};
+          \node[regular node] (b1) at (1,3) {$b$};
+          
+          % Left side nodes
+          \node[regular node] (bbar) at (-2,2) {$\bar{b}$};
+          \node[highlighted node] (a2) at (-1,1) {$a$};
+          \node[regular node] (dbar) at (-2,0) {$\bar{d}$};
+          
+          % Right side nodes
+          \node[regular node] (b2) at (4,2) {$b$};
+          \node[regular node] (cbar) at (3,1) {$\bar{c}$};
+          \node[highlighted node] (dbar2) at (4,0) {$\bar{d}$};
+          
+          % Bottom nodes
+          \node[regular node] (abar) at (0,-2) {$\bar{a}$};
+          \node[highlighted node] (c2) at (2,-2) {$c$};
+          \node[regular node] (d) at (1,-1) {$d$};
+          
+          % Draw black edges (regular connections)
+          \draw (a) -- (b1);
+          \draw (b1) -- (c1);
+          \draw (a) -- (c1);
+
+          \draw (bbar) -- (a2);
+          \draw (a2) -- (dbar);
+          \draw (bbar) -- (dbar);
+
+          \draw (b2) -- (cbar);
+          \draw (cbar) -- (dbar2);
+          \draw (b2) -- (dbar2);
+
+          \draw (abar) -- (c2);
+          \draw (abar) -- (d);
+          \draw (d) -- (c2);
+          
+          % Draw red edges (special connections)
+          \draw[red, thick] (bbar) -- (b2);
+          \draw[red, thick] (b1) -- (bbar);
+          \draw[red, thick] (a) -- (abar);
+          \draw[red, thick] (dbar) -- (d);
+          \draw[red, thick] (dbar2) -- (d);
+          \draw[red, thick] (c1) -- (cbar);
+          \draw[red, thick] (c2) -- (cbar);
+          \draw[red, thick] (a2) -- (abar);
+        \end{tikzpicture}
         \caption{Reduction graph from 3SAT to MIS. } 
         \label{fig:mis_graph}
       \end{figure}
