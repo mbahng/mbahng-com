@@ -1,0 +1,235 @@
+\section{JSON}
+
+NoSQL just stands for not SQL or not relational, like XML or \textbf{JSON}.\footnote{I think it's called this because it's literally how JS objects are stored and printed.} This relaxes some constraints and may be more flexible/efficient, with some popular data stores being MongoDB, CouchDB, Dynamo, etc. They are designed to scale simple OLTP (online transaction processing) style application loads and provide good horizontal scalability. An example of where this is used is in pretty much all blockchains. Every transaction and block is accessible in a JSON format on say \texttt{etherscan.io}. 
+
+\begin{definition}[JSON]
+  A \textbf{JSON}, short for \textbf{JavaScript Object Notation}, data model is an object with the following properties: 
+  \begin{enumerate} 
+    \item At the top level, it is an array of \textit{objects}. 
+    \item Each object contains a set of key-value pairs of form \texttt{\{key : value\}}, where key (attribute) names should be unique within an object. 
+    \item It supports most primitive types (numbers, strings, double, booleans are stored in quotes e.g. \texttt{"true"}), along with arrays \texttt{[...]}, and finally \textbf{objects} \texttt{\{...\}} (which defines a recursive structure). 
+    \item The order is unimportant. 
+    \item You can't comment in JSON files. 
+  \end{enumerate}
+\end{definition}
+
+\begin{example}[Example JSON]
+  Here is an example with users, groups, and members. 
+  \begin{lstlisting}
+    {
+      "users": [
+        {"uid": 1, "name": "Bart"},
+        {"uid": 2, "name": "Lisa"}
+      ],
+      "groups": [
+        {"gid": 101, "title": "Skateboarding Club"},
+        {"gid": 102, "title": "Chess Club"}
+      ],
+      "members": [
+        {"uid": 1, "gid": 101},
+        {"uid": 1, "gid": 102},
+        {"uid": 2, "gid": 102}
+      ]
+    } 
+  \end{lstlisting}
+\end{example}
+
+\begin{definition}[MongoDB Database]
+  A database has collections of similarly structured documents, similar to tables of records as opposed to one big XML document that contains all data.  
+  \begin{enumerate}
+    \item \textbf{Database} is a list of collections. (analogous to a database)
+    \item \textbf{Collection} is a list a documents (analogous to a table)
+    \item \textbf{Document} is a JSON object (analogous to a row/tuple)
+  \end{enumerate}
+  MongoDB actually stores this data with \textbf{BSON} (Binary JSON), which is the binary encoding of it. 
+\end{definition}  
+
+MongoDB provides a rich set of operations for querying and manipulating data. 
+
+\begin{definition}[find()]
+  The \texttt{find()} operation is MongoDB's basic query mechanism. It returns a cursor to the matching documents.
+  \begin{enumerate}
+    \item Takes a query document that specifies the selection criteria
+    \item Can include projection to specify which fields to return
+    \item Supports comparison operators like \texttt{\$eq}, \texttt{\$gt}, \texttt{\$lt}
+    \item Can query nested documents and arrays
+  \end{enumerate}
+\end{definition}
+
+\begin{example}[Basic Query]
+  Find all users named "Bart":
+  \begin{lstlisting}
+    db.users.find({"name": "Bart"})
+  \end{lstlisting}
+  Find users with uid greater than 1:
+  \begin{lstlisting}
+    db.users.find({"uid": {$gt: 1}})
+  \end{lstlisting}
+\end{example}
+
+\begin{definition}[sort()]
+  The \texttt{sort()} method orders the documents in the result set.
+  \begin{enumerate}
+    \item Takes a document specifying the fields to sort by
+    \item Use 1 for ascending order, -1 for descending
+    \item Can sort by multiple fields
+    \item Applied after the query but before limiting results
+  \end{enumerate}
+\end{definition}
+
+\begin{example}[Sorting]
+  Sort users by name in ascending order:
+  \begin{lstlisting}
+    db.users.find().sort({"name": 1})
+  \end{lstlisting}
+\end{example}
+
+
+\begin{definition}[Aggregation Pipeline]
+  An aggregation pipeline consists of stages that transform sequences of documents. Each stage performs an operation on the input documents and passes the results to the next stage. Despite its name, it handles more than just aggregation operations.
+\end{definition}
+
+MongoDB supports several types of pipeline stages:
+
+\begin{enumerate}
+  \item \textbf{Selection and Filtering} (\texttt{\$match})
+  \begin{itemize}
+      \item Filters documents based on specified conditions
+      \item Similar to \texttt{find()} but within the pipeline context
+  \end{itemize}
+
+  \item \textbf{Projection} (\texttt{\$project})
+  \begin{itemize}
+      \item Reshapes documents by including, excluding, or transforming fields
+      \item Can create computed fields
+  \end{itemize}
+
+  \item \textbf{Sorting} (\texttt{\$sort})
+  \begin{itemize}
+      \item Orders documents based on specified fields
+      \item Equivalent to the \texttt{sort()} method
+  \end{itemize}
+
+  \item \textbf{Grouping} (\texttt{\$group})
+  \begin{itemize}
+      \item Groups documents by a specified expression
+      \item Supports aggregation operators:
+          \begin{itemize}
+              \item \texttt{\$sum}: Calculates numeric totals
+              \item \texttt{\$push}: Accumulates values into an array
+          \end{itemize}
+  \end{itemize}
+
+  \item \textbf{Document Transformation}
+  \begin{itemize}
+      \item \texttt{\$project}/\texttt{\$addFields}: Adds computed fields
+      \item \texttt{\$unwind}: Deconstructs arrays into individual documents
+      \item \texttt{\$replaceRoot}: Promotes an embedded document to the top level
+      \item Array operators:
+          \begin{itemize}
+              \item \texttt{\$map}: Applies an expression to each array element
+              \item \texttt{\$filter}: Selects array elements matching a condition
+          \end{itemize}
+  \end{itemize}
+
+  \item \textbf{Joining} (\texttt{\$lookup})
+  \begin{itemize}
+      \item Performs left outer joins with other collections
+  \end{itemize}
+\end{enumerate}
+
+\begin{example}[Basic Pipeline]
+  A pipeline that finds users in the "Chess Club" and sorts them by name:
+  \begin{lstlisting}
+    db.members.aggregate([
+        {$lookup: {
+            from: "users",
+            localField: "uid",
+            foreignField: "uid",
+            as: "user"
+        }},
+        {$match: {"gid": 102}},
+        {$sort: {"user.name": 1}}
+    ])
+  \end{lstlisting}
+\end{example}
+
+\begin{example}[Complex Pipeline]
+  A pipeline using multiple stages to group and transform data:
+  \begin{lstlisting}
+    db.members.aggregate([
+        {$group: {
+            _id: "$gid",
+            members: {$push: "$uid"},
+            count: {$sum: 1}
+        }},
+        {$lookup: {
+            from: "groups",
+            localField: "_id",
+            foreignField: "gid",
+            as: "group_info"
+        }},
+        {$project: {
+            _id: 0,
+            group: {$arrayElemAt: ["$group_info.title", 0]},
+            member_count: "$count",
+            members: 1
+        }}
+    ])
+  \end{lstlisting}
+\end{example}
+
+The pipeline stages must be carefully ordered as each stage's output becomes the input for the next stage. For optimal performance:
+\begin{enumerate}
+  \item Use \texttt{\$match} early to reduce the number of documents
+  \item Place \texttt{\$project} and \texttt{\$unwind} before \texttt{\$group} when possible
+  \item Consider memory limitations when using \texttt{\$sort}
+\end{enumerate}
+
+\begin{definition}[\$lookup]
+  The \texttt{\$lookup} operation performs a left outer join to another collection.
+  \begin{enumerate}
+    \item Must be used within an aggregation pipeline
+    \item Specifies foreign collection to join with
+    \item Defines local and foreign fields to join on
+    \item Results stored in an array field
+  \end{enumerate}
+\end{definition}
+
+\begin{example}[Join Operation]
+  Join members with users:
+  \begin{lstlisting}
+    db.members.aggregate([
+      {$lookup: {
+        from: "users",
+        localField: "uid",
+        foreignField: "uid",
+        as: "user_info"
+      }}
+    ])
+  \end{lstlisting}
+\end{example}
+
+\begin{definition}[Aggregation Operators]
+  Special operators used within aggregation pipelines for computations.
+  \begin{enumerate}
+    \item \texttt{\$sum}: Calculates sum of numeric values
+    \item \texttt{\$push}: Adds value to an array
+    \item \texttt{\$avg}: Calculates average
+    \item \texttt{\$first}/\texttt{\$last}: Returns first/last value in group
+  \end{enumerate}
+\end{definition}
+
+\begin{example}[Aggregation Operators]
+  Calculate total members and collect group IDs:
+  \begin{lstlisting}
+    db.members.aggregate([
+      {$group: {
+        _id: "$uid",
+        total: {$sum: 1},
+        groups: {$push: "$gid"}
+      }}
+    ])
+  \end{lstlisting}
+\end{example}
+
