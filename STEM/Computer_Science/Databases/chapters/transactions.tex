@@ -290,7 +290,41 @@
 
       \begin{figure}[H]
         \centering 
-        \includegraphics[scale=0.4]{img/rep_read.png}
+        \begin{tikzpicture}[
+          scale=0.7,
+          transform shape,
+          transaction/.style={
+            align=left,
+            font=\normalfont
+          }
+          ]
+          % Transaction labels at top
+          \node[transaction, anchor=north west] at (0,3) {-- T1:};
+          \node[transaction, anchor=north west] at (8,3) {-- T2:};
+          
+          % Transaction nodes
+          \node[transaction, anchor=west] (t1) at (0,1) {
+            INSERT INTO User\\
+            VALUES(789, 'Nelson',\\
+            \hspace{1cm}10, 0.1);\\
+            COMMIT;
+          };
+          
+          \node[transaction, anchor=west] (t2_select1) at (8,1.5) {
+            SELECT AVG(pop)\\
+            FROM User;
+          };
+          
+          \node[transaction, anchor=west] (t2_select2) at (8,-0.5) {
+            SELECT AVG(pop)\\
+            FROM User;\\
+            COMMIT;
+          };
+          
+          % Straight arrows
+          \draw[->, thick] (t2_select1) -- (t1);
+          \draw[->, thick] (t1) -- (t2_select2);
+        \end{tikzpicture}
         \caption{You still have a different average due to the insertion of a new element. } 
         \label{fig:rep_read}
       \end{figure}
@@ -299,7 +333,42 @@
 
       \begin{figure}[H]
         \centering 
-        \includegraphics[scale=0.4]{img/read_c.png}
+        \begin{tikzpicture}[
+          scale=0.7,
+          transform shape,
+          node distance=6cm,
+          transaction/.style={
+            align=left,
+            font=\normalfont
+          }
+          ]
+          % Transaction labels at top
+          \node[transaction, anchor=north west] at (-1.5,3) {-- T1:};
+          \node[transaction, anchor=north west] at (5,3) {-- T2:};
+          
+          % Transaction nodes
+          \node[transaction] (t2_top) at (6,2) {
+            SELECT AVG(pop)\\
+            FROM User;
+          };
+          
+          \node[transaction] (t1) at (0,0) {
+            UPDATE User\\
+            SET pop = 0.99\\
+            WHERE uid = 142;\\
+            COMMIT;
+          };
+          
+          \node[transaction] (t2_bottom) at (6,-2) {
+            SELECT AVG(pop)\\
+            FROM User;\\
+            COMMIT;
+          };
+          
+          % Arrows
+          \draw[->, thick] (t2_top) -- (t1);
+          \draw[->, thick] (t1) -- (t2_bottom);
+        \end{tikzpicture}
         \caption{In T2, we first compute an average of say 0.6. Then in T1 we update the popularity and commit. Then in T2, we take the average again, getting 0.8, and finally commit. T2 ends up reading two different states of the database.} 
         \label{fig:read_committed}
       \end{figure}
@@ -308,7 +377,43 @@
 
       \begin{figure}[H]
         \centering 
-        \includegraphics[scale=0.4]{img/read_unc.png}
+        \begin{tikzpicture}[
+          scale=0.7,
+          transform shape,
+          transaction/.style={
+            align=left,
+            font=\normalfont
+          }
+          ]
+          % Transaction labels at top
+          \node[transaction, anchor=north west] at (0,3.2) {-- T1:};
+          \node[transaction, anchor=north west] at (8,3.2) {-- T2:};
+          
+          % Transaction nodes
+          \node[transaction, anchor=west] (t1_update) at (0,2) {
+            UPDATE User\\
+            SET pop = 0.99\\
+            WHERE uid = 142;
+          };
+          
+          \node[transaction, anchor=west] (t1_rollback) at (0,0) {
+            ROLLBACK;
+          };
+          
+          \node[transaction, anchor=west] (t2_select) at (8,1.5) {
+            SELECT AVG(pop)\\
+            FROM User;
+          };
+          
+          \node[transaction, anchor=west] (t2_commit) at (8,-0.5) {
+            COMMIT;
+          };
+          
+          % Straight arrows
+          \draw[->, thick] (t1_update) -- (t2_select);
+          \draw[->, thick] (t2_select) -- (t1_rollback);
+          \draw[->, thick] (t1_rollback) -- (t2_commit);
+        \end{tikzpicture}
         \caption{In T1, you are setting the popularity to 0.99. In T2, you read this uncommitted data to compute the average. However, T1 aborts this write, and in T2 you are left with the wrong average. } 
         \label{fig:read_uncommitted}
       \end{figure}
