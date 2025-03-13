@@ -27,7 +27,58 @@
 
     \begin{figure}[H]
       \centering 
-      \includegraphics[scale=0.4]{img/disk_memory.png}
+      \begin{tikzpicture}[
+        node distance=2cm,
+        every node/.style={font=\normalfont},
+        data/.style={rectangle, draw, minimum width=1.5cm, minimum height=1cm},
+        stdout/.style={rectangle, draw, minimum width=1.5cm, minimum height=1.5cm}
+        ]
+      
+        % Circular partitioned structure (left)
+        \draw (0,0) circle (2cm);
+        \draw (0,0) -- (0:2cm);
+        \draw (0,0) -- (45:2cm);
+        \draw (0,0) -- (90:2cm);
+        \draw (0,0) -- (135:2cm);
+        \draw (0,0) -- (180:2cm);
+        \draw (0,0) -- (225:2cm);
+        \draw (0,0) -- (270:2cm);
+        \draw (0,0) -- (315:2cm);
+      
+        % Center dot
+        \fill (0,0) circle (0.1cm);
+      
+        % Partition labels (with blue color)
+        \node[text=blue, draw, inner sep=1pt, font=\footnotesize] at (22.5:1.3cm) {0x13};
+        \node[text=blue, draw, inner sep=1pt, font=\footnotesize] at (67.5:1.3cm) {0xAB};
+        \node[text=blue, draw, inner sep=1pt, font=\footnotesize] at (157.5:1.3cm) {0x29F};
+        \node[text=blue, draw, inner sep=1pt, font=\footnotesize] at (247.5:1.3cm) {0x41};
+      
+        % Small blue arrows inside partitions - REMOVED
+        % Replaced with small boxes with memory addresses
+      
+        % Middle data grid - simplified to a single rectangle with partitions
+        \node[rectangle, draw, minimum width=4cm, minimum height=2cm] (grid) at (5.5,0) {};
+        \draw (5.5,-1) -- (5.5,1); % Vertical divider
+        \draw (3.5,0) -- (7.5,0);  % Horizontal divider
+        
+        % Data grid cell labels
+        \node at (4.5,0.7) {\textcolor{blue}{0xAB} \textcolor{red}{0}};
+        \node at (4.5,0.3) {\small (Data...)};
+        \node at (6.5,0.7) {\textcolor{blue}{0x13} \textcolor{red}{0}};
+        \node at (6.5,0.3) {\small (Data...)};
+        \node at (4.5,-0.7) {\textcolor{blue}{0x41} \textcolor{red}{0}};
+        \node at (4.5,-0.3) {\small (Data...)};
+        \node at (6.5,-0.7) {\textcolor{blue}{0x29F} \textcolor{red}{1}};
+        \node at (6.5,-0.3) {\small (Data...)};
+      
+        % Right stdout box
+        \node[stdout] (stdout) at (10,0) {stdout};
+      
+        % Connecting arrows
+        \draw[<->] (2.2,0) -- (3.2,0);
+        \draw[<->] (7.8,0) -- (9.0,0);
+      \end{tikzpicture}
       \caption{We store the memory address of the block (blue) and a bit indicating whether it is dirty or not (red). } 
       \label{fig:disk_memory}
     \end{figure}
@@ -177,10 +228,68 @@
 
     \begin{definition}[B Tree]
       Therefore, this static data structure is not good, and we must use a more flexible one, called a \textbf{B-tree}.
+
       \begin{figure}[H]
         \centering 
-        \includegraphics[scale=0.4]{img/b_tree.png}
-        \caption{B-tree. Each node can now hold multiple entries in sorted order. It is height balanced, though we will not show it here.} 
+        \begin{tikzpicture}[
+          level distance=1.7cm,
+          level 1/.style={sibling distance=6.5cm},
+          level 2/.style={sibling distance=1.8cm},
+          every node/.style={
+            draw,
+            font=\normalfont,
+            minimum height=0.7cm,
+            minimum width=1.5cm,
+            text centered
+          },
+          two-slot/.style={
+            append after command={
+              \pgfextra{
+                \draw ($(\tikzlastnode.north)!0.5!(\tikzlastnode.south)$) -- ($(\tikzlastnode.west)!0.5!(\tikzlastnode.east)$);
+              }
+            }
+          },
+          edge from parent/.style={draw, -latex}
+          ]
+          % Root node
+          \node[two-slot] {50}
+            % Level 1 nodes
+            child {
+              node[two-slot] {30 \hspace{0.1cm} 42}
+              % Level 2 left subtree
+              child {
+                node[two-slot] {25 \hspace{0.1cm} 27}
+                edge from parent node[left, draw=none, fill=none, text=black, font=\footnotesize] {$<30$}
+              }
+              child {
+                node[two-slot] {35 \hspace{0.1cm} 39}
+                edge from parent node[midway, draw=none, fill=none, text=black, font=\footnotesize] {$\geq30, <42$}
+              }
+              child {
+                node[two-slot] {44 \hspace{0.1cm} 46}
+                edge from parent node[right, draw=none, fill=none, text=black, font=\footnotesize] {$\geq42$}
+              }
+              edge from parent node[left, draw=none, fill=none, text=black, font=\footnotesize] {$<50$}
+            }
+            child {
+              node[two-slot] {59 \hspace{0.1cm} 75}
+              % Level 2 right subtree
+              child {
+                node[two-slot] {52 \hspace{0.1cm} 57}
+                edge from parent node[left, draw=none, fill=none, text=black, font=\footnotesize] {$<59$}
+              }
+              child {
+                node[two-slot] {60 \hspace{0.1cm} 70}
+                edge from parent node[midway, draw=none, fill=none, text=black, font=\footnotesize] {$\geq59, <75$}
+              }
+              child {
+                node[two-slot] {79 \hspace{0.1cm} 95}
+                edge from parent node[right, draw=none, fill=none, text=black, font=\footnotesize] {$\geq75$}
+              }
+              edge from parent node[right, draw=none, fill=none, text=black, font=\footnotesize] {$\geq50$}
+            };
+        \end{tikzpicture}
+        \caption{B+ tree structure where each node can hold multiple entries with fixed maximum size and is sorted. The tree maintains height balance, and all leaf nodes are sorted. Each node does not need to be full, and the number of pointers equals the number of entries plus one.}
         \label{fig:b_tree}
       \end{figure}
     \end{definition}
@@ -194,19 +303,161 @@
 
       \begin{figure}[H]
         \centering 
-        \includegraphics[scale=0.4]{img/bp_tree.png} 
-        \caption{Note that the 59, which represents both the index and the data value, are repeated. In here, we assume a block size of 2. The leaf nodes are the indices that point to the tuples in the disk/memory. Sometimes, we may store the tuple directly in the nodes, which saves us another level of indirection, but this may cause memory problems if the tuples have too many attributes.} 
+        \begin{tikzpicture}[
+          level distance=1.7cm,
+          level 1/.style={sibling distance=6.5cm},
+          level 2/.style={sibling distance=1.8cm},
+          every node/.style={
+            draw,
+            font=\normalfont,
+            minimum height=0.7cm,
+            minimum width=1.5cm,
+            text centered
+          },
+          two-slot/.style={
+            append after command={
+              \pgfextra{
+                \draw ($(\tikzlastnode.north)!0.5!(\tikzlastnode.south)$) -- ($(\tikzlastnode.west)!0.5!(\tikzlastnode.east)$);
+              }
+            }
+          },
+          edge from parent/.style={draw, -latex}
+          ]
+          % Root node
+          \node[two-slot] {50}
+            % Level 1 nodes
+            child {
+              node[two-slot] {30 \hspace{0.1cm} 42}
+              % Level 2 left subtree
+              child {
+                node[two-slot] (leaf1) {25 \hspace{0.1cm} 27}
+                edge from parent node[left, draw=none, fill=none, text=black, font=\footnotesize] {$<30$}
+              }
+              child {
+                node[two-slot] (leaf2) {35 \hspace{0.1cm} 39}
+                edge from parent node[midway, draw=none, fill=none, text=black, font=\footnotesize] {$\geq30, <42$}
+              }
+              child {
+                node[two-slot] (leaf3) {44 \hspace{0.1cm} 46}
+                edge from parent node[right, draw=none, fill=none, text=black, font=\footnotesize] {$\geq42$}
+              }
+              edge from parent node[left, draw=none, fill=none, text=black, font=\footnotesize] {$<50$}
+            }
+            child {
+              node[two-slot] {59 \hspace{0.1cm} 75}
+              % Level 2 right subtree
+              child {
+                node[two-slot] (leaf4) {52 \hspace{0.1cm} 57}
+                edge from parent node[left, draw=none, fill=none, text=black, font=\footnotesize] {$<59$}
+              }
+              child {
+                node[two-slot] (leaf5) {60 \hspace{0.1cm} 70}
+                edge from parent node[midway, draw=none, fill=none, text=black, font=\footnotesize] {$\geq59, <75$}
+              }
+              child {
+                node[two-slot] (leaf6) {79 \hspace{0.1cm} 95}
+                edge from parent node[right, draw=none, fill=none, text=black, font=\footnotesize] {$\geq75$}
+              }
+              edge from parent node[right, draw=none, fill=none, text=black, font=\footnotesize] {$\geq50$}
+            };
+            
+          % Horizontal connecting arrows between leaf nodes
+          \draw[-latex] (leaf1.east) -- (leaf2.west);
+          \draw[-latex] (leaf2.east) -- (leaf3.west);
+          \draw[-latex] (leaf3.east) -- (leaf4.west);
+          \draw[-latex] (leaf4.east) -- (leaf5.west);
+          \draw[-latex] (leaf5.east) -- (leaf6.west);
+          
+          % Data pointers from leaf nodes (arrows pointing downward)
+          % Leaf 1: 25, 27
+          \draw[-latex] ($(leaf1.south) + (-0.4,0)$) -- ++(0,-0.4);
+          \draw[-latex] ($(leaf1.south) + (0.4,0)$) -- ++(0,-0.4);
+          
+          % Leaf 2: 35, 39
+          \draw[-latex] ($(leaf2.south) + (-0.4,0)$) -- ++(0,-0.4);
+          \draw[-latex] ($(leaf2.south) + (0.4,0)$) -- ++(0,-0.4);
+          
+          % Leaf 3: 44, 46
+          \draw[-latex] ($(leaf3.south) + (-0.4,0)$) -- ++(0,-0.4);
+          \draw[-latex] ($(leaf3.south) + (0.4,0)$) -- ++(0,-0.4);
+          
+          % Leaf 4: 52, 57
+          \draw[-latex] ($(leaf4.south) + (-0.4,0)$) -- ++(0,-0.4);
+          \draw[-latex] ($(leaf4.south) + (0.4,0)$) -- ++(0,-0.4);
+          
+          % Leaf 5: 60, 70
+          \draw[-latex] ($(leaf5.south) + (-0.4,0)$) -- ++(0,-0.4);
+          \draw[-latex] ($(leaf5.south) + (0.4,0)$) -- ++(0,-0.4);
+          
+          % Leaf 6: 79, 95
+          \draw[-latex] ($(leaf6.south) + (-0.4,0)$) -- ++(0,-0.4);
+          \draw[-latex] ($(leaf6.south) + (0.4,0)$) -- ++(0,-0.4);
+        \end{tikzpicture}
+        \caption{The main difference is that the index nodes contain index entries, and the leaves are linked. Note that the 59, which represents both the index and the data value, are repeated. In here, we assume a block size of 2. The leaf nodes are the indices that point to the tuples in the disk/memory. Sometimes, we may store the tuple directly in the nodes, which saves us another level of indirection, but this may cause memory problems if the tuples have too many attributes.} 
         \label{fig:bp_tree} 
       \end{figure}
+
 
       It has the following constraints. 
       \begin{enumerate}
         \item The \textbf{fanout} refers the to maximum number of pointers that can come out of each node. 
+
         \begin{figure}[H]
-          \centering 
-          \includegraphics[scale=0.3]{img/fanout.png}
-          \caption{With fanout constraint 4, for index nodes, we have 3 values with 4 pointers representing each range. For the leaves, we have 3 pointers to the disk addresses plus 1 pointer to the next node. } 
-          \label{fig:fanout}
+          \centering
+          \begin{subfigure}[b]{0.48\textwidth}
+            \centering
+            \begin{tikzpicture}[
+                node distance=1.5cm,
+                every node/.style={font=\normalfont},
+                bnode/.style={rectangle, draw, minimum height=0.6cm, minimum width=2.2cm}
+              ]
+              
+              % Non-leaf node
+              \node[bnode] (non_leaf) at (0,0) {$\;\;\;\;120 \quad 150 \quad 180\;\;\;\;$};
+              
+              % Arrows from non-leaf
+              \draw[->, thick] ($(non_leaf.south)+(-1.1,0)$) -- +(-1.3,-0.9);
+              \draw[->, thick] (non_leaf) -- +(-1.0,-1.3);
+              \draw[->, thick] (non_leaf) -- +(1.0,-1.3);
+              \draw[->, thick] ($(non_leaf.south)+(+1.1,0)$) -- +(1.3,-0.9);
+              
+            \end{tikzpicture}
+            \caption{Non-leaf node of a B-tree with four child pointers and three separator keys}
+            \label{fig:btree-nonleaf}
+          \end{subfigure}
+          \hfill 
+          \begin{subfigure}[b]{0.48\textwidth}
+            \centering
+            \begin{tikzpicture}[
+              node distance=1.5cm,
+              every node/.style={font=\normalfont},
+              bnode/.style={rectangle, draw, minimum height=0.6cm, minimum width=2.2cm}
+              ]
+              
+              % Leaf nodes with increased spacing
+              \node[bnode] (leaf1) at (0.5,0) {100 \quad 101 \quad 110};
+              \node[bnode] (leaf2) at (3.7,0) {120 \quad 130};
+              
+              % Arrows from first leaf node - repositioned below each number
+              \draw[->, thick] (-0.5,-0.3) -- (-0.5,-0.8);
+              \draw[->, thick] (0.5,-0.3) -- (0.5,-0.8);
+              \draw[->, thick] (1.5,-0.3) -- (1.5,-0.8);
+              
+              % Arrows from second leaf node - repositioned below each number
+              \draw[->, thick] (3.2,-0.3) -- (3.2,-0.8);
+              \draw[->, thick] (4.2,-0.3) -- (4.2,-0.8);
+              
+              % Arrow between leaf nodes
+              \draw[->, thick] (leaf1.east) -- (leaf2.west);
+              
+              % Arrow from last leaf node
+              \draw[->, thick] (leaf2.east) -- +(0.6,0);
+            \end{tikzpicture}
+            \caption{Leaf nodes of a B-tree with pointers to data and links to adjacent leaves}
+            \label{fig:btree-leaves}
+          \end{subfigure}
+          \caption{With fanout constraint 4, for index nodes, we have 3 values with 4 pointers representing each range. For the leaves, we have 3 pointers to the disk addresses plus 1 pointer to the next node.}
+          \label{fig:btree-structure}
         \end{figure}
 
         \item The root is the only node that can store one value. It is special in this way. 
@@ -238,9 +489,87 @@
       If we query \texttt{SELECT * FROM R WHERE k = 179;}, we go through the B+ tree's indices and reach the leaf node. From here, we can use the pointer to go to the memory address holding this tuple in memory/disk. If we query \texttt{k = 32}, then we will not find it after reaching \texttt{35}. If we want to query a range \texttt{32 < k < 179}, we start at 32 and use the leaf pointers to go to the next leaf until we hit 179.  
 
       \begin{figure}[H]
-        \centering 
-        \includegraphics[scale=0.4]{img/fanout_ex.png}
-        \caption{} 
+        \centering
+        \begin{tikzpicture}[
+          level distance=1.8cm,
+          every node/.style={
+            draw,
+            font=\normalfont,
+            minimum height=0.7cm, 
+            minimum width=1.5cm,
+            text centered
+          },
+          multi-values/.style={
+            minimum width=2cm
+          }
+          ]
+          % Root node (level 0)
+          \node (root) at (0,0) {100};
+          
+          % Level 1 nodes
+          \node (l1a) at (-4.0,-1.8) {30};
+          \node[multi-values] (l1b) at (2.5,-1.8) {120 \quad 150 \quad 180};
+          
+          % Level 2 nodes
+          \node[multi-values] (l2a) at (-6.0,-3.6) {3 \quad 5 \quad 11};
+          \node[multi-values] (l2b) at (-3.5,-3.6) {30 \quad 35};
+          \node[multi-values] (l2c) at (-0.8,-3.6) {100 \quad 101 \quad 110};
+          \node[multi-values] (l2d) at (1.9,-3.6) {120 \quad 130};
+          \node[multi-values] (l2e) at (4.6,-3.6) {150 \quad 156 \quad 179};
+          \node[multi-values] (l2f) at (7.3,-3.6) {180 \quad 200};
+          
+          % Arrows connecting the nodes - standard
+          \draw[->] (root) -- (l1a);
+          \draw[->, orange, thick] (root) -- (l1b);
+          
+          \draw[->] (l1a) -- (l2a);
+          \draw[->] (l1a) -- (l2b);
+          
+          \draw[->] (l1b) -- (l2c);
+          \draw[->] (l1b) -- (l2d);
+          \draw[->, orange, thick] (l1b) -- (l2e);
+          \draw[->] (l1b) -- (l2f);
+          
+          % Horizontal arrows connecting leaf nodes
+          \draw[->] (l2a) -- (l2b);
+          \draw[->] (l2b) -- (l2c);
+          \draw[->] (l2c) -- (l2d);
+          \draw[->] (l2d) -- (l2e);
+          \draw[->] (l2e) -- (l2f);
+          
+          % Vertical arrows from leaf nodes - positioned precisely under each value
+          % Node l2a (3,5,11)
+          \draw[->] (-6.6,-4) -- (-6.6,-4.5);
+          \draw[->] (-6.0,-4) -- (-6.0,-4.5);
+          \draw[->] (-5.4,-4) -- (-5.4,-4.5);
+          
+          % Node l2b (30,35)
+          \draw[->] (-3.9,-4) -- (-3.9,-4.5);
+          \draw[->] (-3.1,-4) -- (-3.1,-4.5);
+          
+          % Node l2c (100,101,110)
+          \draw[->] (-1.8,-4) -- (-1.8,-4.5);
+          \draw[->] (-0.8,-4) -- (-0.8,-4.5);
+          \draw[->] (0.2,-4) -- (0.2,-4.5);
+          
+          % Node l2d (120,130)
+          \draw[->] (1.3,-4) -- (1.3,-4.5);
+          \draw[->] (2.5,-4) -- (2.5,-4.5);
+          
+          % Node l2e (150,156,179)
+          \draw[->] (3.8,-4) -- (3.8,-4.5);
+          \draw[->] (4.6,-4) -- (4.6,-4.5);
+          \draw[->, orange, thick] (5.4,-4) -- (5.4,-4.5);
+          
+          % Node l2f (180,200)
+          \draw[->] (6.8,-4) -- (6.8,-4.5);
+          \draw[->] (7.8,-4) -- (7.8,-4.5);
+          
+          % Highlight the max fan-out with orange arrows
+          % Removed
+          
+        \end{tikzpicture}
+        \caption{B-tree structure with nodes containing multiple values and pointers to child nodes. Leaf nodes have horizontal connections for sequential access and vertical pointers to data records. Note that the max fanout is 4.}
         \label{fig:fanout_ex}
       \end{figure}
 
@@ -297,13 +626,139 @@
         \item If the node has less than $f/2$ pointers, then it is too empty. We can adjust by taking adjacent nodes and moving them from the full nodes to the empty nodes, but this may steal too much from siblings. 
 
         \begin{figure}[H]
-          \centering 
-          \includegraphics[scale=0.4]{img/deletion_1.png}
-          \caption{} 
+          \centering
+          \begin{tikzpicture}[
+            level distance=1.8cm,
+            every node/.style={
+              draw,
+              font=\normalfont,
+              minimum height=0.7cm, 
+              minimum width=1.5cm,
+              text centered
+            },
+            multi-values/.style={
+              minimum width=2cm
+            }
+            ]
+            % Root node (level 0)
+            \node (root) at (0,0) {100};
+            
+            % Level 1 node
+            \node[multi-values] (l1) at (3.5,-1.8) {120 \quad 156 \quad 180};
+            
+            % Level 2 nodes
+            \node[multi-values] (l2a) at (0,-3.6) {100 \quad 101 \quad 110};
+            \node[multi-values] (l2b) at (3,-3.6) {120 \quad 150};
+            \node[multi-values] (l2c) at (5.5,-3.6) {156 \quad \textcolor{red}{\textbf{179}}};
+            \node[multi-values] (l2d) at (8,-3.6) {180 \quad 200};
+            
+            % Arrows connecting the nodes
+            \draw[->] (root) -- ++(-2,-1.5);
+            \draw[->] (root) -- (l1);
+            
+            \draw[->] (l1) -- (l2a);
+            \draw[->] (l1) -- (l2b);
+            \draw[->] (l1) -- (l2c);
+            \draw[->] (l1) -- (l2d);
+            
+            % Horizontal arrows connecting leaf nodes
+            \draw[->] (-1.5,-3.6) -- (l2a);
+            \draw[->] (l2a) -- (l2b);
+            \draw[->] (l2b) -- (l2c);
+            \draw[->] (l2c) -- (l2d);
+            
+            % Vertical arrows from leaf nodes
+            % Node l2a (100,101,110)
+            \draw[->] (-0.6,-4) -- (-0.6,-4.5);
+            \draw[->] (0,-4) -- (0,-4.5);
+            \draw[->] (0.6,-4) -- (0.6,-4.5);
+            
+            % Node l2b (120,150)
+            \draw[->] (2.7,-4) -- (2.7,-4.5);
+            \draw[->] (3.3,-4) -- (3.3,-4.5);
+            
+            % Node l2c (156,157)
+            \draw[->] (5.2,-4) -- (5.2,-4.5);
+            \draw[->] (5.8,-4) -- (5.8,-4.5);
+            
+            % Node l2d (180,200)
+            \draw[->] (7.7,-4) -- (7.7,-4.5);
+            \draw[->] (8.3,-4) -- (8.3,-4.5);
+          \end{tikzpicture}
+          \caption{If you try to delete 179 and take any index from the adjacent leaf nodes, they would be too empty as well!}
           \label{fig:deletion_1}
         \end{figure}
 
         \item The adjacent nodes may be empty as well, and in this case we want to \textbf{coalesce} or merge the nodes together. This results in a dangling pointer, so we delete the pointer and remove a value from the parent node.\footnote{In practice, this is not done every deletion. This reorganizing process can be deferred and the B+ tree property may temporarily not hold.} 
+
+        \begin{figure}[H]
+          \centering
+          \begin{tikzpicture}[
+              level distance=1.8cm,
+              every node/.style={
+                draw,
+                font=\normalfont,
+                minimum height=0.7cm, 
+                minimum width=1.5cm,
+                text centered
+              },
+              multi-values/.style={
+                minimum width=2cm
+              }
+            ]
+            % Root node (level 0)
+            \node (root) at (0,0) {100};
+            
+            % Level 1 node with red 180
+            \node[multi-values] (l1) at (3.5,-1.8) {120 \quad 156 \quad \textcolor{red}{180}};
+            
+            % Cross out the 180 in level 1 node - removed X mark
+            
+            % Level 2 nodes
+            \node[multi-values] (l2a) at (0,-3.6) {100 \quad 101 \quad 110};
+            \node[multi-values] (l2b) at (3,-3.6) {120 \quad 150};
+            \node[multi-values] (l2c) at (6,-3.6) {156 \quad 180 \quad 200};
+            \node[multi-values, draw=red] (l2d) at (9,-3.6) {\quad};
+            
+            % Cross out the blank node - removed X mark
+            
+            % Arrows connecting the nodes
+            \draw[->] (root) -- ++(-2,-1.5);
+            \draw[->] (root) -- (l1);
+            
+            \draw[->] (l1) -- (l2a);
+            \draw[->] (l1) -- (l2b);
+            \draw[->] (l1) -- (l2c);
+            
+            % Arrow from l1 to l2d - fully red, no X mark
+            \draw[->, red] (l1) -- (l2d);
+            
+            % Horizontal arrows connecting leaf nodes
+            \draw[->] (-1.5,-3.6) -- (l2a);
+            \draw[->] (l2a) -- (l2b);
+            \draw[->] (l2b) -- (l2c);
+            
+            % Horizontal arrow from l2c to l2d - fully red, no X mark
+            \draw[->, red] (l2c) -- (l2d);
+            
+            % Vertical arrows from leaf nodes
+            % Node l2a (100,101,110)
+            \draw[->] (-0.6,-4) -- (-0.6,-4.5);
+            \draw[->] (0,-4) -- (0,-4.5);
+            \draw[->] (0.6,-4) -- (0.6,-4.5);
+            
+            % Node l2b (120,150)
+            \draw[->] (2.7,-4) -- (2.7,-4.5);
+            \draw[->] (3.3,-4) -- (3.3,-4.5);
+            
+            % Node l2c (156,180,200)
+            \draw[->] (5.2,-4) -- (5.2,-4.5);
+            \draw[->] (6.0,-4) -- (6.0,-4.5);
+            \draw[->] (6.8,-4) -- (6.8,-4.5);
+          \end{tikzpicture}
+          \caption{You should merge the right node into the node with the deleted element, and then delete the nodes and pointers that are not needed (in red).}
+          \label{fig:btree-deletion}
+        \end{figure}
 
         \begin{figure}[H]
           \centering 
