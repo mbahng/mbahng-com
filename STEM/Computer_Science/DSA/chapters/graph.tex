@@ -963,13 +963,71 @@
 
   Now how do we find out if a directed graph is strongly connected? The straightforward solution would be to take each vertex $v \in V$, run BFS to find the set of vertices reachable from $v$, and do this for every vertex. The total running time is $O(n(n+m))$, which is quadratic. Note that for an undirected graph this is trivial since we just run DFS/BFS once. 
 
-  \begin{theorem}
-    $G$ is strongly connected if and only if for any $v \in V$, 
+  \begin{definition}[Strongly Connected Graph]
+    A graph $G$ is \textbf{strongly connected} if and only if for any $v \in V$, 
     \begin{enumerate}
       \item all of $V$ is reachable from $v$. 
       \item $v$ is reachable from any $s \in V$
     \end{enumerate}
-  \end{theorem}
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}
+          % Define the five nodes in a circular arrangement
+          \def\n{5}
+          \def\radius{2}
+          
+          % Place the nodes
+          \foreach \i/\name in {1/A, 2/B, 3/C, 4/D, 5/E} {
+            \node[draw, circle] (\name) at ({\radius*cos((\i-1)*360/\n+90)}, {\radius*sin((\i-1)*360/\n+90)}) {\name};
+          }
+          
+          % Connect the nodes in a cycle
+          \draw[->] (A) -- (B);
+          \draw[->] (B) -- (C);
+          \draw[->] (C) -- (D);
+          \draw[->] (D) -- (E);
+          \draw[->] (E) -- (A);
+        \end{tikzpicture}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}
+          % Define the five nodes in a circular arrangement
+          \def\n{5}
+          \def\radius{2}
+          
+          % Place the nodes
+          \foreach \i/\name in {1/A, 2/B, 3/C, 4/D, 5/E} {
+            \node[draw, circle] (\name) at ({\radius*cos((\i-1)*360/\n+90)}, {\radius*sin((\i-1)*360/\n+90)}) {\name};
+          }
+          
+          % A connects to all others
+          \draw[<->] (A) -- (B);
+          \draw[<->] (A) -- (C);
+          \draw[<->] (A) -- (D);
+          \draw[<->] (A) -- (E);
+          
+          % B connects to remaining nodes (not A, already handled)
+          \draw[<->] (B) -- (C);
+          \draw[<->] (B) -- (D);
+          \draw[<->] (B) -- (E);
+          
+          % C connects to remaining nodes (not A or B, already handled)
+          \draw[<->] (C) -- (D);
+          \draw[<->] (C) -- (E);
+          
+          % D connects to remaining node (not A, B or C, already handled)
+          \draw[<->] (D) -- (E);
+        \end{tikzpicture}
+      \end{subfigure}
+      \caption{Two examples of strongly connected components.}
+      \label{fig:scc}
+    \end{figure}
+  \end{definition}
 
   \begin{algo}[Determine if Graph is Strongly Connected]
     Using the theorem above, we can run BFS/DFS twice: one on the original graph and one on the reversed graph, consisting of all edges directed in the opposite direction. 
@@ -994,35 +1052,134 @@
       \end{algorithmic}
     \end{algorithm}
     The running time is just running BFS twice plus the time to reverse the edges, so it is $O(n+m)$. 
+  \end{algo} 
+
+  One way to decompose an arbitrary graph is into its strongly connected \textit{component graphs}. Since we know that all nodes in a \textit{strongly connected component (SCC)} is reachable from each other, we can treat each component as a node in a \textit{condensation graph}. 
+
+  \begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.52\textwidth}
+      \centering
+      \begin{tikzpicture}[scale=0.7]
+        % First copy - top left
+        \begin{scope}[scale=0.6, shift={(-2,2)}]
+          % Define the three nodes in a triangular arrangement
+          \node[draw, circle] (A1) at (0,0) {A1};
+          \node[draw, circle] (B1) at (4,0) {B1};
+          \node[draw, circle] (C1) at (2,3) {C1};
+          % Connect the nodes with double arrows
+          \draw[<->, >=Stealth, double] (A1) -- (B1);
+          \draw[<->, >=Stealth, double] (B1) -- (C1);
+          \draw[<->, >=Stealth, double] (C1) -- (A1);
+        \end{scope}
+
+        % Second copy - top right
+        \begin{scope}[scale=0.6, shift={(6,2)}]
+          % Define the three nodes in a triangular arrangement
+          \node[draw, circle] (A2) at (0,0) {A2};
+          \node[draw, circle] (B2) at (4,0) {B2};
+          \node[draw, circle] (C2) at (2,3) {C2};
+          % Connect the nodes with double arrows
+          \draw[<->, >=Stealth, double] (A2) -- (B2);
+          \draw[<->, >=Stealth, double] (B2) -- (C2);
+          \draw[<->, >=Stealth, double] (C2) -- (A2);
+        \end{scope}
+
+        % Third copy - bottom center
+        \begin{scope}[scale=0.6, shift={(2,-3)}]
+          % Define the three nodes in a triangular arrangement
+          \node[draw, circle] (A3) at (0,0) {A3};
+          \node[draw, circle] (B3) at (4,0) {B3};
+          \node[draw, circle] (C3) at (2,3) {C3};
+          % Connect the nodes with double arrows
+          \draw[<->, >=Stealth, double] (A3) -- (B3);
+          \draw[<->, >=Stealth, double] (B3) -- (C3);
+          \draw[<->, >=Stealth, double] (C3) -- (A3);
+        \end{scope}
+        
+        % Connections between graphs
+        \draw[<-, >=Stealth, double] (A2) -- (B1);
+        \draw[->, >=Stealth, double] (A1) -- (A3);
+        \draw[->, >=Stealth, double] (B3) -- (B2);
+      \end{tikzpicture}
+    \end{subfigure}
+    \hfill 
+    \begin{subfigure}[b]{0.44\textwidth}
+      \centering
+      \begin{tikzpicture}[scale=0.7]
+        % Define the three nodes
+        \node[draw, circle] (1) at (0,0) {1};
+        \node[draw, circle] (2) at (3,0) {2};
+        \node[draw, circle] (3) at (1.5,-2) {3};
+        
+        % Draw the directed edges
+        \draw[->] (1) -- (2);
+        \draw[->] (1) -- (3);
+        \draw[->] (3) -- (2);
+      \end{tikzpicture}
+      \caption{}
+      \label{fig:}
+    \end{subfigure}
+    \caption{A graph with 3 strongly connected components, along with its condensation graph. } 
+    \label{fig:scc_condensation}
+  \end{figure}
+
+  \begin{algo}[Kosaraju's SCC Algorithm]
+    Kosaraju's algorithm finds strongly connected components (SCCs) in a directed graph.
+    An SCC is a maximal subgraph where every vertex is reachable from every other vertex.
+    The algorithm works in two phases: Perform DFS on original graph to get finishing order of vertices. Perform DFS on transposed graph in reverse order of finishing times. 
+    \begin{algorithm}[H]
+    \caption{Kosaraju's Algorithm for Strongly Connected Components}
+    \label{alg:kosaraju}
+    \begin{algorithmic}[1]
+      % General explanation of the algorithm
+      % Kosaraju's algorithm finds strongly connected components (SCCs) in a directed graph.
+      % An SCC is a maximal subgraph where every vertex is reachable from every other vertex.
+      % The algorithm works in two phases:
+      % 1. Perform DFS on original graph to get finishing order of vertices
+      % 2. Perform DFS on transposed graph in reverse order of finishing times
+      % Time complexity: O(V+E), Space complexity: O(V)
+    
+      \Procedure{Kosaraju}{$G(V,E)$}
+        \Require{A directed graph $G$ with vertices $V$ and edges $E$}
+        \Ensure{A list of strongly connected components in $G$}
+        
+        \State $L \gets $ empty list \Comment{To store vertices in order of finish time}
+        \State $visited \gets $ set of all vertices initialized to false \Comment{Track visited status for first DFS}
+        
+        \ForAll{$v \in V$} \Comment{First DFS pass to get finishing order}
+          \If{$visited[v] = $ false} \Comment{Only start DFS from unvisited vertices}
+            \State Perform DFS from $v$ in $G$, mark vertices as visited, and add each vertex to the beginning of $L$ after its exploration is complete \Comment{First DFS builds vertex ordering based on finish times}
+          \EndIf
+        \EndFor
+        
+        \State $G^T \gets $ transpose of $G$ \Comment{Create a new graph with all edges reversed}
+        \State $visited \gets $ set of all vertices initialized to false \Comment{Reset for second DFS}
+        \State $SCC \gets $ empty list \Comment{Final result: list of SCC groups}
+        
+        \ForAll{$v \in L$ in order} \Comment{Process vertices by decreasing finish time (L is already in reverse finish order)}
+          \If{$visited[v] = $ false} \Comment{Each unvisited vertex starts a new SCC}
+            \State $component \gets $ empty list \Comment{To collect vertices in current SCC}
+            \State Perform DFS from $v$ in $G^T$, mark vertices as visited, and add each visited vertex to $component$ \Comment{Second DFS identifies all vertices in current SCC}
+            \State add $component$ to $SCC$ \Comment{Store the identified component}
+          \EndIf
+        \EndFor
+        
+        \State \Return $SCC$ \Comment{Return all strongly connected components}
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
   \end{algo}
 
 \subsection{Shortest Path}
 
-  In the shortest path, you are given a \textit{weighted} (positive integer) directed graph and your goal is to find a path from $s$ to $t$ with the smallest length. This is where we use Dijkstra's. What we can do to brute force is just replace a edge with length $k$ to $k$ edges of length $1$, and we run BFS on this. However, this is not efficient since the weights can be unbounded. This is where we introduce Dijkstra. The following is how it is introduced in class. 
+  In the shortest path, you are given a \textit{weighted} (positive integer) directed graph and your goal is to find a path from $s$ to $t$ with the smallest length. So how would we do this? 
 
-  \begin{algo}[General Dijkstra]
-    We can keep a temporarily list $\pi$ of the shortest path we have found so far, and a permanent list \texttt{dist} keeping track of all paths we know are for sure the shortest path. 
-    \begin{algorithm}[H]
-      \label{alg:dik_in_class}
-      \begin{algorithmic}[1]
-        \Require{Graph $G(E, V)$}
-        \State $S \gets \{s\}$  \Comment{set of nodes that we know for sure is shortest}
-        \State dist[s] = 0 and the rest very large numbers \Comment{our final list}
-        \State $\pi[v] = w_{sv}$ for all $v \in V$ \Comment{initialize list with neighboring nodes from start $s$}
-        \Function{Dijkstra}{s}
-          \State $u = \mathrm{argmin}_{v \notin S} \pi[v]$ \Comment{Find node having minimum accum weight so far}
-          \State add $u$ to $S$ \Comment{This node must be shortest so add to $S$}
-          \State $\mathrm{dist}[u] = \pi[u]$ \Comment{Now we can update its shortest path in dist}
-          
-          \For{$v \not\in S$} \Comment{Look at all neighbors of $u$ and update those not in}
-            \State $\pi[v] \gets \min\{\pi[v], d[u] + w_{wv}\}$ \Comment{$S$ since those in $S$ are all guaranteed to be shortest}
-          \EndFor
-        \EndFunction
-      \end{algorithmic}
-    \end{algorithm}
-  \end{algo}
+  The first brute force idea is just replace a edge with length $k$ to $k$ edges of length $1$, and we run BFS on this. However, this has two disadvantages. First, we cannot do this for non-discrete weights since there may be no way to discretize the weights (but if they were integers, we can take the gcd of all edge weights and use this). Second, it may not be efficient since the weights can be unbounded, and so you may end up splitting 1 edge into 1 million edges. However, if we know that the weights are bounded (and discrete) by a factor of $K$, we can use this method to run in $O(K (M + N)) = O(M + N)$. 
 
-  The problem is line 5 above. We don't want this linear search time since it makes the whole thing quadratic, so rather than a list, we can implement a heap, resulting in the code below. 
+  The second is a greedy approach, where we explore as if we were doing BFS, but we greedily choose which edge to explore next by taking the minimum weight in our queue. We can simply do a linear scan to find the minimum, but this may be too slow, leading to quadratric runtime. However, we can use a priority queue (e.g. a min-heap), and so by replacing the queue in BFS with a priority queue (with minimum weights popped off first), we can \textit{Dijkstra's algorithm}. 
+
+  Note that the expensive operation is to push and pop from the heap, and so we would like to minimize this. Therefore, whenever we find a new candidate, we can check with the current shortest distances and not have to push at all if the current path to node $X$ is longer than the already recorded shortest path to $X$. 
 
   \begin{algo}[Dijkstra's Algorithm]
     The general idea is to run a graph traversal like BFS but when you reach a new vertex $v$, you can store the accumulated time it took to get to $v$ and store for all neighbors the accumulated time it will take to get to each of those neighbors. If it is less than what we have currently, then we have found a shorter path and we should update this. 
@@ -1060,7 +1217,110 @@
     You essentially push $n$ times and pop $m$ times, and the time per push and pop is $\log_2 (n)$. Therefore, the total time to push is $n \log(n)$ and to pop is $m \log (n)$, making the total runtime $O(log(n) (n+m))$. 
   \end{algo}
 
-  The first example gotten in class ignores the distances and just attempts to modify the distances in the heap itself (through the decrease key operation). This takes $2 \log_2 (n)$, but if we use a heap with $d$ children, we can modify the runtime to $d \log_d (n)$. Therefore, the total runtime with tunable parameter $d$ is 
+  \begin{example}[Dijkstra's Walkthrough]
+    Let's conduct Dijkstra's on the following graph. We set our \texttt{dist} list to contain the shortest discovered paths $[+\infty, +\infty, +\infty, +\infty]$ and initialize our priority queue (min-heap) with our starting node $\langle (0, A) \rangle$.
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          node/.style={circle, draw, minimum size=0.8cm},
+          arrow/.style={-Stealth, thick}
+          ]
+          % Define the nodes
+          \node[node, red] (A) at (0,0) {A};
+          \node[node, blue] (B) at (3,0) {B};
+          \node[node, blue] (C) at (3,-2) {C};
+          \node[node] (D) at (0,-2) {D};
+          
+          % Connect the nodes with directed edges and weights
+          \draw[arrow, red] (A) -- node[above] {5} (B);
+          \draw[arrow] (B) -- node[right] {3} (C);
+          \draw[arrow] (C) -- node[below] {3} (D);
+          \draw[arrow] (D) -- node[left] {2} (A);
+          \draw[arrow, red] (A) -- node[above, pos=0.8] {7} (C);
+          \draw[arrow] (B) -- node[above, pos=0.8] {6} (D);
+        \end{tikzpicture}
+        \caption{You first pop $A$ from priority queue and have current weight $0$. You see that you can explore $B$ with weight $5$ and $C$ with weight $7$, so you immediately update the shortest paths to $B$ and $C$ and visually mark the edges as visited. You then add the nodes to your minheap, which is $\langle (7, C), (5, B) \rangle$. Our shortest path for the start node is updated to $[0, 5, 7, +\infty]$.}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          node/.style={circle, draw, minimum size=0.8cm},
+          arrow/.style={-Stealth, thick}
+          ]
+          % Define the nodes
+          \node[node, red] (A) at (0,0) {A};
+          \node[node, red] (B) at (3,0) {B};
+          \node[node, blue] (C) at (3,-2) {C};
+          \node[node, blue] (D) at (0,-2) {D};
+          
+          % Connect the nodes with directed edges and weights
+          \draw[arrow, red] (A) -- node[above] {5} (B);
+          \draw[arrow, red] (B) -- node[right] {3} (C);
+          \draw[arrow] (C) -- node[below] {3} (D);
+          \draw[arrow] (D) -- node[left] {2} (A);
+          \draw[arrow, red] (A) -- node[above, pos=0.8] {7} (C);
+          \draw[arrow, red] (B) -- node[above, pos=0.8] {6} (D);
+        \end{tikzpicture}
+        \caption{You pop $B$ off the priority queue and have current weight $5$. You see that you can explore $C$ with weight $3$, so total weight $3+5 = 8$, but this is already longer than the recorded shortest path of 7, so skip this. You also see that you can explore $D$ with weight $4$, so total weight $4+5=9$. You add $(11, D)$ to your priority queue: $\langle (11, D), (7, C)\rangle$. $[0, 5, 7, 11]$.}
+      \end{subfigure}
+
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          node/.style={circle, draw, minimum size=0.8cm},
+          arrow/.style={-Stealth, thick}
+          ]
+          % Define the nodes
+          \node[node, red] (A) at (0,0) {A};
+          \node[node, red] (B) at (3,0) {B};
+          \node[node, red] (C) at (3,-2) {C};
+          \node[node, blue] (D) at (0,-2) {D};
+          
+          % Connect the nodes with directed edges and weights
+          \draw[arrow, red] (A) -- node[above] {5} (B);
+          \draw[arrow, red] (B) -- node[right] {3} (C);
+          \draw[arrow, red] (C) -- node[below] {3} (D);
+          \draw[arrow] (D) -- node[left] {2} (A);
+          \draw[arrow, red] (A) -- node[above, pos=0.8] {7} (C);
+          \draw[arrow, red] (B) -- node[above, pos=0.8] {6} (D);
+        \end{tikzpicture}
+        \caption{You pop $C$ off the priority queue with weight $7$. You can explore $D$ with weight $3$, so total weight $3+7=10$. You add $(10, D)$ to the priority queue and update the shortest distance. $\langle (11, D), (10, D) \rangle$. You can alternatively use the decrease-key operation of a min-heap to directly modify $(11, D)$ to $(10, D)$ in $\log(n)$ time to get $\langle (10, D) \rangle$. Note that both requires $2 \log(n)$ operations $[0, 5, 7, 10]$}.
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          node/.style={circle, draw, minimum size=0.8cm},
+          arrow/.style={-Stealth, thick}
+          ]
+          % Define the nodes
+          \node[node, red] (A) at (0,0) {A};
+          \node[node, red] (B) at (3,0) {B};
+          \node[node, red] (C) at (3,-2) {C};
+          \node[node, red] (D) at (0,-2) {D};
+          
+          % Connect the nodes with directed edges and weights
+          \draw[arrow, red] (A) -- node[above] {5} (B);
+          \draw[arrow, red] (B) -- node[right] {3} (C);
+          \draw[arrow, red] (C) -- node[below] {3} (D);
+          \draw[arrow, red] (D) -- node[left] {2} (A);
+          \draw[arrow, red] (A) -- node[above, pos=0.8] {7} (C);
+          \draw[arrow, red] (B) -- node[above, pos=0.8] {6} (D);
+        \end{tikzpicture}
+        \caption{Assuming you haven't used decrease-key, you pop $D$ off the priority queue with current weight $10$. $\langle (11, D) \rangle$ and $[0, 5, 7, 10]$. You can reach $A$ from $D$, but it has a weight of $2$ for a total weight of $12$, which is greater than $0$, so skip this. If you have not used the decrease-key operation, you must pop off $D$ once more with current weight of $11$, but this is already larger than $10$, so skip this. the priority queue is empty and our shortest distances is finished. }
+      \end{subfigure}
+
+      \caption{Walkthrough of Dijkstra on a small graph. Red represents the nodes/edges you have explored, and blue represents the ones in your priority queue. }
+      \label{fig:dijkstra_algo}
+    \end{figure}
+
+    Note that the decrease-key operation is needed to ensure that we only push and pop off exactly once. Otherwise we may have a long line of unnecessary pushes for a single node, especially if $D$ has in-edges from every other node.  
+  \end{example}
+
+  Note that the number of pushes and pops in the heap can change depending on the order in which you check. In general, updating the shortest path list as you push onto the heap (rather than when you pop off the heap) allows you to save the most computation. However, whether we use the decrease-key operation or push/pop the same node another time from the heap does not affect the fact that we have an extra $\log(n)$ operation. However, if we use a heap with $d$ children, we can modify the runtime to $d \log_d (n)$. Therefore, the total runtime with tunable parameter $d$ is 
   \begin{equation}
     O\big( (m + nd) \log_d (n)\big)
   \end{equation}
@@ -1070,11 +1330,82 @@
 
   Now let's extend this problem to find the shortest path in negative weighted graphs. Before we think of a solution, we must make sure that there is no cycle that has a negative accumulated path. Otherwise, this problem becomes ill-defined, so we first assume that such a shortest path exists. 
 
-  At first glance, we may just think of adding $\min(v)$, the minimum value to every node so that this now just becomes a regular positive graph and run BFS on it. However, this does not work since we are not adding a constant number over all paths (it is proportional to the number of nodes in the path). 
+  This seems like a very similar problem to Dijkstra, but it turns out that in many computer science problems---including this one---a slight modification to a problem can drastically affect the best method to solve it, or even if it is efficiently solvable at all. Let's try to just run Dijkstra, but we can construct a counterexample where this wouldn't work. 
 
-  Another way we can think of is just run Dijkstra. However, if it is looking at two paths. We can have $s \xrightarrow{2} b$ and $s \xrightarrow{5} a \xrightarrow{-4} b$. Dijkstra will immediately go to $b$ thinking that it is the shortest path, since that's how far it see. So we need to look far into the future. Therefore, after an arbitrarily long path length, you could get a negative length that just kills your accumulator.  
+  \begin{figure}[H]
+    \centering 
+    \begin{tikzpicture}[
+      node/.style={circle, draw, minimum size=0.8cm},
+      arrow/.style={-Stealth, thick}
+      ]
+      % Define the nodes in a diamond arrangement
+      \node[node] (A) at (0,0) {$A$};
+      \node[node] (B) at (3,0) {$B$};
+      \node[node] (C) at (1.5,2) {$C$};
+      \node[node] (D) at (1.5,-2) {$D$};
+      
+      % Connect the nodes with directed edges and weights
+      \draw[arrow] (A) -- node[above] {1} (B);
+      \draw[arrow] (A) -- node[above, left] {0} (C);
+      \draw[arrow] (A) -- node[left] {99} (D);
+      \draw[arrow] (B) -- node[above, right] {1} (C);
+      \draw[arrow] (D) -- node[below right] {-300} (B);
+    \end{tikzpicture}
+    \caption{When you pop off the starting node $A$, we have $[0, 1, 0, 99]$. Then you expand out node $C$, which has no changes since there's no outgoing nodes. Then you expand out node $B$, which has no effect. Then you expand out $D$, which changes $[0, -299, 0, 99]$. However, the shortest path to $C$ is $A \rightarrow D \rightarrow B \rightarrow C$ of weight $-200$.}
+  \end{figure} 
 
-  We use the Bellman equations, which could be solved using dynamic programming like we've seen before. 
+  We can see that for Dijkstra, its greedy nature doesn't allow it to forsee far into the future. Somewhere along a path where Dijkstra may not think is shortest, may exist an edge with a very negative weight that just kills your accumulator. Therefore, a greedy solution may not work. 
+
+  These pesky negative weights are the root of this problem, so we may think of adding $\min(v)$, the minimum weight to every edge so that this now just becomes a regular positive graph and run Dijkstra on it. However, this does not work since we are not adding a constant number over all paths (it is proportional to the number of nodes in the path). 
+
+  \begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}[
+        node/.style={circle, draw, minimum size=0.8cm},
+        arrow/.style={-Stealth, thick}
+        ]
+        % Define the nodes in a row
+        \node[node] (A) at (0,0) {A};
+        \node[node] (B) at (3,0) {B};
+        \node[node] (C) at (6,0) {C};
+        
+        % Draw straight arrows with weight -2
+        \draw[arrow] (A) -- node[above] {-2} (B);
+        \draw[arrow] (B) -- node[above] {-2} (C);
+        
+        % Draw curved arrow from A to C with weight -3
+        \draw[arrow] (A) to[bend left=40] node[above] {-3} (C);
+      \end{tikzpicture}
+      \caption{The shortest path from $A$ to $C$ is $A \rightarrow B \rightarrow C$ with weight $-4$. }
+    \end{subfigure}
+    \hfill 
+    \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}[
+        node/.style={circle, draw, minimum size=0.8cm},
+        arrow/.style={-Stealth, thick}
+        ]
+        % Define the nodes in a row
+        \node[node] (A) at (0,0) {A};
+        \node[node] (B) at (3,0) {B};
+        \node[node] (C) at (6,0) {C};
+        
+        % Draw straight arrows with weight -2
+        \draw[arrow] (A) -- node[above] {1} (B);
+        \draw[arrow] (B) -- node[above] {1} (C);
+        
+        % Draw curved arrow from A to C with weight -3
+        \draw[arrow] (A) to[bend left=40] node[above] {0} (C);
+      \end{tikzpicture}
+      \caption{The shortest path from $A$ to $C$ is $A \rightarrow C$ with weight $0$, which is not the true solution.}
+    \end{subfigure}
+    \caption{Shortest negative paths may not be the same after adding constants to every edge, since paths of different lengths get different added weights.}
+    \label{fig:dij_not_for_bellman}
+  \end{figure}
+
+  So it's pretty clear that we can't use Dijkstra, and we must develop a completely new way. In fact, there is a 50-year conjecture that this cannot be improved to linear time. To develop our new method, we can use the Bellman equations.
 
   \begin{theorem}[Bellman Equations]
     We write the \textbf{Bellman equations}. 
@@ -1095,9 +1426,10 @@
     Given the shortest paths, we can lay out this graph like a tree where $l_{ab} = l_{a a_1} + l_{a_1 a_2} + \ldots + l_{a_l b}$. 
   \end{theorem}
 
-  So how do we actually implement this? 
+  To implement this theory, we should think of an iterative update that checks for all paths that may be of length $N-1$ (since length $N$ paths are guaranteed to be cycles). 
 
-  \begin{algo}[Shortest Path in Possibly Negative Weighted Graph]
+  \begin{algo}[Bellman Ford]
+    The general idea is that we want to keep a list of the shortest paths to each node, and we iterate through the whole graph $N-1$ times. Within each iteration, we loop through all of the nodes, look at each node's outgoing edges, and try to update the minimum distance to each path. Therefore, by the end of the $i$th iteration, we can find all shortest paths up to length $i$, which is why by the end of the $N-1$ iteration, we will have seen all the non-cycle paths.    
     \begin{algorithm}[H]
       \label{alg:neg_weighted_short_path}
       \begin{algorithmic}[1]
@@ -1127,7 +1459,7 @@
 
   A better way is to not be so random about how we choose the $(u, v)$ in the while loop. Notice how we can lay out the shortest paths like a tree, so we can work in layers. The next algorithm implements this. 
 
-  \begin{algo}[Bellman-Ford Algorithm]
+  \begin{algo}[Bellman Ford with Smart Ordering]
     We think of going in rounds indexed by $t$, and at every round, we are iterating through all the nodes and updating the shortest path of $v$ using the shortest path of $w$ included in all in-neighbors of $v$. At most, we will need to update this at most $n$ times, which will guarantee convergence.  
     \begin{algorithm}[H]
       \label{alg:bellman_ford}
@@ -1153,7 +1485,177 @@
     \end{enumerate}
   \end{algo}
 
-  At first glance, this problem seems like it isn't too different from Dijkstra, but there is a 50-year conjecture that this cannot be improved to linear time. 
+  \begin{example}[Bellman-Ford Walkthrough]
+    Let's conduct Bellman-Ford on the following graph. Thanks to this \href{https://www.youtube.com/watch?v=obWXjtg0L64&ab_channel=MichaelSambol}{youtube video}. Note that the graph below has a cycle $A \rightarrow C \rightarrow B \rightarrow A$, but it has a positive total weight, so this is fine. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          node/.style={circle, draw, minimum size=0.8cm},
+          arrow/.style={-Stealth, thick}
+          ]
+          % Define the nodes based on the hand-drawn graph layout
+          \node[node, red] (S) at (2,3) {$S$};
+          \node[node] (E) at (0,2) {$E$};
+          \node[node] (A) at (4,2) {$A$};
+          \node[node] (D) at (0,0) {$D$};
+          \node[node] (B) at (4,0) {$B$};
+          \node[node] (C) at (2,-1) {$C$};
+          
+          % Connect the nodes with directed edges and weights
+          \draw[arrow] (S) -- node[above, left] {8} (E);
+          \draw[arrow] (S) -- node[above, right] {10} (A);
+          \draw[arrow] (E) -- node[left] {1} (D);
+          \draw[arrow] (D) -- node[above, pos=0.4] {-4} (A);
+          \draw[arrow] (D) -- node[below, left] {-1} (C);
+          \draw[arrow] (A) -- node[right, pos=0.6] {2} (C);
+          \draw[arrow] (C) -- node[below, right] {-2} (B);
+          \draw[arrow] (B) -- node[right] {1} (A);
+        \end{tikzpicture}
+        \caption{We set $\pi = [0, \infty, \infty, \infty, \infty, \infty]$. Since there are 6 nodes, we will have 5 iterations and will go through the nodes expanding out from $S$ of the order $S, A, B, C, D, E$, though we can go through in any order. That is, for each iteration, we will look at node $X$ and all of its outgoing edges to its out neighbors $Y$, and we will update $\pi[Y]$ accordingly. Doing this at iteration $i$ will allow us to compute the shortest path to node $Y$ up to length $i$. }
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          node/.style={circle, draw, minimum size=0.8cm},
+          arrow/.style={-Stealth, thick}
+          ]
+          % Define the nodes based on the hand-drawn graph layout
+          \node[node, red] (S) at (2,3) {$S$};
+          \node[node] (E) at (0,2) {$E$};
+          \node[node] (A) at (4,2) {$A$};
+          \node[node] (D) at (0,0) {$D$};
+          \node[node] (B) at (4,0) {$B$};
+          \node[node] (C) at (2,-1) {$C$};
+          
+          % Connect the nodes with directed edges and weights
+          \draw[arrow] (S) -- node[above, left] {8} (E);
+          \draw[arrow] (S) -- node[above, right] {10} (A);
+          \draw[arrow] (E) -- node[left] {1} (D);
+          \draw[arrow] (D) -- node[above, pos=0.4] {-4} (A);
+          \draw[arrow] (D) -- node[below, left] {-1} (C);
+          \draw[arrow] (A) -- node[right, pos=0.6] {2} (C);
+          \draw[arrow] (C) -- node[below, right] {-2} (B);
+          \draw[arrow] (B) -- node[right] {1} (A);
+        \end{tikzpicture}
+        \caption{1st Iteration. The outgoing edges of $S$ is $A$ and $E$ with total cost $0+10 = 10$ and $0+8=8$ and update $\pi$. For $A$, its out neighbors is $C$ with total cost of $10+2=12$, so update $\pi$. Then for $B$ we don't know how to reach it yet, so skip. For $C$, its out neighbors is $B$ with total cost $12 - 2 = 10$. For $D$, we don't know how to reach it yet so skip. For $E$, its out neighbors is $D$ with cost $8+1$, so update $\pi$. We have $\pi = [0, 10, 10, 12, 9, 8]$. }
+      \end{subfigure}
+
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          node/.style={circle, draw, minimum size=0.8cm},
+          arrow/.style={-Stealth, thick}
+          ]
+          % Define the nodes based on the hand-drawn graph layout
+          \node[node, red] (S) at (2,3) {$S$};
+          \node[node] (E) at (0,2) {$E$};
+          \node[node] (A) at (4,2) {$A$};
+          \node[node] (D) at (0,0) {$D$};
+          \node[node] (B) at (4,0) {$B$};
+          \node[node] (C) at (2,-1) {$C$};
+          
+          % Connect the nodes with directed edges and weights
+          \draw[arrow] (S) -- node[above, left] {8} (E);
+          \draw[arrow] (S) -- node[above, right] {10} (A);
+          \draw[arrow] (E) -- node[left] {1} (D);
+          \draw[arrow] (D) -- node[above, pos=0.4] {-4} (A);
+          \draw[arrow] (D) -- node[below, left] {-1} (C);
+          \draw[arrow] (A) -- node[right, pos=0.6] {2} (C);
+          \draw[arrow] (C) -- node[below, right] {-2} (B);
+          \draw[arrow] (B) -- node[right] {1} (A);
+        \end{tikzpicture}
+        \caption{2nd Iteration. For $S$ its outgoing edges are $A$ and $E$, but there are no updates to do since it doesn't improve our distances. Same with $A, B, C$. For $D$, we can reach $A$ with cost $9-4=5$ and $C$ with cost $9-1=8$, so update $\pi$. For $E$, there are no improvements, so skip this. $\pi = [0, 5, 10, 8, 9, 8]$.}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          node/.style={circle, draw, minimum size=0.8cm},
+          arrow/.style={-Stealth, thick}
+          ]
+          % Define the nodes based on the hand-drawn graph layout
+          \node[node, red] (S) at (2,3) {$S$};
+          \node[node] (E) at (0,2) {$E$};
+          \node[node] (A) at (4,2) {$A$};
+          \node[node] (D) at (0,0) {$D$};
+          \node[node] (B) at (4,0) {$B$};
+          \node[node] (C) at (2,-1) {$C$};
+          
+          % Connect the nodes with directed edges and weights
+          \draw[arrow] (S) -- node[above, left] {8} (E);
+          \draw[arrow] (S) -- node[above, right] {10} (A);
+          \draw[arrow] (E) -- node[left] {1} (D);
+          \draw[arrow] (D) -- node[above, pos=0.4] {-4} (A);
+          \draw[arrow] (D) -- node[below, left] {-1} (C);
+          \draw[arrow] (A) -- node[right, pos=0.6] {2} (C);
+          \draw[arrow] (C) -- node[below, right] {-2} (B);
+          \draw[arrow] (B) -- node[right] {1} (A);
+        \end{tikzpicture}
+        \caption{3rd Iteration. For $S$, there are no updates. For $A$, we can reach $C$ with a cost of $5+2=7$, so update $\pi$. For $B$, there are no updates. For $C$, we can reach the out neighbor $B$ with a cost of $7-2=5$, so update $\pi$. There are no more updates for the rest of the nodes $C, D, E$. So we have $\pi = [0, 5, 5, 7, 9, 8]$.}
+      \end{subfigure}
+
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          node/.style={circle, draw, minimum size=0.8cm},
+          arrow/.style={-Stealth, thick}
+          ]
+          % Define the nodes based on the hand-drawn graph layout
+          \node[node, red] (S) at (2,3) {$S$};
+          \node[node] (E) at (0,2) {$E$};
+          \node[node] (A) at (4,2) {$A$};
+          \node[node] (D) at (0,0) {$D$};
+          \node[node] (B) at (4,0) {$B$};
+          \node[node] (C) at (2,-1) {$C$};
+          
+          % Connect the nodes with directed edges and weights
+          \draw[arrow] (S) -- node[above, left] {8} (E);
+          \draw[arrow] (S) -- node[above, right] {10} (A);
+          \draw[arrow] (E) -- node[left] {1} (D);
+          \draw[arrow] (D) -- node[above, pos=0.4] {-4} (A);
+          \draw[arrow] (D) -- node[below, left] {-1} (C);
+          \draw[arrow] (A) -- node[right, pos=0.6] {2} (C);
+          \draw[arrow] (C) -- node[below, right] {-2} (B);
+          \draw[arrow] (B) -- node[right] {1} (A);
+        \end{tikzpicture}
+        \caption{4th Iteration. We go through all the nodes and see that none of the weights have been updated. We are done. }
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          node/.style={circle, draw, minimum size=0.8cm},
+          arrow/.style={-Stealth, thick}
+          ]
+          % Define the nodes based on the hand-drawn graph layout
+          \node[node, red] (S) at (2,3) {$S$};
+          \node[node] (E) at (0,2) {$E$};
+          \node[node] (A) at (4,2) {$A$};
+          \node[node] (D) at (0,0) {$D$};
+          \node[node] (B) at (4,0) {$B$};
+          \node[node] (C) at (2,-1) {$C$};
+          
+          % Connect the nodes with directed edges and weights
+          \draw[arrow] (S) -- node[above, left] {8} (E);
+          \draw[arrow] (S) -- node[above, right] {10} (A);
+          \draw[arrow] (E) -- node[left] {1} (D);
+          \draw[arrow] (D) -- node[above, pos=0.4] {-4} (A);
+          \draw[arrow] (D) -- node[below, left] {-1} (C);
+          \draw[arrow] (A) -- node[right, pos=0.6] {2} (C);
+          \draw[arrow] (C) -- node[below, right] {-2} (B);
+          \draw[arrow] (B) -- node[right] {1} (A);
+        \end{tikzpicture}
+        \caption{The 5th iteration is not needed but it is needed in general. }
+      \end{subfigure}
+      \caption{}
+      \label{fig:bellman_walkthrough}
+    \end{figure}
+  \end{example}
+
 
 \subsection{All Pairs Shortest Paths} 
 
