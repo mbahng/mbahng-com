@@ -1,134 +1,412 @@
 \section{Brute Force Algorithms} 
 
+  So far we have only dealt with algorithms that interact directly with a data structure as an operation. While this is very useful, it's not very fun. Beginning from here, we will consider real-world problems and use data structures more as a \textit{tool} rather than the primary object of study. 
+
+  The first step to building an efficient correct algorithm is to build a correct algorithm, and that is what we focus on here. There are two types of efficiency we have to focus on here. The first is time complexity, which we have done so far. The second refers to the size of the data structures that we use. Obviously we don't want to use a list of size 1000 if a list of size 10 is needed, and so this is referred to as \textit{memory complexity}, which will also be mentioned. 
+
+  Many of these problems will be revisited, either with more efficient solutions or proofs that these brute-force methods are the best that we can do. 
+
 \subsection{Basic Arithmetic}
 
-  In here, we use basic deductions from elementary algebra to give us a starting point at which we analyze fundamental arithmetic algorithms. 
+  In here, we use basic deductions from elementary algebra to give us a starting point at which we analyze fundamental arithmetic algorithms. When we do addition of two numbers, we learn in elementary school to add the least significant digits first and continue on, carrying the $1$ over to the next digit if needed. This is essentially an algorithm. We are also used to doing this in base 10, but we can do it in any base. For reasons that we will see in my computer architecture notes, I will conduct this in base 2. 
 
-  \begin{theorem}[Complexity of Addition]
-    The complexity of addition of two $O(N)$ values with $n$ bits is
-    \begin{enumerate}
-      \item $O(n)$ bit complexity. 
-      \item $O(\log N)$ complexity. 
-      \item $O(1)$ memory complexity. 
-    \end{enumerate}
-    By the same logic, the complexity of subtraction is 
-    \begin{enumerate}
-      \item $O(n)$ bit complexity. 
-      \item $O(\log N)$ complexity. 
-      \item $O(1)$ memory complexity. 
-    \end{enumerate}
-  \end{theorem}
-  \begin{proof}
-    To see bit complexity, we are really taking each bit of each number and adding them together, plus a potential carry operation. Therefore, we are doing a bounded number of computations per bit, which is $O(1)$, but we must at least read through all of the bits, making this $O(\max\{n, m\})$. 
-  \end{proof}
+  \begin{algo}[Adding Two Integers]
+    Given two integers $x, y$ with $n$ bits each, we can add them in the following way. 
+    \begin{algorithmic}[1]  
+      \Require{$x = x_n \ldots x_1, y = y_n \ldots y_1$}
 
-  \begin{theorem}[Complexity of Multiplication]
-    The complexity of multiplication of two values $N, M$ with bits $n, m$ is 
-    \begin{enumerate}
-      \item $O(n^2)$ bit complexity.\footnote{It turns out we can do better, which we will learn later.} 
-      \item $O((\log n)^2)$ complexity. 
-      \item 
-    \end{enumerate}
-  \end{theorem}
+      \Procedure{Add}{$x$, $y$} 
+        \State $z = [0, \ldots, 0]$ of size $n+1$ \Comment{Initialize array to store result.} 
+        \State $c = 0$ \Comment{Stores value to carry over}
+        \For{$i \gets 1, \ldots n$} 
+          \State $z_i \gets x_i + y_i + c$ 
+          \If{$z_i > 1$}  
+            \State $z_i \gets z_i - 2$ 
+            \State $c \gets 1$
+          \Else 
+            \State $c \gets 0$
+          \EndIf  
+        \EndFor 
+        
+        \If{$c > 0$} 
+          \State $z[n+1] \gets 1$  
+        \EndIf
+      \State \Return $z_{n+1} z_n \ldots z_1$
+      \EndProcedure
+    \end{algorithmic} 
 
-  \begin{theorem}[Complexity of Division]
-    The complexity of multiplication of two values $N, M$ with bits $n, m$ is 
-    \begin{enumerate}
-      \item $O(n^2)$ bit complexity. 
-      \item 
-    \end{enumerate}
-  \end{theorem}
+    This gives us a total complexity of $\Theta(n)$, since we are looping over the $n$ bits, plus a constant operation to check for the most significant digit. It also has a memory complexity of $O(n)$.\footnote{Note that we have also used addition in our add function! In here, note that $x_i, y_i, c$ are all either $0$ or $1$, so it will take at most constant time to add all of them. Hence we can treat these addition as $\Theta(1)$. } 
+  \end{algo} 
 
-  \begin{theorem}[Complexity of Modulus]
-    The complexity of multiplication of two values $N, M$ with bits $n, m$ is 
-    \begin{enumerate}
-      \item $O(n^2)$ bit complexity. 
-      \item 
-    \end{enumerate}
-  \end{theorem}
+  By the same logic, the time and memory complexity of subtraction are both also $\Theta(n)$ in the number of bits $n$. 
 
-  \begin{theorem}[Complexity of Exponentiation]
-    The complexity of multiplication of two values $N, M$ with bits $n, m$ is 
-    \begin{enumerate}
-      \item $O(n^2)$ bit complexity. 
-      \item 
-    \end{enumerate}
-  \end{theorem}
+  \begin{algo}[Multiplying Two Integers]
+    Given two integers $x, y$ with $n$ bits each, we can multiply them in the following way.
+    \begin{algorithmic}[1]  
+      \Require{$x = x_n \ldots x_1, y = y_n \ldots y_1$}
+      \Procedure{Multiply}{$x$, $y$} 
+        \State $z = [0, \ldots, 0]$ of size $2n$ \Comment{Initialize array to store result.} 
+        \For{$i \gets 1, \ldots, n$} 
+          \If{$y_i = 1$}
+            \State $carry \gets 0$
+            \For{$j \gets 1, \ldots, n$}
+              \State $pos \gets i + j - 1$ \Comment{Position in result}
+              \State $sum \gets z_{pos} + x_j + carry$
+              \State $z_{pos} \gets sum \bmod 2$
+              \State $carry \gets \lfloor sum / 2 \rfloor$
+            \EndFor
+            \State $z_{i+n} \gets carry$
+          \EndIf
+        \EndFor
+      \State \Return $z_{2n} z_{2n-1} \ldots z_1$
+      \EndProcedure
+    \end{algorithmic} 
+    This algorithm has a time complexity of $O(n^2)$, since for each bit of $y$ we potentially need to perform $n$ additions. The space complexity is $O(n)$ to store the result, which can be up to $2n$ bits long. 
+  \end{algo}
 
-  \begin{theorem}[Complexity of Square Root]
-    The complexity of multiplication of two values $N, M$ with bits $n, m$ is 
-    \begin{enumerate}
-      \item $O(n^2)$ bit complexity. 
-      \item 
-    \end{enumerate}
-  \end{theorem}
+  \begin{algo}[Integer Division and Modulus]
+    Given two non-negative integers, a dividend $x$ and a divisor $y$, we can compute the quotient $\lfloor x/y \rfloor$ and remainder $r$ such that $x = y \cdot \lfloor x/y \rfloor + r$ and $0 \leq r < y$. This algorithm implements long division in binary, processing the dividend bit by bit from most to least significant. 
+    \begin{algorithmic}[1]  
+      \Require{$x \geq 0$ with $n$ bits, $y > 0$ with $m$ bits} \Comment{Input: dividend $x$ and divisor $y$}
+      \Procedure{Divide}{$x$, $y$} 
+        \If{$y = 0$} \Comment{Check for division by zero}
+          \State \Return error \Comment{Division by zero is undefined}
+        \EndIf
+        
+        \If{$x < y$} \Comment{Handle case where result is 0}
+          \State \Return $(0, x)$ \Comment{Quotient is 0, remainder is $x$}
+        \EndIf
+        
+        \State $quotient \gets 0$ \Comment{Initialize quotient}
+        \State $remainder \gets 0$ \Comment{Initialize remainder}
+        
+        \For{$i \gets n, n-1, \ldots, 1$} \Comment{Process bits from most to least significant}
+          \State $remainder \gets 2 \cdot remainder + x_i$ \Comment{Shift remainder left and add next bit}
+          
+          \If{$remainder \geq y$} \Comment{If remainder is at least the divisor}
+            \State $remainder \gets remainder - y$ \Comment{Subtract divisor from remainder}
+            \State $quotient \gets quotient \cdot 2 + 1$ \Comment{Set current bit of quotient to 1}
+          \Else
+            \State $quotient \gets quotient \cdot 2$ \Comment{Set current bit of quotient to 0}
+          \EndIf
+        \EndFor
+        
+        \State \Return $(quotient, remainder)$ \Comment{Return both quotient and remainder}
+      \EndProcedure
+    \end{algorithmic}
+    The time complexity is $O(n \cdot m)$, where $n$ is the number of bits in the dividend and $m$ is the number of bits in the divisor. This is because for each of the $n$ bits, we may need to perform a subtraction operation which takes $O(m)$ time. The space complexity is $O(n)$ to store the quotient and $O(m)$ to store the remainder, for a total of $O(n + m)$.
+  \end{algo}
 
-  \begin{definition}[Factorial]
-    
-  \end{definition}
+  \begin{algo}[Integer Exponentiation]
+    Given an integer $x$ with $n$ bits and a non-negative integer exponent $y$, we can compute $x^y$ efficiently using the binary exponentiation method.
+    \begin{algorithmic}[1]  
+      \Require{$x$ with $n$ bits, $y = y_m \ldots y_1$ with $m$ bits} \Comment{Input: base $x$ and exponent $y$ in binary}
+      \Procedure{Exponentiate}{$x$, $y$} 
+        \State $result \gets 1$ \Comment{Initialize result to identity element for multiplication}
+        \State $base \gets x$ \Comment{Initialize base to the original input value}
+        \For{$i \gets 1, \ldots, m$} \Comment{Iterate through each bit of the exponent}
+          \If{$y_i = 1$} \Comment{If current bit is set (equals 1)}
+            \State $result \gets \text{Multiply}(result, base)$ \Comment{Include current power in the result}
+          \EndIf
+          \State $base \gets \text{Multiply}(base, base)$ \Comment{Square the base for next iteration (creating $x^{2^i}$)}
+        \EndFor
+      \State \Return $result$ \Comment{Return the final computed value $x^y$}
+      \EndProcedure
+    \end{algorithmic} 
+    This algorithm has a time complexity of $O(m \cdot n^2)$, where $m$ is the number of bits in the exponent and $n$ is the number of bits in the base. This is because we perform at most $m$ multiplications, and each multiplication (using the standard algorithm) takes $O(n^2)$ time. The space complexity is $O(n \cdot 2^m)$ in the worst case, as the result can grow exponentially with the exponent value.
+  \end{algo}
+
+  \begin{algo}[Factorial]
+    Given a non-negative integer $n$, we can compute $n!$ as such. 
+    \begin{algorithmic}[1]
+      \Require{$n \geq 0$} \Comment{Input: non-negative integer $n$}
+      \Procedure{Factorial}{$n$}
+        \If{$n = 0$ or $n = 1$} \Comment{Handle base cases}
+          \State \Return $1$ \Comment{0! = 1! = 1 by definition}
+        \EndIf
+        
+        \State $result \gets 1$ \Comment{Initialize result}
+        
+        \For{$i \gets 2, 3, \ldots, n$} \Comment{Multiply by each integer from 2 to n}
+          \State $result \gets \text{Multiply}(result, i)$ \Comment{Accumulate product}
+        \EndFor
+        
+        \State \Return $result$ \Comment{Return $n!$}
+      \EndProcedure
+    \end{algorithmic}
+    This algorithm implements the direct definition of factorial by iteratively multiplying all integers from 2 to $n$. The time complexity is $O(n \cdot s^2)$, where $n$ is the input value and $s$ is the maximum number of bits needed to represent the intermediate results (which can be up to $O(\log(n!)) = O(n \log n)$ bits). This is because we perform $O(n)$ multiplications, and each multiplication between numbers with $s$ bits takes $O(s^2)$ time using the standard algorithm. The space complexity is $O(s) = O(n \log n)$ to store the result, which grows very rapidly with $n$.
+  \end{algo}
 
 \subsection{Lists} 
 
-  \begin{definition}[Max and Min of List]
-    
-  \end{definition}
-
-  \begin{definition}[Bubble Sort]
-
-  \end{definition}
-
-  \begin{definition}[Binary Search]
-    
-  \end{definition}
+  \begin{algo}[Max and Min of List]
+    Given a list of $n$ elements $A = [a_1, a_2, \ldots, a_n]$, we can find both the maximum and minimum values in the following way.
+    \begin{algorithmic}[1]
+      \Require{$A = [a_1, a_2, \ldots, a_n]$} \Comment{Input: list of $n$ elements}
+      \Procedure{FindMaxAndMin}{$A$}
+        \If{length of $A = 0$} \Comment{Handle empty list}
+          \State \Return (undefined, undefined)
+        \EndIf
+        
+        \State $max \gets A[1]$ \Comment{Initialize max with first element}
+        \State $min \gets A[1]$ \Comment{Initialize min with first element}
+        
+        \For{$i \gets 2, 3, \ldots, n$} \Comment{Iterate through remaining elements}
+          \If{$A[i] > max$} \Comment{Update maximum if needed}
+            \State $max \gets A[i]$
+          \EndIf
+          
+          \If{$A[i] < min$} \Comment{Update minimum if needed}
+            \State $min \gets A[i]$
+          \EndIf
+        \EndFor
+        
+        \State \Return $(max, min)$ \Comment{Return both maximum and minimum}
+      \EndProcedure
+    \end{algorithmic}
+    The time complexity is $\Theta(n)$ since we examine each element exactly once. The space complexity is $O(1)$ as we only use a constant amount of extra space regardless of input size.
+  \end{algo}
+  
+  \begin{algo}[Bubble Sort]
+    Given a list of $n$ elements $A = [a_1, a_2, \ldots, a_n]$, we can sort them in ascending order using the bubble sort algorithm.
+    \begin{algorithmic}[1]
+      \Require{$A = [a_1, a_2, \ldots, a_n]$} \Comment{Input: list of $n$ elements}
+      \Procedure{BubbleSort}{$A$}
+        \For{$i \gets 1, 2, \ldots, n-1$} \Comment{Outer loop for passes}
+          \State $swapped \gets false$ \Comment{Flag to track if any swaps occurred}
+          
+          \For{$j \gets 1, 2, \ldots, n-i$} \Comment{Inner loop for comparisons}
+            \If{$A[j] > A[j+1]$} \Comment{Compare adjacent elements}
+              \State Swap $A[j]$ and $A[j+1]$ \Comment{Swap if they are in wrong order}
+              \State $swapped \gets true$ \Comment{Set flag to indicate a swap occurred}
+            \EndIf
+          \EndFor
+          
+          \If{$swapped = false$} \Comment{If no swaps occurred in this pass}
+            \State \textbf{break} \Comment{Array is already sorted, exit early}
+          \EndIf
+        \EndFor
+        
+        \State \Return $A$ \Comment{Return sorted list}
+      \EndProcedure
+    \end{algorithmic}
+    The time complexity is $O(n^2)$ in the worst case when the array is in reverse order. In the best case (already sorted), the complexity is $\Theta(n)$ due to the early exit optimization. The space complexity is $O(1)$ as it sorts in-place using only a constant amount of extra space.
+  \end{algo}
+  
+  \begin{algo}[Binary Search]
+    Given a sorted list of $n$ elements $A = [a_1, a_2, \ldots, a_n]$ and a target value $x$, we can efficiently search for $x$ in $A$ using binary search.
+    \begin{algorithmic}[1]
+      \Require{$A = [a_1, a_2, \ldots, a_n]$ (sorted), target value $x$} \Comment{Input: sorted list and target}
+      \Procedure{BinarySearch}{$A$, $x$}
+        \State $left \gets 1$ \Comment{Initialize left pointer to start of the list}
+        \State $right \gets n$ \Comment{Initialize right pointer to end of the list}
+        
+        \While{$left \leq right$} \Comment{Continue while search space is valid}
+          \State $mid \gets \lfloor (left + right) / 2 \rfloor$ \Comment{Calculate middle index}
+          
+          \If{$A[mid] = x$} \Comment{Target found}
+            \State \Return $mid$ \Comment{Return the index where target was found}
+          \EndIf
+          
+          \If{$A[mid] < x$} \Comment{If target is in right half}
+            \State $left \gets mid + 1$ \Comment{Update left pointer to search right half}
+          \Else \Comment{If target is in left half}
+            \State $right \gets mid - 1$ \Comment{Update right pointer to search left half}
+          \EndIf
+        \EndWhile
+        
+        \State \Return $-1$ \Comment{Target not found in the list}
+      \EndProcedure
+    \end{algorithmic}
+    The time complexity is $O(\log n)$ since each comparison eliminates approximately half of the remaining elements. The space complexity is $O(1)$ for the iterative implementation shown here, as it uses only a constant amount of extra space regardless of input size.
+  \end{algo}
 
 \subsection{Stack, Queues, Heaps}
 
-  A heap is sort of in between a sorted array and an unsorted array. 
-
 \subsection{Cryptography} 
 
-  \begin{example}[GCD of Two Numbers]
-    Take a look at the following algorithm. 
-    \begin{lstlisting}
-      def gcd(a, b): 
-        if a == b: 
-          return a
-        elif a > b: 
-          return gcd(a - b, b) 
-        else: 
-          return gcd(a, b - a)
+  \begin{algo}[GCD of Two Numbers]
+    The following is Euclid's algorithm for finding the GCD of two integers. It uses a recursive strategy. 
+    \begin{algorithmic}[1]
+      \Procedure{GCD}{$a$, $b$} \Comment{Compute greatest common divisor of $a$ and $b$}
+        \If{$a = b$} \Comment{Base case: numbers are equal}
+          \State \Return $a$
+        \ElsIf{$a > b$} \Comment{First recursive case: a is larger}
+          \State \Return \Call{GCD}{$a - b$, $b$}
+        \Else \Comment{Second recursive case: b is larger}
+          \State \Return \Call{GCD}{$a$, $b - a$}
+        \EndIf
+      \EndProcedure
+    \end{algorithmic}
+    Example: \Call{GCD}{63, 210} = 21
+  \end{algo}
 
-      print(gcd(63, 210))
-    \end{lstlisting}
-  \end{example}
+  Note that in order to determine if a number $n$ is prime, we must check all prime number $p < \sqrt{n}$. This gives us the brute force primality testing algorithm. 
 
-  \begin{definition}[Primality Testing]
-    
-  \end{definition}
+  \begin{algo}[Primality Testing]
+    Given a positive integer $n > 1$, we can determine whether it is prime as follows.
+    \begin{algorithmic}[1]
+      \Require{$n > 1$} \Comment{Input: integer to test for primality}
+      \Procedure{IsPrime}{$n$}
+        \If{$n = 2$ or $n = 3$} \Comment{Handle known small primes}
+          \State \Return true
+        \EndIf
+        
+        \If{$n \bmod 2 = 0$ or $n \bmod 3 = 0$} \Comment{Check divisibility by small primes}
+          \State \Return false
+        \EndIf
+        
+        \State $i \gets 5$ \Comment{Start checking from 5}
+        \While{$i \cdot i \leq n$} \Comment{Check potential divisors up to $\sqrt{n}$}
+          \If{$n \bmod i = 0$ or $n \bmod (i + 2) = 0$} \Comment{Check $i$ and $i+2$ (covers all primes > 3)}
+            \State \Return false \Comment{Found a divisor, so not prime}
+          \EndIf
+          \State $i \gets i + 6$ \Comment{Skip to next potential prime pair}
+        \EndWhile
+        
+        \State \Return true \Comment{No divisors found, so number is prime}
+      \EndProcedure
+    \end{algorithmic}
+    This algorithm has a time complexity of $O(\sqrt{n})$, as we check potential divisors up to $\sqrt{n}$. The optimization of checking only numbers of the form $6k \pm 1$ (which covers all primes > 3) reduces the constant factor but does not change the asymptotic complexity. The space complexity is $O(1)$ as we use only a constant amount of extra space.
+  \end{algo}
 
-  \begin{definition}[Integer Factorization]
-    
-  \end{definition}
+  \begin{algo}[Integer Factorization]
+    Given a positive integer $n > 1$, we can find its prime factorization as follows.
+    \begin{algorithmic}[1]
+      \Require{$n > 1$} \Comment{Input: integer to factorize}
+      \Procedure{PrimeFactorize}{$n$}
+        \State $factors \gets$ empty list \Comment{Initialize list to store prime factors}
+        
+        \While{$n \bmod 2 = 0$} \Comment{Extract all factors of 2}
+          \State Add $2$ to $factors$
+          \State $n \gets n / 2$
+        \EndWhile
+        
+        \While{$n \bmod 3 = 0$} \Comment{Extract all factors of 3}
+          \State Add $3$ to $factors$
+          \State $n \gets n / 3$
+        \EndWhile
+        
+        \State $i \gets 5$ \Comment{Start checking from 5}
+        \While{$i \cdot i \leq n$} \Comment{Check potential prime factors up to $\sqrt{n}$}
+          \While{$n \bmod i = 0$} \Comment{Extract all factors of current prime}
+            \State Add $i$ to $factors$
+            \State $n \gets n / i$
+          \EndWhile
+          
+          \While{$n \bmod (i + 2) = 0$} \Comment{Extract all factors of next potential prime}
+            \State Add $(i + 2)$ to $factors$
+            \State $n \gets n / (i + 2)$
+          \EndWhile
+          
+          \State $i \gets i + 6$ \Comment{Skip to next potential prime pair}
+        \EndWhile
+        
+        \If{$n > 1$} \Comment{If remaining number is greater than 1, it's prime}
+          \State Add $n$ to $factors$
+        \EndIf
+        
+        \State \Return $factors$ \Comment{Return list of prime factors}
+      \EndProcedure
+    \end{algorithmic}
+    This algorithm has a time complexity of $O(\sqrt{n})$ in the worst case, as we check potential prime factors up to $\sqrt{n}$. Similar to the primality test, we use the optimization of checking only numbers of the form $6k \pm 1$ after handling the factors of 2 and 3 explicitly. The space complexity is $O(\log n)$ for storing the prime factors, since a number can have at most $O(\log n)$ prime factors.
+  \end{algo}
 
 \subsection{Matrix Operations}
 
-  \begin{definition}[Matrix Multiplication]
-    
-  \end{definition}
+  \begin{algo}[Matrix Multiplication]
+    Given two matrices $A$ of size $m \times n$ and $B$ of size $n \times p$, we can compute their product $C = A \times B$ of size $m \times p$ as follows.
+    \begin{algorithmic}[1]
+      \Require{$A$ is an $m \times n$ matrix, $B$ is an $n \times p$ matrix} \Comment{Input: compatible matrices to multiply}
+      \Procedure{MatrixMultiply}{$A$, $B$}
+        \State $m \gets$ number of rows in $A$
+        \State $n \gets$ number of columns in $A$ \Comment{Also number of rows in $B$}
+        \State $p \gets$ number of columns in $B$
+        
+        \State Initialize matrix $C$ of size $m \times p$ with zeros \Comment{Initialize result matrix}
+        
+        \For{$i \gets 1, 2, \ldots, m$} \Comment{Iterate through rows of $A$}
+          \For{$j \gets 1, 2, \ldots, p$} \Comment{Iterate through columns of $B$}
+            \For{$k \gets 1, 2, \ldots, n$} \Comment{Compute dot product of row $i$ of $A$ and column $j$ of $B$}
+              \State $C[i][j] \gets C[i][j] + A[i][k] \times B[k][j]$ \Comment{Accumulate sum of products}
+            \EndFor
+          \EndFor
+        \EndFor
+        
+        \State \Return $C$ \Comment{Return the product matrix}
+      \EndProcedure
+    \end{algorithmic}
+    This algorithm implements the standard matrix multiplication with three nested loops. The time complexity is $O(m n p)$. The space complexity is $O(m p)$ for storing the result matrix. 
+  \end{algo}
 
-  \begin{definition}[Singular Value Decomposition]
-    
-  \end{definition}
+  \begin{algo}[Matrix Inversion]
+    Given a non-singular square matrix $A$ of size $n \times n$, we can compute its inverse $A^{-1}$ using Gaussian elimination with the Gauss-Jordan method.
+    \begin{algorithmic}[1]
+      \Require{$A$ is an $n \times n$ non-singular matrix} \Comment{Input: invertible square matrix}
+      \Procedure{MatrixInverse}{$A$}
+        \State $n \gets$ number of rows/columns in $A$
+        \State Create augmented matrix $[A|I]$ by appending the identity matrix $I$ of size $n \times n$ to $A$
+        
+        \For{$i \gets 1, 2, \ldots, n$} \Comment{Forward elimination phase}
+          \State Find pivot: maximum absolute value in column $i$ from rows $i$ to $n$
+          \If{pivot $= 0$}
+            \State \Return error \Comment{Matrix is singular and not invertible}
+          \EndIf
+          
+          \State Swap current row $i$ with pivot row if needed
+          
+          \State Divide row $i$ by $A[i][i]$ to make the pivot element 1
+          
+          \For{$j \gets 1, 2, \ldots, n$ where $j \neq i$} \Comment{Eliminate other entries in column $i$}
+            \State $factor \gets A[j][i]$
+            \For{$k \gets i, i+1, \ldots, 2n$} \Comment{Update augmented matrix row}
+              \State $A[j][k] \gets A[j][k] - factor \times A[i][k]$
+            \EndFor
+          \EndFor
+        \EndFor
+        
+        \State Extract $A^{-1}$ from the right half of the augmented matrix $[I|A^{-1}]$
+        \State \Return $A^{-1}$
+      \EndProcedure
+    \end{algorithmic}
+    This algorithm implements the Gauss-Jordan elimination method for matrix inversion. The time complexity is $O(n^3)$ due to the three nested loops, and the space complexity is $O(n^2)$ for storing the augmented matrix. The algorithm transforms the left half of the augmented matrix into the identity matrix, which simultaneously transforms the right half into the inverse matrix.
+  \end{algo}
+  
+  \begin{algo}[Eigendecomposition]
+    Given a diagonalizable square matrix $A$ of size $n \times n$, we can compute its eigenvalues and eigenvectors using the power iteration and deflation approach.
+    \begin{algorithmic}[1]
+      \Require{$A$ is an $n \times n$ diagonalizable matrix} \Comment{Input: diagonalizable square matrix}
+      \Procedure{Eigendecomposition}{$A$}
+        \State $n \gets$ number of rows/columns in $A$
+        \State Initialize empty lists $eigenvalues$ and $eigenvectors$
+        \State $A_{current} \gets A$ \Comment{Matrix for deflation process}
+        
+        \For{$i \gets 1, 2, \ldots, n$}
+          \State Initialize random vector $v$ of size $n-i+1$ with unit norm
+          \State $prev\_lambda \gets 0$
+          \State $lambda \gets 1$
+          
+          \While{$|lambda - prev\_lambda| > \epsilon$} \Comment{Power iteration until convergence}
+            \State $prev\_lambda \gets lambda$
+            \State $w \gets A_{current} \times v$ \Comment{Matrix-vector multiplication}
+            \State $lambda \gets$ dominant component of $w$
+            \State $v \gets w / \|w\|$ \Comment{Normalize vector}
+          \EndWhile
+          
+          \State Add $lambda$ to $eigenvalues$
+          \State Add $v$ to $eigenvectors$
+          
+          \State $A_{current} \gets$ Deflate $A_{current}$ by removing the influence of $\lambda$ and $v$
+          \Comment{Deflation: $A_{current} = A_{current} - \lambda \times v \times v^T$}
+        \EndFor
+        
+        \State Construct diagonal matrix $\Lambda$ with $eigenvalues$ on the diagonal
+        \State Construct matrix $V$ with $eigenvectors$ as columns
+        
+        \State \Return $(\Lambda, V)$ \Comment{Return eigenvalue matrix and eigenvector matrix}
+      \EndProcedure
+    \end{algorithmic}
+    This algorithm implements a simplified version of eigendecomposition using power iteration and deflation. The time complexity is $O(k \times n^3)$ where $k$ is the average number of iterations needed for convergence. The space complexity is $O(n^2)$ for storing the matrices. In practice, more sophisticated methods like the QR algorithm are preferred for numerical stability, but the power method illustrates the basic approach.
+  \end{algo}
 
-  \begin{definition}[QR Decomposition]
-    
-  \end{definition}
-
-  \begin{definition}[LU Decomposition]
-    
-  \end{definition}
-
-  \begin{definition}[Matrix Inversion]
-    
-  \end{definition}
-
+  Given the eigendecomposition is approximately $O(n^3)$, we can also see that computing the singular value decomposition or matrix exponentials are also $O(n^3)$. 
