@@ -1,679 +1,5 @@
 \section{Graph Algorithms}
 
-  A huge portion of problems can be solved by representing as a \textit{graph} data structure. In here, we will explore various problems that can be solved through \textit{graph algorithms}. 
-
-\subsection{Representations and Properties}
-
-  All graphs consist of a set of vertices/nodes $V$ and edges $E$. This tuple is what makes up a graph. We denote $|V| = n, |E| = m$. 
-
-  \begin{definition}[Undirected Graphs]
-    An \textbf{undirected graph} $G(V, E)$ is a tuple, where $V = \{v_1, \ldots, v_n\}$ is the vertex set and $E = \{\{v_i, v_j\}\}$ is the edge set (note that it is a set of sets!). 
-    \begin{enumerate}
-      \item The \textbf{degree} $d_v$ of a vertex $v$ is the number of edges incident to it. 
-      \item A \textbf{path} is a sequence of vertices where adjacent vertices are connected by a path in $E$. It's \textbf{length} is the number of edges in the path. 
-      \item A \textbf{cycle/circuit} is a path that has the same start and end. 
-      \item A graph is \textbf{connected} if for every pair of vertices $e_i, e_j \in E$, there is a path from $e_i$ to $e_j$. 
-      \item A \textbf{connected component} is a maximal subset of connected vertices. 
-    \end{enumerate}
-  \end{definition}
-
-  \begin{definition}[Directed Graph]
-    A \textbf{directed graph} $G(V, E)$ is a tuple, where $V = \{v_1, \ldots, v_n\}$ is the vertex set and $E = \{(v_i, v_j)\}$ is the edge set (note that it is a set of tuples, so $(i, j) \neq ( j, i)$).
-    \begin{enumerate}
-      \item The \textbf{in/out degree} $d_{v, i}, d_{v, o}$ of a vertex $v$ is the number of edges going in to or out from $v$. 
-      \item A \textbf{path} is a sequence of vertices where adjacent vertices are connected by a path in $E$. It's \textbf{length} is the number of edges in the path. 
-      \item A \textbf{cycle/circuit} is a path that has the same start and end. 
-      \item A directed graph is \textbf{strongly connected} if for every pair of vertices $e_i, e_j \in E$, there is a path from $e_i$ to $e_j$.\footnote{Obviously, a connected undirected graph is also strongly connected.}
-      \item A \textbf{strongly connected component} is a maximal subset of connected vertices. 
-    \end{enumerate}
-  \end{definition}
-
-  In fact, from these definitions alone, we can solve an ancient puzzle called \textit{the Bridges of Konigsberg}. Euler, in trying to solve this problem, had invented graph theory. 
-
-  \begin{example}[Bridges of Konigsberg]
-    Is there a way to walk that crosses each bridge \textit{exactly} once? 
-
-    \begin{figure}[H]
-      \centering
-      \begin{subfigure}[b]{0.48\textwidth}
-      \centering
-        \includegraphics[scale=0.4]{img/bridges.png}
-        \caption{Figure of the bridges of Konigsberg.}
-        \label{fig:bridges}
-      \end{subfigure}
-      \hfill 
-      \begin{subfigure}[b]{0.48\textwidth}
-      \centering
-        \begin{tikzpicture} 
-          \tikzstyle{every node}=[circle, draw, minimum size=1cm]
-          
-          \node (A) at (0,0) {A};
-          \node (B) at (2,-1) {B};
-          \node (C) at (2,1) {C};
-          \node (D) at (4,0) {D}; 
-                
-          \draw (A) to[bend left=15] (B);
-          \draw (A) to[bend right=15] (B);
-          \draw (A) to[bend left=15] (C);
-          \draw (A) to[bend right=15] (C);
-          \draw (A) -- (D);
-          \draw (B) -- (D);
-          \draw (C) -- (D);
-        \end{tikzpicture}
-        \caption{Graph representation. }
-        \label{fig:graph_bridges}
-      \end{subfigure}
-      \caption{It can be decomposed into this undirected graph.}
-      \label{fig:konigsberg}
-    \end{figure}
-     
-    Euler's observation is that except for start and end points, a talk leaves any vertex by different edge that the incoming edge. Therefore, the degree (number of edges incident on it) must have an even number, so all but 2 vertices must have an even degree. Since every vertex has an odd degree, there is no way of doing it. 
-  \end{example}
-
-  In addition to the \textit{adjacency list} representation, another way in which we represent a directed graph is through \textit{adjacency matrices}. 
-
-  \begin{definition}[Adjacency Matrix]
-    In a finite directed graph $(V, E)$, we can construct a bijection from $V$ to the natural numbers and so we label each element in $V$ with $i \in \mathbb{N}$. Then, we can construct a matrix $A$ such that 
-    \begin{equation}
-      A_{ij} = \begin{cases} 1 & \text{ if } (i, j) \in E \\ 0 & \text{ if } (i, j) \not\in E \end{cases}
-    \end{equation}
-  \end{definition}
-
-  \begin{example}[Adjacency List vs Matrix]
-    Given a graph, we can completely represent it with a list of adjacent vertices for each vertex or an adjacency matrix. 
-    \begin{center}
-    \begin{tikzpicture}
-      \node[circle, draw] (C) at (0,0) {C};
-      \node[circle, draw] (D) at (2,0) {D};
-      \node[circle, draw] (B) at (2,2) {B};
-      \node[circle, draw] (A) at (0,2) {A};
-
-      \draw (A) -- (B);
-      \draw (B) -- (C);
-      \draw (A) -- (C);
-      \draw (B) -- (D);
-    \end{tikzpicture}
-    \end{center}
-    An adjacency list would look something like this 
-    \[
-    \begin{aligned}
-    A &: B, C \\
-    B &: A, C, D \\
-    C &: A, B \\
-    D &: B
-    \end{aligned}
-    \]
-    and the adjacency matrix looks like this: 
-    \begin{center}
-    \begin{tikzpicture}
-      \matrix[matrix of math nodes, nodes in empty cells,          column sep=-\pgflinewidth, row sep=-\pgflinewidth,          nodes={minimum size=7mm, anchor=center, outer sep=0pt}] (adjacency) {
-        & |(a)| A & |(b)| B & |(c)| C & |(d)| D \\
-        |(A)| A & 0 & 1 & 1 & 0 \\
-        |(B)| B & 1 & 0 & 1 & 1 \\
-        |(C)| C & 1 & 1 & 0 & 0 \\
-        |(D)| D & 0 & 1 & 0 & 0 \\
-      };
-    \end{tikzpicture}
-    \end{center}
-  \end{example}
-
-  While the adjacency matrix does have its advantages and has a cleaner form, usually in sparse graphs this is memory inefficient due to there being an overwhelming number of $0$s. 
-
-  \begin{definition}[Trees]
-    An undirected graph $G(V, E)$ is a \textbf{tree} if 
-    \begin{enumerate}
-      \item $G$ is connected. 
-      \item $G$ has no cycles.\footnote{This makes sense, since to get back to a previous vertex you must backtrack.}
-    \end{enumerate}
-    Removing the first requirement gives us the definition of a \textbf{forest}, which is a collection of trees. Conversely, if $G(V, E)$ is connected  and $|E| = n - 1$, then $G$ is a tree. 
-  \end{definition}
-
-  \begin{theorem}[Properties of Trees]
-    If $G(V, E)$ is a tree, then 
-    \begin{enumerate}
-      \item There exists a $v \in V$ s.t. $d_v = 1$, called a \textbf{leaf node}. 
-      \item $|E| = |V| - 1 = n - 1$. 
-    \end{enumerate}
-  \end{theorem}
-  \begin{proof}
-    The outlines are quite intuitive. 
-    \begin{enumerate}
-      \item There must be some leaf node since if there wasn't, then we would have a cycle. We can use proof by contradiction. 
-      \item We can use proof by induction. We start off with one vertex and to construct a tree, we must add one edge and one vertex at every step, keeping this invariant.  
-    \end{enumerate}
-  \end{proof}
-
-\subsection{Exploration}
-
-  Given two $v, s \in V$ either directed or undirected, how can we find a path from $v$ to $s$? We can do with either with DFS or BFS. 
-
-  Now, in order to traverse this graph, we basically want to make an algorithm that starts at a node, prints it value, and then goes to all of its neighbors (which we can access through the adjacency list) to print them out. Thus, this is by nature recursive. We don't want the algorithm to loop around printing nodes infinitely often, so we must create a base case that tells the algorithm to not print out a node. It makes sense to create a set of visited nodes, which we can add to whenever we reach a new node. So, if we ever come onto a node that we have visited, we can just tell the function to do nothing. 
-
-  \begin{algo}[Recursive Depth-First Search]
-    The recursive implementation of Depth-First Search explores a graph by recursively visiting each unvisited neighbor, going as deep as possible along each branch before backtracking.
-    \begin{algorithm}[H]
-      \label{alg:dfs_recursive}
-      \begin{algorithmic}[1]
-        \Require{Graph $G(V, E)$, start vertex $s$}
-        
-        \Function{DFS-Recursive}{$G, s$}
-          \State visited $\gets \emptyset$ \Comment{Initialize empty set of visited vertices}
-          \State \Call{DFS-Visit}{$G, s$, visited}
-        \EndFunction
-        
-        \Function{DFS-Visit}{$G, u$, visited}
-          \State Add $u$ to visited
-          \State \textit{/* Process vertex $u$ here */}
-          \For{each neighbor $v$ of $u$ in $G$}
-            \If{$v \notin$ visited}
-              \State \Call{DFS-Visit}{$G, v$, visited}
-            \EndIf
-          \EndFor
-        \EndFunction
-      \end{algorithmic}
-    \end{algorithm}
-  \end{algo}
-
-  Though recursion really makes this simple, we can construct an iterative approach that uses stacks. Note that in recursion, we are really making a call stack of different functions. We can be explicit about this by actually implementing a stack, which would store all the nodes that we have discovered, but not yet explored from )i.e. all the current nodes). At each iteration, we would pick a node to continue exploring, and since this is a DFS, we would want to implement a LIFO stack so that the last element we input in is the first thing that we should explore from, i.e. we always explore from the last node discovered. 
-
-  \begin{algo}[Iterative Depth-First Search]
-    The iterative implementation of Depth-First Search uses a stack to mimic the function call stack of the recursive implementation. It explores vertices in the same order as the recursive version.
-    \begin{algorithm}[H]
-      \label{alg:dfs_iterative}
-      \begin{algorithmic}[1]
-        \Require{Graph $G(V, E)$, start vertex $s$}
-        
-        \Function{DFS-Iterative}{$G, s$}
-          \State visited $\gets \emptyset$ \Comment{Initialize empty set of visited vertices}
-          \State stack $\gets$ empty stack
-          \State Push $s$ onto stack
-          \State Add $s$ to visited
-          
-          \While{stack is not empty}
-            \State $u \gets$ Pop from stack
-            \State \textit{/* Process vertex $u$ here */}
-            
-            \For{each neighbor $v$ of $u$ in $G$}
-              \If{$v \notin$ visited}
-                \State Add $v$ to visited
-                \State Push $v$ onto stack
-              \EndIf
-            \EndFor
-          \EndWhile
-        \EndFunction
-      \end{algorithmic}
-    \end{algorithm}
-  \end{algo}
-
-  \begin{example}[DFS Walkthrough]
-    Let's conduct DFS on the following graph. 
-
-    \begin{figure}[H]
-      \centering
-      \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \begin{tikzpicture}[
-            node/.style={circle, draw, minimum size=0.8cm},
-            arrow/.style={-Stealth, thick}
-          ]
-          % Define the nodes
-          \node[node, red] (A) at (0,0) {A};
-          \node[node] (B) at (3,0) {B};
-          \node[node] (C) at (3,-2) {C};
-          \node[node] (D) at (0,-2) {D};
-
-          % Connect the nodes with directed edges
-          \draw[arrow, red] (A) -- (B);
-          \draw[arrow] (B) -- (C);
-          \draw[arrow] (C) -- (D);
-          \draw[arrow] (D) -- (A);
-          \draw[arrow] (A) -- (C);
-          \draw[arrow] (B) -- (D);
-        \end{tikzpicture}
-        \caption{You start at $A$ and you add it to your visited set $V = \{A\}$. You look at your neighbors and find that you can explore $B$ or $C$. Let's randomly choose to explore $B$ but keep in mind that you haven't finished exploring from $B$ since there's $C$ left. }
-      \end{subfigure}
-      \hfill 
-      \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \begin{tikzpicture}[
-            node/.style={circle, draw, minimum size=0.8cm},
-            arrow/.style={-Stealth, thick}
-          ]
-          % Define the nodes
-          \node[node, red] (A) at (0,0) {A};
-          \node[node, red] (B) at (3,0) {B};
-          \node[node] (C) at (3,-2) {C};
-          \node[node] (D) at (0,-2) {D};
-
-          % Connect the nodes with directed edges
-          \draw[arrow, red] (A) -- (B);
-          \draw[arrow] (B) -- (C);
-          \draw[arrow] (C) -- (D);
-          \draw[arrow] (D) -- (A);
-          \draw[arrow] (A) -- (C);
-          \draw[arrow, red] (B) -- (D);
-        \end{tikzpicture}
-        \caption{You add $B$ to visited $V = \{A, B\}$ and look at your neighbors $C$ and $D$. Let's just choose $D$ randomly but keep in mind that you have $C$ to explore later, so you haven't finished exploring from $B$ either. Therefore both $A$ and $B$ are both still on your exploration stack.}
-      \end{subfigure}
-
-      \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \begin{tikzpicture}[
-            node/.style={circle, draw, minimum size=0.8cm},
-            arrow/.style={-Stealth, thick}
-          ]
-          % Define the nodes
-          \node[node, red] (A) at (0,0) {A};
-          \node[node, red] (B) at (3,0) {B};
-          \node[node] (C) at (3,-2) {C};
-          \node[node, red] (D) at (0,-2) {D};
-
-          % Connect the nodes with directed edges
-          \draw[arrow, red] (A) -- (B);
-          \draw[arrow] (B) -- (C);
-          \draw[arrow] (C) -- (D);
-          \draw[arrow, red] (D) -- (A);
-          \draw[arrow] (A) -- (C);
-          \draw[arrow, red] (B) -- (D);
-        \end{tikzpicture}
-        \caption{You add $D$ to visited $V = \{A, B, D\}$. You look at your neighbors and see that you can explore $A$. However it is already in your visited set. Since there are no more neighbors to explore to, you are done exploring from $D$ and don't need to look at it anymore. }
-      \end{subfigure}
-      \hfill 
-      \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \begin{tikzpicture}[
-            node/.style={circle, draw, minimum size=0.8cm},
-            arrow/.style={-Stealth, thick}
-          ]
-          % Define the nodes
-          \node[node, red] (A) at (0,0) {A};
-          \node[node, red] (B) at (3,0) {B};
-          \node[node] (C) at (3,-2) {C};
-          \node[node, red] (D) at (0,-2) {D};
-
-          % Connect the nodes with directed edges
-          \draw[arrow, red] (A) -- (B);
-          \draw[arrow, red] (B) -- (C);
-          \draw[arrow] (C) -- (D);
-          \draw[arrow, red] (D) -- (A);
-          \draw[arrow] (A) -- (C);
-          \draw[arrow, red] (B) -- (D);
-        \end{tikzpicture}
-        \caption{Therefore you look back to where you came from: $B$, and continue exploring from $B$. You go back to $B$ and look at the other nodes you must explore. You've already done $D$ and the only remaining is $C$, which isn't in your visited. }
-      \end{subfigure}
-
-      \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \begin{tikzpicture}[
-            node/.style={circle, draw, minimum size=0.8cm},
-            arrow/.style={-Stealth, thick}
-          ]
-          % Define the nodes
-          \node[node, red] (A) at (0,0) {A};
-          \node[node, red] (B) at (3,0) {B};
-          \node[node, red] (C) at (3,-2) {C};
-          \node[node, red] (D) at (0,-2) {D};
-
-          % Connect the nodes with directed edges
-          \draw[arrow, red] (A) -- (B);
-          \draw[arrow, red] (B) -- (C);
-          \draw[arrow, red] (C) -- (D);
-          \draw[arrow, red] (D) -- (A);
-          \draw[arrow] (A) -- (C);
-          \draw[arrow, red] (B) -- (D);
-        \end{tikzpicture}
-        \caption{Add $C$ to visited $V = \{A, B, C, D\}$. You look at your neighbors and see $D$ as the only neighbor to explore. However, you have already explored $D$ and so there are no more neighbors left. Therefore you go back to the node you came from: $B$.}
-      \end{subfigure}
-      \hfill 
-      \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \begin{tikzpicture}[
-            node/.style={circle, draw, minimum size=0.8cm},
-            arrow/.style={-Stealth, thick}
-          ]
-          % Define the nodes
-          \node[node, red] (A) at (0,0) {A};
-          \node[node, red] (B) at (3,0) {B};
-          \node[node, red] (C) at (3,-2) {C};
-          \node[node, red] (D) at (0,-2) {D};
-
-          % Connect the nodes with directed edges
-          \draw[arrow, red] (A) -- (B);
-          \draw[arrow, red] (B) -- (C);
-          \draw[arrow, red] (C) -- (D);
-          \draw[arrow, red] (D) -- (A);
-          \draw[arrow, red] (A) -- (C);
-          \draw[arrow, red] (B) -- (D);
-        \end{tikzpicture}
-        \caption{You continue exploring from $B$. There are no more nodes to explore, so you go back to the node you came from $A$. You see that the only remaining neighbor to explore is $C$, but it is already in visited, so you don't need to explore it. You are done.}
-      \end{subfigure}
-
-      \caption{Walkthrough of DFS on a small graph. The iterative and recursive approaches are identical.}
-      \label{fig:dfs_example}
-    \end{figure}
-  \end{example}
-
-  \begin{theorem}[Runtime of DFS]
-    The runtime of DFS is $O(n+m)$. 
-  \end{theorem}
-  \begin{proof}
-    The runtime complexity of this search is $O(N + M)$ because first, the while loop loops at most over the $N$ nodes. The for loop may loop over $M$ edges, but this is a bit pessemistic in bound. Rather, we can view it as looping over neighbors of each node at most exactly once, and so it considers every edge twice, meaning that the for loop will get called $2M$ times in the entire algorithm. So $N + 2M = O(N + M)$. 
-  \end{proof}
-
-  \begin{example}[DFS in a Maze]
-    We can represent a grid graph, like a maze, with a two dimensional array that stores whether it is connected north, east, south, and west, where boolean of true represents that there is a wall, and false means there isn't a wall (so connected). 
-
-    \begin{figure}[H]
-      \centering
-      \begin{subfigure}[b]{0.48\textwidth}
-      \centering
-        \begin{tikzpicture}[scale=0.9]
-          % Outer boundary
-          \draw[line width=2pt] (0,0) -- (4,0) -- (4,4) -- (0,4) -- (0,0);
-          
-          % Internal walls
-          % Top section
-          \draw[line width=2pt] (1,4) -- (1,3);
-          \draw[line width=2pt] (2,4) -- (2,3) -- (3,3) -- (3,4);
-          
-          % Middle section
-          \draw[line width=2pt] (1,2) -- (2,2) -- (2,1);
-          \draw[line width=2pt] (3,2) -- (3,1);
-          
-          % Bottom section
-          \draw[line width=2pt] (1,1) -- (1,0);
-          \draw[line width=2pt] (2,1) -- (2,0);
-          
-          % Entry and exit points (just colored circles)
-          \filldraw[green!70!black] (0.5,3.5) circle (0.15);
-          \filldraw[red!70!black] (3.5,0.5) circle (0.15);
-        \end{tikzpicture}
-        \caption{4×4 maze representation}
-        \label{fig:maze}
-      \end{subfigure}
-      \hfill 
-      \begin{subfigure}[b]{0.48\textwidth}
-      \centering
-        \begin{tikzpicture}[
-          scale=0.9,
-          node/.style={circle, draw, minimum size=0.7cm},
-          edge/.style={draw, -, shorten >=1pt, shorten <=1pt}
-        ]
-          % Create a 4x4 graph for the new maze
-          % Top row
-          \node[node, fill=green!70!black, text=white] (A) at (0,3.6) {};
-          \node[node] (B) at (1.2,3.6) {};
-          \node[node] (C) at (2.4,3.6) {};
-          \node[node] (D) at (3.6,3.6) {};
-          
-          % Second row
-          \node[node] (E) at (0,2.4) {};
-          \node[node] (F) at (1.2,2.4) {};
-          \node[node] (G) at (2.4,2.4) {};
-          \node[node] (H) at (3.6,2.4) {};
-          
-          % Third row
-          \node[node] (I) at (0,1.2) {};
-          \node[node] (J) at (1.2,1.2) {};
-          \node[node] (K) at (2.4,1.2) {};
-          \node[node] (L) at (3.6,1.2) {};
-          
-          % Bottom row
-          \node[node] (M) at (0,0) {};
-          \node[node] (N) at (1.2,0) {};
-          \node[node] (O) at (2.4,0) {};
-          \node[node, fill=red!70!black, text=white] (P) at (3.6,0) {};
-          
-          % Add edges based on available paths in the maze
-          % Vertical connections
-          \draw[edge] (A) -- (E);
-          \draw[edge] (E) -- (I);
-          \draw[edge] (I) -- (M);
-          \draw[edge] (G) -- (H);
-          
-          \draw[edge] (B) -- (F);
-          
-          \draw[edge] (D) -- (H);
-          \draw[edge] (H) -- (L);
-          \draw[edge] (L) -- (P);
-          
-          \draw[edge] (J) -- (N);
-          
-          % Horizontal connections
-          \draw[edge] (A) -- (B);
-          
-          \draw[edge] (E) -- (F);
-          \draw[edge] (F) -- (G);
-          \draw[edge] (K) -- (G);
-          \draw[edge] (K) -- (O);
-          
-          \draw[edge] (I) -- (J);
-          
-          \draw[edge] (O) -- (P);
-        \end{tikzpicture}
-        \caption{Graph representation of the maze.}
-        \label{fig:maze-graph}
-      \end{subfigure}
-      \caption{A 4×4 maze (left) and its corresponding graph representation (right). Start and end points are shown in green and red respectively.}
-      \label{fig:maze-and-graph}
-    \end{figure}
-
-    But remember that in a tree traversal, we recursively searched down and down until we hit a null node, in which case we backtrack up to look in another branch. For graphs, this is a bit more complicated, since we could go in loops. Therefore, we want to keep track of all the visited nodes to avoid infinite recursion. We have three base cases: 
-    \begin{enumerate}
-      \item If we search off the grid, then this is not a valid path 
-      \item If we already explored here, then we don't want to repeat it 
-      \item If we reached the goal of the maze, then we output the length of the path. 
-    \end{enumerate}
-    The recursive case would take each node and recurse on its 4 adjacent neighbors, if they are connected. Note that this algorithm recurses on each of the $N$ nodes $4$ times (for each direction, and each recursive call is $O(1)$), so the complexity is $O(N)$. 
-  \end{example}
-
-  Note that the main idea of DFS is to always explore a new adjacent vertex if possible, and if not, then backtrack to the most recent vertex adjacent to an unvisited vertex and continue. On the contrary, the main idea of BFS is to explore \textit{all} your neighbors before you visit any of your neighbors' neighbors. It exhaustively searches for the closest regions of your search space before you look any further. Unlike DFS, which finds the some arbitrary path to a node, BFS finds the shortest (perhaps non-unique) path to a node. This can be simply done with a queue. 
-
-  \begin{algo}[Iterative Breadth-First Search]
-    Breadth-First Search (BFS) explores a graph by visiting all neighbors at the current depth before moving to nodes at the next depth level. It uses a queue to process nodes in the order they are discovered.
-    \begin{algorithm}[H]
-      \label{alg:bfs}
-      \begin{algorithmic}[1]
-        \Require{Graph $G(V, E)$, start vertex $s$}
-        
-        \Function{BFS}{$G, s$}
-          \State visited $\gets \emptyset$ \Comment{Initialize empty set of visited vertices}
-          \State queue $\gets$ empty queue
-          \State Enqueue $s$ onto queue
-          \State Add $s$ to visited
-          
-          \While{queue is not empty}
-            \State $u \gets$ Dequeue from queue \Comment{Get the next vertex to process}
-            \State \textit{/* Process vertex $u$ here */}
-            
-            \For{each neighbor $v$ of $u$ in $G$}
-              \If{$v \notin$ visited}
-                \State Add $v$ to visited
-                \State Enqueue $v$ onto queue
-              \EndIf
-            \EndFor
-          \EndWhile
-        \EndFunction
-      \end{algorithmic}
-    \end{algorithm}
-  \end{algo}
-
-  \begin{example}[BFS Walkthrough]
-    Let's conduct BFS on the following graph. 
-
-    \begin{figure}[H]
-      \centering
-      \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \begin{tikzpicture}[
-            node/.style={circle, draw, minimum size=0.8cm},
-            arrow/.style={-Stealth, thick}
-          ]
-          % Define the nodes
-          \node[node, red] (A) at (0,0) {A};
-          \node[node, blue] (B) at (3,0) {B};
-          \node[node, blue] (C) at (3,-2) {C};
-          \node[node] (D) at (0,-2) {D};
-          % Connect the nodes with directed edges
-          \draw[arrow, blue] (A) -- (B);
-          \draw[arrow] (B) -- (C);
-          \draw[arrow] (C) -- (D);
-          \draw[arrow] (D) -- (A);
-          \draw[arrow, blue] (A) -- (C);
-          \draw[arrow] (B) -- (D);
-        \end{tikzpicture}
-        \caption{You start at $A$ and you add it to your visited set $V = \{A\}$ and to your queue $[A]$. You immediately dequeue $A$ from the queue and look at all neighbors of $A$, which are $B$ and $C$. You add both to your queue in some random order, say $B$ first. }
-      \end{subfigure}
-      \hfill 
-      \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \begin{tikzpicture}[
-            node/.style={circle, draw, minimum size=0.8cm},
-            arrow/.style={-Stealth, thick}
-          ]
-          % Define the nodes
-          \node[node, red] (A) at (0,0) {A};
-          \node[node, red] (B) at (3,0) {B};
-          \node[node, blue] (C) at (3,-2) {C};
-          \node[node, blue] (D) at (0,-2) {D};
-          % Connect the nodes with directed edges
-          \draw[arrow, red] (A) -- (B);
-          \draw[arrow, red] (B) -- (C);
-          \draw[arrow, blue] (C) -- (D);
-          \draw[arrow] (D) -- (A);
-          \draw[arrow, blue] (A) -- (C);
-          \draw[arrow, blue] (B) -- (D);
-        \end{tikzpicture}
-        \caption{You deque $B$ and see that the adjacent nodes are $C$ and $D$. $C$ is already in your queue (check with visited set, which is $O(1)$), so you do not put it into your queue and can mark the corresponding edges as explored. You do put $D$ into the queue.}
-      \end{subfigure}
-      \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \begin{tikzpicture}[
-            node/.style={circle, draw, minimum size=0.8cm},
-            arrow/.style={-Stealth, thick}
-          ]
-          % Define the nodes
-          \node[node, red] (A) at (0,0) {A};
-          \node[node, red] (B) at (3,0) {B};
-          \node[node, red] (C) at (3,-2) {C};
-          \node[node, blue] (D) at (0,-2) {D};
-          % Connect the nodes with directed edges
-          \draw[arrow, red] (A) -- (B);
-          \draw[arrow, red] (B) -- (C);
-          \draw[arrow, red] (C) -- (D);
-          \draw[arrow, blue] (D) -- (A);
-          \draw[arrow, red] (A) -- (C);
-          \draw[arrow, blue] (B) -- (D);
-        \end{tikzpicture}
-        \caption{Next you dequeue $C$ since this is first seen from $A$. You explore from here and look at the neighbors, which is $D$. However, $D$ is already in your queue from $B$, so you skip it. There are no more neighbors to explore from $C$, so we look at the queue again.}
-      \end{subfigure}
-      \hfill 
-      \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \begin{tikzpicture}[
-            node/.style={circle, draw, minimum size=0.8cm},
-            arrow/.style={-Stealth, thick}
-          ]
-          % Define the nodes
-          \node[node, red] (A) at (0,0) {A};
-          \node[node, red] (B) at (3,0) {B};
-          \node[node, red] (C) at (3,-2) {C};
-          \node[node, red] (D) at (0,-2) {D};
-          % Connect the nodes with directed edges
-          \draw[arrow, red] (A) -- (B);
-          \draw[arrow, red] (B) -- (C);
-          \draw[arrow, red] (C) -- (D);
-          \draw[arrow, red] (D) -- (A);
-          \draw[arrow, red] (A) -- (C);
-          \draw[arrow, red] (B) -- (D);
-        \end{tikzpicture}
-        \caption{You dequeue $D$ and look at the neighbors. The only neighbor is $A$ and it is already in visited, so we can skip this and mark the corresponding edge as explored. Since there are no more nodes to explore in our queue, this concludes BFS.}
-      \end{subfigure}
-      \caption{Walkthrough of BFS on a small graph. Blue represents the nodes/edges that are in our queue and red represents the nodes/edges that we have finished exploring.}
-      \label{fig:bfs_example}
-    \end{figure}
-  \end{example}
-
-
-  \begin{theorem}[Runtime of BFS]
-    The runtime of BFS is $O(n+m)$. 
-  \end{theorem}
-  \begin{proof}
-    To get the running time, we know that each vertex is popped only once from the queue, giving us $O(n)$. For each pop, we are exploring all the neighbors of $V$. 
-    \begin{align}
-      O \bigg( \sum_{v \in V} | \text{neighbors of } v| + 1\bigg) & = O \bigg( \sum_{v \in V} d_v + 1 \bigg) \\
-                                           & = O (2 |E| + |V|) = O(m + n )
-    \end{align}
-    which is linear in input size!  
-  \end{proof}
-
-  The more straightforward application is in reachability. 
-
-  \begin{example}[Reachability]
-    Given a directed graph and a node $v$, find all nodes that are reachable from $v$. 
-  \end{example}
-
-  \begin{definition}[Search Trees]
-    Once we have traversed a graph using BFS or DFS, we can label the directed path that this traversal algorithm takes into a \textbf{search tree}. 
-
-    \begin{figure}[H]
-      \centering
-      \begin{subfigure}[b]{0.48\textwidth}
-      \centering
-        \begin{tikzpicture}[
-            node/.style={circle, draw, fill=gray!40, minimum size=0.8cm},
-            edge/.style={->, thick}
-        ]
-        % Create nodes
-        \node[node] (A1) at (0,2) {A};
-        \node[node] (B1) at (2,2) {B};
-        \node[node] (C1) at (4,2) {C};
-        \node[node] (D1) at (0,0) {D};
-        \node[node] (E1) at (2,0) {E};
-        \node[node] (F1) at (4,0) {F};
-        
-        % Create edges
-        \draw[edge] (A1) -- (B1);
-        \draw[edge, red, thick] (A1) -- (D1);
-        \draw[edge, red, thick] (D1) -- (E1);
-        \draw[edge, red, thick] (E1) -- (F1);
-        \draw[edge, red, thick] (F1) -- (C1);
-        \end{tikzpicture}
-        \caption{After DFS traversal, we can store the previous nodes in a hashmap $\{B \mapsto A, D \mapsto A, E \mapsto D, F \mapsto E, C \mapsto F\}$. From this we can see the path to get to $C$ is $A \mapsto D \mapsto E \mapsto F \mapsto C$ of length 4. }
-        \label{fig:graph1}
-      \end{subfigure}
-      \hfill 
-      \begin{subfigure}[b]{0.48\textwidth}
-      \centering
-        \begin{tikzpicture}[
-            node/.style={circle, draw, fill=gray!40, minimum size=0.8cm},
-            edge/.style={->, thick}
-        ]
-        % Create nodes
-        \node[node] (A2) at (0,2) {A};
-        \node[node] (B2) at (2,2) {B};
-        \node[node] (C2) at (4,2) {C};
-        \node[node] (D2) at (0,0) {D};
-        \node[node] (E2) at (2,0) {E};
-        \node[node] (F2) at (4,0) {F};
-        
-        % Create edges
-        \draw[edge, red, thick] (A2) -- (B2);
-        \draw[edge] (A2) -- (D2);
-        \draw[edge] (B2) -- (E2);
-        \draw[edge, red, thick] (B2) -- (F2);
-        \draw[edge, red, thick] (F2) -- (C2);
-        \end{tikzpicture}
-        \caption{After BFS traversal, we can store the previous nodes in a hashmap $\{B \mapsto A, D \mapsto A, E \mapsto B, F \mapsto B, C \mapsto F\}$. From this we can see the path to get to $C$ is $A \mapsto B \mapsto F \mapsto C$ of length 3. }
-        \label{fig:graph2}
-      \end{subfigure}
-      \caption{Comparison of two directed graphs with different path lengths from A to C.}
-      \label{fig:graph-comparison}
-    \end{figure}
-
-    By construction, we can see that the path from A to C is always shorter for BFS than for DFS. 
-  \end{definition}
-
 \subsection{Directed Acyclic Graphs and Topological Sorting}
 
   Now we move onto a specific type of directed graphs that are \textit{acyclic}. Let's introduce what they are first. 
@@ -1171,7 +497,7 @@
     \end{algorithm}
   \end{algo}
 
-\subsection{Shortest Path}
+\subsection{Shortest Positive Path with Dijkstra's}
 
   In the shortest path, you are given a \textit{weighted} (positive integer) directed graph and your goal is to find a path from $s$ to $t$ with the smallest length. So how would we do this? 
 
@@ -1326,7 +652,7 @@
   \end{equation}
   which can be minimized if we set $d = m/n$, so $O(m \log_{m/n} n)$, where for dense graphs $m/n$ is large and so it can behave roughly in linear time $\Theta(m)$. 
 
-\subsection{Negative Weighted Graphs} 
+\subsection{Negative Weighted Graphs with Bellman Ford} 
 
   Now let's extend this problem to find the shortest path in negative weighted graphs. Before we think of a solution, we must make sure that there is no cycle that has a negative accumulated path. Otherwise, this problem becomes ill-defined, so we first assume that such a shortest path exists. 
 
@@ -1656,670 +982,1704 @@
     \end{figure}
   \end{example}
 
-
-\subsection{All Pairs Shortest Paths} 
+\subsubsection{All Pairs Shortest Graphs with Floyd Warshall}
 
   Now what if we want to find the minimum distance between all $u, v \in V$? We can just use $|V|$ Dijkstras or Bellman-Fords to get the appropriate runtimes of $O(EV + V^2 \log{V})$ or $O(EV^2)$, respectively, but for negative weighted graphs, there is a way to do this in $O(V^3)$.\footnote{Note that if the graph is sparse, then $|E| < |V|$ and just running $|V|$ Bellman Fords may be optimal.}
 
 \subsection{Minimum Spanning Trees} 
 
-    \begin{definition}[Spanning Tree]
-      Given an undirected graph $G(V, E)$, a \textbf{spanning tree} is a subgraph $T(V, E^\prime \subset E)$ that is 
+  \begin{definition}[Spanning Tree]
+    Given an undirected graph $G(V, E)$, a \textbf{spanning tree} is a subgraph $T(V, E^\prime \subset E)$ that is 
+    \begin{enumerate}
+      \item a tree, and 
+      \item spans the graph, i.e. is connected 
+    \end{enumerate}
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[
+          scale=1.2,
+          node/.style={circle, draw=black, thick, minimum size=0.6cm},
+          regular_edge/.style={line width=1pt},
+          highlighted_edge/.style={blue, line width=2pt}
+      ]
+
+      % Create a 4x4 grid of nodes
+      \foreach \i in {0,...,3} {
+          \foreach \j in {0,...,3} {
+              \node[node] (n\i\j) at (\i,\j) {};
+          }
+      }
+
+      % Regular edges (brown)
+      % Horizontal edges
+      \draw[regular_edge] (n00) -- (n10);
+      \draw[regular_edge] (n01) -- (n11);
+      \draw[regular_edge] (n02) -- (n12);
+      \draw[regular_edge] (n03) -- (n13);
+      \draw[regular_edge] (n20) -- (n30);
+      \draw[regular_edge] (n23) -- (n33);
+
+      % Vertical edges
+      \draw[regular_edge] (n10) -- (n11);
+      \draw[regular_edge] (n11) -- (n12);
+      \draw[regular_edge] (n12) -- (n13);
+      \draw[regular_edge] (n20) -- (n21);
+      \draw[regular_edge] (n21) -- (n22);
+      \draw[regular_edge] (n30) -- (n31);
+      \draw[regular_edge] (n31) -- (n32);
+      \draw[regular_edge] (n32) -- (n33);
+
+      % Highlighted edges (blue) - spanning tree
+      % Horizontal edges
+      \draw[highlighted_edge] (n12) -- (n22);
+      \draw[highlighted_edge] (n01) -- (n11);
+      \draw[highlighted_edge] (n10) -- (n20);
+      \draw[highlighted_edge] (n20) -- (n30);
+      \draw[highlighted_edge] (n23) -- (n33);
+
+      % Vertical edges
+      \draw[highlighted_edge] (n00) -- (n01);
+      \draw[highlighted_edge] (n01) -- (n02);
+      \draw[highlighted_edge] (n02) -- (n03);
+      \draw[highlighted_edge] (n10) -- (n11);
+      \draw[highlighted_edge] (n11) -- (n12);
+      \draw[highlighted_edge] (n30) -- (n31);
+      \draw[highlighted_edge] (n31) -- (n32);
+      \draw[highlighted_edge] (n32) -- (n33);
+
+      \end{tikzpicture}
+      \caption{A spanning tree on a $4 \times 4$ grid graph. } 
+      \label{fig:spanning_tree}
+    \end{figure}
+  \end{definition}
+
+  Note that an unconnected graph will never have a spanning tree, but what about a connected graph? 
+
+  \begin{theorem}[Spanning Trees of Connected Graphs]
+    A connected graph will always have at least one spanning tree, not necessarily unique. 
+  \end{theorem}
+
+  Given a connected undirected weighted graph, we may want to find the \textbf{minimum spanning tree (MST)}, i.e. the spanning tree with edges $E^\prime$ such that the sum of the weights of all $e \in E^\prime$ is minimized.\footnote{An application of this is when we generally want to make sparse graphs. In a datacenter, wires can be expensive, so how I can minimize the length of wires to buy to construct a spanning subgraph?} How do we do this? There are two well-known algorithms to solve this. Prim's and Kruskal's algorithm.  
+
+\subsubsection{Prim's Algorithm with Cuts}
+
+  Let's try to apply what we already know: Dijkstra. If we run Dijkstra on the graph starting at $s \in V$, we can get the shortest path from $s$ to every other node in the graph. This will give us a tree, but it may not be minimum. 
+
+  \begin{figure}[H]
+    \centering 
+    \begin{tikzpicture}[
+        node/.style={circle, draw, minimum size=1cm, thick},
+        edge/.style={-,thick}
+    ]
+
+    % Define node positions
+    \node[node] (s) at (0,2) {s};
+    \node[node] (a) at (-1.5,0) {a};
+    \node[node] (b) at (0,-0.5) {b};
+    \node[node] (c) at (1.5,0) {c};
+
+    % Draw edges with weights
+    \draw[edge] (s) -- node[left,near start] {100} (a);
+    \draw[edge] (s) -- node[right] {100} (b);
+    \draw[edge] (s) -- node[right,near start] {100} (c);
+    \draw[edge] (a) -- node[below] {1} (b);
+    \draw[edge] (b) -- node[below] {1} (c);
+
+    \end{tikzpicture}
+    \caption{If we run Dijkstra on $s$, then our output will be a tree of cost $300$, even when the actual MST can be of cost $102$ starting from $a$.} 
+    \label{fig:dik_mst_prob}
+  \end{figure}
+
+  It may seem like this is just a problem of where we start, but even this is not the case. 
+
+  \begin{figure}[H]
+    \centering 
+    \begin{tikzpicture}[
+        node/.style={circle, draw, minimum size=1cm, thick},
+        edge/.style={-,thick}
+    ]
+
+    % Define node positions
+    \node[node] (d) at (0,2) {d};
+    \node[node] (a) at (-1.5,0) {a};
+    \node[node] (b) at (0,-0.5) {b};
+    \node[node] (c) at (1.5,0) {c};
+
+    % Draw edges with weights
+    \draw[edge] (d) -- node[left,near start] {4} (a);
+    \draw[edge] (d) -- node[right] {5} (b);
+    \draw[edge] (d) -- node[right,near start] {4} (c);
+    \draw[edge] (a) -- node[below] {4} (b);
+    \draw[edge] (b) -- node[below] {4} (c);
+
+    \end{tikzpicture}
+    \caption{No matter where we start from, we will never output the MST. The MST has cost $12$. If  we start from $b$ or $d$, we will get a tree of cost $13$. If we start from $a$ or $c$, we will get a tree of cost $16$.}
+    \label{fig:dik_mst_prob2}
+  \end{figure}
+
+  \begin{definition}[Cuts]      
+    Given graph $G(V, E)$, a \textbf{cut} is a partitioning of $V$ into $(S, V \setminus S)$. Furthermore, let $\mathrm{Cut}(S)$ be the number of edges with exactly one endpoint in $S$ and the other in $V \setminus S$. 
+  \end{definition}
+
+  \begin{theorem}[Cycles and Cuts]
+    Given cycle $C \subset E$ in a graph and a cut $S \subset V$, 
+    \begin{equation}
+      | C \cap \mathrm{Cut}(S) | 
+    \end{equation}
+    is even. We can intuit this by visualizing the cycle as a long piece of looped string and a cut is a circle. The intersection between this circle and the string must be even since every time the cycle crosses through the cut, it must return back across the cut to the initial point.  
+  \end{theorem}
+
+  Now time for a bizarre theorem. 
+
+  \begin{theorem}[Cut Property of MSTs]
+    For all cuts $S \subset V$ of an undirected graph, the minimum cost edge in $\mathrm{Cut}(S)$ belongs to the MST. Furthermore, the converse is true: if we take all cuts and find all their minimum cost edges, these edges is precisely the MST! Therefore, an edge $e \in \mathrm{MST}$ iff $e$ is a min-cost edge for some cut. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+        \begin{tikzpicture}[
+          scale=0.8, 
+          node/.style={circle, draw, minimum size=0.8cm, thick},
+          edge/.style={-,thick},
+          partition/.style={draw=red, thick}
+        ]
+
+        % Nodes with coordinates
+        \node[node] (b) at (0,0) {b};
+        \node[node] (c) at (4,0) {c};
+        \node[node] (a) at (2,2) {a};
+        \node[node] (d) at (6,2) {d};
+
+        % Edges with weights
+        \draw[edge] (a) -- node[above] {5} (d);
+        \draw[edge] (a) -- node[left] {4} (b);
+        \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
+        \draw[edge] (b) -- node[below] {7} (c);
+        \draw[edge] (c) -- node[right] {2} (d);
+
+        % Red partition boundary - left side partition as parallelogram
+        % Using the same slope as the a-b edge and a-d edge
+        \draw[partition, rounded corners=10pt] (-1.5,-0.5) -- (1.5,2.5) -- (3.75,2.5) -- (0.75,-0.5) -- cycle;
+
+        \end{tikzpicture}
+        \caption{}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+        \begin{tikzpicture}[
+          scale=0.8, 
+          node/.style={circle, draw, minimum size=0.8cm, thick},
+          edge/.style={-,thick},
+          partition/.style={draw=red, thick}
+        ]
+
+        % Nodes with coordinates
+        \node[node] (b) at (0,0) {b};
+        \node[node] (c) at (4,0) {c};
+        \node[node] (a) at (2,2) {a};
+        \node[node] (d) at (6,2) {d};
+
+        % Edges with weights
+        \draw[edge] (a) -- node[above] {5} (d);
+        \draw[edge] (a) -- node[left] {4} (b);
+        \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
+        \draw[edge] (b) -- node[below] {7} (c);
+        \draw[edge] (c) -- node[right] {2} (d);
+
+        % Red partition boundary for right diagram
+        \draw[partition, rounded corners=10pt] (3.5,-0.5) -- (0.5,2.5) -- (2.5,2.5) -- (5.5,-0.5) -- cycle;
+
+        \end{tikzpicture}
+        \caption{}
+      \end{subfigure}
+      \label{fig:mst_cut_prop}
+      \caption{In the left cut, the edges are $(a,d), (b, c), (a, c)$. The minimum weight is $5$ on the $(a, d)$ edge, so it must be in the MST. For the right cut, $(c, d)$ must be in the MST. }
+    \end{figure}
+
+    The final part is that if we have all edge costs different, then we will have a \textit{unique} MST. 
+  \end{theorem}
+  \begin{proof}
+    We use a greedy approach and prove by contradiction. Suppose that this is not true, i.e. there exists a cut $S$ with minimum cost edge $e$, and $e \not\in \mathrm{MST}$. Then, there exists some other edge $e^\prime \in \mathrm{Cut}(S)$ that is in the MST, since the MST is spanning and it must cross over to connect the whole graph. Well if we just put $e$ in and take $e^\prime$ out, we will still have a spanning tree since it connects the left spanning tree to the right spanning tree, and we now have a cheaper tree. So the original cannot be the MST in the first place. 
+
+    To prove the converse, consider some edge $e$ in the MST and we must prove that it is the minimum cost edge in some cut. Note that if we take $e$ out, then it divides the MST into two connected components, and we can just define the cut as these subsets of nodes. So this is in $\mathrm{Cut}(S)$ for some $S \subset V$. We can also prove that this is minimal since if it wasn't the minimum cost edge for some cut, we could have taken it out and inserted a cheaper edge $e^\prime$ to begin with, getting a cheaper spanning tree.   
+  \end{proof}
+
+  We can just brute force this logic into an algorithm by going through all possible cuts and adding the minimum cost edge to our MST set. It is clear that a cut is defined by a subset of $S$, so really the number of cuts a graph can have is $2^{|S| - 1}$, which is exponential in $n$. However, the minimum spanning tree isn't exponential since it must have $n-1$ edges, so there must be many cuts with the same minimum edge. 
+
+  One way is to start with one vertex $a$ that contains the minimum cost edge $(a, b)$ across all edges.  This edge must be minimal and must be in the MST. Then we can look at the cut $S = \{a, b\}$ and look at that cut. We keep doing this, keeping track of the set of edges we need to look at after adding a new node to our cut. So the number of cuts I consider is equal to the number of edges in the spanning tree.
+
+  \begin{algo}[Prim's Algorithm to Find MST]
+    It turns out that we can modify Dijkstra to solve it. 
+    \begin{algorithm}[H]
+      \label{alg:prim}
+      \begin{algorithmic}[1]
+        \Require{Graph $G(E, V)$}
+
+        \Function{Prim}{s}
+          \State $S \gets \{s\}$  \Comment{Our initial cut}
+          \State $\pi[v] \gets$ list of size $|V|$ of $+\infty$ \Comment{$\pi[u]$ is min cost of getting from $u$ into the $S$}
+          \State $\pi[v] = w_{sv}$ for all $v \in V$ \Comment{initialize list with neighboring nodes from start $s$}
+
+          \While{$S \neq V$}
+            \State $u = \mathrm{argmin}_{v \notin S} \pi[v]$ \Comment{Find node having minimum cost to reach from $S$}
+            \State $S \gets S \cup \{u\}$ \Comment{Adding this node to $S$ to expand our cut}
+            \For{$u \not\in S$} \Comment{Since we expanded $S$, our min reach distances}
+              \State $\pi[u] \gets \min\{\pi[u], w_{wu}\}$ \Comment{must be updated. It can only get shorter} 
+            \EndFor \Comment{through a path from new $u$, so compare them}
+          \EndWhile
+          
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+        \begin{tikzpicture}[
+          scale=0.8, 
+          node/.style={circle, draw, minimum size=0.8cm, thick},
+          edge/.style={-,thick},
+          mstedge/.style={-,thick,red,line width=1.5pt},
+          partition/.style={draw=red, thick}
+        ]
+        % Nodes with coordinates
+        \node[node] (b) at (0,0) {b};
+        \node[node] (c) at (4,0) {c};
+        \node[node] (a) at (2,2) {a};
+        \node[node] (d) at (6,2) {d};
+        % Edges with weights
+        \draw[edge] (a) -- node[above] {5} (d);
+        \draw[mstedge] (a) -- node[left] {4} (b);
+        \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
+        \draw[edge] (b) -- node[below] {7} (c);
+        \draw[edge] (c) -- node[right] {2} (d);
+        % Red partition boundary - around node a
+        \draw[partition, rounded corners=8pt] (1.4,1.4) -- (2.6,1.4) -- (2.6,2.6) -- (1.4,2.6) -- cycle;
+        \end{tikzpicture}
+        \caption{}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+        \begin{tikzpicture}[
+          scale=0.8, 
+          node/.style={circle, draw, minimum size=0.8cm, thick},
+          edge/.style={-,thick},
+          mstedge/.style={-,thick,red,line width=1.5pt},
+          partition/.style={draw=red, thick}
+        ]
+        % Nodes with coordinates
+        \node[node] (b) at (0,0) {b};
+        \node[node] (c) at (4,0) {c};
+        \node[node] (a) at (2,2) {a};
+        \node[node] (d) at (6,2) {d};
+        % Edges with weights
+        \draw[mstedge] (a) -- node[above] {5} (d);
+        \draw[mstedge] (a) -- node[left] {4} (b);
+        \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
+        \draw[edge] (b) -- node[below] {7} (c);
+        \draw[edge] (c) -- node[right] {2} (d);
+        % Red partition boundary
+        \draw[partition, rounded corners=10pt] (-1.5,-0.5) -- (1.5,2.5) -- (3.75,2.5) -- (0.75,-0.5) -- cycle;
+        \end{tikzpicture}
+        \caption{}
+      \end{subfigure}
+      
+      \vspace{0.2cm}
+      
+      \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+        \begin{tikzpicture}[
+          scale=0.8, 
+          node/.style={circle, draw, minimum size=0.8cm, thick},
+          edge/.style={-,thick},
+          mstedge/.style={-,thick,red,line width=1.5pt},
+          partition/.style={draw=red, thick}
+        ]
+        % Nodes with coordinates
+        \node[node] (b) at (0,0) {b};
+        \node[node] (c) at (4,0) {c};
+        \node[node] (a) at (2,2) {a};
+        \node[node] (d) at (6,2) {d};
+        % Edges with weights
+        \draw[mstedge] (a) -- node[above] {5} (d);
+        \draw[mstedge] (a) -- node[left] {4} (b);
+        \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
+        \draw[edge] (b) -- node[below] {7} (c);
+        \draw[mstedge] (c) -- node[right] {2} (d);
+        % Red partition boundary - around node c
+        \draw[partition, rounded corners=8pt] (3.4,-0.6) -- (4.6,-0.6) -- (4.6,0.6) -- (3.4,0.6) -- cycle;
+        \end{tikzpicture}
+        \caption{}
+      \end{subfigure}
+      \caption{Step by step process of the method we mention above.}
+      \label{fig:prim}
+    \end{figure}
+    
+    We are really going through two loops. We add to the cut $S$ $n$ times and for each time we add, we must compute the argmin, which is also $O(n)$, so our total time complexity of $O(n^2)$.  
+  \end{algo}
+
+  However, this is not efficient, so we can introduce a minheap to get the argmin step faster. 
+
+  \begin{algo}[Prim's Algorithm with MinHeap]
+    \begin{algorithm}[H]
+      \label{alg:prims}
+      \begin{algorithmic}[1]
+        \Require{Nodes $V$, Edges $E$}
+        \Function{Prim}{V, E}
+          \State mst $\gets$ [] \Comment{Initialize mst array to return}
+          \State s $\gets$ 0 \Comment{Choose any starting node}
+          \State visited $\gets$ set() \Comment{Our expanding set of cuts.}
+          \State edges $\gets$ minheap() \Comment{The set of low-weight edges that we can explore from}
+          \State add (weight, s, next\_node) for edges in E \Comment{Look for edges from s to expand our cut from.}
+
+          \While{|visited| < |V|} \Comment{Until we have visited all cuts,}
+            \State weight, frm, to $\gets$ pop from edges \Comment{Get the cheapest edge to explore}
+            \If{to $\not\in$ visited} \Comment{If this isn't already in our cut, }
+              \State add to $\rightarrow$ visited \Comment{Add it to our cut. From cut}
+              \State add (frm, to, weight) to mst \Comment{property, this must be added to mst}
+
+              \For{next\_to, next\_weight $\in$ E[to]} \Comment{After expanding, add newly discovered}
+                \If{next\_to $\not\in$ visited} \Comment{edges for future exploration}
+                  \State push (next\_weight, to, next\_to) to edges
+                \EndIf
+              \EndFor
+            \EndIf
+          \EndWhile 
+
+          \State \Return{mst} \Comment{of form (from, to, weight)}
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+
+    You essentially push $n$ times and pop $m$ times, and the time per push and pop is $\log_2 (n)$. Therefore, the total time to push is $n \log(n)$ and to pop is $m \log (n)$, making the total runtime $O((n + m) log(n)) = O(m \log{n})$. 
+  \end{algo}
+
+  This can be sped up even faster if we use Fibonacci heaps or assume extra structure on the graph. 
+
+\subsubsection{Kruskal's Algorithm}
+
+  If we were to try and construct this algorithm from scratch, we may take a greedy approach by incrementally adding the minimum cost edge from your cut. However, there is one thing to check: have we entered a cycle? Checking whether the next added node $a$ completes a cycle in $S \cup \{a\}$ is nontrivial. 
+
+  \begin{theorem}[Cycle Property]
+    For all cycles $C$, the max cost edge of $C$ does not belong to MST. 
+  \end{theorem}
+
+  Therefore, you can take $S$ and either add to it using the cut property or delete candidates from it using the cycle property. What is the best order to do this in? Kruskal's algorithm answers this question, which takes a greedy approach. 
+
+  \begin{algo}[General Kruskal's Algorithm]
+    The general idea is that we sort $e \in E$ in increasing cost, and for each $e \in E$, we use either the cut or cycle property to decide whether $e$ goes in or out. 
+
+    \begin{algorithm}[H]
+      \label{alg:prim_kruskal}
+      \begin{algorithmic}[1]
+        \Require{Graph $G(V, E)$}
+        \Function{Kruskal}{V, E}
+          \State sort $E$ in increasing cost 
+          \State $T \gets \{\}$
+          \For{$e \in E$}
+            \If{$T \cup \{e\}$ does not have cycle} 
+              \State $T \gets T \cup \{e\}$ \Comment{Cut property}
+            \Else \Comment{Cycle property} 
+              \State continue \Comment{discard $e$ since from sorting, this edge is heaviest in cycle}
+            \EndIf
+          \EndFor
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+        \begin{tikzpicture}[
+          scale=0.8, 
+          node/.style={circle, draw, minimum size=0.8cm, thick},
+          edge/.style={-,thick},
+          mstedge/.style={-,thick,red,line width=1.5pt}
+        ]
+        % Nodes with coordinates
+        \node[node] (b) at (0,0) {b};
+        \node[node] (c) at (4,0) {c};
+        \node[node] (a) at (2,2) {a};
+        \node[node] (d) at (6,2) {d};
+        \node[node] (e) at (2,-2) {e};
+        
+        % Edges with weights
+        \draw[edge] (a) -- node[above] {5} (d);
+        \draw[edge] (a) -- node[left] {4} (b);
+        \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
+        \draw[edge] (b) -- node[above] {7} (c);
+        \draw[mstedge] (c) -- node[right] {2} (d);
+        \draw[edge] (b) -- node[left] {9} (e);
+        \draw[edge] (c) -- node[right] {10} (e);
+        \end{tikzpicture}
+        \caption{}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+        \begin{tikzpicture}[
+          scale=0.8, 
+          node/.style={circle, draw, minimum size=0.8cm, thick},
+          edge/.style={-,thick},
+          mstedge/.style={-,thick,red,line width=1.5pt}
+        ]
+        % Nodes with coordinates
+        \node[node] (b) at (0,0) {b};
+        \node[node] (c) at (4,0) {c};
+        \node[node] (a) at (2,2) {a};
+        \node[node] (d) at (6,2) {d};
+        \node[node] (e) at (2,-2) {e};
+        
+        % Edges with weights
+        \draw[edge] (a) -- node[above] {5} (d);
+        \draw[mstedge] (a) -- node[left] {4} (b);
+        \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
+        \draw[edge] (b) -- node[above] {7} (c);
+        \draw[mstedge] (c) -- node[right] {2} (d);
+        \draw[edge] (b) -- node[left] {9} (e);
+        \draw[edge] (c) -- node[right] {10} (e);
+        \end{tikzpicture}
+        \caption{}
+      \end{subfigure}
+      
+      \vspace{0.5cm}
+      
+      \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+        \begin{tikzpicture}[
+          scale=0.8, 
+          node/.style={circle, draw, minimum size=0.8cm, thick},
+          edge/.style={-,thick},
+          mstedge/.style={-,thick,red,line width=1.5pt}
+        ]
+        % Nodes with coordinates
+        \node[node] (b) at (0,0) {b};
+        \node[node] (c) at (4,0) {c};
+        \node[node] (a) at (2,2) {a};
+        \node[node] (d) at (6,2) {d};
+        \node[node] (e) at (2,-2) {e};
+        
+        % Edges with weights
+        \draw[mstedge] (a) -- node[above] {5} (d);
+        \draw[mstedge] (a) -- node[left] {4} (b);
+        \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
+        \draw[edge] (b) -- node[above] {7} (c);
+        \draw[mstedge] (c) -- node[right] {2} (d);
+        \draw[edge] (b) -- node[left] {9} (e);
+        \draw[edge] (c) -- node[right] {10} (e);
+        \end{tikzpicture}
+        \caption{}
+      \end{subfigure}
+      \hfill
+      \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+        \begin{tikzpicture}[
+          scale=0.8, 
+          node/.style={circle, draw, minimum size=0.8cm, thick},
+          edge/.style={-,thick},
+          mstedge/.style={-,thick,red,line width=1.5pt},
+          blueedge/.style={-,thick,blue,line width=1.5pt}
+        ]
+        % Nodes with coordinates
+        \node[node] (b) at (0,0) {b};
+        \node[node] (c) at (4,0) {c};
+        \node[node] (a) at (2,2) {a};
+        \node[node] (d) at (6,2) {d};
+        \node[node] (e) at (2,-2) {e};
+        
+        % Edges with weights
+        \draw[mstedge] (a) -- node[above] {5} (d);
+        \draw[mstedge] (a) -- node[left] {4} (b);
+        \draw[blueedge] (a) -- node[right, pos=0.3] {6} (c);
+        \draw[blueedge] (b) -- node[above] {7} (c);
+        \draw[mstedge] (c) -- node[right] {2} (d);
+        \draw[mstedge] (b) -- node[left] {9} (e);
+        \draw[edge] (c) -- node[right] {10} (e);
+        \end{tikzpicture}
+        \caption{}
+      \end{subfigure}
+      \caption{Kruskal's algorithm. In the last step, we see that the next minimum cost edge of 6 and 7 forms a cycle, so we add the edge of length 9.}
+      \label{fig:kruskal}
+    \end{figure}
+
+    The sorting of edges take $O(m \log{m})$ time, and after sorting, we iterate through all the edges and apply $m$ find-union algorithm, which each take at most $O(\log{n})$ time. Therefore, the overall complexity is $O(m \log{m} + m \log{n})$. However, the value of $m$ can be at most $O(n^2)$, so the two logarithms are essentially the same, arriving at the final runtime of $O(m \log{n})$. 
+  \end{algo}
+
+  The way to prove that this is correct is to show that every step you do is correct, known as \textit{structural induction}, either because of one of the two properties. Say that so far, we have some edges in $V$ which forms a partition of $V = \sqcup_i T_i$ of disjoint trees (can be trees, one edge, or just single nodes). We are looking at the next biggest edge $e = (a, b)$. There are two possibilities. 
+  \begin{enumerate}
+    \item If $a, b$ are both in a single $T_i$, then this forms a cycle and can be thrown away since this is the max cost edge in the cycle by the cycle property. 
+    \item If $a, b$ connect $T_i$ and $T_j$ for $i \neq j$, then this edge is in $\mathrm{Cut}(T_i)$ and is the minimum cost edge since the rest of the edges in $\mathrm{Cut}(T_i)$ come next in the sorted $E$. Therefore this must be included by the cut property. 
+  \end{enumerate}
+
+
+  \begin{figure}[H]
+    \centering 
+    \includegraphics[scale=0.4]{img/sets.png}
+    \caption{Each $T_i$ is a component formed by the edges chosen so far. For example, $T_1 = \{1, 2, 3, 4, 5, 6\}, \ldots$. We can either discard an edge (red) or include an edge (yellow). } 
+    \label{fig:sets}
+  \end{figure}
+
+  The only bottleneck in here is line 5, where we check if $e$ does not complete a cycle in $T$. It will obviously not be efficient to do BFS, construct a tree, and see if there is a loop by checking if two points in the same layer are connected. It may help to decompose this algorithm into two steps: what is being stored and what is being checked? 
+
+  Note that from our visual, we are really just keeping a set of these points that each make a subtree and connecting them together. How do we efficiently search for which cluster a point is a part of and efficiently merge two clusters? We could use a hashmap but this wouldn't work. We need something like a doubly linked list. 
+
+  \begin{algo}[Kruskal's Algorithm]
+    The implementation uses the Union-Find data structure. For clarity, we will not elaborate it but will show the full pseudocode. 
+    \begin{algorithm}[H]
+      \label{alg:kruskal}
+      \begin{algorithmic}
+        \Require{Nodes V. Edges $E = \{(u, v, w)\}$ where $u, v \in V$ and $w > 0$ is a weight. }
+        \State 
+        \Function{Kruskal}{V, E}
+          \State $n \gets |V|$ 
+          \State sort $E$ in increasing order of weights. \Comment{Needed for Kruskal}
+          \State parent $\gets [0, \ldots, n-1]$ \Comment{Initialize the disjoint cluster each node is in}
+          \State rank $\gets$ list of $0$s of size $n$ 
+
+          \Function{Find}{x} 
+            \If{parent[x] $\neq$ x} 
+            \State parent[x] $\gets$ Find(parent[x]) \Comment{Path compression}
+            \EndIf
+            \State \Return{parent[x]}
+          \EndFunction
+
+          \Function{Union}{x, y} 
+            \State px, py = find(x), find(y) 
+            \If{px = py} 
+              \State \Return{False}
+            \EndIf
+            \If{rank[px] < rank[py]} 
+              \State parent[px] $\gets$ py
+            \ElsIf{rank[px] > rank[py]}
+              \State parent[py] $\gets$ px
+            \Else{}
+              \State parent[py] $\gets$ px 
+              \State rank[px] $\gets$ rank[px] + 1
+            \EndIf
+            \State \Return{True}
+          \EndFunction
+
+          \State mst $\gets$ [] 
+          \For{u, v, weight $\in$ edges} 
+            \If{union(u, v)} 
+              \State add (u, v, weight) to mst
+            \EndIf 
+            \If{len(mst) = n - 1}
+              \State break
+            \EndIf 
+          \EndFor
+
+          \State \Return{mst}
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
+  
+  To analyze the runtime of this, we define the function. 
+
+  \begin{definition}[Ackerman Function]
+    The \textbf{Ackerman function} is one of the fastest growing functions known. It is practically infinity. 
+    \begin{equation}
+      A(m,n) = 
+      \begin{cases} 
+        n+1 & \text{if } m = 0 \\
+        A(m-1,1) & \text{if } m > 0 \text{ and } n = 0 \\
+        A(m-1,A(m,n-1)) & \text{if } m > 0 \text{ and } n > 0
+      \end{cases} 
+    \end{equation}
+    The inverse Ackerman function therefore grows extremely slowly. 
+  \end{definition}
+
+  If we optimize the steps in Kruskal's algorithm, we can get its runtime to 
+  \begin{equation}
+    O((m + n) \log^{\ast} (n))
+  \end{equation}
+  which is practically linear. 
+
+\subsubsection{Applications}
+
+  Here is a way to cluster data, a surprising way to apply MSTs. It is the most widely used application, especially in data science. The problem is that given $n$ data points $x_i \in \mathbb{R}^d$ and an integer $k$, we want to partition the points into $k$ groups $\mathbf{C} = (C_1, \ldots, C_k)$ where $\mathbf{x} = \sqcup_i C_i$. You want to distances between the points within a group to be small and the distances between groups to be large. We can think of finding the objective which takes every pair of clusters and computes the minimum distance between these clusters, and we want to maximize this distance over all pairs of clusters.  
+
+  \begin{algo}[Single Linkage/Hierarchical Clustering]
+    The general idea is to take this dense graph, find the MST, and cut off the largest edges from this MST, which will give you $k$ components. This is the answer. Or really, you can use Kruskal's algorithm and terminate earlier when $T$ has $k$ sets/components. 
+    Note that as we add edges as we construct our MST, we are merging two clusters into one. So that all you are doing is finding the next pair of closest points and merging the clusters that they are a part of. 
+
+    \begin{algorithm}[H]
+      \label{alg:clustering}
+      \begin{algorithmic}[1]
+        \Require{Nodes $V = \{v_i\} \subset \mathbb{R}^n$}
+        \Function{Cluster}{V}
+          \State Run Kruskal and at each iteration, check if you have $K$ clusters. 
+          \State If so, terminate and return the \texttt{parent} list. 
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
+
+  \begin{theorem}
+    The algorithm above minimizes the objective function. 
+    \begin{equation}
+      \argmax_{\mathbf{C}} \min_{p \in C_i, q \in C_j} \{ d(p, q) \}
+    \end{equation}
+  \end{theorem}
+  \begin{proof}
+    Let $\mathbf{C}^\ast$ be the MST clustering. We claim that for any other clustering $\mathbf{C} = \{C_1, \ldots, C_k\}$,  
+    \begin{equation}
+      \mathrm{min dist}(\mathbf{C}) \leq \mathrm{min dist}(\mathbf{C}^{\ast})
+    \end{equation}
+    Assume that this was not the case, so $\mathrm{min dist}(\mathbf{C}) > \mathrm{min dist}(\mathbf{C}^{\ast})$ and therefore there exists a $p, q \in C_i, C_j$ such that $d(p, q) = \mathrm{mindist}(\mathbf{C}) > \mathrm{min dist}(\mathbf{C}^\ast)$. Since this is a different clustering, $p, q$ must have been in the same cluster $C_i^\ast$. But note that since Kruskal adds edges in increasing length, all edges within a cluster must have length less edges that go across two clusters. 
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/mindist.png}
+      \label{fig:mindist}
+    \end{figure}
+
+    So $d(p, q)$ must be the less than the length of all edges within a cluster in $\mathbf{C}^\ast$. But all within-cluster edges must be smaller than $\mathrm{min dist}(\mathbf{C}^\ast)$, meaning that $\mathrm{min dist}(\mathbf{C}^\ast) > d(p, q)$, contradicting the fact that is is greater, and we are done. 
+  \end{proof}
+
+  If you define the distance between two clusters to be the distance between the centroids (mean point), then this is called \textit{average linkage} (min avg distance). If we define the cluster distance as the maximum distance between two points, then it is called \textit{complete linkage} (min max distance). Kruskal's algorithm only worked for the single linkage case but may not work for these additional definitions. This is why there is usually a whole suite of clustering algorithms for a particular problem and we just find out which one fits the data the best. Furthermore, we have done \textit{bottom-up clustering}, where we took individual points to make clusters. In \textit{top-down clustering}, we take the whole set and cut it up into clusters.  
+
+\subsection{Maximum Flows and Minimum Cuts} 
+
+    \begin{definition}[Flow Network]
+      Given a nonnegative weighted directed graph $G(V, E)$, we can define the weights to be the \textbf{capacity} $C: E \rightarrow \mathbb{R}^+$ of some commodity that can travel through the edge. Say that we have a source node $s \in V$ and a sink/destination node $t \in V$. This is called a \textbf{flow network}.
+    \end{definition}
+
+    \begin{definition}[Flow]
+      Given a flow network, a \textbf{flow} is a function $f: E \rightarrow \mathbb{R}^+$ satisfying 
       \begin{enumerate}
-        \item a tree, and 
-        \item spans the graph, i.e. is connected 
+        \item \textit{Conservation}. What flows in must always flow out. For all $v \neq s, t$, we have 
+          \begin{equation}
+            \sum_{(u \rightarrow v) \in E} f(u \rightarrow v) = \sum_{(v \rightarrow w) \in E} f(v \rightarrow w)
+          \end{equation}
+
+        \item \textit{Feasibility}. We cannot exceed the capacity. For all $e \in E$, 
+          \begin{equation}
+            0 \leq f(e) \leq C(e)
+          \end{equation}
       \end{enumerate}
+      The \textbf{value} of a flow represents the actual/realized amount of the commodity that we can push through the graph
+      \begin{equation}
+        |f| = \sum_{(s \rightarrow u) \in E}  f(s \rightarrow u) - \sum_{(u \rightarrow s) \in E}  f(u \rightarrow s) 
+      \end{equation} 
+      where we need to subtract the right expression to avoid loops. 
+    \end{definition}
+
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}[
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth
+      ]
+
+      % Nodes with increased horizontal spacing
+      \node[vertex] (s) at (0,0) {s};
+      \node[vertex] (a) at (3,2) {};
+      \node[vertex] (b) at (6,2) {};
+      \node[vertex] (c) at (3,-2) {};
+      \node[vertex] (d) at (6,-2) {};
+      \node[vertex] (t) at (9,0) {t};
+
+      % Edges with colored fraction labels
+      \draw[->] (s) -- node[above] {$\frac{\color{red}10}{\color{blue}20}$} (a);
+      \draw[->] (s) -- node[below] {$\frac{\color{red}0}{\color{blue}10}$} (c);
+      \draw[->] (a) -- node[above] {$\frac{\color{red}0}{\color{blue}5}$} (b);
+      \draw[->] (a) -- node[below] {$\frac{\color{red}10}{\color{blue}10}$} (c);
+      \draw[->] (b) -- node[above] {$\frac{\color{red}5}{\color{blue}15}$} (t);
+      \draw[->] (b) -- node[right] {$\frac{\color{red}5}{\color{blue}20}$} (d);
+      \draw[->] (c) -- node[below] {$\frac{\color{red}10}{\color{blue}10}$} (d);
+      \draw[->] (d) -- node[below] {$\frac{\color{red}5}{\color{blue}20}$} (t);
+      \draw[<-] (c) -- node[above] {$\frac{\color{red}0}{\color{blue}15}$} (b);
+
+      \end{tikzpicture}
+      \caption{The red values represent the flow. The blue values represent the capacity. The value of the above flow is 10.} 
+      \label{fig:flow}
+    \end{figure}
+
+    Now let's revisit cuts. 
+
+    \begin{definition}[Cuts]
+      Given a flow network, a s-t \textbf{cut} is a partition of $V = S \sqcup T$ s.t. $s \in S, t \in T$. The \textbf{value}, or \textbf{capacity}, of a cut is defined as the capacity of its edges 
+      \begin{equation}
+        ||S, T|| = \sum_{u in S} \sum_{v \in T} C(u \rightarrow v)
+      \end{equation}
+    \end{definition}
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth
+      ]
+
+      % Nodes with increased horizontal spacing
+      \node[vertex] (s) at (0,0) {s};
+      \node[vertex] (a) at (3,2) {};
+      \node[vertex] (b) at (6,2) {};
+      \node[vertex] (c) at (3,-2) {};
+      \node[vertex] (d) at (6,-2) {};
+      \node[vertex] (t) at (9,0) {t};
+
+      % Edges with upright colored fraction labels
+      \draw[->] (s) -- node[above] {$\color{blue}20$} (a);
+      \draw[->] (s) -- node[below] {$\color{blue}10$} (c);
+      \draw[->] (a) -- node[above] {$\color{blue}5$} (b);
+      \draw[->] (a) -- node[left] {$\color{blue}10$} (c);
+      \draw[->] (b) -- node[above] {$\color{blue}15$} (t);
+      \draw[->] (b) -- node[right] {$\color{blue}20$} (d);
+      \draw[->] (c) -- node[below] {$\color{blue}10$} (d);
+      \draw[->] (d) -- node[below] {$\color{blue}20$} (t);
+      \draw[<-] (c) -- node[right] {$\color{blue}15$} (b);
+
+      % Draw the cut (add this on background layer to appear behind nodes)
+      \begin{scope}[on background layer]
+          \draw[dashed, thick, gray] (4.5,-3) -- (4.5,3);
+          
+          % Add labels for the sets
+          \node at (2,2.5) {S};
+          \node at (7,2.5) {T};
+      \end{scope}
+
+      \end{tikzpicture}
+      \caption{This cut has capacity 15. Note that the cut going from right to left is not included since this is a S-T cut. } 
+      \label{fig:cut}
+    \end{figure}
+
+    We now introduce two related problems. 
+    \begin{enumerate}
+      \item Max Flow. How do we find the flow with the maximum value? This is analogous to maximizing the commodity transport from $s$ to $t$.  
+      \item Min Cut. How do we find the cut with the minimum capacity? This is analogous to removing the smallest total edges that will disconnect $s$ to $t$. 
+    \end{enumerate}
+
+    \begin{theorem}[Max-Flow Min-Cut Theorem]
+      For any valid $(s, t)$ flow $f$ on a flow network $G = (V, E)$ and any valid $(s, t)$-cut $S, T$, we have 
+      \begin{equation}
+        |f| \leq ||S, T||
+      \end{equation} 
+      It also turns out that equality is achieved, which immediately implies that the max-flow is the min-cut. 
+    \end{theorem}
+    \begin{proof}
+      We can see that in order for a flow to have a value, given some cut the flow value cannot exceed the capacity through this cut from $S$ to $T$. Mathematically, we can see that the flow value is invariant due to conservation, and so  
+      \begin{align}
+        |f| & = \sum_{s \rightarrow v} f(s \rightarrow v) - \sum_{v \rightarrow s} f(v \rightarrow s) \\ 
+            & = \sum_{u \in S} \sum_{v \in T} f(u \rightarrow v) - \sum_{v \in T} \sum_{u \in S} f(v \rightarrow u) \\ 
+            & \leq \sum_{u \in S} \sum_{v \in T} c(u \rightarrow v) = ||S, T||
+      \end{align}
+      The fact that equality is achieved is highly nontrivial, and we will not cover it here. 
+    \end{proof} 
+
+\subsubsection{Ford Fulkerson}
+
+  Now to compute the maximum flow itself, we use a residual graph. For now, we will assume that a flow network $G$ does not have 2-cycles (cycles of length 2), and if we do find a graph with such a 2-cycle, we modify it by adding an intermediate node. 
+
+  \begin{figure}[H]
+    \centering 
+    \begin{tikzpicture}[
+        vertex/.style={circle, draw, minimum size=0.6cm},
+        >=Stealth
+    ]
+
+    % First pattern
+    \node[vertex] (u1) at (0,0) {$u$};
+    \node[vertex] (v1) at (2,0) {$v$};
+
+    \draw[->] (u1) to[bend left=30] (v1);
+    \draw[->] (v1) to[bend left=30] (u1);
+
+    % Arrow indicating transformation
+    \draw[-{Stealth[length=10pt]}, double] (3,0) -- (4,0);
+
+    % Second pattern
+    \node[vertex] (u2) at (5,0) {$u$};
+    \node[vertex] (v2) at (7,0) {$v$};
+    \node[vertex] (uv2) at (6,-1.5) {$uv$};
+
+    \draw[->] (u2) -- (v2);
+    \draw[->] (v2) -- (uv2);
+    \draw[->] (uv2) -- (u2);
+
+    \end{tikzpicture}
+    \caption{How we modify our 2-cycle.} 
+    \label{fig:cycle_mod}
+  \end{figure}
+
+  \begin{definition}[Residual Network]
+    Given a flow network $G$ and a flow $f$, the \textbf{residual graph} $G_f$ is a new flow network that has edges $u \rightarrow v$ and $v \rightarrow u$, where 
+    \begin{equation}
+      c_f (u \rightarrow v) = \begin{cases} c (u \rightarrow v) - f(u \rightarrow v) & \text{ if } u \rightarrow v \in E \\ 
+        f(u \rightarrow v) & \text{ if } v \rightarrow u \in E
+      \end{cases}
+    \end{equation}
+    Basically, if there is some flow in an edge, we replace that edge's capacity by the residual capacity, giving us our \textit{forward edge}, and then take this flow and add it to a new opposite pointing edge, called the \textit{backwards edge}. 
+  \end{definition} 
+
+  \begin{figure}[H]
+    \centering 
+    \begin{tikzpicture}[
+      node distance=2.5cm,
+      vertex/.style={circle, draw, minimum size=0.8cm},
+      auto,
+      >=Stealth,
+      fwd/.style={blue},
+      back/.style={purple}
+      ]
+
+      % Nodes with increased horizontal spacing
+      \node[vertex] (s) at (0,0) {s};
+      \node[vertex] (a) at (3,2) {a};
+      \node[vertex] (b) at (6,2) {b};
+      \node[vertex] (c) at (3,-2) {c};
+      \node[vertex] (d) at (6,-2) {d};
+      \node[vertex] (t) at (9,0) {t};
+
+      % Forward edges in blue (including zero weights)
+      \draw[->, fwd] (s) -- node[above] {10} (a);
+      \draw[->, fwd] (s) -- node[below] {10} (c);
+      \draw[->, fwd] (a) -- node[above] {5} (b);
+      \draw[->, fwd] (b) -- node[above] {15} (t);
+      \draw[->, fwd] (b) -- node[right] {15} (d);
+      \draw[->, fwd] (b) -- node[left] {15} (c);
+      \draw[->, fwd] (d) -- node[below] {15} (t);
+      \draw[->, fwd] (a) to[bend left=20] node[above] {0} (c);
+      \draw[->, fwd] (c) to[bend left=20] node[below] {0} (d);
+
+      % Backward edges in purple (including zero weights)
+      \draw[->, back] (a) to[bend right=20] node[below] {10} (s);
+      \draw[->, back] (c) to[bend left=20] node[left] {10} (a);
+      \draw[->, back] (d) to[bend left=20] node[below] {10} (c);
+      \draw[->, back] (t) to[bend left=20] node[below] {5} (b);
+      \draw[->, back] (t) to[bend right=20] node[above] {5} (d);
+      \draw[->, back] (d) to[bend left=20] node[right] {5} (b);
+      \draw[->, back] (c) to[bend right=20] node[above] {0} (s);
+      \draw[->, back] (b) to[bend right=20] node[above] {0} (a);
+    \end{tikzpicture}
+    \caption{Residual network. } 
+    \label{fig:residual_network}
+  \end{figure}
+
+  \begin{theorem}
+    If we have a flow $f$, its value $|f|$ can be improved/augmented up to the bottleneck capacity on any residual path. That is, if we find any $s \rightarrow t$ path $\pi$ on $G_f$, with a positive bottleneck capacity (minimum capacity over its edges), we can improve the flow.\footnote{For example, the capacity of the path $S, C, A, B, T$ is $5$, since $A \rightarrow B$ has weight $5$.} Given this residual path $\pi$, it may have both forward or backwards edges. To augment the original path on $G$ by value $b$, we look at each edge $(u \rightarrow v) \in E$ and 
+    \begin{enumerate}
+      \item If it corresponds to a forward edge (i.e. if $(u \rightarrow v)$ is in the residual path $\pi$), we add $b$. This corresponds to how much more flow you can put into this edge. 
+      \item If it corresponds to a backward edge (i.e. if $(v \rightarrow u)$ is in the residual path $\pi$), we subtract $b$. The corresponds to how much flow could you reroute in the backwards direction and have it reach $t$ through another path.   
+      \item If it is not in $\pi$, then we don't change it. 
+    \end{enumerate}
+    In summary, the new flow $f^\prime$ is defined 
+    \begin{equation}
+      f^\prime (u \rightarrow v) = \begin{cases} 
+        f(u \rightarrow v) + b & \text{ if } (u \rightarrow v) \in \pi \\ 
+        f(u \rightarrow v) - b & \text{ if } (v \rightarrow u) \in \pi \\  
+        f(u \rightarrow v) & \text{ else }
+      \end{cases}
+    \end{equation}
+  \end{theorem} 
+  \begin{proof}
+    We first show that $f^\prime$ is a valid flow. For feasibility, 
+    \begin{enumerate}
+      \item \textit{Forward}. If $(u \rightarrow  v) \in \pi$, then 
+        \begin{equation}
+          f^\prime (u \rightarrow v) = f(u \rightarrow v) + b \leq f(u \rightarrow v) + c_f (u \rightarrow v) = c(u \rightarrow v)
+        \end{equation} 
+      \item \textit{Backward}. If $(v \rightarrow u) \in \pi$, then 
+        \begin{equation}
+        f^\prime (u \rightarrow v) = f(u \rightarrow v) - b \geq f(u \rightarrow v) - c_f (v \rightarrow u) = 0 
+        \end{equation}
+    \end{enumerate}
+
+    For conservation, there are 4 cases. 
+    \begin{enumerate}
+      \item Forward into node, forward out of node. $\Delta_{in} = +b, \Delta_{out} = +b$. Therefore the flows cancel out. 
+      \item Forward into node, backward out of node. $\Delta_{in} = +b - b = 0$. 
+      \item Backward into node, forward out of node. $\Delta_{out} = +b - b = 0$. 
+      \item Backward into node, backward out of node. $\Delta_{in} = -b, \Delta_{out} = - b$. 
+    \end{enumerate}
+  \end{proof} 
+
+  At this point, we're pretty much ready to give our algorithm on max-flow. 
+
+  \begin{algo}[Ford-Fulkerson]
+    We've reduced this problem to a problem of finding a positive path $\pi$ in the residual graph, which we have a lot of algorithms built for. We find such a path and augment the flow until we cannot find such a path. If we cannot find a path, then we can use BFS to look at all vertices $S \subset V$ reachable from $s$ in $G_f$, and then let $T = V \setminus S$. These two disjoint sets will give the min cut. 
+    
+    \begin{algorithm}[H]
+      \label{alg:maxflow}
+      \begin{algorithmic}
+        \Require{Flow network $G(V, E)$, source/sink $s, t \in V$. Capacity $c$. }
+        \State 
+        \Function{MaxFlow}{G}
+        \State Start with the trivial flow $f$, maybe stored as array $[0, \ldots, 0]$ of length $E$. 
+          \State Construct residual graph $G_f$ for this trivial flow. 
+          \While{$G_f$ has an augmenting path in $G_f$} \Comment{Maybe use BFS to find this.}
+            \State Pick $\pi$ as any augmenting path 
+            \State augment $f$ by bottleneck capacity 
+            \State update $G_f$. 
+          \EndWhile
+          \State \Return{f}  
+          \State Use BFS to find all nodes in $G_f$ reachable from $s$. Call this $S$.  
+          \State Let $T = V \setminus S$.  
+          \State $S, T$ is our min cut, and $f$ is your max flow. 
+        \EndFunction
+      \end{algorithmic}
+    \end{algorithm}
+    The inner loop is just BFS, which is $O(N + M)$, but how many iterations do we do? Well for integer capacities, we can bound it by the actual value of the max flow $|f^\ast|$ since we must improve by at least $+1$ every loop.\footnote{This is not a trivial result that if all capacities are integers, then there is an integer max-flow, despite the actual flow being dispersed as fractions across edges.} Unfortunately, $O((N+M) |f^\ast|)$ is the best we can do in generality, which is pseudopolynomial. 
+  \end{algo}
+
+  There are indeed polynomial time algorithms, e.g. Orlin's algorithm with runtime $O(NM)$, which is guaranteed to be polynomial but in practice may be slower. 
+
+  \begin{example}[Ford-Fulkerson Walkthrough]
+    Let's conduct Ford-Fulkerson on the following graph. Each row consists of one step, which is to find an augmenting path, compute the bottleneck capacity, and augment each edge and the total flow. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          scale=0.9,
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth
+          ]
+          % Nodes with increased horizontal spacing
+          \node[vertex] (s) at (1,0) {s};
+          \node[vertex] (a) at (3,2) {a};
+          \node[vertex] (b) at (6,2) {b};
+          \node[vertex] (c) at (3,-2) {c};
+          \node[vertex] (d) at (6,-2) {d};
+          \node[vertex] (t) at (8,0) {t};
+
+          % Edges with colored fraction labels
+          \draw[->] (s) -- node[above] {$\frac{\color{red}0}{\color{blue}10}$} (a);
+          \draw[->] (s) -- node[below] {$\frac{\color{red}0}{\color{blue}10}$} (c);
+          \draw[->] (a) -- node[above] {$\frac{\color{red}0}{\color{blue}4}$} (b);
+          \draw[->] (a) -- node[right] {$\frac{\color{red}0}{\color{blue}2}$} (c);
+          \draw[->] (a) -- node[above] {$\frac{\color{red}0}{\color{blue}8}$} (d);
+          \draw[->] (b) -- node[above] {$\frac{\color{red}0}{\color{blue}10}$} (t);
+          \draw[->] (c) -- node[below] {$\frac{\color{red}0}{\color{blue}9}$} (d);
+          \draw[->] (d) -- node[right] {$\frac{\color{red}0}{\color{blue}6}$} (b);
+          \draw[->] (d) -- node[below] {$\frac{\color{red}0}{\color{blue}10}$} (t);
+        \end{tikzpicture}
+        \caption{Our initial graph with our capacity in blue and trivial flow in red.}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          scale=0.9,
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth,
+          fwd/.style={blue},
+          back/.style={purple}
+          ]
+
+          % Nodes with increased horizontal spacing
+          \node[vertex] (s) at (1,0) {s};
+          \node[vertex] (a) at (3,2) {a};
+          \node[vertex] (b) at (6,2) {b};
+          \node[vertex] (c) at (3,-2) {c};
+          \node[vertex] (d) at (6,-2) {d};
+          \node[vertex] (t) at (8,0) {t};
+
+          \draw[->, fwd, font=\footnotesize] (s) -- node[below] {10} (a);
+          \draw[->, back, font=\footnotesize] (a) to[bend right=20] node[above] {0} (s);
+
+          \draw[->, fwd, font=\footnotesize] (s) -- node[below] {10} (c);
+          \draw[->, back, font=\footnotesize] (c) to[bend right=20] node[above] {0} (s);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[right] {2} (c);
+          \draw[->, back, font=\footnotesize] (c) to[bend left=20] node[left]   {0} (a);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[below] {4} (b);
+          \draw[->, back, font=\footnotesize] (b) to[bend right=20] node[above] {0} (a);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[below] {8} (d);
+          \draw[->, back, font=\footnotesize] (d) to[bend left=20] node[left]   {0} (a);
+
+          \draw[->, fwd, font=\footnotesize] (c) -- node[above] {9} (d);
+          \draw[->, back, font=\footnotesize] (d) to[bend left=20] node[below]  {0} (c);
+
+          \draw[->, fwd, font=\footnotesize] (d) -- node[right] {6} (b);
+          \draw[->, back, font=\footnotesize] (b) to[bend left=20] node[right]  {0} (d);
+
+          \draw[->, fwd, font=\footnotesize] (b) -- node[above] {10} (t);
+          \draw[->, back, font=\footnotesize] (t) to[bend left=20] node[below]  {0} (b);
+
+          \draw[->, fwd, font=\footnotesize] (d) -- node[below] {10} (t);
+          \draw[->, back, font=\footnotesize] (t) to[bend right=20] node[above] {0} (d);
+        \end{tikzpicture}
+        \caption{Residual network, which is redundant, but is good for visualization for the first time.}
+      \end{subfigure}
+    \end{figure}
+
+    \begin{figure}[H]
+      \ContinuedFloat
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          scale=0.9,
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth
+          ]
+          % Nodes with increased horizontal spacing
+          \node[vertex] (s) at (1,0) {s};
+          \node[vertex] (a) at (3,2) {a};
+          \node[vertex] (b) at (6,2) {b};
+          \node[vertex] (c) at (3,-2) {c};
+          \node[vertex] (d) at (6,-2) {d};
+          \node[vertex] (t) at (8,0) {t};
+
+          % Edges with colored fraction labels
+          \draw[->, green!80!black] (s) -- node[above] {$\frac{\color{red}8}{\color{blue}10}$} (a);
+          \draw[->] (s) -- node[below] {$\frac{\color{red}0}{\color{blue}10}$} (c);
+          \draw[->] (a) -- node[above] {$\frac{\color{red}0}{\color{blue}4}$} (b);
+          \draw[->] (a) -- node[right] {$\frac{\color{red}0}{\color{blue}2}$} (c);
+          \draw[->, green!80!black] (a) -- node[above] {$\frac{\color{red}8}{\color{blue}8}$} (d);
+          \draw[->] (b) -- node[above] {$\frac{\color{red}0}{\color{blue}10}$} (t);
+          \draw[->] (c) -- node[below] {$\frac{\color{red}0}{\color{blue}9}$} (d);
+          \draw[->] (d) -- node[right] {$\frac{\color{red}0}{\color{blue}6}$} (b);
+          \draw[->, green!80!black] (d) -- node[below] {$\frac{\color{red}8}{\color{blue}10}$} (t);
+        \end{tikzpicture}
+        \caption{We run BFS and find a path, say $s \mapsto a \mapsto d \mapsto t$. The bottleneck capacity is $8$ from min weight edge $a \mapsto d$. }
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          scale=0.9,
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth,
+          fwd/.style={blue},
+          back/.style={purple}
+          ]
+
+          % Nodes with increased horizontal spacing
+          \node[vertex] (s) at (1,0) {s};
+          \node[vertex] (a) at (3,2) {a};
+          \node[vertex] (b) at (6,2) {b};
+          \node[vertex] (c) at (3,-2) {c};
+          \node[vertex] (d) at (6,-2) {d};
+          \node[vertex] (t) at (8,0) {t};
+
+          \draw[->, fwd, font=\footnotesize] (s) -- node[below] {2} (a);
+          \draw[->, back, font=\footnotesize] (a) to[bend right=20] node[above] {8} (s);
+
+          \draw[->, fwd, font=\footnotesize] (s) -- node[below] {10} (c);
+          \draw[->, back, font=\footnotesize] (c) to[bend right=20] node[above] {0} (s);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[right] {2} (c);
+          \draw[->, back, font=\footnotesize] (c) to[bend left=20] node[left]   {0} (a);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[below] {4} (b);
+          \draw[->, back, font=\footnotesize] (b) to[bend right=20] node[above] {0} (a);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[below] {0} (d);
+          \draw[->, back, font=\footnotesize] (d) to[bend left=20] node[left]   {8} (a);
+
+          \draw[->, fwd, font=\footnotesize] (c) -- node[above] {9} (d);
+          \draw[->, back, font=\footnotesize] (d) to[bend left=20] node[below]  {0} (c);
+
+          \draw[->, fwd, font=\footnotesize] (d) -- node[right] {6} (b);
+          \draw[->, back, font=\footnotesize] (b) to[bend left=20] node[right]  {0} (d);
+
+          \draw[->, fwd, font=\footnotesize] (b) -- node[above] {10} (t);
+          \draw[->, back, font=\footnotesize] (t) to[bend left=20] node[below]  {0} (b);
+
+          \draw[->, fwd, font=\footnotesize] (d) -- node[below] {2} (t);
+          \draw[->, back, font=\footnotesize] (t) to[bend right=20] node[above] {8} (d);
+        \end{tikzpicture}
+        \caption{We decrease our forward edges and increase our backwards edges along this path. We have a total flow of $8$.}
+      \end{subfigure}
+    \end{figure}
+
+    \begin{figure}[H]
+      \ContinuedFloat
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          scale=0.9,
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth
+          ]
+          % Nodes with increased horizontal spacing
+          \node[vertex] (s) at (1,0) {s};
+          \node[vertex] (a) at (3,2) {a};
+          \node[vertex] (b) at (6,2) {b};
+          \node[vertex] (c) at (3,-2) {c};
+          \node[vertex] (d) at (6,-2) {d};
+          \node[vertex] (t) at (8,0) {t};
+
+          % Edges with colored fraction labels
+          \draw[->] (s) -- node[above] {$\frac{\color{red}8}{\color{blue}10}$} (a);
+          \draw[->, green!80!black] (s) -- node[below] {$\frac{\color{red}2}{\color{blue}10}$} (c);
+          \draw[->] (a) -- node[above] {$\frac{\color{red}0}{\color{blue}4}$} (b);
+          \draw[->] (a) -- node[right] {$\frac{\color{red}0}{\color{blue}2}$} (c);
+          \draw[->] (a) -- node[above] {$\frac{\color{red}8}{\color{blue}8}$} (d);
+          \draw[->] (b) -- node[above] {$\frac{\color{red}0}{\color{blue}10}$} (t);
+          \draw[->, green!80!black] (c) -- node[below] {$\frac{\color{red}2}{\color{blue}9}$} (d);
+          \draw[->] (d) -- node[right] {$\frac{\color{red}0}{\color{blue}6}$} (b);
+          \draw[->, green!80!black] (d) -- node[below] {$\frac{\color{red}10}{\color{blue}10}$} (t);
+        \end{tikzpicture}
+        \caption{We run BFS again and find the path $s \mapsto c \mapsto d \mapsto t$, with a bottleneck capacity of $2$, from $d \rightarrow t$ which is partially full and has remaining capacity $2/10$. }
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          scale=0.9,
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth,
+          fwd/.style={blue},
+          back/.style={purple}
+          ]
+
+          % Nodes with increased horizontal spacing
+          \node[vertex] (s) at (1,0) {s};
+          \node[vertex] (a) at (3,2) {a};
+          \node[vertex] (b) at (6,2) {b};
+          \node[vertex] (c) at (3,-2) {c};
+          \node[vertex] (d) at (6,-2) {d};
+          \node[vertex] (t) at (8,0) {t};
+
+          \draw[->, fwd, font=\footnotesize] (s) -- node[below] {2} (a);
+          \draw[->, back, font=\footnotesize] (a) to[bend right=20] node[above] {8} (s);
+
+          \draw[->, fwd, font=\footnotesize] (s) -- node[below] {8} (c);
+          \draw[->, back, font=\footnotesize] (c) to[bend right=20] node[above] {2} (s);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[right] {2} (c);
+          \draw[->, back, font=\footnotesize] (c) to[bend left=20] node[left]   {0} (a);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[below] {4} (b);
+          \draw[->, back, font=\footnotesize] (b) to[bend right=20] node[above] {0} (a);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[below] {0} (d);
+          \draw[->, back, font=\footnotesize] (d) to[bend left=20] node[left]   {8} (a);
+
+          \draw[->, fwd, font=\footnotesize] (c) -- node[above] {7} (d);
+          \draw[->, back, font=\footnotesize] (d) to[bend left=20] node[below]  {2} (c);
+
+          \draw[->, fwd, font=\footnotesize] (d) -- node[right] {6} (b);
+          \draw[->, back, font=\footnotesize] (b) to[bend left=20] node[right]  {0} (d);
+
+          \draw[->, fwd, font=\footnotesize] (b) -- node[above] {10} (t);
+          \draw[->, back, font=\footnotesize] (t) to[bend left=20] node[below]  {0} (b);
+
+          \draw[->, fwd, font=\footnotesize] (d) -- node[below] {0} (t);
+          \draw[->, back, font=\footnotesize] (t) to[bend right=20] node[above] {10} (d);
+        \end{tikzpicture}
+        \caption{We update our forward and backwards edges along this path, with a total flow of $10$. \\}
+      \end{subfigure}
+    \end{figure}
+
+    \begin{figure}[H]
+      \ContinuedFloat
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          scale=0.9,
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth
+          ]
+          % Nodes with increased horizontal spacing
+          \node[vertex] (s) at (1,0) {s};
+          \node[vertex] (a) at (3,2) {a};
+          \node[vertex] (b) at (6,2) {b};
+          \node[vertex] (c) at (3,-2) {c};
+          \node[vertex] (d) at (6,-2) {d};
+          \node[vertex] (t) at (8,0) {t};
+
+          % Edges with colored fraction labels
+          \draw[->] (s) -- node[above] {$\frac{\color{red}8}{\color{blue}10}$} (a);
+          \draw[->, green!80!black] (s) -- node[below] {$\frac{\color{red}6}{\color{blue}10}$} (c);
+          \draw[->, green!80!black] (a) -- node[above] {$\frac{\color{red}4}{\color{blue}4}$} (b);
+          \draw[->] (a) -- node[right] {$\frac{\color{red}0}{\color{blue}2}$} (c);
+          \draw[->, green!80!black] (a) -- node[above] {$\frac{\color{red}4}{\color{blue}8}$} (d);
+          \draw[->, green!80!black] (b) -- node[above] {$\frac{\color{red}4}{\color{blue}10}$} (t);
+          \draw[->, green!80!black] (c) -- node[below] {$\frac{\color{red}6}{\color{blue}9}$} (d);
+          \draw[->] (d) -- node[right] {$\frac{\color{red}0}{\color{blue}6}$} (b);
+          \draw[->] (d) -- node[below] {$\frac{\color{red}10}{\color{blue}10}$} (t);
+        \end{tikzpicture}
+        \caption{Now we run BFS and come across a path that has a backwards edge. See that $s \mapsto c \mapsto d \mapsto a \mapsto b \mapsto t$ contains the backwards edge $d \mapsto a$ which has capacity $8$. This path has capacity $4$ (from $a \rightarrow b$). }
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          scale=0.9,
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth,
+          fwd/.style={blue},
+          back/.style={purple}
+          ]
+
+          % Nodes with increased horizontal spacing
+          \node[vertex] (s) at (1,0) {s};
+          \node[vertex] (a) at (3,2) {a};
+          \node[vertex] (b) at (6,2) {b};
+          \node[vertex] (c) at (3,-2) {c};
+          \node[vertex] (d) at (6,-2) {d};
+          \node[vertex] (t) at (8,0) {t};
+
+          \draw[->, fwd, font=\footnotesize] (s) -- node[below] {2} (a);
+          \draw[->, back, font=\footnotesize] (a) to[bend right=20] node[above] {8} (s);
+
+          \draw[->, fwd, font=\footnotesize] (s) -- node[below] {4} (c);
+          \draw[->, back, font=\footnotesize] (c) to[bend right=20] node[above] {6} (s);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[right] {2} (c);
+          \draw[->, back, font=\footnotesize] (c) to[bend left=20] node[left]   {0} (a);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[below] {0} (b);
+          \draw[->, back, font=\footnotesize] (b) to[bend right=20] node[above] {4} (a);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[below] {4} (d);
+          \draw[->, back, font=\footnotesize] (d) to[bend left=20] node[left]   {4} (a);
+
+          \draw[->, fwd, font=\footnotesize] (c) -- node[above] {3} (d);
+          \draw[->, back, font=\footnotesize] (d) to[bend left=20] node[below]  {6} (c);
+
+          \draw[->, fwd, font=\footnotesize] (d) -- node[right] {6} (b);
+          \draw[->, back, font=\footnotesize] (b) to[bend left=20] node[right]  {0} (d);
+
+          \draw[->, fwd, font=\footnotesize] (b) -- node[above] {6} (t);
+          \draw[->, back, font=\footnotesize] (t) to[bend left=20] node[below]  {4} (b);
+
+          \draw[->, fwd, font=\footnotesize] (d) -- node[below] {0} (t);
+          \draw[->, back, font=\footnotesize] (t) to[bend right=20] node[above] {10} (d);
+        \end{tikzpicture}
+        \caption{We increment the flow on all the forward edges and decrement the flow on the backwards edge $a \rightarrow d$. We are shifting the flow from $a \mapsto d$ to $a \mapsto b$, leaving space for more flow. Total flow of $14$.}
+      \end{subfigure}
+    \end{figure}
+
+    \begin{figure}[H]
+      \ContinuedFloat
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          scale=0.9,
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth
+          ]
+          % Nodes with increased horizontal spacing
+          \node[vertex] (s) at (1,0) {s};
+          \node[vertex] (a) at (3,2) {a};
+          \node[vertex] (b) at (6,2) {b};
+          \node[vertex] (c) at (3,-2) {c};
+          \node[vertex] (d) at (6,-2) {d};
+          \node[vertex] (t) at (8,0) {t};
+
+          % Edges with colored fraction labels
+          \draw[->, green!80!black] (s) -- node[above] {$\frac{\color{red}10}{\color{blue}10}$} (a);
+          \draw[->] (s) -- node[below] {$\frac{\color{red}6}{\color{blue}10}$} (c);
+          \draw[->] (a) -- node[above] {$\frac{\color{red}4}{\color{blue}4}$} (b);
+          \draw[->] (a) -- node[right] {$\frac{\color{red}0}{\color{blue}2}$} (c);
+          \draw[->, green!80!black] (a) -- node[above] {$\frac{\color{red}6}{\color{blue}8}$} (d);
+          \draw[->, green!80!black] (b) -- node[above] {$\frac{\color{red}6}{\color{blue}10}$} (t);
+          \draw[->] (c) -- node[below] {$\frac{\color{red}6}{\color{blue}9}$} (d);
+          \draw[->, green!80!black] (d) -- node[right] {$\frac{\color{red}2}{\color{blue}6}$} (b);
+          \draw[->] (d) -- node[below] {$\frac{\color{red}10}{\color{blue}10}$} (t);
+        \end{tikzpicture}
+        \caption{We find the path $s \mapsto a \mapsto d \mapsto b \mapsto t$ and increment by bottlneck of $2$.}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          scale=0.9,
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth,
+          fwd/.style={blue},
+          back/.style={purple}
+          ]
+
+          % Nodes with increased horizontal spacing
+          \node[vertex] (s) at (1,0) {s};
+          \node[vertex] (a) at (3,2) {a};
+          \node[vertex] (b) at (6,2) {b};
+          \node[vertex] (c) at (3,-2) {c};
+          \node[vertex] (d) at (6,-2) {d};
+          \node[vertex] (t) at (8,0) {t};
+
+          \draw[->, fwd, font=\footnotesize] (s) -- node[below] {0} (a);
+          \draw[->, back, font=\footnotesize] (a) to[bend right=20] node[above] {10} (s);
+
+          \draw[->, fwd, font=\footnotesize] (s) -- node[below] {4} (c);
+          \draw[->, back, font=\footnotesize] (c) to[bend right=20] node[above] {6} (s);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[right] {2} (c);
+          \draw[->, back, font=\footnotesize] (c) to[bend left=20] node[left]   {0} (a);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[below] {0} (b);
+          \draw[->, back, font=\footnotesize] (b) to[bend right=20] node[above] {4} (a);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[below] {2} (d);
+          \draw[->, back, font=\footnotesize] (d) to[bend left=20] node[left]   {6} (a);
+
+          \draw[->, fwd, font=\footnotesize] (c) -- node[above] {3} (d);
+          \draw[->, back, font=\footnotesize] (d) to[bend left=20] node[below]  {6} (c);
+
+          \draw[->, fwd, font=\footnotesize] (d) -- node[right] {4} (b);
+          \draw[->, back, font=\footnotesize] (b) to[bend left=20] node[right]  {2} (d);
+
+          \draw[->, fwd, font=\footnotesize] (b) -- node[above] {4} (t);
+          \draw[->, back, font=\footnotesize] (t) to[bend left=20] node[below]  {6} (b);
+
+          \draw[->, fwd, font=\footnotesize] (d) -- node[below] {0} (t);
+          \draw[->, back, font=\footnotesize] (t) to[bend right=20] node[above] {10} (d);
+        \end{tikzpicture}
+        \caption{This consists of all forward edges, so we don't have to do anything fancy here. Total flow of $16$.}
+      \end{subfigure}
+    \end{figure}
+
+    \begin{figure}[H]
+      \ContinuedFloat
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          scale=0.9,
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth
+          ]
+          % Nodes with increased horizontal spacing
+          \node[vertex] (s) at (1,0) {s};
+          \node[vertex] (a) at (3,2) {a};
+          \node[vertex] (b) at (6,2) {b};
+          \node[vertex] (c) at (3,-2) {c};
+          \node[vertex] (d) at (6,-2) {d};
+          \node[vertex] (t) at (8,0) {t};
+
+          % Edges with colored fraction labels
+          \draw[->] (s) -- node[above] {$\frac{\color{red}10}{\color{blue}10}$} (a);
+          \draw[->, green!80!black] (s) -- node[below] {$\frac{\color{red}9}{\color{blue}10}$} (c);
+          \draw[->] (a) -- node[above] {$\frac{\color{red}4}{\color{blue}4}$} (b);
+          \draw[->] (a) -- node[right] {$\frac{\color{red}0}{\color{blue}2}$} (c);
+          \draw[->] (a) -- node[above] {$\frac{\color{red}6}{\color{blue}8}$} (d);
+          \draw[->, green!80!black] (b) -- node[above] {$\frac{\color{red}9}{\color{blue}10}$} (t);
+          \draw[->, green!80!black] (c) -- node[below] {$\frac{\color{red}9}{\color{blue}9}$} (d);
+          \draw[->, green!80!black] (d) -- node[right] {$\frac{\color{red}5}{\color{blue}6}$} (b);
+          \draw[->] (d) -- node[below] {$\frac{\color{red}10}{\color{blue}10}$} (t);
+        \end{tikzpicture}
+        \caption{Same on the path $s \mapsto c \mapsto d \mapsto b \mapsto t$.}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[
+          scale=0.9,
+          node distance=2.5cm,
+          vertex/.style={circle, draw, minimum size=0.8cm},
+          auto,
+          >=Stealth,
+          fwd/.style={blue},
+          back/.style={purple}
+          ]
+
+          % Nodes with increased horizontal spacing
+          \node[vertex] (s) at (1,0) {s};
+          \node[vertex] (a) at (3,2) {a};
+          \node[vertex] (b) at (6,2) {b};
+          \node[vertex] (c) at (3,-2) {c};
+          \node[vertex] (d) at (6,-2) {d};
+          \node[vertex] (t) at (8,0) {t};
+
+          \draw[->, fwd, font=\footnotesize] (s) -- node[below] {0} (a);
+          \draw[->, back, font=\footnotesize] (a) to[bend right=20] node[above] {10} (s);
+
+          \draw[->, fwd, font=\footnotesize] (s) -- node[below] {1} (c);
+          \draw[->, back, font=\footnotesize] (c) to[bend right=20] node[above] {9} (s);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[right] {2} (c);
+          \draw[->, back, font=\footnotesize] (c) to[bend left=20] node[left]   {0} (a);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[below] {0} (b);
+          \draw[->, back, font=\footnotesize] (b) to[bend right=20] node[above] {4} (a);
+
+          \draw[->, fwd, font=\footnotesize] (a) -- node[below] {2} (d);
+          \draw[->, back, font=\footnotesize] (d) to[bend left=20] node[left]   {6} (a);
+
+          \draw[->, fwd, font=\footnotesize] (c) -- node[above] {0} (d);
+          \draw[->, back, font=\footnotesize] (d) to[bend left=20] node[below]  {9} (c);
+
+          \draw[->, fwd, font=\footnotesize] (d) -- node[right] {1} (b);
+          \draw[->, back, font=\footnotesize] (b) to[bend left=20] node[right]  {5} (d);
+
+          \draw[->, fwd, font=\footnotesize] (b) -- node[above] {1} (t);
+          \draw[->, back, font=\footnotesize] (t) to[bend left=20] node[below]  {9} (b);
+
+          \draw[->, fwd, font=\footnotesize] (d) -- node[below] {0} (t);
+          \draw[->, back, font=\footnotesize] (t) to[bend right=20] node[above] {10} (d);
+        \end{tikzpicture}
+        \caption{Increment all forward edges for total flow of $19$.}
+      \end{subfigure}
+
+      At this point, we try to find another path. The path $s \mapsto a$ is full so we cannot go through there. $s \mapsto c$ has a capacity of $1$, but from $c$, $c \mapsto d$ has a full capacity (so we cannot add to it), and $c \mapsto a$ has a backwards edge $c \mapsto a$ is empty (so we cannot remove from it). Therefore there are no more paths\footnote{We could have found this again using BFS.} and we are done. 
+    \end{figure}
+  \end{example} 
+
+  \begin{example}[Edge Disjoint Paths]
+    Given a directed graph $G(V, E)$ with start and end nodes $s, t \in V$, we want to find the maximum number of paths from $s \rightarrow t$ s.t. they do not share any edge, i.e. are \textit{edge-disjoint}. 
+    \begin{figure}[H]
+      \centering 
+      \caption{This graph has two edge-disjoint paths: the top and bottom paths. } 
+      \begin{tikzpicture}[
+          vertex/.style={circle, draw, minimum size=0.6cm},
+          >=Stealth
+      ]
+
+      % Nodes - arranging them in the shape shown
+      \node[vertex] (s) at (0,0) {s};
+      \node[vertex] (a) at (2,1) {};
+      \node[vertex] (b) at (4,1) {};
+      \node[vertex] (t) at (6,0) {t};
+      \node[vertex] (c) at (2,-1) {};
+      \node[vertex] (d) at (4,-1) {};
+
+      % Upper and lower path edges
+      \draw[->] (s) -- (a);
+      \draw[->] (a) -- (b);
+      \draw[->] (b) -- (t);
+      \draw[->] (s) -- (c);
+      \draw[->] (c) -- (d);
+      \draw[->] (d) -- (t);
+
+      % Cross edges between paths
+      \draw[->] (a) to[bend right=20] (c);
+      \draw[->] (c) -- (b);
+      \draw[->] (b) to[bend right=20] (d);
+
+      \end{tikzpicture}
+      \label{fig:edge_disjoint}
+    \end{figure}
+    
+    The idea is to reduce the maximum flow by first assigning capacity 1 to every edge. Then we compute the maximum flow $f^\ast$, and then return $|f^\ast|$. It turns out that even if we chose a path $\pi$ that went through the center node, the augmentation would push us to redirect the flows to the top and bottom outer edges. Since $|f^\ast| \leq n-1 < m$ in this example (since it can be at most the maximum indegree or outdegree of $s, t$), we should probably use Ford-Fulkerson rather than Orlin's algorithm. 
+  \end{example}
+
+  This leads to the lemma. 
+
+  \begin{theorem}[Edge-Disjoint Paths]
+    Given directed graph $G$ and its corresponding flow network $G^\prime$ of capacity $1$, the following are true: 
+    \begin{enumerate}
+      \item If there exists $k$ edge-disjoint paths in $G$, then there exists a flow with value $\geq k$ in $G^\prime$. 
+      \item If there exists a flow of value $k$ in $G^\prime$, then there exists $k$ edge-disjoint paths in $G$. 
+    \end{enumerate}
+  \end{theorem}
+  \begin{proof}
+    The first is trivially feasible and conservation is satisfied since for any node $u \in V \setminus \{s, t\}$, every path in $P$ (the collection of $k$ paths) that enters $u$ must exit $u$, so the total flow in equals the total flow out $\implies$ $f$ is a valid $(s, t)$-flow. Therefore, we have $k$ paths leaving $s$, so $|f| = k$. 
+
+    For the other direction, let $f$ be the flow with value $k$, and let $P = \{\}$. Let $H$ be the subgraph of $G^\prime$ of edges with positive flow, and for every loop, we use BFS from $s$ to $t$ to get a path $\pi$. We then add $\pi$ to $P$ and remove $\pi$ from $H$, repeat this $k$ times until we get $k$ paths in $P$.  
+  \end{proof} 
+
+  The way that we have constructed a collection of paths from a flow function is very useful, and is called \textit{flow decomposition}. We can go back and forth between a flow and a collection of paths by doing what we have just done in the previous proof. 
+
+  \begin{definition}[Flow Decomposition]
+    Given a general flow $f$ on flow network $G$, we initialize our set of paths $P = \{\}$ and loop the following: 
+    \begin{enumerate}
+      \item Use BFS from $s$ to $t$ to get a path $\pi$. 
+      \item Add $\pi$ to $P$ and rather than strictly removing the path from $H$, we need to be mindful of how much flow is left on it after removing only the bottleneck flow on the path. 
+    \end{enumerate}
+    This can be done in $O(NM)$ time, which loosely is because we are running BFS $O(M)$ times. 
+  \end{definition}
+
+  \begin{example}[Undirected Edge-Disjoint Paths]
+    What if $G$ is undirected? In this case, we want to construct a flow network and then convert its 2 cycles into a 3 cycles by adding artificial points, taking linear time. 
+  \end{example}
+
+  \begin{example}[Undirected Edge-Disjoint Paths]
+    Another problem is about vertex-disjoint paths, which is a stronger restriction than edge-disjoint ones. Each node does not have a concept of a capacity, so the general idea is for each vertex $v$, replace it with an ``in-out gadget'' with an edge of weight 1. The rest of the details follow similarly from edge-disjoint paths. 
+    
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}
+
+      % Define styles
+      \tikzset{
+          voltage node/.style={
+              draw,
+              circle,
+              minimum size=1.2cm,
+              thick
+          },
+          arrow style/.style={
+              ->,
+              >=stealth,
+              thick
+          }
+      }
+
+      % Left figure
+      % Node v with 4 in-edges and 3 out-edges
+      \node[voltage node] (v1) at (0,0) {$v$};
+
+      % In-edges
+      \draw[arrow style] (-1.5, 1) -- (v1);
+      \draw[arrow style] (-1.5, 0.33) -- (v1);
+      \draw[arrow style] (-1.5, -0.33) -- (v1);
+      \draw[arrow style] (-1.5, -1) -- (v1);
+
+      % Out-edges
+      \draw[arrow style] (v1) -- (1.5, 0.67);
+      \draw[arrow style] (v1) -- (1.5, 0);
+      \draw[arrow style] (v1) -- (1.5, -0.67);
+
+      % Arrow between figures
+      \draw[->, line width=1.5pt, red] (2.5,0) -- (3.5,0);
+
+      % Right figure
+      % Node v_in with 3 in-edges
+      \node[voltage node, blue] (v2) at (6,0) {$v_{in}$};
+      \draw[arrow style, blue] (4.5, 0.67) -- (v2);
+      \draw[arrow style, blue] (4.5, 0) -- (v2);
+      \draw[arrow style, blue] (4.5, -0.67) -- (v2);
+
+      % Connection between v_in and v_out
+      \draw[arrow style, red] (v2) -- (8.5,0);
+
+      % Node v_out with 4 out-edges
+      \node[voltage node, purple] (v3) at (9,0) {$v_{out}$};
+      \draw[arrow style, purple] (v3) -- (10.5, 1);
+      \draw[arrow style, purple] (v3) -- (10.5, 0.33);
+      \draw[arrow style, purple] (v3) -- (10.5, -0.33);
+      \draw[arrow style, purple] (v3) -- (10.5, -1);
+
+      \end{tikzpicture}
+      \caption{} 
+      \label{fig:undirected_ex}
+    \end{figure}
+  \end{example}
+
+  \begin{example}[Maximum Bipartite Matching]
+    Another application is in \textbf{bipartite matching}, which for an undirected bipartite graph $G(V, E)$ with $V = A \sqcup B$, is a subset of the edges $M \subset E$ s.t. no 2 edges in $M$ share an endpoint. The goal is to find the maximum bipartite matching, i.e. the matching with the greatest total weight. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[
+          blue node/.style={draw, circle, fill=blue!20, minimum size=0.8cm},
+          red node/.style={draw, circle, fill=red!20, minimum size=0.8cm},
+          normal edge/.style={thin, black},
+          matching edge/.style={very thick, green!60!black},
+          normal weight/.style={black},
+          matching weight/.style={green!60!black, font=\bfseries}
+      ]
+
+      % Left (blue) nodes
+      \node[blue node] (a1) at (0,3) {$a_1$};
+      \node[blue node] (a2) at (0,2) {$a_2$};
+      \node[blue node] (a3) at (0,1) {$a_3$};
+      \node[blue node] (a4) at (0,0) {$a_4$};
+
+      % Right (red) nodes
+      \node[red node] (b1) at (4,2.5) {$b_1$};
+      \node[red node] (b2) at (4,1.5) {$b_2$};
+      \node[red node] (b3) at (4,0.5) {$b_3$};
+
+      % Regular edges with weights
+      \draw[normal edge] (a1) -- node[above, pos=0.7] {3} (b2);
+      \draw[normal edge] (a2) -- node[below, pos=0.3] {4} (b1);
+      \draw[normal edge] (a3) -- node[above, pos=0.7] {2} (b2);
+      \draw[normal edge] (a3) -- node[below, pos=0.6] {4} (b3);
+      \draw[normal edge] (a4) -- node[below, pos=0.3] {5} (b3);
+
+      % Maximum matching edges (highlighted in green)
+      \draw[matching edge] (a1) -- node[above, pos=0.3, matching weight] {5} (b1);
+      \draw[matching edge] (a2) -- node[above, pos=0.6, matching weight] {6} (b3);
+      \draw[matching edge] (a4) -- node[below, pos=0.7, matching weight] {3} (b2);
+
+      \end{tikzpicture}
+      \caption{A bipartite matching} 
+      \label{fig:bipartite_matching}
+    \end{figure}
+
+    The general idea is to take an undirected graph, convert it to a flow network, compute the max flow, i.e. min cut, and then translate it back into the undirected graph solution.  
+    \begin{enumerate}
+      \item Construct the flow network $G^\prime = (V^\prime, E^\prime)$, where $V^\prime = V \cup \{s, t\}$, with additional edges going from $s$ to $A$ and $B$ to $t$ all with weights $1$. Replace the middle edges with directed edges towards the flow with the same weight (though it can be any weight at least 1). 
 
       \begin{figure}[H]
         \centering 
         \begin{tikzpicture}[
-            scale=1.2,
-            node/.style={circle, draw=black, thick, minimum size=0.6cm},
-            regular_edge/.style={line width=1pt},
-            highlighted_edge/.style={blue, line width=2pt}
+            blue node/.style={draw, circle, fill=blue!20, minimum size=0.8cm},
+            red node/.style={draw, circle, fill=red!20, minimum size=0.8cm},
+            special node/.style={draw, circle, minimum size=0.8cm},
+            edge/.style={->, >=stealth}
         ]
 
-        % Create a 4x4 grid of nodes
-        \foreach \i in {0,...,3} {
-            \foreach \j in {0,...,3} {
-                \node[node] (n\i\j) at (\i,\j) {};
-            }
-        }
+        % Source and sink nodes
+        \node[special node] (s) at (-2,1.5) {$s$};
+        \node[special node] (t) at (6,1.5) {$t$};
 
-        % Regular edges (brown)
-        % Horizontal edges
-        \draw[regular_edge] (n00) -- (n10);
-        \draw[regular_edge] (n01) -- (n11);
-        \draw[regular_edge] (n02) -- (n12);
-        \draw[regular_edge] (n03) -- (n13);
-        \draw[regular_edge] (n20) -- (n30);
-        \draw[regular_edge] (n23) -- (n33);
+        % Left (blue) nodes
+        \node[blue node] (a1) at (0,3) {$a_1$};
+        \node[blue node] (a2) at (0,2) {$a_2$};
+        \node[blue node] (a3) at (0,1) {$a_3$};
+        \node[blue node] (a4) at (0,0) {$a_4$};
 
-        % Vertical edges
-        \draw[regular_edge] (n10) -- (n11);
-        \draw[regular_edge] (n11) -- (n12);
-        \draw[regular_edge] (n12) -- (n13);
-        \draw[regular_edge] (n20) -- (n21);
-        \draw[regular_edge] (n21) -- (n22);
-        \draw[regular_edge] (n30) -- (n31);
-        \draw[regular_edge] (n31) -- (n32);
-        \draw[regular_edge] (n32) -- (n33);
+        % Right (red) nodes
+        \node[red node] (b1) at (4,2.5) {$b_1$};
+        \node[red node] (b2) at (4,1.5) {$b_2$};
+        \node[red node] (b3) at (4,0.5) {$b_3$};
 
-        % Highlighted edges (blue) - spanning tree
-        % Horizontal edges
-        \draw[highlighted_edge] (n12) -- (n22);
-        \draw[highlighted_edge] (n01) -- (n11);
-        \draw[highlighted_edge] (n10) -- (n20);
-        \draw[highlighted_edge] (n20) -- (n30);
-        \draw[highlighted_edge] (n23) -- (n33);
+        % Edges from source to A nodes with weight 1
+        \draw[edge] (s) -- node[above] {1} (a1);
+        \draw[edge] (s) -- node[above] {1} (a2);
+        \draw[edge] (s) -- node[below] {1} (a3);
+        \draw[edge] (s) -- node[below] {1} (a4);
 
-        % Vertical edges
-        \draw[highlighted_edge] (n00) -- (n01);
-        \draw[highlighted_edge] (n01) -- (n02);
-        \draw[highlighted_edge] (n02) -- (n03);
-        \draw[highlighted_edge] (n10) -- (n11);
-        \draw[highlighted_edge] (n11) -- (n12);
-        \draw[highlighted_edge] (n30) -- (n31);
-        \draw[highlighted_edge] (n31) -- (n32);
-        \draw[highlighted_edge] (n32) -- (n33);
+        % Edges from B nodes to sink with weight 1
+        \draw[edge] (b1) -- node[above] {1} (t);
+        \draw[edge] (b2) -- node[above] {1} (t);
+        \draw[edge] (b3) -- node[below] {1} (t);
+
+        % Middle edges (directed A to B) with original weights
+        \draw[edge] (a1) -- node[above, pos=0.3] {5} (b1);
+        \draw[edge] (a1) -- node[above, pos=0.7] {3} (b2);
+        \draw[edge] (a2) -- node[below, pos=0.3] {4} (b1);
+        \draw[edge] (a2) -- node[above, pos=0.6] {6} (b3);
+        \draw[edge] (a3) -- node[above, pos=0.7] {2} (b2);
+        \draw[edge] (a3) -- node[below, pos=0.6] {4} (b3);
+        \draw[edge] (a4) -- node[below, pos=0.7] {3} (b2);
+        \draw[edge] (a4) -- node[below, pos=0.3] {5} (b3);
 
         \end{tikzpicture}
-        \caption{A spanning tree on a $4 \times 4$ grid graph. } 
-        \label{fig:spanning_tree}
-      \end{figure}
-    \end{definition}
 
-    Note that an unconnected graph will never have a spanning tree, but what about a connected graph? 
-
-    \begin{theorem}[Spanning Trees of Connected Graphs]
-      A connected graph will always have at least one spanning tree, not necessarily unique. 
-    \end{theorem}
-
-    Given a connected undirected weighted graph, we may want to find the \textbf{minimum spanning tree (MST)}, i.e. the spanning tree with edges $E^\prime$ such that the sum of the weights of all $e \in E^\prime$ is minimized.\footnote{An application of this is when we generally want to make sparse graphs. In a datacenter, wires can be expensive, so how I can minimize the length of wires to buy to construct a spanning subgraph?} How do we do this? There are two well-known algorithms to solve this. Prim's and Kruskal's algorithm.  
-  
-  \subsubsection{Prim's Algorithm with Cuts}
-
-    Let's try to apply what we already know: Dijkstra. If we run Dijkstra on the graph starting at $s \in V$, we can get the shortest path from $s$ to every other node in the graph. This will give us a tree, but it may not be minimum. 
-
-    \begin{figure}[H]
-      \centering 
-      \begin{tikzpicture}[
-          node/.style={circle, draw, minimum size=1cm, thick},
-          edge/.style={-,thick}
-      ]
-
-      % Define node positions
-      \node[node] (s) at (0,2) {s};
-      \node[node] (a) at (-1.5,0) {a};
-      \node[node] (b) at (0,-0.5) {b};
-      \node[node] (c) at (1.5,0) {c};
-
-      % Draw edges with weights
-      \draw[edge] (s) -- node[left,near start] {100} (a);
-      \draw[edge] (s) -- node[right] {100} (b);
-      \draw[edge] (s) -- node[right,near start] {100} (c);
-      \draw[edge] (a) -- node[below] {1} (b);
-      \draw[edge] (b) -- node[below] {1} (c);
-
-      \end{tikzpicture}
-      \caption{If we run Dijkstra on $s$, then our output will be a tree of cost $300$, even when the actual MST can be of cost $102$ starting from $a$.} 
-      \label{fig:dik_mst_prob}
-    \end{figure}
-
-    It may seem like this is just a problem of where we start, but even this is not the case. 
-
-    \begin{figure}[H]
-      \centering 
-      \begin{tikzpicture}[
-          node/.style={circle, draw, minimum size=1cm, thick},
-          edge/.style={-,thick}
-      ]
-
-      % Define node positions
-      \node[node] (d) at (0,2) {d};
-      \node[node] (a) at (-1.5,0) {a};
-      \node[node] (b) at (0,-0.5) {b};
-      \node[node] (c) at (1.5,0) {c};
-
-      % Draw edges with weights
-      \draw[edge] (d) -- node[left,near start] {4} (a);
-      \draw[edge] (d) -- node[right] {5} (b);
-      \draw[edge] (d) -- node[right,near start] {4} (c);
-      \draw[edge] (a) -- node[below] {4} (b);
-      \draw[edge] (b) -- node[below] {4} (c);
-
-      \end{tikzpicture}
-      \caption{No matter where we start from, we will never output the MST. The MST has cost $12$. If  we start from $b$ or $d$, we will get a tree of cost $13$. If we start from $a$ or $c$, we will get a tree of cost $16$.}
-      \label{fig:dik_mst_prob2}
-    \end{figure}
-
-    \begin{definition}[Cuts]      
-      Given graph $G(V, E)$, a \textbf{cut} is a partitioning of $V$ into $(S, V \setminus S)$. Furthermore, let $\mathrm{Cut}(S)$ be the number of edges with exactly one endpoint in $S$ and the other in $V \setminus S$. 
-    \end{definition}
-
-    \begin{theorem}[Cycles and Cuts]
-      Given cycle $C \subset E$ in a graph and a cut $S \subset V$, 
-      \begin{equation}
-        | C \cap \mathrm{Cut}(S) | 
-      \end{equation}
-      is even. We can intuit this by visualizing the cycle as a long piece of looped string and a cut is a circle. The intersection between this circle and the string must be even since every time the cycle crosses through the cut, it must return back across the cut to the initial point.  
-    \end{theorem}
-
-    Now time for a bizarre theorem. 
-
-    \begin{theorem}[Cut Property of MSTs]
-      For all cuts $S \subset V$ of an undirected graph, the minimum cost edge in $\mathrm{Cut}(S)$ belongs to the MST. Furthermore, the converse is true: if we take all cuts and find all their minimum cost edges, these edges is precisely the MST! Therefore, an edge $e \in \mathrm{MST}$ iff $e$ is a min-cost edge for some cut. 
-
-      \begin{figure}[H]
-        \centering
-        \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-          \begin{tikzpicture}[
-            scale=0.8, 
-            node/.style={circle, draw, minimum size=0.8cm, thick},
-            edge/.style={-,thick},
-            partition/.style={draw=red, thick}
-          ]
-
-          % Nodes with coordinates
-          \node[node] (b) at (0,0) {b};
-          \node[node] (c) at (4,0) {c};
-          \node[node] (a) at (2,2) {a};
-          \node[node] (d) at (6,2) {d};
-
-          % Edges with weights
-          \draw[edge] (a) -- node[above] {5} (d);
-          \draw[edge] (a) -- node[left] {4} (b);
-          \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
-          \draw[edge] (b) -- node[below] {7} (c);
-          \draw[edge] (c) -- node[right] {2} (d);
-
-          % Red partition boundary - left side partition as parallelogram
-          % Using the same slope as the a-b edge and a-d edge
-          \draw[partition, rounded corners=10pt] (-1.5,-0.5) -- (1.5,2.5) -- (3.75,2.5) -- (0.75,-0.5) -- cycle;
-
-          \end{tikzpicture}
-          \caption{}
-        \end{subfigure}
-        \hfill 
-        \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-          \begin{tikzpicture}[
-            scale=0.8, 
-            node/.style={circle, draw, minimum size=0.8cm, thick},
-            edge/.style={-,thick},
-            partition/.style={draw=red, thick}
-          ]
-
-          % Nodes with coordinates
-          \node[node] (b) at (0,0) {b};
-          \node[node] (c) at (4,0) {c};
-          \node[node] (a) at (2,2) {a};
-          \node[node] (d) at (6,2) {d};
-
-          % Edges with weights
-          \draw[edge] (a) -- node[above] {5} (d);
-          \draw[edge] (a) -- node[left] {4} (b);
-          \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
-          \draw[edge] (b) -- node[below] {7} (c);
-          \draw[edge] (c) -- node[right] {2} (d);
-
-          % Red partition boundary for right diagram
-          \draw[partition, rounded corners=10pt] (3.5,-0.5) -- (0.5,2.5) -- (2.5,2.5) -- (5.5,-0.5) -- cycle;
-
-          \end{tikzpicture}
-          \caption{}
-        \end{subfigure}
-        \label{fig:mst_cut_prop}
-        \caption{In the left cut, the edges are $(a,d), (b, c), (a, c)$. The minimum weight is $5$ on the $(a, d)$ edge, so it must be in the MST. For the right cut, $(c, d)$ must be in the MST. }
+        \label{fig:g_prime}
       \end{figure}
 
-      The final part is that if we have all edge costs different, then we will have a \textit{unique} MST. 
-    \end{theorem}
-    \begin{proof}
-      We use a greedy approach and prove by contradiction. Suppose that this is not true, i.e. there exists a cut $S$ with minimum cost edge $e$, and $e \not\in \mathrm{MST}$. Then, there exists some other edge $e^\prime \in \mathrm{Cut}(S)$ that is in the MST, since the MST is spanning and it must cross over to connect the whole graph. Well if we just put $e$ in and take $e^\prime$ out, we will still have a spanning tree since it connects the left spanning tree to the right spanning tree, and we now have a cheaper tree. So the original cannot be the MST in the first place. 
-
-      To prove the converse, consider some edge $e$ in the MST and we must prove that it is the minimum cost edge in some cut. Note that if we take $e$ out, then it divides the MST into two connected components, and we can just define the cut as these subsets of nodes. So this is in $\mathrm{Cut}(S)$ for some $S \subset V$. We can also prove that this is minimal since if it wasn't the minimum cost edge for some cut, we could have taken it out and inserted a cheaper edge $e^\prime$ to begin with, getting a cheaper spanning tree.   
-    \end{proof}
-
-    We can just brute force this logic into an algorithm by going through all possible cuts and adding the minimum cost edge to our MST set. It is clear that a cut is defined by a subset of $S$, so really the number of cuts a graph can have is $2^{|S| - 1}$, which is exponential in $n$. However, the minimum spanning tree isn't exponential since it must have $n-1$ edges, so there must be many cuts with the same minimum edge. 
-
-    One way is to start with one vertex $a$ that contains the minimum cost edge $(a, b)$ across all edges.  This edge must be minimal and must be in the MST. Then we can look at the cut $S = \{a, b\}$ and look at that cut. We keep doing this, keeping track of the set of edges we need to look at after adding a new node to our cut. So the number of cuts I consider is equal to the number of edges in the spanning tree.
-
-    \begin{algo}[Prim's Algorithm to Find MST]
-      It turns out that we can modify Dijkstra to solve it. 
-      \begin{algorithm}[H]
-        \label{alg:prim}
-        \begin{algorithmic}[1]
-          \Require{Graph $G(E, V)$}
-
-          \Function{Prim}{s}
-            \State $S \gets \{s\}$  \Comment{Our initial cut}
-            \State $\pi[v] \gets$ list of size $|V|$ of $+\infty$ \Comment{$\pi[u]$ is min cost of getting from $u$ into the $S$}
-            \State $\pi[v] = w_{sv}$ for all $v \in V$ \Comment{initialize list with neighboring nodes from start $s$}
-
-            \While{$S \neq V$}
-              \State $u = \mathrm{argmin}_{v \notin S} \pi[v]$ \Comment{Find node having minimum cost to reach from $S$}
-              \State $S \gets S \cup \{u\}$ \Comment{Adding this node to $S$ to expand our cut}
-              \For{$u \not\in S$} \Comment{Since we expanded $S$, our min reach distances}
-                \State $\pi[u] \gets \min\{\pi[u], w_{wu}\}$ \Comment{must be updated. It can only get shorter} 
-              \EndFor \Comment{through a path from new $u$, so compare them}
-            \EndWhile
-            
-          \EndFunction
-        \end{algorithmic}
-      \end{algorithm}
-
-      \begin{figure}[H]
-        \centering
-        \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-          \begin{tikzpicture}[
-            scale=0.8, 
-            node/.style={circle, draw, minimum size=0.8cm, thick},
-            edge/.style={-,thick},
-            mstedge/.style={-,thick,red,line width=1.5pt},
-            partition/.style={draw=red, thick}
-          ]
-          % Nodes with coordinates
-          \node[node] (b) at (0,0) {b};
-          \node[node] (c) at (4,0) {c};
-          \node[node] (a) at (2,2) {a};
-          \node[node] (d) at (6,2) {d};
-          % Edges with weights
-          \draw[edge] (a) -- node[above] {5} (d);
-          \draw[mstedge] (a) -- node[left] {4} (b);
-          \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
-          \draw[edge] (b) -- node[below] {7} (c);
-          \draw[edge] (c) -- node[right] {2} (d);
-          % Red partition boundary - around node a
-          \draw[partition, rounded corners=8pt] (1.4,1.4) -- (2.6,1.4) -- (2.6,2.6) -- (1.4,2.6) -- cycle;
-          \end{tikzpicture}
-          \caption{}
-        \end{subfigure}
-        \hfill 
-        \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-          \begin{tikzpicture}[
-            scale=0.8, 
-            node/.style={circle, draw, minimum size=0.8cm, thick},
-            edge/.style={-,thick},
-            mstedge/.style={-,thick,red,line width=1.5pt},
-            partition/.style={draw=red, thick}
-          ]
-          % Nodes with coordinates
-          \node[node] (b) at (0,0) {b};
-          \node[node] (c) at (4,0) {c};
-          \node[node] (a) at (2,2) {a};
-          \node[node] (d) at (6,2) {d};
-          % Edges with weights
-          \draw[mstedge] (a) -- node[above] {5} (d);
-          \draw[mstedge] (a) -- node[left] {4} (b);
-          \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
-          \draw[edge] (b) -- node[below] {7} (c);
-          \draw[edge] (c) -- node[right] {2} (d);
-          % Red partition boundary
-          \draw[partition, rounded corners=10pt] (-1.5,-0.5) -- (1.5,2.5) -- (3.75,2.5) -- (0.75,-0.5) -- cycle;
-          \end{tikzpicture}
-          \caption{}
-        \end{subfigure}
-        
-        \vspace{0.2cm}
-        
-        \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-          \begin{tikzpicture}[
-            scale=0.8, 
-            node/.style={circle, draw, minimum size=0.8cm, thick},
-            edge/.style={-,thick},
-            mstedge/.style={-,thick,red,line width=1.5pt},
-            partition/.style={draw=red, thick}
-          ]
-          % Nodes with coordinates
-          \node[node] (b) at (0,0) {b};
-          \node[node] (c) at (4,0) {c};
-          \node[node] (a) at (2,2) {a};
-          \node[node] (d) at (6,2) {d};
-          % Edges with weights
-          \draw[mstedge] (a) -- node[above] {5} (d);
-          \draw[mstedge] (a) -- node[left] {4} (b);
-          \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
-          \draw[edge] (b) -- node[below] {7} (c);
-          \draw[mstedge] (c) -- node[right] {2} (d);
-          % Red partition boundary - around node c
-          \draw[partition, rounded corners=8pt] (3.4,-0.6) -- (4.6,-0.6) -- (4.6,0.6) -- (3.4,0.6) -- cycle;
-          \end{tikzpicture}
-          \caption{}
-        \end{subfigure}
-        \caption{Step by step process of the method we mention above.}
-        \label{fig:prim}
-      \end{figure}
-      
-      We are really going through two loops. We add to the cut $S$ $n$ times and for each time we add, we must compute the argmin, which is also $O(n)$, so our total time complexity of $O(n^2)$.  
-    \end{algo}
-
-    However, this is not efficient, so we can introduce a minheap to get the argmin step faster. 
-
-    \begin{algo}[Prim's Algorithm with MinHeap]
-      \begin{algorithm}[H]
-        \label{alg:prims}
-        \begin{algorithmic}[1]
-          \Require{Nodes $V$, Edges $E$}
-          \Function{Prim}{V, E}
-            \State mst $\gets$ [] \Comment{Initialize mst array to return}
-            \State s $\gets$ 0 \Comment{Choose any starting node}
-            \State visited $\gets$ set() \Comment{Our expanding set of cuts.}
-            \State edges $\gets$ minheap() \Comment{The set of low-weight edges that we can explore from}
-            \State add (weight, s, next\_node) for edges in E \Comment{Look for edges from s to expand our cut from.}
-
-            \While{|visited| < |V|} \Comment{Until we have visited all cuts,}
-              \State weight, frm, to $\gets$ pop from edges \Comment{Get the cheapest edge to explore}
-              \If{to $\not\in$ visited} \Comment{If this isn't already in our cut, }
-                \State add to $\rightarrow$ visited \Comment{Add it to our cut. From cut}
-                \State add (frm, to, weight) to mst \Comment{property, this must be added to mst}
-
-                \For{next\_to, next\_weight $\in$ E[to]} \Comment{After expanding, add newly discovered}
-                  \If{next\_to $\not\in$ visited} \Comment{edges for future exploration}
-                    \State push (next\_weight, to, next\_to) to edges
-                  \EndIf
-                \EndFor
-              \EndIf
-            \EndWhile 
-
-            \State \Return{mst} \Comment{of form (from, to, weight)}
-          \EndFunction
-        \end{algorithmic}
-      \end{algorithm}
-
-      You essentially push $n$ times and pop $m$ times, and the time per push and pop is $\log_2 (n)$. Therefore, the total time to push is $n \log(n)$ and to pop is $m \log (n)$, making the total runtime $O((n + m) log(n)) = O(m \log{n})$. 
-    \end{algo}
-
-    This can be sped up even faster if we use Fibonacci heaps or assume extra structure on the graph. 
-
-  \subsubsection{Kruskal's Algorithm}
-
-    If we were to try and construct this algorithm from scratch, we may take a greedy approach by incrementally adding the minimum cost edge from your cut. However, there is one thing to check: have we entered a cycle? Checking whether the next added node $a$ completes a cycle in $S \cup \{a\}$ is nontrivial. 
-
-    \begin{theorem}[Cycle Property]
-      For all cycles $C$, the max cost edge of $C$ does not belong to MST. 
-    \end{theorem}
-
-    Therefore, you can take $S$ and either add to it using the cut property or delete candidates from it using the cycle property. What is the best order to do this in? Kruskal's algorithm answers this question, which takes a greedy approach. 
-
-    \begin{algo}[General Kruskal's Algorithm]
-      The general idea is that we sort $e \in E$ in increasing cost, and for each $e \in E$, we use either the cut or cycle property to decide whether $e$ goes in or out. 
-
-      \begin{algorithm}[H]
-        \label{alg:prim_kruskal}
-        \begin{algorithmic}[1]
-          \Require{Graph $G(V, E)$}
-          \Function{Kruskal}{V, E}
-            \State sort $E$ in increasing cost 
-            \State $T \gets \{\}$
-            \For{$e \in E$}
-              \If{$T \cup \{e\}$ does not have cycle} 
-                \State $T \gets T \cup \{e\}$ \Comment{Cut property}
-              \Else \Comment{Cycle property} 
-                \State continue \Comment{discard $e$ since from sorting, this edge is heaviest in cycle}
-              \EndIf
-            \EndFor
-          \EndFunction
-        \end{algorithmic}
-      \end{algorithm}
-
-      \begin{figure}[H]
-        \centering
-        \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-          \begin{tikzpicture}[
-            scale=0.8, 
-            node/.style={circle, draw, minimum size=0.8cm, thick},
-            edge/.style={-,thick},
-            mstedge/.style={-,thick,red,line width=1.5pt}
-          ]
-          % Nodes with coordinates
-          \node[node] (b) at (0,0) {b};
-          \node[node] (c) at (4,0) {c};
-          \node[node] (a) at (2,2) {a};
-          \node[node] (d) at (6,2) {d};
-          \node[node] (e) at (2,-2) {e};
-          
-          % Edges with weights
-          \draw[edge] (a) -- node[above] {5} (d);
-          \draw[edge] (a) -- node[left] {4} (b);
-          \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
-          \draw[edge] (b) -- node[above] {7} (c);
-          \draw[mstedge] (c) -- node[right] {2} (d);
-          \draw[edge] (b) -- node[left] {9} (e);
-          \draw[edge] (c) -- node[right] {10} (e);
-          \end{tikzpicture}
-          \caption{}
-        \end{subfigure}
-        \hfill 
-        \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-          \begin{tikzpicture}[
-            scale=0.8, 
-            node/.style={circle, draw, minimum size=0.8cm, thick},
-            edge/.style={-,thick},
-            mstedge/.style={-,thick,red,line width=1.5pt}
-          ]
-          % Nodes with coordinates
-          \node[node] (b) at (0,0) {b};
-          \node[node] (c) at (4,0) {c};
-          \node[node] (a) at (2,2) {a};
-          \node[node] (d) at (6,2) {d};
-          \node[node] (e) at (2,-2) {e};
-          
-          % Edges with weights
-          \draw[edge] (a) -- node[above] {5} (d);
-          \draw[mstedge] (a) -- node[left] {4} (b);
-          \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
-          \draw[edge] (b) -- node[above] {7} (c);
-          \draw[mstedge] (c) -- node[right] {2} (d);
-          \draw[edge] (b) -- node[left] {9} (e);
-          \draw[edge] (c) -- node[right] {10} (e);
-          \end{tikzpicture}
-          \caption{}
-        \end{subfigure}
-        
-        \vspace{0.5cm}
-        
-        \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-          \begin{tikzpicture}[
-            scale=0.8, 
-            node/.style={circle, draw, minimum size=0.8cm, thick},
-            edge/.style={-,thick},
-            mstedge/.style={-,thick,red,line width=1.5pt}
-          ]
-          % Nodes with coordinates
-          \node[node] (b) at (0,0) {b};
-          \node[node] (c) at (4,0) {c};
-          \node[node] (a) at (2,2) {a};
-          \node[node] (d) at (6,2) {d};
-          \node[node] (e) at (2,-2) {e};
-          
-          % Edges with weights
-          \draw[mstedge] (a) -- node[above] {5} (d);
-          \draw[mstedge] (a) -- node[left] {4} (b);
-          \draw[edge] (a) -- node[right, pos=0.3] {6} (c);
-          \draw[edge] (b) -- node[above] {7} (c);
-          \draw[mstedge] (c) -- node[right] {2} (d);
-          \draw[edge] (b) -- node[left] {9} (e);
-          \draw[edge] (c) -- node[right] {10} (e);
-          \end{tikzpicture}
-          \caption{}
-        \end{subfigure}
-        \hfill
-        \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-          \begin{tikzpicture}[
-            scale=0.8, 
-            node/.style={circle, draw, minimum size=0.8cm, thick},
-            edge/.style={-,thick},
-            mstedge/.style={-,thick,red,line width=1.5pt},
-            blueedge/.style={-,thick,blue,line width=1.5pt}
-          ]
-          % Nodes with coordinates
-          \node[node] (b) at (0,0) {b};
-          \node[node] (c) at (4,0) {c};
-          \node[node] (a) at (2,2) {a};
-          \node[node] (d) at (6,2) {d};
-          \node[node] (e) at (2,-2) {e};
-          
-          % Edges with weights
-          \draw[mstedge] (a) -- node[above] {5} (d);
-          \draw[mstedge] (a) -- node[left] {4} (b);
-          \draw[blueedge] (a) -- node[right, pos=0.3] {6} (c);
-          \draw[blueedge] (b) -- node[above] {7} (c);
-          \draw[mstedge] (c) -- node[right] {2} (d);
-          \draw[mstedge] (b) -- node[left] {9} (e);
-          \draw[edge] (c) -- node[right] {10} (e);
-          \end{tikzpicture}
-          \caption{}
-        \end{subfigure}
-        \caption{Kruskal's algorithm. In the last step, we see that the next minimum cost edge of 6 and 7 forms a cycle, so we add the edge of length 9.}
-        \label{fig:kruskal}
-      \end{figure}
-
-      The sorting of edges take $O(m \log{m})$ time, and after sorting, we iterate through all the edges and apply $m$ find-union algorithm, which each take at most $O(\log{n})$ time. Therefore, the overall complexity is $O(m \log{m} + m \log{n})$. However, the value of $m$ can be at most $O(n^2)$, so the two logarithms are essentially the same, arriving at the final runtime of $O(m \log{n})$. 
-    \end{algo}
-
-    The way to prove that this is correct is to show that every step you do is correct, known as \textit{structural induction}, either because of one of the two properties. Say that so far, we have some edges in $V$ which forms a partition of $V = \sqcup_i T_i$ of disjoint trees (can be trees, one edge, or just single nodes). We are looking at the next biggest edge $e = (a, b)$. There are two possibilities. 
-    \begin{enumerate}
-      \item If $a, b$ are both in a single $T_i$, then this forms a cycle and can be thrown away since this is the max cost edge in the cycle by the cycle property. 
-      \item If $a, b$ connect $T_i$ and $T_j$ for $i \neq j$, then this edge is in $\mathrm{Cut}(T_i)$ and is the minimum cost edge since the rest of the edges in $\mathrm{Cut}(T_i)$ come next in the sorted $E$. Therefore this must be included by the cut property. 
+      \item Compute max flow $f$ in $G^\prime$. 
+      \item Return $M = \{ (u \rightarrow v) \in E \mid f(u \rightarrow v) = 1 \}$. This can be done using the flow decomposition or just by looking at the edges in our flow with value $1$ and mapping it to the corresponding undirected bipartite graph. 
     \end{enumerate}
+    To see correctness, we claim that there exists a matching $M$ in $G$ of size $k$ iff there exists a flow $f$ in $G^\prime$ with $|f|= k$, and therefore the max matching corresponds to the max flow. Constructing the flow network is $O(N + M)$ since $N^\prime = N + 2$ and $M^\prime = M + N$. Computing the max-flow is $O(N^\prime M^\prime)$ or $O(M^\prime |f|)$ depending on if we use Orlin's or Ford-Fulkerson, but either one is $O(NM)$. Then mapping it back to $M$ might take $O(M)$, so the total time is $O(NM)$. 
+  \end{example}
 
-
-    \begin{figure}[H]
-      \centering 
-      \includegraphics[scale=0.4]{img/sets.png}
-      \caption{Each $T_i$ is a component formed by the edges chosen so far. For example, $T_1 = \{1, 2, 3, 4, 5, 6\}, \ldots$. We can either discard an edge (red) or include an edge (yellow). } 
-      \label{fig:sets}
-    \end{figure}
-
-    The only bottleneck in here is line 5, where we check if $e$ does not complete a cycle in $T$. It will obviously not be efficient to do BFS, construct a tree, and see if there is a loop by checking if two points in the same layer are connected. It may help to decompose this algorithm into two steps: what is being stored and what is being checked? 
-
-    Note that from our visual, we are really just keeping a set of these points that each make a subtree and connecting them together. How do we efficiently search for which cluster a point is a part of and efficiently merge two clusters? We could use a hashmap but this wouldn't work. We need something like a doubly linked list. 
-
-    \begin{algo}[Kruskal's Algorithm]
-      The implementation uses the Union-Find data structure. For clarity, we will not elaborate it but will show the full pseudocode. 
-      \begin{algorithm}[H]
-        \label{alg:kruskal}
-        \begin{algorithmic}
-          \Require{Nodes V. Edges $E = \{(u, v, w)\}$ where $u, v \in V$ and $w > 0$ is a weight. }
-          \State 
-          \Function{Kruskal}{V, E}
-            \State $n \gets |V|$ 
-            \State sort $E$ in increasing order of weights. \Comment{Needed for Kruskal}
-            \State parent $\gets [0, \ldots, n-1]$ \Comment{Initialize the disjoint cluster each node is in}
-            \State rank $\gets$ list of $0$s of size $n$ 
-
-            \Function{Find}{x} 
-              \If{parent[x] $\neq$ x} 
-              \State parent[x] $\gets$ Find(parent[x]) \Comment{Path compression}
-              \EndIf
-              \State \Return{parent[x]}
-            \EndFunction
-
-            \Function{Union}{x, y} 
-              \State px, py = find(x), find(y) 
-              \If{px = py} 
-                \State \Return{False}
-              \EndIf
-              \If{rank[px] < rank[py]} 
-                \State parent[px] $\gets$ py
-              \ElsIf{rank[px] > rank[py]}
-                \State parent[py] $\gets$ px
-              \Else{}
-                \State parent[py] $\gets$ px 
-                \State rank[px] $\gets$ rank[px] + 1
-              \EndIf
-              \State \Return{True}
-            \EndFunction
-
-            \State mst $\gets$ [] 
-            \For{u, v, weight $\in$ edges} 
-              \If{union(u, v)} 
-                \State add (u, v, weight) to mst
-              \EndIf 
-              \If{len(mst) = n - 1}
-                \State break
-              \EndIf 
-            \EndFor
-
-            \State \Return{mst}
-          \EndFunction
-        \end{algorithmic}
-      \end{algorithm}
-    \end{algo}
-    
-    To analyze the runtime of this, we define the function. 
-
-    \begin{definition}[Ackerman Function]
-      The \textbf{Ackerman function} is one of the fastest growing functions known. It is practically infinity. 
-      \begin{equation}
-        A(m,n) = 
-        \begin{cases} 
-          n+1 & \text{if } m = 0 \\
-          A(m-1,1) & \text{if } m > 0 \text{ and } n = 0 \\
-          A(m-1,A(m,n-1)) & \text{if } m > 0 \text{ and } n > 0
-        \end{cases} 
-      \end{equation}
-      The inverse Ackerman function therefore grows extremely slowly. 
-    \end{definition}
-
-    If we optimize the steps in Kruskal's algorithm, we can get its runtime to 
-    \begin{equation}
-      O((m + n) \log^{\ast} (n))
-    \end{equation}
-    which is practically linear. 
-
-  \subsubsection{Applications}
-
-    Here is a way to cluster data, a surprising way to apply MSTs. It is the most widely used application, especially in data science. The problem is that given $n$ data points $x_i \in \mathbb{R}^d$ and an integer $k$, we want to partition the points into $k$ groups $\mathbf{C} = (C_1, \ldots, C_k)$ where $\mathbf{x} = \sqcup_i C_i$. You want to distances between the points within a group to be small and the distances between groups to be large. We can think of finding the objective which takes every pair of clusters and computes the minimum distance between these clusters, and we want to maximize this distance over all pairs of clusters.  
-
-    \begin{algo}[Single Linkage/Hierarchical Clustering]
-      The general idea is to take this dense graph, find the MST, and cut off the largest edges from this MST, which will give you $k$ components. This is the answer. Or really, you can use Kruskal's algorithm and terminate earlier when $T$ has $k$ sets/components. 
-      Note that as we add edges as we construct our MST, we are merging two clusters into one. So that all you are doing is finding the next pair of closest points and merging the clusters that they are a part of. 
-
-      \begin{algorithm}[H]
-        \label{alg:clustering}
-        \begin{algorithmic}[1]
-          \Require{Nodes $V = \{v_i\} \subset \mathbb{R}^n$}
-          \Function{Cluster}{V}
-            \State Run Kruskal and at each iteration, check if you have $K$ clusters. 
-            \State If so, terminate and return the \texttt{parent} list. 
-          \EndFunction
-        \end{algorithmic}
-      \end{algorithm}
-    \end{algo}
-
-    \begin{theorem}
-      The algorithm above minimizes the objective function. 
-      \begin{equation}
-        \argmax_{\mathbf{C}} \min_{p \in C_i, q \in C_j} \{ d(p, q) \}
-      \end{equation}
-    \end{theorem}
-    \begin{proof}
-      Let $\mathbf{C}^\ast$ be the MST clustering. We claim that for any other clustering $\mathbf{C} = \{C_1, \ldots, C_k\}$,  
-      \begin{equation}
-        \mathrm{min dist}(\mathbf{C}) \leq \mathrm{min dist}(\mathbf{C}^{\ast})
-      \end{equation}
-      Assume that this was not the case, so $\mathrm{min dist}(\mathbf{C}) > \mathrm{min dist}(\mathbf{C}^{\ast})$ and therefore there exists a $p, q \in C_i, C_j$ such that $d(p, q) = \mathrm{mindist}(\mathbf{C}) > \mathrm{min dist}(\mathbf{C}^\ast)$. Since this is a different clustering, $p, q$ must have been in the same cluster $C_i^\ast$. But note that since Kruskal adds edges in increasing length, all edges within a cluster must have length less edges that go across two clusters. 
-
-      \begin{figure}[H]
-        \centering 
-        \includegraphics[scale=0.4]{img/mindist.png}
-        \label{fig:mindist}
-      \end{figure}
-
-      So $d(p, q)$ must be the less than the length of all edges within a cluster in $\mathbf{C}^\ast$. But all within-cluster edges must be smaller than $\mathrm{min dist}(\mathbf{C}^\ast)$, meaning that $\mathrm{min dist}(\mathbf{C}^\ast) > d(p, q)$, contradicting the fact that is is greater, and we are done. 
-    \end{proof}
-
-    If you define the distance between two clusters to be the distance between the centroids (mean point), then this is called \textit{average linkage} (min avg distance). If we define the cluster distance as the maximum distance between two points, then it is called \textit{complete linkage} (min max distance). Kruskal's algorithm only worked for the single linkage case but may not work for these additional definitions. This is why there is usually a whole suite of clustering algorithms for a particular problem and we just find out which one fits the data the best. Furthermore, we have done \textit{bottom-up clustering}, where we took individual points to make clusters. In \textit{top-down clustering}, we take the whole set and cut it up into clusters.  
+\subsubsection{Edmonds Karp}
 
 \subsection{Exercises}
 
