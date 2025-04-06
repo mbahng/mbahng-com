@@ -1,0 +1,327 @@
+\section{Package Management} 
+
+  Package management is quite a broad term, but for applications I will talk about them in the context of using Python, JavaScript, and C++. 
+
+\subsection{Pip} 
+
+  Let's start off with a bit of history of Python, which was launched in 1991. 9 years later, the \textit{Python Distribution Utilities (distutils)} module was first added to the Python 1.6.1 standard library (and a month later, in Python 2.0), with the goal of simplifying the process of installing third-party Python packages. However, \texttt{distutils} only provided the tools for packaging Python code, but Python still lacked a centralized catalogue for packages on the internet. As a result, PEP 241 proposed to standardize metadata for packages, and in 2003, the \textit{Python Package Index (PyPI)} was finally launched. As of May 2024, PyPI has over 500,000 packages.\footnote{Really anybody can upload their own, so many packages may contain malware.} Each package is in the form of source archives, called \textit{wheels}, that contain binary modules from a compiled language. 
+
+  Naturally, there is a need for a package manager, and \textit{easy install} was one of the first ones. After its deprecation in 2004, a software engineer named Ian Bicking introduced \textit{pyinstall}, which was quickly renamed to \textit{pip}.\footnote{From several suggestions the creator received on his blog post, and it is a recursive acryonym for ``pip installs packages.''} He also created a virtual environment manager, called \textit{virtualenv}, or \textit{venv}. 
+
+  \begin{example}[Managing VirtualEnvs]
+    Here are some useful commands. 
+    \begin{lstlisting}
+      # Unix Commands
+      > python -m venv myVenvName/        # create the venv
+      > source myVenvName/bin/activate    # activate it  
+      > pip freeze > requirements.txt     # export venv into txt file 
+    \end{lstlisting}
+  \end{example}
+
+  \begin{example}[Manage Packages Inside Venvs]
+    Here are some useful commands. 
+    \begin{lstlisting}
+      > pip list                          # list all packages  
+      > pip install xxx                   # install package
+      > pip install xxx==0.0.1            # install version of package 
+      > pip uninstall xxx                 # uninstall package
+    \end{lstlisting} 
+    Some notes: 
+    \begin{enumerate}
+      \item Running \texttt{pip install packagename} will look at PyPI, find the relevant package, and install one of the precompiled wheels for the operating system/python version that you are using.  
+      \item \texttt{pip uninstall} does not uninstall depedencies! There is no built-in support for this, which is a pity. The best way to do this is to pip freeze and look at the differences in the packages. 
+    \end{enumerate}
+  \end{example}
+  
+\subsection{Conda}
+
+  While pip was great for managing Python packages, the main problem was that they were all focused around python, neglecting non-Python library depedencies, such as HDF5, MKL, LLVM, etc. Therefore, they do not install files into Python's site-packages directory. Therefore, \textit{conda} was released to do more than what pip does: handle dependencies \textit{outside} of Python packages as well as Python packages themselves. To reiterate, pip is for Python packages only, while conda is language-agnostic and can install packages in R or C (though it is mainly focused on Python). 
+
+  Now that we've gotten this clear, let's talk about \textit{Anaconda}. In 2012, the company Anaconda Inc. was founded and created the \textit{Anaconda} and \textit{Miniconda} distributions mainly focused on data science and AI project for Python and R. You can think of them having the two main components. 
+  \begin{enumerate}
+    \item Access to the \textit{Anaconda Public Repository}, which consists of about 8000 packages (similar to PyPI). 
+    \item A package manager called \textit{conda}, used to install/uninstall/modify these packages in virtual environments. 
+  \end{enumerate}
+  So the APR/conda is analogous to PyPI/pip. Furthermore, when you install Anaconda, a collection of about 300 essential packages (e.g. numpy, scipy, pandas) come pre-installed. This allows beginners to set up environments quickly with these essential packages but can come with a lot of bloat. There is also some GUI tools that are installed but are not really essential. Miniconda does not pre-install anything, so every new environment is completely empty. 
+
+  \begin{example}[Manage Conda Envs]
+    \begin{lstlisting}
+      > conda env list                            # list all envionments
+      > conda env create -n envname               # create new conda env with name 
+      > conda env create -n envname python=3.9    # create new conda env with specific python version
+      > conda env remove -n envname               # remove conda env
+      > conda env export > environment.yaml       # export conda environment to yaml 
+      > conda create -f environment.yaml          # make conda env from yaml file 
+    \end{lstlisting}
+  \end{example}
+
+  Unlike PyPI, the Anaconda repository is divided into \textit{channels}, which are specific links that contain some subfamily of packages. The two most popular ones to know are: 
+  \begin{enumerate}
+    \item \texttt{default}: The default channel that is always there for the essentials. 
+    \item \texttt{conda-forge}: A free open-source channel containing about 30,000 packages (as of May 2025). Anybody can contribute to this channel. 
+  \end{enumerate} 
+
+  \begin{example}[Manage Conda Channels]
+    There are global commands that affect all conda environments. This can also be changed in your \texttt{.condarc} file, where the channels are listed from highest priority (top) to lowest (bottom). 
+    \begin{lstlisting}
+      > conda config --add channels some-channel        # add a channel permanently to ALL envs 
+      > conda config --remove channels some-channel     # remove channel only to current env 
+    \end{lstlisting}
+
+    The following commands are for env-specific settings. 
+    \begin{lstlisting}
+      > conda config --show channels                          # show channels for current env
+      > conda config --env --add channels some-channel        # add channel only to current env 
+      > conda config --env --remove channels some-channel     # remove channel only to current env 
+    \end{lstlisting}
+  \end{example} 
+  
+  \begin{example}[Manage Packages Inside Conda Envs]
+    Now that we know about channels, we can talk about installing packages. 
+    \begin{lstlisting}
+      > conda install packagename                         # install package 
+      > conda install packagename=0.0.1                   # install specific version of package
+      > conda install -c channel packagename              # install package from channel
+      > conda uninstall packagename                       # uninstall package with dependencies
+      > conda uninstall packagename --force               # uninstall package only without dependencies
+      > conda uninstall --all --keep-env                  # uninstall all packages in env
+    \end{lstlisting}
+    Note that: 
+    \begin{enumerate}
+      \item Conda uses one \texttt{=} sign rather than pip, which uses \texttt{==}. 
+      \item Conda actually supports both \texttt{uninstall} and \texttt{remove} keywords, unlike pip which only supports \texttt{uninstall}. 
+      \item \texttt{conda remove} will remove all dependencies that are not used by other packages, which is nice. 
+    \end{enumerate}
+  \end{example}
+
+\subsection{Using Pip with Conda} 
+
+  Now we go to the question that I have asked myself countless times, but have never took the time to study it until now. What is the difference between \texttt{pip install} and \texttt{conda install}? How should I use them together? To determine this, let's compare their behavior.  
+
+  \begin{example}[Fresh Environment]
+    Note that there is always \texttt{pip} installed in a venv while nothing is installed in a conda env. Since the \texttt{conda list} is quite verbose, I will exclude the \texttt{Build} and \texttt{Channel} colummns from now on. 
+
+    \noindent\begin{minipage}{.25\textwidth}
+      \begin{lstlisting}[]{Code}
+        > pip list
+        Package Version
+        ------- -------
+        pip     25.0.1 
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.74\textwidth}
+      \begin{lstlisting}[]{Output}
+        > conda list
+        # packages in environment at /opt/miniconda3/envs/test:
+        #
+        # Name              Version         Build  Channel 
+      \end{lstlisting}
+    \end{minipage}
+  \end{example}
+
+  \begin{example}[Dependency Installation when Installing a Package]
+    Now let's install a single package \texttt{numpy==2.1.0}. We can see that the pip list is very minimal and only lists Python-related dependencies, while conda list contains a bunch of non-Python dependencies (a total of 24). Note that pip was automatically installed as a dependency, so we can also run \texttt{pip list} in the conda env and get the same output as the one in the venv.  
+    
+    \noindent\begin{minipage}{.35\textwidth}
+      \begin{lstlisting}[]{Code} 
+        > pip install numpy==2.1.0
+        > pip list
+        Package Version
+        ------- -------
+        numpy   2.1.0
+        pip     25.0.1
+        .
+        .
+        .
+        .
+        .
+        .
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.64\textwidth}
+      \begin{lstlisting}[]{Output}
+        > conda install numpy=2.1.0
+        > conda list
+        # packages in environment at /opt/miniconda3/envs/test:
+        #
+        # Name                    Version      
+        ...
+        ncurses                   6.5         
+        numpy                     2.1.0       
+        openssl                   3.4.1       
+        pip                       25.0.1      
+        python                    3.13.2      
+        ...
+      \end{lstlisting}
+    \end{minipage}
+  \end{example}
+
+  \begin{example}[Uninstalling Package]
+    Say that we have \texttt{pandas} installed and take a look at the list.
+    
+    \noindent\begin{minipage}{.35\textwidth}
+      \begin{lstlisting}[]{Code}
+        > pip install pandas 
+        > pip list 
+        Package         Version
+        --------------- -----------
+        numpy           2.2.4
+        pandas          2.2.3
+        pip             25.0.1
+        python-dateutil 2.9.0.post0
+        pytz            2025.2
+        six             1.17.0
+        tzdata          2025.2
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.64\textwidth}
+      \begin{lstlisting}[]{Output}
+        > conda install pandas 
+        > conda list
+        # packages in environment at /opt/miniconda3/envs/test:
+        #
+        # Name                    Version       
+        ...
+        numpy                     2.2.4         
+        openssl                   3.4.1         
+        pandas                    2.2.3         
+        pip                       25.0.1        
+        ...
+      \end{lstlisting}
+    \end{minipage}
+
+    Now if we uninstall it, we can see that conda removes dependencies while pip doesn't. 
+
+    \noindent\begin{minipage}{.35\textwidth}
+      \begin{lstlisting}[]{Code}
+        > pip uninstall pandas 
+        > pip list
+        Package         Version
+        --------------- -----------
+        numpy           2.2.4
+        pip             25.0.1
+        python-dateutil 2.9.0.post0
+        pytz            2025.2
+        six             1.17.0
+        tzdata          2025.2
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.64\textwidth}
+      \begin{lstlisting}[]{Output}
+        > conda uninstall pandas 
+        > conda list
+        # packages in environment at /opt/miniconda3/envs/test:
+        #
+        # Name                    Version        
+        ca-certificates           2025.1.31      
+        openssl                   3.4.1          
+        .
+        .
+        .
+      \end{lstlisting}
+    \end{minipage}
+  \end{example} 
+
+  \begin{example}[Dependency Updating]
+    Now say that we have \texttt{numpy==1.26.4} and \texttt{scipy==1.12.0} installed in our venv and conda env. 
+
+    \noindent\begin{minipage}{.35\textwidth}
+      \begin{lstlisting}[]{Code}
+        Package Version
+        ------- -------
+        numpy   1.26.4
+        pip     23.2.1
+        scipy   1.12.0 
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.64\textwidth}
+      \begin{lstlisting}[]{Output}
+        # packages in environment at /opt/miniconda3/envs/test:
+        #
+        # Name                    Version   
+        numpy                     1.26.4    
+        openssl                   3.4.1     
+        pip                       25.0.1    
+        python                    3.12.9    
+        python_abi                3.12      
+        readline                  8.2       
+        scipy                     1.12.0    
+        setuptools                78.1.0    
+        tk                        8.6.13    
+        tzdata                    2025b     
+        wheel                     0.45.1    
+      \end{lstlisting}
+    \end{minipage}
+
+    We would like to upgrade numpy to 2.2.0, but this will break the dependency for scipy. Both package managers report this, and pip gives a more readable message. However, note that conda does not install \texttt{numpy=2.2.0}, while pip \textit{does} and reports that this can break things. So even though it checks for dependencies, it does \textit{not} automatically update them!
+
+    \noindent\begin{minipage}{.35\textwidth}
+      \begin{lstlisting}[]{Code}
+        Package Version
+        ------- -------
+        numpy   2.2.0
+        pip     23.2.1
+        scipy   1.12.0 
+        .
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.64\textwidth}
+      \begin{lstlisting}[]{Output}
+        # packages in environment at /opt/miniconda3/envs/test:
+        # Name                    Version   
+        numpy                     1.26.4    
+        pip                       25.0.1    
+        python                    3.12.9    
+        scipy                     1.12.0    
+      \end{lstlisting}
+    \end{minipage}
+  \end{example}
+
+  As we have seen there are two deal-breakers for pip, which is that it does not clean up dependencies upon installation and that it updates packages that may break dependencies. This is really because pip is a package manager, but it is \textit{not} a dependency manager. So personally, I only do pip install when it is absolutely necessary, i.e. I need a package that is only available on PyPI and not on any Anaconda channels. 
+
+  \begin{theorem}[Best Practices for using Conda and Pip]
+    Here are my personal best practices. 
+    \begin{enumerate}
+      \item Always use conda environments. 
+        \begin{enumerate}
+          \item Conda environments completely replace virtualenvs. There is nothing you can do in virtualenvs that you cannot do in conda envs. 
+          \item Venvs only work with pip, while conda envs allow you to have access to conda, which can be used to download pip. 
+          \item You cannot easily switch Python versions in an environment in venv, since you must have the binary installed on your computer. However for conda, it is as easy as \texttt{conda install python=3.x}. 
+        \end{enumerate}
+      \item Always use \texttt{conda install} if possible, and only use \texttt{pip install} if you need a package only on PyPI. This is for the following reasons. 
+        \begin{enumerate}
+          \item Due to dependency breaking as mentioned above (and elaborated below), pip can be a huge headache to work with.\footnote{Though most widely used packages are pretty good at making sure that there are no incompatibilities.} 
+          \item Pip usually breaks more often when downloading more outdated packages. \footnote{For example, installing \texttt{pandas=1.1.4} works on conda but not with pip. }
+        \end{enumerate}
+
+        \item Whether you export your environment one way or another will depend on how flexible/rigid you want your working environment to be when you share. 
+          \begin{enumerate}
+            \item \texttt{conda env export} will keep track of every (including non-Python related) modules, and those imported with pip will be under the \texttt{pip} header. 
+            \item \texttt{pip freeze} will only keep track of Python packages installed and can be cleaner. 
+          \end{enumerate}
+    \end{enumerate}
+  \end{theorem}
+
+  Others note that if you using conda environments, you should always just use \texttt{conda install}, and if you ever need to \texttt{pip install}, then just use \texttt{venv} and \texttt{pip install} everything. With venvs, if you ever see a dependency issue, don't try to resolve it: burn the whole environment down and recreate a new one from scratch. 
+
+\subsection{Mamba} 
+
+  I've been using pip and conda for about 6 years before I found out about \textit{mamba} in a summer internship. The Mamba project began in 2019 as a thin wrapper around conda and has grown considerably by progressively rewriting conda with equivalent new efficient C++ code. It is estimated to be about 10 times faster in creating a large environment from scratch compared to conda. There are essentially no strict disadvantages to using mamba, but due to its newness it is still relatively unpopular. So besides the fact that mamba support is lower, it might be good to try it as a replacement. It also seems that recently (as of May 2025), conda caught up to the speed of mamba, so it also may not be worth switching. I'll have to run some tests for this. 
+
+  The bigger consideration is that for many users (such as companies with 200+ employees), Anaconda Inc. starting from 2020 required paid licensing for commercial use, including any use of the \texttt{defaults} channels (though \texttt{conda-forge} channel remains free). 
+
