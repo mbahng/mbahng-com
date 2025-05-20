@@ -59,19 +59,8 @@
     \hfuzz=5.002pt                % ignore overfull hbox badness warnings below this limit
 
   % New and replaced operators
-    \DeclareMathOperator{\Tr}{Tr}
-    \DeclareMathOperator{\Sym}{Sym}
-    \DeclareMathOperator{\Span}{span}
-    \DeclareMathOperator{\std}{std}
-    \DeclareMathOperator{\Cov}{Cov}
-    \DeclareMathOperator{\Var}{Var}
-    \DeclareMathOperator{\Corr}{Corr}
-    \DeclareMathOperator{\pos}{pos}
     \DeclareMathOperator*{\argmin}{\arg\!\min}
     \DeclareMathOperator*{\argmax}{\arg\!\max}
-    \newcommand{\ket}[1]{\ensuremath{\left|#1\right\rangle}}
-    \newcommand{\bra}[1]{\ensuremath{\left\langle#1\right|}}
-    \newcommand{\braket}[2]{\langle #1 | #2 \rangle}
     \newcommand{\qed}{\hfill$\blacksquare$}     % I like QED squares to be black
 
   % Custom Environments
@@ -233,16 +222,16 @@
 
   % Page style
     \pagestyle{fancy}
-    \fancyhead[L]{Linux}
+    \fancyhead[L]{Operating Systems}
     \fancyhead[C]{Muchang Bahng}
-    \fancyhead[R]{January 2024} 
+    \fancyhead[R]{Summer 2025} 
     \fancyfoot[C]{\thepage / \pageref{LastPage}}
     \renewcommand{\footrulewidth}{0.4pt}          % the footer line should be 0.4pt wide
     \renewcommand{\thispagestyle}[1]{}  % needed to include headers in title page
 
 \begin{document}
 
-\title{Linux}
+\title{Operating Systems}
 \author{Muchang Bahng}
 \date{January 2024}
 
@@ -250,576 +239,1416 @@
 \tableofcontents
 \pagebreak
 
-  The following set of notes describes the everyday use of a Linux operating system. I refer to it for mainly my personal desktop, but it is also useful for working in computing clusters. Some of the commands are specific to the Arch Linux distribution (since that is what I work with), but I occasionally include those from Ubuntu and Red Hat, since I run into these distributions often in servers. 
+  Up until now, we've seen the dynamics of how one program works in a computer system. The code, which first resides in the disk, is fetched (through blocks) into memory, and after compiling (precomiling, compiling, assembling, linking), we have a binary. The binary is then loaded into memory in the stack frame, and the CPU executes the instructions. The CPU also has a cache, which stores the most frequently accessed data during the process, taking advantage of locality for efficiency. 
 
-  I try to organize this in a way so that one who wishes to get started in Linux can go through these notes chronologically. For now, we will assume that you have a Linux distribution installed. There are many resources beyond this book that helps you do that. 
+  Our computer obvious does not just run one program. It runs several, and to run several, we need some control mechanism to manage how these programs interact with the CPU, memory, and disk. For example, one problem is that if we download application A and application B and run their binaries, how do we know whether they share memory addresses and consequently overwrite each other's data?\footnote{This is different from linking, where we have relocation tables to ensure that \textit{object files} do not conflict with each other.} The operating system takes care of these, which manages \textit{processes} that each have their own \textit{virtual memory space}. 
 
-  You can always try out Ubuntu (or any other distribution) through a \textbf{virtual machine}, which is a software emulation of a physical computer system. It allows you to run multiple operating systems or instances of an operating system on a single physical machine. Each virtual machine operates independently and has its own virtual hardware, including virtual CPU, memory, storage, and network interfaces. Virtual machines are created and managed by virtualization software called \textbf{hypervisors}. The hypervisor abstracts the underlying physical hardware and allows multiple virtual machines to share the same resources while isolating them from one another. This enables efficient utilization of hardware resources and provides flexibility in deploying and managing various operating systems and software applications. VMs generally have the advantage of being completely isolated from the main computer, so if anything wrong happens in the VM, it's fine. They can be used in research environments that are beta-testing unstable packages or for white-hacking practices. One example of a hypervisor is Oracle's \textbf{VirtualBox}, which is free to download. It should look like this when you open it for the first time. 
-  \begin{center}
-      \includegraphics[scale=0.2]{img/VirtualBox.png}
-  \end{center}
-  Now in order to create a VM with its own OS, you need to have the appropriate \textbf{ISO file}, which is an exact copy of an entire optical disk such as a CD, DVD, or Blu-ray archived into a single file. The essentially stores the entire software needed to operate the OS. Therefore, you should download the proper ISO file from the internet (usually a couple GBs). 
+  Furthermore, consider some of the components of the computer: the RAM, disk, and IO devices like your keyboard and monitor. For security reasons, it is not wise to let the user applications (e.g. Chrome or Slack) control these devices completely. Their power must be restricted in some way. 
   \begin{enumerate}
-      \item \href{https://ubuntu.com/download/desktop}{Ubunutu ISO files}
-      \item \href{https://www.microsoft.com/en-us/software-download/windows10}{Windows 10 ISO files}
-      \item Apple does not allow distribution of its ISO files, so you will need to download from unofficial sources, which may be unsafe. 
+    \item When you have a Chrome window and resize it, Chrome should not be able to modify the pixels outside that window. 
+    \item When you want to print some statement using \texttt{printf}, 
+    \item When you're editing a code file with VSCode, you want to limit the application to save to certain parts of the disk. 
+    \item When you are running Chrome and Slack together, you don't want them to read each other's data directly. 
   \end{enumerate}
-  Once you have this ISO file, you can reuse it to create as many VMs as you want of that OS. Now follow these instructions: Click the new button and select where the virtual machine data will be stored, along with its OS. You can set the RAM, but don't make it more than half of your host computer since it will hog up too much RAM. Choose ``Create a virtual hard disk now". Choose ``VDI (VirtualBox Disk Image)". Dynamically allocated just means that the virtual disk size will adaptively grow as your storage gets full. Set the disk size to be at least 20GB. 
+  This is also for convenience. Say that if you are creating an application that has the option to save files to disk, you don't want to write the hardware backend to write to the disk. You want to just call a function that writes to the disk, and the OS will take care of the rest. 
 
-  After you created this, go to the VM settings (this is where you can edit your CPU cores, RAM cap, etc.). To add the ISO file, click on the ``Empty" tab right under the ``Controller:IDE", then the CD icon to the right, and ``choose a disk file". You should now choose the ISO file. Then go tweak other settings, and set the display:video memory to the max (128MB). Now you should be able to go through the installation wizard when you turn the VM on. 
-  \begin{figure}[hbt!]
-      \centering 
-      \begin{subfigure}[b]{0.45\textwidth}
-      \centering
-          \includegraphics[width=\textwidth]{img/VM_Windows1.png}
-          \caption{Windows 10 Set Up}
-          \label{fig:VM_Windows1}
-      \end{subfigure}
-      \hfill 
-      \begin{subfigure}[b]{0.45\textwidth}
-      \centering
-          \includegraphics[width=\textwidth]{img/VM_Ubuntu1.png}
-          \caption{Ubuntu 22.04 Set Up}
-          \label{fig:VM_Ubuntu1}
-      \end{subfigure}
-      \caption{What you should get once you open up the VM after adding ISO files. }
-  \end{figure}
-  Refer to the instructions for each OS. 
-  \begin{enumerate}
-      \item For Windows: Say I don't have a product key. Click Windows 10 Home. Accept terms. Select the custom installation. Click the drive and click new, making the parititon at least 10534MB, and click apply. Next. Wait for the system to load. 
-      \item For Ubuntu, you should get a GRUB view. Select ``Try or install Ubunutu". 
-  \end{enumerate}
-  You should now see one of these two screens. 
-  \begin{figure}[hbt!]
-      \centering 
-      \begin{subfigure}[b]{0.45\textwidth}
-      \centering
-          \includegraphics[width=\textwidth]{img/VM_Windows2.png}
-          \caption{Windows 10 Set Up}
-          \label{fig:VM_Windows2}
-      \end{subfigure}
-      \hfill 
-      \begin{subfigure}[b]{0.45\textwidth}
-      \centering
-          \includegraphics[width=\textwidth]{img/VM_Ubuntu2.png}
-          \caption{Ubuntu 22.04 Set Up}
-          \label{fig:VM_Ubuntu2}
-      \end{subfigure}
-      \caption{What you should get once you open up the VM after initial configuration and log in. }
-  \end{figure}
-  \begin{enumerate}
-      \item For Windows, select your region. Select the keyboard layout. Sign in or create a Microsoft account. Choose privacy terms. Skip whatever. 
-      \item For Ubuntu: Select Install Ubuntu with English. Set the keyboard layout. The normal installation may take a while, so I would select minimal depending on what you need. If you are short on time, you can uncheck the download updates while installing since you can always do that after you install. Click Erase disk and install Ubunutu. Choose region and add information. 
-  \end{enumerate}
-  Finally, you should see your desktop. 
-  \begin{figure}[hbt!]
-      \centering 
-      \begin{subfigure}[b]{0.45\textwidth}
-      \centering
-          \includegraphics[width=\textwidth]{img/VM_Windows3.png}
-          \caption{Windows 10 Set Up}
-          \label{fig:VM_Windows3}
-      \end{subfigure}
-      \hfill 
-      \begin{subfigure}[b]{0.45\textwidth}
-      \centering
-          \includegraphics[width=\textwidth]{img/VM_Ubuntu3.png}
-          \caption{Ubuntu 22.04 Set Up}
-          \label{fig:VM_Ubuntu3}
-      \end{subfigure}
-      \caption{What you should see once everything is set up. }
-  \end{figure}
+  \begin{definition}[Operating System]
+    A common confusion is that people think that the \textbf{operating system} describes the computer itself, but it is really just another piece of software. What makes this piece of software so special is that it manages every other software in the computer. It provides generally three services: 
+    \begin{enumerate}
+      \item It \textbf{multiplexes} the hardware resources. Since there are many applications/programs with finite CPU resources (number of cores) and shared access to storage devices, the OS schedules some sharing mechanism for execution time on CPU cores and manages access to storage devices.
+      \item It \textbf{abstracts} the hardware platform. Since each CPU core simply executes a sequence of instructions, the OS introduces processes and thread abstractions. Furthermore, it introduces \textit{filesystems} (file/directories) on top of raw storage devices. 
+      \item It \textbf{protects} software principals from each other. Since many applications from various users are using the CPU, the OS provides isolation between them. It enforces user access permission (read/write) for files. 
+    \end{enumerate}
+  \end{definition}
 
-  For my personal use, the packages below are ones that I end up installing every time I create a new VM to work in during research. 
+  The OS is booted by the system firmware (BIOS or UEFI), which lives in ROM (sRAM and therefore non-volatile) and copies the OS from a fixed part of the disk, called the \textbf{bootloader}, into the RAM, which itself then loads the OS into memory. Once the OS starts running, it loads the rest of itself from disk, discovers and initializes hardware resources, and initializes its data structures and abstractions to make the system ready for users.
 
-  \begin{lstlisting}
-    sudo apt update
-    sudo apt install snapd
-    sudo snap install --classic code
-    sudo snap install slack
-    sudo apt install git 
-    sudo snap install spotify 
-    sudo apt install htop
-    wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-    sudo dpkg -i google-chrome-stable_current_amd64.deb
-    sudo apt install virtualbox 
-  \end{lstlisting}
+  \begin{definition}[Kernel]
+    The \textbf{kernel} is the actual binary that is loaded into RAM that runs the OS. The kernel code and data resides in a fixed and protected range of addresses, called the \textbf{kernel space}, and user programs cannot access kernel space. 
+  \end{definition}
 
-  Once you are ready to use Linux consistently, it is optimal to \textbf{dual boot} it, which means that you have one computer that is divided into two: one for each operating system. Then you need to partition your drive and allocate it to your secondary OS. There are plenty of guides and tutorials online on how to do this. 
+\section{Process Management}
 
-  There may be a point where you may need to resize your drive partitions as you need more or less space in one of your OS. This is when we need to do \textbf{partition resizing}. To do this, we need an empty thumb drive with at least 8GB of space in it (everything in here will be deleted). Then in your Ubuntu, install balenaEtcher and an Ubuntu (any version) ISO file. Mount the ISO file into your USB drive using balenaEtcher, following the steps in \href{https://www.youtube.com/watch?v=Kyz9x71gEPI&t=504s}{this video} to eventually get into Gparted. Another popular \href{https://www.youtube.com/watch?v=vlVXPtJ20hA&t=467s}{guide} uses Rufus in the Windows system, but I have found that this does not work for me. 
- 
-\section{Hardware} 
+  \subsection{Control Flow}
 
-  \subsection{Von Neumann Architecture}
+    When we worked with jumps (conditional and unconditional), calls, and returns in assmebly, all of these operations were with respect to the \textbf{program state}, which is the isolated environment that the program is in. One program doesn't have any clue of what is going on anywhere else, such as other programs or input/output signals. This means that given what we have learned, 
+    \begin{enumerate}
+      \item programs cannot to write files to the disk (since that is outside the program). 
+      \item programs cannot be terminated by pressing \texttt{CTRL + C} on the keyboard. 
+      \item programs cannot receive data that arrives from the disk. 
+      \item programs cannot send data to the monitor to display. 
+      \item programs cannot react accordingly when there is an instruction to divide by $0$.\footnote{I guess you can use a conditional jump to check if the divisor is $0$ and then jump to a different part of the code.}
+    \end{enumerate}
+    To do all these things, we need to have access to the global \textbf{system state}, which the OS has access to. 
 
-    It is essential to have an initial model of a computer. For this, we will first use the \textbf{von Neumann architecture}, which is the basis for most computers today. It consists of a \textbf{central processing unit} (CPU), \textbf{memory}, and an \textbf{input/output} (I/O) system.
+    It turns out that it is impossible for jumps and procedure calls to achieve this, and rather the system needs mechanisms for \textbf{exceptional control flow} (i.e. control flow that is not within the regular program state), or commonly referred to as \textbf{exceptions}. This requires the CPU to enter into a more powerful state than its current place in the program state, called the kernel state. The actual thing that triggers this is called an \textbf{interrupt}, which can come from both the hardware and software. In the kernel state, the CPU can access the hardware and perform operations that the program state cannot to handle these exceptions. 
 
-    \begin{definition}[Memory]
-      The memory is where the computer stores data and instructions, which can be though of as a giant array of memory addresses, with each containing a byte. This data consists of graphical things or even instructions to manipulate other data.
-    \end{definition}
-
-    \begin{definition}[Central Processing Unit]
-      The CPU is responsible for taking instructions (data) from memory and executing them. 
-      \begin{enumerate} 
-        \item The CPU is composed of \textbf{registers} (different from the cache), which are small, fast storage locations. These registers can either be \textbf{general purpose} (can be used with most instructions) or \textbf{special purpose} (can be accessed through special instructions, or have special meanings/uses, or are simply faster when used in a specific way).
-        \item The CPU also has an \textbf{arithmetic unit} and \textbf{logic unit}, which is responsible for performing arithmetic and logical operations. 
-        \item The CPU also has a \textbf{control unit}, which is responsible for fetching instructions from memory through the \textbf{databus}, which is literally a wire connecting the CPU and RAM, and executing them. 
+    \begin{example}[Interrupts]
+      Some examples of how the OS can be interrupted is: 
+      \begin{enumerate}
+        \item when one's WiFi card detects a signal. 
+        \item a hard disk drive may interrupt the OS if a read fails due to a bad sector. 
+        \item an application may request a system call to open a file. 
+        \item If you have 10 applications running on 1 CPU core, you may want the CPU core to run to the next application every 10 milliseconds. So, there may be a system call every 10 milliseconds in each program to the OS to switch to the next application. 
       \end{enumerate}
-      It executes instructions from memory one at a time and executes them, known as the \textbf{fetch-execute cycle}. It consists of 4 main operations. 
-      \begin{enumerate} 
-        \item \textbf{Fetch}: The \textbf{program counter}, which holds the memory address of the next instruction to be executed, tells the control unit to fetch the instruction from memory through the databus. 
-        \item \textbf{Decode}: The fetched data is passed to the \textbf{instruction decoder}, which figures out what the instruction is and what it does and stores them in the registers.
-        \item \textbf{Execute}: The arithmetic and logic unit then carries out these operations. 
-        \item \textbf{Store}: Then it puts the results back on the databus, and stores them back into memory.
-      \end{enumerate} 
-      The CPU's \textbf{clock cycle} is the time it takes for the CPU to execute one instruction. More specifically, the clock cycle refers to a single oscillation of the clock signal that synchronizes the operations of the processor and the memory (e.g. fetch, decode, execute, store), and decent computers have clock cycles of at least $2.60$GHz (2.6 billion clock cycles per second). 
+    \end{example}
+
+    \begin{definition}[Execution Modes]
+      The CPU helps with this by providing two execution modes, which is determined by a special bit in the CPU called the \textbf{mode bit}. 
+      \begin{enumerate}
+        \item In \textbf{user mode}, the CPU executes only user-level instructions and accesses only the memory locations that the OS makes available to it. It also restricts which hardware components the CPU can directly access. 
+        \item In \textbf{kernel mode}, the CPU executes any instructions and accesses any memory location (including those that store OS instructions and data). It can also directly access hardware components and execute special instructions. 
+      \end{enumerate}
+      Note that the execution mode is \textit{property of the CPU}!  
     \end{definition}
 
-    To clarify, let us compare registers and memory. Memory is addressed by an unsigned integer while registers have names like \texttt{\%rsi}. Memory is much bigger at several GB, while the total register space is much smaller at around 128 bytes (may differ depending on the architecture). The memory is much slower than registers, which is usually on a sub-nanosecond timescale. The memory is dynamic and can grow as needed while the registers are static and cannot grow.
+    \begin{example}[Monitor]
+      A monitor is really just some device that scans a certain portion of memory at a certain frequency that is higher than the human eye can detect. In user mode, if you try to access this memory buffer, you get an exception. No user mode can access this memory buffer. 
+    \end{example}
 
+    \begin{example}[Amazon.com]
+      When you are on Amazon to search up some product, you want to type in some keyword in the search bar. The web browser, say Chrome, that you are running it on, runs in user mode. When you type in the keyword, Chrome sends a system call to the OS, triggering the kernel mode which retrieves the keys that you pressed, and redirects it to Chrome. The same goes with the location of your mouse. When you move and click on a product, Chrome sends a system call to the OS, which then receives the mouse location and sends it back to Chrome. The application has no way to directly access the hardware. 
+    \end{example}
 
-    \begin{definition}[Input/Output Device]
-      The input device can read/load/write/store data from the outside world. The output device, which has \textbf{direct memory address}, can display data to the outside world. 
+    Now specifically, how does one enter in this kernel mode? We've already hinted at it before, but to elaborate, there are 4 types of exceptions. 
+
+    \begin{definition}[Types of Exceptions/Interrupts]
+      As we have mentioned, we go into kernel mode through exceptional control flows. To go back from the kernel mode to the user mode after the exception handling is done, the kernel must explicitly give back the control to the user program, which is done with a special instruction, which changes the CPU to the user mode again. At this point, it can return back to user mode at the current instruction, next instruction, or abort it. 
+      \begin{enumerate}
+        \item These control flows can either by \textbf{synchronous} (caused by an instruction) or \textbf{asynchronous} (caused by some other event external to the processor). Asynchronous interrupts are indicated by setting the processor's interrupt pins. 
+        \item Furthermore, \textbf{intentional} exceptions transfer control to the OS to perform some function, and \textbf{unintentional} exceptions happen when there is a bug. 
+      \end{enumerate}
+      This gives us 4 categories of exceptions. 
+      \begin{enumerate}
+        \item Intentional synchronous exceptions are \textbf{system calls}, aka \textbf{traps} (e.g. \texttt{printf}, \texttt{open}, \texttt{close}, \texttt{write}, breakpoint traps, special instructions). It returns control to the next instruction. 
+        \item Unintentional synchronous exceptions are \textbf{faults} (possibly recoverable) or \textbf{aborts} (unrecoverable) (e.g. invalid or protected address or opcode, page fault, overflow, divide by zero). This automatically triggers the kernel mode which then uses an exception handler to kill the process.  
+        \item Intentional asynchronous exceptions are \textbf{software interrupts}, which is when software requests an interrupt to be delivered at a later time (e.g. there's some task you want the kernel to do later). 
+        \item Unintentional asynchronous exceptions are \textbf{hardware interrupts} caused by an external event (e.g. IO such as \texttt{CTRL + C}, op completed, timers which may switch to another application every 10ms, power fail, keyboard, mouse click, disk, receiving a network packet). Unlike system calls, which come from executing program instructions, hardware interrupts are delivered to the CPU on an \textbf{interrupt bus}. 
+      \end{enumerate}
+      Once a system call or hardware interrupt is finished, the program continues to resume back in user mode. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/interrupt.png}
+        \caption{The CPU and interrupts. User code running on the CPU is interrupted (at time X on the time line), and OS interrupt handler code runs. After the OS is done handling the interrupt, user code execution is resumed (at time Y on the time line).} 
+        \label{fig:interrupt}
+      \end{figure}
     \end{definition}
 
-    Putting this all together, we have Figure \ref{fig:von_neumann_arch}. 
+    Now the question arises: how does the CPU know where to go when an system call or interrupt occurs? These are done through tables that map some unique ID number to some functionality. These tables are stored in a protected memory space reserved by the kernel. 
 
-    \begin{figure}[hbt!]
+    \begin{definition}[System Call Table]
+      This is done through the \textbf{system call table}, which is a table of addresses in memory that the CPU can jump to when a system call occurs. Each system call has a unique number $k$, and the handler function $k$ is called each time system call $k$ occurs. 
+    \end{definition}
+
+    \begin{example}[Common System Calls]
+      Some common system calls, or \textbf{syscalls}, are shown below with their unique ID number (in Linux x64). 
+      \begin{table}[H]
+        \centering
+        \caption{System Call Functions}
+        \begin{tabular}{|c|l|l|}
+        \hline
+        \textbf{Number} & \textbf{Name} & \textbf{Description} \\ \hline
+        0 & read & Read file \\ \hline
+        1 & write & Write file \\ \hline
+        2 & open & Open file \\ \hline
+        3 & close & Close file \\ \hline
+        4 & stat & Get info about file \\ \hline
+        57 & fork & Create process \\ \hline
+        59 & execve & Execute a program \\ \hline
+        60 & \_exit & Terminate process \\ \hline
+        62 & kill & Send signal to process \\ \hline
+        \end{tabular}
+      \end{table}
+    \end{example}
+
+    \begin{example}[Syscalls of Open] 
+      Look at the following objdump file below. The corresponding C code just calls \texttt{open(filename, options)} and the corresponding syscall ID is \texttt{0x2}. We are simply loading the syscall ID into the \texttt{\%eax} register (only needs last 32 bits since the syscall IDs are quite small), which is then executed by the \texttt{syscall} instruction to go into the kernel mode. 
+      \begin{lstlisting}
+        00000000000e5d70 <__open>: 
+        ...
+        e5d79:  b8 02 00 00 00       mov    $0x2,%eax     # 2 is the open syscall number
+        e5d7e:  0f 05                syscall              # return value in %rax
+        e5d80:  48 3d 01 f0 ff ff   cmp    $0xfffffffffffff001,%rax 
+        ... 
+      \end{lstlisting}
+      A negative number in \texttt{\%eax} gives an error corresponding to negative \texttt{errorno}. It is also worth mentioning that \texttt{\%eax} is used rather than \texttt{\%rdi} or \texttt{\%rsi} because we need these two parameter registers as arguments for the \texttt{open} function itself. 
+    \end{example}
+
+    Note that whether we are in the program stack or the kernel stack, we always have stack pointers and other registers to navigate them. In fact, for every CPU core, it has its own set of registers and its own kernel stack. 
+
+    \begin{example}[Syscall of Read]
+      If we have read syscall, then 
+      \begin{enumerate}
+        \item We use the syscall table to go to the trap handler for the read syscall. 
+        \item The handler identifies the block and allocates a buffer. 
+        \item Then it reads the block from the disk, which may take a while (in CPU time) since it is extremely slow for all IO tasks. The CPU, while waiting, can be put to sleep for other processes to run on the CPU. When the disk is done reading, it (the hardware) can send a hardware interrupt to the CPU, telling it that it is done. 
+        \item Then it copies the block to the user buffer and returns from the syscall back into the user mode in the program state. 
+      \end{enumerate}
+    \end{example}
+
+    \begin{definition}[Exception Table]
+      This is done through the \textbf{exception table}, which is a table of addresses in memory that the CPU can jump to when an exception occurs. Each type of event has a unique exception number $k$, and the handler function $k$ is called each time exception $k$ occurs.\footnote{This is similar to a hardware implementation of a switch statement in C.}
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/exception_table.png}
+        \caption{System call table is stored in a protected memory space reserved by the kernel.} 
+        \label{fig:system_call_table}
+      \end{figure}
+    \end{definition}
+
+    \begin{example}[Common Exception Numbers]
+      Some common exception numbers are listed below. 
+      \begin{table}[H]
+        \centering
+        \caption{Exception Summary}
+        \begin{tabular}{|c|l|l|}
+        \hline
+        \textbf{Exception Number} & \textbf{Description} & \textbf{Exception Class} \\ \hline
+        0 & Divide Error & Fault \\ \hline
+        13 & General protection fault & Fault \\ \hline
+        14 & Page fault & Fault \\ \hline
+        18 & Machine check & Abort \\ \hline
+        32-255 & OS-defined & Interrupt or trap \\ \hline
+        \end{tabular}
+      \end{table}
+    \end{example}
+
+    From the application's point of view, even if an interrupt happens, it just thinks it is running line by line. 
+
+    \begin{definition}[Process Address Space]
+      Interrupts can happen at any time, and one way to efficiently support this execution context switch from user mode to kernel mode is to do the following. At boot time, the OS loads its kernel code at a fixed location in RAM. Every time you create a new program state, the OS initializes a CPU register with the starting address of the OS handler function. On an interrupt, the CPU switches to kernel mode and executes OS interrupt handler code instructions that are accessible at the top addresses in every process’s address space. Because every process has the OS mapped to the same location at the top of its address space, the OS interrupt handler code is able to execute quickly in the context of any process that is running on the CPU when an interrupt occurs. This OS code can be accessed only in kernel mode, protecting the OS from user-mode accesses; during regular execution a process runs in user mode and cannot read or write to the OS addresses mapped into the top of its address space.\footnote{However, due to security reasons where the user space can read kernel space data, this is obsolete.}
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/process_address_space.png}
+        \caption{Process address space: the OS kernel is mapped into the top of every process’s address space.} 
+        \label{fig:process_address_space}
+      \end{figure}
+    \end{definition}
+
+    In summary, a good visual is that each program runs as independent processes, with its own virtual address space (elaborated next) and the OS mediates access to shared resources.  
+
+    \begin{figure}[H]
       \centering 
-      \includegraphics[scale=0.4]{img/von_neumann_arch.png}
-      \caption{von Neumann Architecture} 
-      \label{fig:von_neumann_arch}
+      \includegraphics[scale=0.3]{img/os_multiple_programs.png}
+      \caption{Multiple programs running and controlled by an operating system.} 
+      \label{fig:os_multiple_programs}
     \end{figure}
 
-  \subsection{Instruction Set Architectures} 
+    Each process can be in one of three states. It can either be currently running on the state, ready to run, or if there is a long IO operation, it can be blocked, which is then unblocked with a hardware interrupt. Usually anything that involves IO puts the state to blocked (e.g. reading data from disk, the keyboard, or the internet). The pool of processes that are concurrently running is the running and ready states. 
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/3_process_states.png}
+      \caption{Three states that a single process can be in. The pool of processes that are concurrently running is the running and ready states. The blocked state is waiting to be put back into this pool by a hardware interrupt.} 
+      \label{fig:3_process_states}
+    \end{figure}
 
-    \begin{definition}[Instruction Set Architecture]
-      The \textbf{ISA} or just \textbf{architecture} of a CPU is a high level description of what it can do. Some differences are listed here: 
-      \begin{enumerate} 
-        \item What instructions it can execute. 
-        \item The instruction length and decoding, along with its complexity. 
-        \item The performance vs power efficiency. 
+    \begin{example}[Running a Binary]
+      Therefore, to run a binary file \texttt{a.out}, 
+      \begin{enumerate}
+        \item The kernel first loads the binary file from disk into RAM.
+        \item Then the OS kernel creates a new process with its own virtual memory stack and its global variables, etc. 
+        \item Then the CPU's \texttt{\%rip} register point to the address of the \texttt{main} function. 
+        \item The kernel's virtual memory space is mapped to the top of the process's virtual memory space, where it is not visible to the user mode. 
+      \end{enumerate}
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/process_space.png}
+        \caption{The kernel's virtual memory space is mapped to the top of the process's virtual memory space.} 
+        \label{fig:process_space}
+      \end{figure}
+    \end{example}
+
+\section{Thread Management}
+
+\section{Concurrency and Synchronization}
+
+    So far, we've talked about everything as a sequential process of instructions. In practicality, we have improved this from the memory perspective by implementing caches, virtual memory, and swapping, but in the CPU perspective. In CPUs, we can't just simply increase the clock frequency indefinitely since there are physical limitations.\footnote{It turns out that power consumption increases faster than clock frequency, so it scales badly.} The current trend is to increase parallelism to compute faster, which is implemented with cores and threads. Let's clear some of these definitions up. 
+
+    \begin{definition}[Processors, Cores]
+      In almost every consumer computer, there exists one \textbf{processor} (CPU) in it. The CPU can have multiple \textbf{cores}. Each core has its own set of registers, L1/L2 cache, and possibly even a shared L3 cache. 
+    \end{definition}
+
+    Now these cores must run a certain program. Let's define what this means exactly. 
+
+    \begin{definition}[Program, Process]
+      A \textbf{program} can be thought of as a binary executable produced after linking. A \textbf{process} is a running instance of some program. 
+      \begin{enumerate}
+        \item It is identified by a \textbf{process ID (PID)} number. 
+        \item It is run on a CPU core, with its own registers. 
+        \item It has its own virtual address space, containing the code (instructions), heap, and pagetable that maps it to physical memory. 
       \end{enumerate}
     \end{definition}
 
-    
-    \begin{definition}
-      ISAs can be classified into two types. 
-      \begin{enumerate} 
-        \item The \textbf{complex instruction set computer} (CISC) is characterized by a large set of complex instructions, which can execute a variety of low-level operations. This approach aims to reduce the number of instructions per program, attempting to achieve higher efficiency by performing more operations with fewer instructions.
-        \item The \textbf{reduced instruction set computer} (RISC) emphasizes simplicity and efficiency with a smaller number of instructions that are generally simpler and more uniform in size and format. This approach facilitates faster instruction execution and easier pipelining, with the philosophy that simpler instructions can provide greater performance when optimized.
-      \end{enumerate}
-    \end{definition}
+    \begin{example}[Where to look for PIDs]
+      We can see the PIDs either by using \texttt{htop} (for UNIX systems) or by looking at the \texttt{/proc} directory in Linux systems. Each directory name represents the PID of the process. 
+      \begin{figure}[H]
+        \centering
+        \begin{subfigure}[b]{0.95\textwidth}
+        \centering
+          \begin{lstlisting}
+            ubuntu@passionate-blesbok:/proc$ ls
+            1     118   1368  26   44   590  762        cpuinfo      modules
+            10    119   1369  27   448  599  763        crypto       mounts
+            101   12    1370  28   45   6    764        devices      net
+            1012  120   1371  29   46   605  765        diskstats    pagetypeinfo
+            102   1232  138   3    467  608  769        driver       partitions
+            103   1234  139   30   468  611  796        execdomains  pressure
+            1031  1261  14    309  47   612  8          fb           sched_debug
+            1037  129   15    31   471  613  801        filesystems  schedstat
+            1038  13    16    32   473  629  810        fs           scsi
+            104   132   17    33   474  638  822        interrupts   self
+            1043  1342  18    34   475  651  836        iomem        slabinfo
+            105   1353  180   35   48   666  850        ioports      softirqs
+            106   1354  19    356  49   696  872        irq          stat
+          \end{lstlisting}
+          \caption{You can see the PIDs of the process by looking at the \texttt{/proc} directory. This changes quite often as processes are destroyed and created often, so to maybe track this in real time you might want to run \texttt{watch -n 0.1 'ls'}. }
+          \label{fig:proc}
+        \end{subfigure}
 
-    \begin{example}[x86 Architecture]
-      The x86 architecture is a CISC architecture, which is the most common architecture for personal computers. Here are important properties: 
-      \begin{enumerate} 
-        \item It is a complex instruction set computer (CISC) architecture, which means that it has a large set of complex instructions\footnote{https://en.wikipedia.org/wiki/X86\_instruction\_listings}. 
-        \item Byte-addressing is enabled and words are stored in little-endian format.
-        \item In the x86\_64 architecture, registers are 8 bytes long (and 4 bytes in x86\_32) and there are 16 total general purpose registers, for a total of only 128 bytes (very small compared to many GB of memory). Other special purpose registers are also documented in the wikipedia page, but it is not fully documented. The registers are listed below\footnote{Older x86\_32 architecture has 8 general purpose registers with the \texttt{r} replaced by a \texttt{e}, e.g. \texttt{eax} instead of \texttt{rax}.}: 
-        \begin{lstlisting} 
-          %rax        # return value 
-          %rbx        # callee saved 
-          %rcx        # 4th argument 
-          %rdx        # 3rd argument 
-          %rsi        # 2nd argument
-          %rdi        # 1st argument 
-          %rbp        # callee saved  
-          %rsp        # stack pointer 
-          %r8         # 5th argument 
-          %r9         # 6th argument 
-          %r10        # scratch register  
-          %r11        # scratch register 
-          %r12        # callee saved  
-          %r13        # callee saved 
-          %r14        # callee saved
-          %r15        # callee saved
+        \begin{subfigure}[b]{0.95\textwidth}
+        \centering
+          \includegraphics[width=\textwidth]{img/htop.png}
+          \caption{You can see the PID number of each process (binary) running on the left column when running \texttt{htop} on UNIX systems. }
+          \label{fig:htop}
+        \end{subfigure}
+        \caption{Two different ways to see the PIDs of all current processes. }
+        \label{fig:}
+      \end{figure}
+      There is a specific numbering to each process. 
+      \begin{enumerate}
+        \item The process with PID 1 is always the kernel process. 
+        \item The smaller PIDs (perhaps less than 300) are also reserved for the kernel, so don't kill it. 
+      \end{enumerate}
+
+      If you go into each process, you can see a few things.  
+      
+      \begin{figure}[H]
+        \centering 
+        \begin{lstlisting}
+          ubuntu@passionate-blesbok:/proc/750$ sudo ls
+          attr	    comm	     fd        map_files   net		  pagemap      sessionid     statm	    uid_map
+          autogroup   coredump_filter  fdinfo    maps	   ns		  personality  setgroups     status	    wchan
+          auxv	    cpuset	     gid_map   mem	   numa_maps	  projid_map   smaps	     syscall
+          cgroup	    cwd		     io        mountinfo   oom_adj	  root	       smaps_rollup  task
+          clear_refs  environ	     limits    mounts	   oom_score	  sched        stack	     timers
+          cmdline     exe		     loginuid  mountstats  oom_score_adj  schedstat    stat	     timerslack_ns
         \end{lstlisting}
-        
+        \caption{There are many files in each PID folder that tells you about the process. } 
+        \label{fig:pid_info}
+      \end{figure}
+      \begin{enumerate}
+        \item To get information about the status of this process, you can \texttt{cat status}. 
 
+        \item The virtual address space is stored in \texttt{pagemap}. If you're on an 64-bit machine, this file will be extremely big, so just \texttt{cat pagemap} won't work. Therefore you should try \texttt{cat maps}, which shows you something like the following. 
+
+        \begin{lstlisting}
+          ubuntu@passionate-blesbok:/proc/750$ sudo cat maps
+          aaaac673c000-aaaac67e3000 r-xp 00000000 08:01 2576                       /usr/sbin/rsyslogd
+          aaaac67f3000-aaaac67f6000 r--p 000a7000 08:01 2576                       /usr/sbin/rsyslogd
+          aaaac67f6000-aaaac67fd000 rw-p 000aa000 08:01 2576                       /usr/sbin/rsyslogd
+          aaaac67fd000-aaaac67fe000 rw-p 00000000 00:00 0 
+          aaaadfe94000-aaaadfed7000 rw-p 00000000 00:00 0                          [heap] 
+        \end{lstlisting}
+        In here, you can see that the lefthand column represents the range of virtual memory address. The next column gives us the permissions (read, write, executable, shared/private). 
       \end{enumerate}
-
     \end{example}
 
-    \begin{example}[ARM Archiecture]
-      Mainly in phones, tablets, laptops. 
+  \subsection{Process Level Concurrency}
+
+    \begin{definition}[Context Switch]
+      Let us first start off with a single core system. At this point, everything is sequential, and to run all these processes at once\footnote{not programs, since there can be multiple instances of one program, like two Chrome instances. In fact, Chrome produces multiple processes to help run each part of the browser, so one program may translate to multiple processes. } we want to use system calls to transition between these processes. This is called a \textbf{context switch}. 
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/seq_ex.png}
+        \caption{5 processes may be executed as such on a single core. } 
+        \label{fig:context_switch}
+      \end{figure}
+      Note that due to context switches, the \textbf{CPU time}, which is the time is takes to run a process on a CPU, is much shorter than the \textbf{wall-clock time}, which is the time a human perceives a process takes to complete. 
+    \end{definition}
+
+    Note that context switches are expensive. To do one, you must essentially replace two things. 
+    \begin{enumerate}
+      \item First, you need to clear out all the register values. This can be done by storing them in the current stack at the VAS, which then gets mapped through the page table into the physical address space. 
+      \item Now the register values (like the instruction and stack pointers) are stored safely in the stack in the VAS, the actual page table must be swapped out too since each process must have its own virtual address space. 
+    \end{enumerate}
+    Since it is quite expensive to context switch all the time, the simplest thing to do is add more cores, which gives us the double benefit of distributing the process workload \textit{and} having to do less context switches. This is called \textbf{physical concurrency}, and given the same workload, it speeds up our computation absolutely. However, this can physically take us so far due to the limited number of cores, and we must go further and use \textbf{logical concurrency}. 
+
+  \subsection{Thread Level Concurrency}
+
+    It turns out that it is much more expensive to reload the page table of a new process rather than clearing out the register values. So, perhaps maybe we can try to implement multiple related ``processes'' that \textit{share} the same VAS, but have their own execution stream (i.e. own stack and registers). This is precisely the concept of a \textit{thread}. 
+
+    \begin{definition}[Threads]
+      \textbf{Threads} are multiple execution streams within a single process. To summarize them, a thread is an execution context within a process that has a... 
+      \begin{enumerate}
+        \item thread ID 
+        \item its own stack frame 
+        \item its own register context\footnote{This does not mean that each process has its own physical registers. It has its own \textit{value} that is loaded into the registers. The physical number of registers is determined by the number of CPU cores. }
+      \end{enumerate}
+      This is all that is really needed to execute some computation. Now, given that there are some number of threads in process $K$, they \textit{share} the same virtual address space (VAS), are all under the same PID, share the same code, static data, heap, and file table. The individual stacks living within the VAS are protected from each other to avoid stack overflow. 
+
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.35]{img/2_threads.png}
+        \caption{When there are two threads of a single process, the threads share the same virtual memory space. However, they each have their own set of registers. For example, they each have their own instruction pointer that points to the next line of code, along with their own stack pointer. Furthermore, to prevent stack overflow, there are protection mechanisms that prevent one stack from growing past a certain limit into another stack owned by a different thread. } 
+        \label{fig:2_threads}
+      \end{figure}
+      Therefore, we can speed up our program in two ways. 
+      \begin{enumerate}
+        \item If we have one core, we can do context switching faster between each thread (since we only have to load the register values). 
+        \item If we have multiple cores, we can take thread 1 and have it run on one core while taking thread 2 and running it on another core. This is really analogous to having two separate processes on two cores, but these two processes simply share the same VAS, with the same code, data, and heap. 
+      \end{enumerate}
+    \end{definition}
+
+    Threads are advantageous for multiple reasons. First, by utilizing multiple cores we can speed up our program to reduce our \textit{CPU time}. However, if we are sharing threads between one core, we're not actually speeding up anything at all but rather reducing our \textit{wall-clock time}. The main speedup that we will feel is that latency heavy tasks will get offloaded to other threads, while more relevant programs can be run on the main thread. This is explained more in the following example. 
+
+    \begin{example}[Mobile Application]
+      If we have a single threaded messaging mobile app, then this is painfully slow since if we want to scroll down our messages while also sending and receiving messages, then we would have to wait for the message to receive from the server, into our disk, and into our memory, before the app responds when scrolling. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/single_threaded_app.png}
+        \caption{Single threaded app.} 
+        \label{fig:single_threaded_app}
+      \end{figure}
+      However, if we have a multithreaded app with one thread for the app UI and the other one for the server through a background thread, then we can have good UI response time. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/multithreaded_app.png}
+        \caption{Multithreaded app. Methods on the UI thread must be fast to ensure user satisfaction while anything slow can run on a background thread. } 
+        \label{fig:multithreaded_app}
+      \end{figure}
     \end{example}
 
-    \begin{example}[MIPS Architecture]
-      MIPS is a RISC architecture, which is used in embedded systems such as digital home and networking equipment. 
-    \end{example}
+    The following law gives us a certain bound on how much parallelization can help us. Note that this does not talk about the responsiveness of an application due to clever thread sharing. It just says given a certain amount of computational task, how much can we reduce the CPU time with parallelization? 
 
-    This is a large overview of the different architectures, but Arch Linux states on their website that they have \textit{official packages optimized for the x86-64 architecture}.\footnote{https://archlinux.org/} 
+    \begin{theorem}[Amdahl's Law]
+      Say that we have code that runs in 1 second. Given that proportion $f$ of our code can be parallelized, and the speedup for that portion is $N$, then the new time that our program will take is 
+      \begin{equation}
+        T_{\mathrm{new}} = (1 - f) + f/N
+      \end{equation}
+      since the sequential part $1 - f$ cannot be sped up, and the remaining parallel part $f$ can be sped up by distributing over $N$ cores. Therefore, defining the speedup as $T_{\mathrm{new}} / T_{\mathrm{old}}$, we get our total parallelized speedup is 
+      \begin{equation}
+        \frac{1}{(1 - f) + f/N}
+      \end{equation}
+      Note that it is bounded by the sequential portion as $N \rightarrow \infty$. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.5]{img/amdahl.png}
+        \caption{Amdahl's law for different $f$'s over multiple number of processors $N$.} 
+        \label{fig:amdahl}
+      \end{figure}
+    \end{theorem}
 
-    Furthermore, by running \textbf{cat /proc/cpuinfo}, you can see the specs of each CPU core you have. This includes the \textbf{model name} (clock cycle), \textbf{cache size}, \textbf{flags}, and \textbf{microcode}. The flags are the most important, since they tell you what features your CPU has.\footnote{The entire list of flags and what they can do is mentioned in the Arch kernel source code, which is a good reference: https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/arch/x86/include/asm/cpufeatures.h} 
-    \begin{enumerate} 
-      \item \textbf{lm}: 64 bit architecture. 
-      \item \textbf{vmx} (Intel) or \textbf{svm} (AMD): Hardware virtualization . 
-      \item \textbf{aes}: Accelerate AES encryption. 
-      \item \textbf{fpu}: Floating Point Unit, which is used for floating point operations. 
-      \item \textbf{vme}: Virtual 8086 mode enhancements, which is used for virtualization. 
-      \item \textbf{de}: Debugging extensions, which is used for debugging. 
-      \item \textbf{pse}: Page Size Extensions, which is used for larger page sizes. 
-      \item \textbf{tsc}: Time Stamp Counter, which is used for timing. 
-      \item \textbf{msr}: Model Specific Registers, which is used for model specific operations. 
-      \item \textbf{mce}: Machine Check Exception, which is used for error checking. 
-      \item \textbf{pae}: Physical Address Extensions, which is used for larger memory. 
-      \item \textbf{mce}: Machine Check Exception, which is used for error checking. 
 
+    This is implemented in C with the \texttt{pthread.h} library, which is included in the standard library directory and follows the POSIX (Portable Operating System Interface) standard. Essentially, we want to do the following: 
+    \begin{enumerate}
+      \item Define a function that will be called for each thread. It must return a void pointer \texttt{void *} and its arguments must also be a void pointer \texttt{void *}. Think of this as our new main function for each stack that will be created from each thread.\footnote{Called a function pointer?} Since we are only restricted to a function taking in one void pointer argument, it is common to define a new struct like \texttt{arg\_t} that contains all the parameters you need to run each thread. The void pointer can be typecast into the struct pointer at the beginning of each thread function. 
+
+      \item We create \texttt{pthread\_t} objects, which are the thread objects. 
+      \item We call the \texttt{pthread\_create} function that takes in the pointer of the thread object, some settings, the function to be called, and its arguments. At this point, the operating system will determine how these threads will be run, so you can't make any sequential assumptions about them. 
+      \item Then we join them using \texttt{pthread\_join}, which basically waits until all the threads are complete before \texttt{main} continues. 
     \end{enumerate}
 
-  \subsection{Assembly in x86\_64} 
+    We will show two examples that go over this process. But more importantly, the concurrency of these two examples will show unpredictable behavior. 
 
-    \begin{definition}[Instruction]
-      An instruction is a single line of assembly code. It consists of some instruction followed by its (one or more) operands. The instruction is a mnemonic for a machine language operation (e.g. \texttt{mov}, \texttt{add}, \texttt{sub}, \texttt{jmp}, etc.). The \textbf{size specifier} can be appended to this instruction mnemonic to specify the size of the operands. 
-      \begin{enumerate} 
-        \item \textbf{b} (byte) for 1 byte 
-        \item \textbf{w} (word) for 2 bytes
-        \item \textbf{l} (long) for 4 bytes 
-        \item \textbf{q} (quad word) for 8 bytes
-      \end{enumerate}
-      Note that due to backwards compatibility, word means 2 bytes in instruction names. Furthermore, the maximum size is 8 bytes since that is the size of each register in x86\_64. An operand can be of 3 types, determined by their \textbf{mode of access}:
-      \begin{enumerate} 
-        \item \textbf{Immediate addressing} is denoted with a \texttt{\$} sign, e.g. a constant integer data \texttt{\$1}. 
-        \item \textbf{Register addressing} is denoted with a \texttt{\%} sign with the following register name, e.g. \texttt{\%rax}.
-        \item \textbf{Memory addressing} is denoted with the hexadecimal address in memory, e.g. \texttt{0x034AB}.
-      \end{enumerate}
-    \end{definition}
+    \begin{example}[Simply Print out Thread Number]
+      We can make threads to print out the number. But these aren't really in the same order. 
+      \begin{figure}[H]
+        \centering 
+        \noindent\begin{minipage}{.8\textwidth}
+        \begin{lstlisting}[]{Code}
+          #include <stdio.h> 
+          #include <pthread.h>
+          #include <stdlib.h>
 
-    Like higher level programming languages, we can perform operations, do comparisons, and jump to different parts of the code. Instructions can be generally categorized into three types: 
-    \begin{enumerate} 
-      \item \textbf{Data Movement}: These instructions move data between memory and registers or between the registery and registery. Memory to memory transfer cannot be done with a single instruction. 
-        \begin{lstlisting} 
-          %reg = Mem[address]     # load data from memory into register
-          Mem[address] = %reg     # store register data into memory
+          void* thread(void* args) {
+            printf("Thread %d\n", *(int*)args); 
+            return NULL; 
+          }
+
+          int main(int argc, char *argv[]) {
+            int size = 10; 
+            pthread_t threads[size]; 
+            int rc, i;
+
+            // thread creation 
+            for (i = 0; i < size; i++) {
+              rc = pthread_create(&threads[i], NULL, thread, &i); 
+            }
+
+            // join waits for the threads to finish 
+            for (i = 0; i < size; i++) {
+              rc = pthread_join(threads[i], NULL); 
+            }
+          return 0; 
+          }
         \end{lstlisting}
-      \item \textbf{Arithmetic Operation}: Perform arithmetic operation on register or memory data. 
-        \begin{lstlisting} 
-          %reg = %reg + Mem[address]     # add memory data to register
-          %reg = %reg - Mem[address]     # subtract memory data from register
-          %reg = %reg * Mem[address]     # multiply memory data to register
-          %reg = %reg / Mem[address]     # divide memory data from register
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.19\textwidth}
+        \begin{lstlisting}[]{Output}
+          Thread 1
+          Thread 2
+          Thread 6
+          Thread 3
+          Thread 8
+          Thread 5
+          Thread 2
+          Thread 4
+          Thread 3
+          Thread 3
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
         \end{lstlisting}
-      \item \textbf{Control Flow}: What instruction to execute next. 
-        \begin{lstlisting} 
-          jmp label     # jump to label
-          je label      # jump to label if equal
-          jne label     # jump to label if not equal
-          jg label      # jump to label if greater
-          jl label      # jump to label if less
-          call label    # call a function
-          ret           # return from a function
-        \end{lstlisting}
-    \end{enumerate}
+        \end{minipage}
+        \caption{Threads output shows that the order in which the functions are called cannot be predicted. } 
+        \label{fig:threads}
+      \end{figure}
+    \end{example}
 
-    Now unlike compiled languages, which are translated into machine code by a compiler, assembly code is translated into machine code through a two-step process. First, we \textbf{assemble} the assembly code into an \textbf{object file} by an \textbf{assembler}, and then we \textbf{link} the object file into an executable by a \textbf{linker}. Some common assemblers are \textbf{NASM} (Netwide Assembler) and \textbf{GAS/AS} (GNU Assembler), and common linkers are \textbf{ld} (GNU Linker) and \textbf{lld} (LLVM Linker), both installable with \textbf{sudo pacman -S nasm ld}. 
+  \subsection{Atomicity Violation Bugs and Mutex Locks} 
 
-    \begin{definition}[mov]
-      Let's talk about the \texttt{mov} instruction. A good diagram to see is the following: 
-      \begin{center}  
-        % \includegraphics[scale=0.5]{img/movq.png}
-      \end{center} 
-      Parantheses indicate that we are using a pointer dereference. 
+    We see that there are some parts of the code that are not meant to be parallelized. 
+
+    \begin{definition}[Atomicity-Violation Bugs] 
+      This bug happens when the desired \textbf{atomicity} (indivisibility) among multiple memory accesses is violated. 
     \end{definition}
 
-    \begin{definition}[int]
-      The \texttt{int} instruction is used to generate a software interrupt. It is often used to invoke a system call.
-    \end{definition}
+    \begin{example}[Atomicity-Violation in SQL]
+      For example, if we have two threads doing the following (in MySQL): 
+      \begin{lstlisting}
+        Thread1:: 
+        if (thd-> proc_info) {
+          ...
+          fputs(thd->proc_info); 
+          ...
+        }
 
-    \begin{definition}[ret]
-      The \texttt{ret} instruction is used to return from a function. It returns the value in the \texttt{\%rax} register. 
-    \end{definition}
-
-    \begin{example}[Swap Function]
-      In \textbf{gdb}, we may have a function that swaps two integers. 
-      \begin{lstlisting} 
-        swap:
-          movq (%rdi), %rax
-          movq (%rsi), %rdx
-          movq %rdx, (%rdi)
-          movq %rax, (%rsi)
-          ret
+        Thread2::
+        thd->proc_info = NULL; 
       \end{lstlisting}
-    which is the assembly code for the following C code.
-      \begin{lstlisting} 
-        void swap(long *xp, long *yp) {
-          long t0 = *xp;
-          long t1 = *yp;
-          *xp = t1;
-          *yp = t0;
+      If we pass the if statement but within it, \texttt{thd->proc\_info} becomes \texttt{NULL}, then this would be very bad. Therefore, we should put locks around. 
+      \begin{lstlisting}
+      pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER; 
+
+        Thread1:: 
+        pthread_mutex_lock(&lock); 
+        if (thd-> proc_info) {
+          ...
+          fputs(thd->proc_info); 
+          ...
+        }
+        pthread_mutex_unlock(&lock); 
+
+        Thread2::
+        pthread_mutex_lock(&lock); 
+        thd->proc_info = NULL; 
+        pthread_mutex_unlock(&lock); 
+      \end{lstlisting}
+    \end{example}
+
+    \begin{example}[Incrementing Shared Counter between Two Threads]
+      The volatile keyword for \texttt{counter} means that it can be changed by all threads. 
+
+      \begin{figure}[H]
+        \centering 
+        \noindent\begin{minipage}{.75\textwidth}
+        \begin{lstlisting}[]{Code}
+          #include <stdio.h> 
+          #include <pthread.h>
+          #include <stdlib.h>
+
+          static volatile int counter = 0; 
+
+          void* thread(void* args) {
+            printf("%s : Start \n", (char*)args); 
+
+            for (int i = 0; i < 10 * 1000 * 1000; i++) {
+              counter += 1; 
+            }
+
+            printf("%s : End \n", (char*)args); 
+            return NULL; 
+          }
+
+          int main(int argc, char *argv[]) {
+            pthread_t thread1, thread2; 
+
+            int rc; 
+            rc = pthread_create(&thread1, NULL, thread, "A"); 
+            rc = pthread_create(&thread2, NULL, thread, "B"); 
+
+            rc = pthread_join(thread1, NULL); 
+            rc = pthread_join(thread2, NULL); 
+
+            printf("Counter : %d\n", counter); 
+            return 0; 
+          }
+                      
+        \end{lstlisting}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.24\textwidth}
+        \begin{lstlisting}[]{Output}
+          A : Start 
+          B : Start 
+          A : End 
+          B : End 
+          Counter : 10229646
+          .
+          .
+          A : Start 
+          B : Start 
+          B : End 
+          A : End 
+          Counter : 14965289
+          .
+          .
+          A : Start 
+          B : Start 
+          A : End 
+          B : End 
+          Counter : 10086690
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+          .
+        \end{lstlisting}
+        \end{minipage}
+        \caption{From looking at the behavior, we can see that the start and end times of thread A and thread B is complete unpredictable. It is only within the sequential nature within each thread (i.e. \texttt{X : start} must come before \texttt{X : End} that is predictable. More so, after all the increments, the total sum collected by counter isn't even 20 million!). The actual speed and ordering of this is determined at runtime. } 
+        \label{fig:unpredictable}
+      \end{figure}
+
+      To really see what's going on here, we must look into the assmebly code behind this. If we focus on line 11 when the counter is incremented and look at its assembly, we see 
+      \begin{lstlisting}
+        7a7: 8b 05 0a 0b 20 00       mov    0x200b0a(%rip),%eax        # 200c1c <counter> 
+        7ad: 83 c0 01                add    $0x1,%eax 
+        7b0: 89 05 01 0b 20 00       mov    %eax,0x200b01(%rip)        # 200c1c <counter> 
+      \end{lstlisting}
+      What this means is that every thread consists of loading the \texttt{counter} value from the instruction pointer plus an offset into \texttt{\%eax}, then adding $1$ to it, and then storing it back to the same memory location (the rip changes, so the memory address between the 1st and 3rd line will be slightly different, but they are the same address). If we have threads $1$ and $2$, we can have the following possible interweavings: 
+      \begin{enumerate}
+        \item (1 loads, 1 adds, 1 stores, 2 loads, 2 adds, 2 stores). This would result in a $+2$. 
+        \item (1 loads, 1 adds, 2 loads, 2 adds, 2 stores, 1 stores). This would result in a $+1$ since thread 2 loads before 1 could store the incremented version. 
+        \item (1 loads, 2 loads, 1 adds, 2 adds, 1 stores, 2 stores). This would also result in a $+1$ for the same reasons as before. 
+      \end{enumerate}
+    \end{example}
+
+
+    There is a big problem here: it seems that these things overwrite each other. 
+
+    \begin{definition}[Data Race]
+      We have just seen an example of a \textbf{data race}, which occurs if two or more threads concurrently accesses the same memory location with at least one write. The section of code where a data race can occur is called the \textbf{critical section}. 
+    \end{definition}
+
+    So how do we address this challenge of concurrency? This is where locks and mutexes come in. 
+
+    \begin{definition}[Lock]
+      A \textbf{lock} is a construct to enforce mutual exclusion in conflicting code sections (critical sections). It is implemented as a special data object in memory. We can use the API methods
+      \begin{enumerate}
+        \item \texttt{acquire()} or \texttt{lock()} is called when going into a critical section. 
+        \item and \texttt{release()} or \texttt{unlock()} is called when going out of a critical section. 
+      \end{enumerate}
+      If the lock is already acquired by a thread and not released yet, then other threads will not be able to acquire the lock and execute the next instructions. There are two ways this is implemented. First, an incoming thread can wait if another thread holds the lock, called a \textbf{spinlock},\footnote{This is mainly implemented through kernel and used almost exclusively for OS development, not application development.} or it can be blocked, called a \textbf{mutex} (mutual exclusion).\footnote{This is mainly implemented in user space. }\footnote{This has a FIFO queue. }
+    \end{definition}
+
+    To implement this in C, there's a few things that we have to do. 
+    \begin{enumerate}
+      \item First, make a \texttt{pthread\_mutex\_t} global variable. 
+      \item Then, make initialize the mutex before you create the threads and destroy the mutex after you join the threads in the \texttt{main} function. 
+      \item Finally, put the specific locks and unlocks in the locations of the functions that the thread calls. 
+    \end{enumerate}
+
+    There are few strategies to correct the counter example above, which all produce the correct output \texttt{Counter: 20000000}. 
+    \begin{enumerate}
+      \item We can put the lock around the entire for loop of the \texttt{thread} function. However, this essentially takes us back to the sequential regime. 
+
+      \begin{figure}[H]
+        \centering 
+        \begin{lstlisting}
+          static volatile int counter = 0; 
+          pthread_mutex_t mutex; // global declaration of mutex
+
+          void* thread(void* args) {
+            pthread_mutex_lock(&mutex); //acquire the mutex lock
+            for (int i = 0; i < 10 * 1000 * 1000; i++) {
+              counter += 1; 
+            }
+            pthread_mutex_unlock(&mutex); //release the mutex lock
+            return NULL; 
+          }
+
+          int main(int argc, char *argv[]) {
+            pthread_t thread1, thread2; 
+            int rc; 
+            rc = pthread_mutex_init(&mutex, NULL); //initialize the mutex
+            rc = pthread_create(&thread1, NULL, thread, "A"); 
+            rc = pthread_create(&thread2, NULL, thread, "B"); 
+            rc = pthread_join(thread1, NULL); 
+            rc = pthread_join(thread2, NULL); 
+            pthread_mutex_destroy(&mutex); //destroy (free) the mutex
+            printf("Counter : %d\n", counter); 
+            return 0; 
+          }
+        \end{lstlisting}
+        \caption{Putting the mutex locks around the entire for loop. } 
+        \label{fig:first_try}
+      \end{figure}
+
+      \item A better idea to actually implement parallelization is to put the locks around the line that says \texttt{counter += 1;}. This is the critical code that loads the counter value from the stack into the register, increments it by $1$, and sends it back to the stack. We should isolate this so that no other threads can execute during these 3 assembly lines. 
+
+      \begin{figure}[H]
+        \centering 
+        \begin{lstlisting}
+          static volatile int counter = 0; 
+          pthread_mutex_t mutex; // global declaration of mutex
+
+          void* thread(void* args) {
+            for (int i = 0; i < 10 * 1000 * 1000; i++) {
+              pthread_mutex_lock(&mutex); //acquire the mutex lock
+              counter += 1; 
+              pthread_mutex_unlock(&mutex); //release the mutex lock
+            }
+            return NULL; 
+          }
+
+          int main(int argc, char *argv[]) {
+            pthread_t thread1, thread2; 
+            int rc; 
+            rc = pthread_mutex_init(&mutex, NULL); //initialize the mutex
+            rc = pthread_create(&thread1, NULL, thread, "A"); 
+            rc = pthread_create(&thread2, NULL, thread, "B"); 
+            rc = pthread_join(thread1, NULL); 
+            rc = pthread_join(thread2, NULL); 
+            pthread_mutex_destroy(&mutex); //destroy (free) the mutex
+            printf("Counter : %d\n", counter); 
+            return 0; 
+          }
+        \end{lstlisting}
+        \caption{Now we put the locks within the counter. However, this is much slower since locking and unlocking are relatively expensive. It runs in 0.274s. } 
+        \label{fig:second_try}
+      \end{figure}
+
+      \item The first two tries are not ideal, but what we can do is have each thread store its local work all within each of its stack, and then when it communicates with the shared memory on \texttt{counter}, this is where the locks should come in place. This has the double benefit of locking/unlocking very few times, along with protecting the critical section of the code. 
+
+      \begin{figure}[H]
+        \centering 
+        \begin{lstlisting}
+          static volatile int counter = 0; 
+          pthread_mutex_t mutex; // global declaration of mutex
+
+          void* thread(void* args) {
+            int my_counter = 0; 
+            for (int i = 0; i < 10 * 1000 * 1000; i++) {
+              my_counter += 1; 
+            }
+            pthread_mutex_lock(&mutex); //acquire the mutex lock
+            counter += my_counter; 
+            pthread_mutex_unlock(&mutex); //release the mutex lock
+            return NULL; 
+          }
+
+          int main(int argc, char *argv[]) {
+            pthread_t thread1, thread2; 
+            int rc; 
+            rc = pthread_mutex_init(&mutex, NULL); //initialize the mutex
+            rc = pthread_create(&thread1, NULL, thread, "A"); 
+            rc = pthread_create(&thread2, NULL, thread, "B"); 
+            rc = pthread_join(thread1, NULL); 
+            rc = pthread_join(thread2, NULL); 
+            pthread_mutex_destroy(&mutex); //destroy (free) the mutex
+            printf("Counter : %d\n", counter); 
+            return 0; 
+          }
+        \end{lstlisting}
+        \caption{In here, we have each thread increment its own local version of the counter and store it in \texttt{my\_counter}. Then, we increment the global \texttt{counter} by the total \texttt{my\_counter}, which will require one mutex lock. It runs in 0.049s. }  
+        \label{fig:third_try}
+      \end{figure}
+    \end{enumerate}
+
+    \begin{example}[Inserting into Linked List]
+      Inserting into a linked list is a sequential process, but what if we want to parallelize it with multiple threads? Consider the following code. 
+      \begin{lstlisting}
+        typedef struct __node_t {
+          int key; 
+          struct __node_t *next; 
+        } node_t; 
+
+        typedef struct __list_t {
+          node_t *head; 
+        } list_t; 
+
+        void List_Init(list_t *L) {
+          L -> head = NULL; 
+        }
+
+        void List_Insert(list_t *L, int key) {
+          // insert a new node with the key value at the beginning of the list 
+          node_t *new = malloc(sizeof(node_t)); 
+          assert(new); 
+          new -> key = key; 
+          new -> next = L -> head; 
+          L -> head = new; 
+        }
+
+        int main(void) {
+          list_t L; 
+          list_t *Lp = &L; 
+          List_Init(Lp); 
+          for (int i = 0; i < 10; i++) {
+            List_Insert(Lp, i); 
+          }
+          return 0; 
+        }
+      \end{lstlisting}
+      Say that we want to parallelize the creation of the length 10 linked list. Simply initializing some threads and calling \texttt{List\_Insert} 10 times won't properly create this linked list. This is because two threads may overwrite where \texttt{L -> head} points to. The most naive thing to do is to put locks around the whole function, but now we are back to the sequential regime! If we think about it, the \texttt{malloc} calls, asserting that there is viable memory, and assigning the input key value to \texttt{new -> key} does not overwrite anything else. It is only when we assign \texttt{new -> next} to the head value of \texttt{L} that things may get overwritten, so we put the locks shown below, while slightly modifying the \texttt{list} struct to have the \texttt{pthread\_mutex\_t} attribute. 
+      \begin{lstlisting}
+        typedef struct __list_t {
+          node_t *head; 
+          pthread_mutex_t lock; 
+        } list_t; 
+
+        void List_Init(list_t *L) {
+          L -> head = NULL; 
+          pthread_mutex_init(&L -> lock, NULL); 
+        }
+
+        void List_Insert(list_t *L, int key) {
+          // insert a new node with the key value at the beginning of the list 
+          node_t *new = malloc(sizeof(node_t)); 
+          assert(new); 
+          new -> key = key; 
+          pthread_mutex_lock(&L->lock)
+          new -> next = L -> head; 
+          L -> head = new; 
+          pthrea_mutex_unlock(&L->lock)
         }
       \end{lstlisting}
     \end{example}
 
-  \subsection{Graphics Drivers}
-    
-    Note that one type of data we must store on memory is the individual pixels in a computer screen. Say that in a $1920 \times 1080$ resolution computer, there are about $1920 \times 1080 \times 3 \approx 2$ million bytes of data that we have to store. This isn't that much data (only 2MB), but we must update it quite fast since our screens are always updating. This is why all computer which have a GUI comes with a built-in graphics driver. To see the GPU hardware specifications, install \textbf{lshw}. 
+  \subsection{Deadlock Bugs}
 
-    \begin{definition}[Graphics Processing Unit]
-      The \textbf{GPU} is a specialized processing unit that is designed to handle the rendering of images and videos. It is designed to handle the rendering of images and videos, and is optimized for parallel processing. Like the CPU, it has some common metrics: 
-      \begin{enumerate} 
-        \item \textbf{Clock Speed}: The speed at which the GPU can execute instructions. This is usually measured in MHz or GHz. 
-        \item \textbf{Memory}: The amount of memory that the GPU has. This is usually measured in GB. 
-        \item \textbf{Memory Bandwidth}: The speed at which the GPU can read and write to its memory. This is usually measured in GB/s. 
-        \item \textbf{Cores}: The number of cores that the GPU has. This is usually measured in thousands, which allows for parallel processing. 
+    Locks are extremely useful to segment out a portion of code that should be uninterrupted. However, there are many consequences of misusing it. 
+
+    \begin{definition}[Deadlock Bugs]
+      A \textbf{deadlock bug} happens when you make locks such that the program cannot run anymore. These aren't specific to threads, but also processes as well. They require the four preconditions: 
+      \begin{enumerate}
+        \item Mutual exclusion: you must have a lock to begin with to have a deadlock, so this is trivial. 
+        \item Hold and Wait: Threads must have the ability to hold resources (e.g. the philosophers must hold forks which prevent others from taking them) . 
+        \item No Preemption: Preemption refers to the ability to take the fork out of someone else's hand. So if you have a thread, you can first take lock A, then look at whether lock B is available. If not, then unlock A and try again. However, this can lead to a bunch of threads just simply picking up and putting down forks, causing a \textit{livelock}. 
+        \item Circular Wait: That is, there exists a circular chain of threads such that each thread holds a resource needed by the next thread. A strategy is too define a fixed acquisition order for locks (e.g. lock A always before lock B). 
       \end{enumerate}
-      You can check which GPUs you have by running \texttt{lspci | grep VGA} or \texttt{neofetch}. There are generally two types of GPUs: 
-      \begin{enumerate} 
-        \item \textbf{Integrated GPU}: This type of GPU is built into the same chip as the CPU (Central Processing Unit). It shares resources with the CPU, including memory, which can lead to reduced performance for graphics-intensive tasks. However, its integrated nature makes it more power-efficient and cost-effective. 
-        \item \textbf{Discrete GPU}: This is a separate component from the CPU and comes with its own RAM (usually called VRAM or Video RAM). It is typically installed in a dedicated slot on the motherboard. Because it operates independently of the CPU, a discrete GPU can offer significantly better performance for graphics processing, gaming, or deep learning. 
+      You shouldn't try to hold multiple locks at once, but if you must, you should have a strategy to avoid deadlock. Choosing a lock order is the recommended way. 
+    \end{definition}
+
+    \begin{example}[Bank Accounts]
+      Let's go through an example. Suppose we had the following code below. 
+      \begin{lstlisting}
+        struct account {
+          pthread_mutex_t lock; 
+          int balance; 
+        }; 
+
+        struct arg_t {
+          struct account fromAcct; 
+          struct account toAcct; 
+          int amt; 
+        }; 
+
+        pthread_mutex_t mutex; // global declaration of mutex
+
+        void* Transfer(void* args) {
+
+          struct arg_t* data = (struct arg_t*)args; 
+
+          struct account* fromAcct = &(data -> fromAcct); 
+          struct account* toAcct = &(data -> toAcct); 
+          int amt = data -> amt; 
+
+
+          pthread_mutex_lock(&fromAcct->lock);
+          pthread_mutex_lock(&toAcct->lock);
+
+          fromAcct->balance -= amt;
+          toAcct->balance += amt;
+
+          pthread_mutex_unlock(&fromAcct->lock);
+          pthread_mutex_unlock(&toAcct->lock);
+
+          return NULL; 
+        }
+      \end{lstlisting}
+      Suppose that Threads 0 and 1 are executing concurrently and represent users A and B, respectively. Now consider the situation in which A and B want to transfer money to each other: A wants to transfer 20 dollars to B, while B wants to transfer 40 to A.
+
+      Both threads concurrently execute the \texttt{Transfer} function. Thread 0 acquires the lock of acctA while Thread 1 acquires the lock of acctB. Now consider what happens. To continue executing, Thread 0 needs to acquire the lock on acctB, which Thread 1 holds. Likewise, Thread 1 needs to acquire the lock on acctA to continue executing, which Thread 0 holds. Since both threads are blocked on each other, they are in deadlock.
+
+      This can be simply fixed by rearranging the locks so that each lock/unlock pair surrounds only the balance update statement associated with it. 
+      \begin{lstlisting}
+      void *Transfer(void *args){
+        //argument passing removed to increase readability
+        //...
+
+        pthread_mutex_lock(&fromAcct->lock);
+        fromAcct->balance -= amt;
+        pthread_mutex_unlock(&fromAcct->lock);
+
+        pthread_mutex_lock(&toAcct->lock);
+        toAcct->balance += amt;
+        pthread_mutex_unlock(&toAcct->lock);
+
+        return NULL;
+      } 
+      \end{lstlisting}
+    \end{example}
+
+    \begin{example}[Dining Philosopher's Problem]
+      There are 5 philosophers at a roundtable with 5 plates of food with 5 forks. Each philosopher needs two forks (both on their left and on their right) to start eating their plate. However, there can be a deadlock if every philosopher takes the fork on their right and is always waiting for the left fork (this happens due to a circular dependency). 
+      \begin{enumerate}
+        \item One way to resolve this issue is to set an ID to every fork and have the philosophers always take the lower ID fork first before trying to take the higher ID. Then this resolves and at least one philosopher can eat. 
+      \end{enumerate}
+    \end{example}
+
+    \begin{example}[Set-Intersection Problem]
+      Again, like the bank account section, we have the following code that can create deadlocks if there is a code that attempts to compute $A \cap B$ and $B \cap A$ at similar times. 
+      \begin{lstlisting}
+        set_t *set_intersection(set_t *s1, set_t *s2) {
+          set_t *result = set_create(); 
+          pthread_mutex_lock(&s1->lock); 
+          pthread_mutex_lock(&s2->lock); 
+
+          for (int i = 0; i < s1->size; i++) {
+            if (set_contains(s2, s1->data[i])) {
+              set_add(result, s1->data[i]); 
+            }
+          }
+
+          pthread_mutex_unlock(&s2->lock); 
+          pthread_mutex_unlock(&s1->lock); 
+          return result; 
+        }
+      \end{lstlisting}
+      Like using the IDs and ordering, we can resolve this by grabbing locks in a defined order, say from high to low. Therefore, we replace the locks as such.
+      \begin{lstlisting}
+        if (&m1 > &m2) {
+          pthread_mutex_lock(&m1); 
+          pthread_mutex_lock(&m2); 
+        } else {
+          pthread_mutex_lock(&m2); 
+          pthread_mutex_lock(&m1); 
+        }
+      \end{lstlisting}
+      However, this still creates a deadlock if we compute $A \cap A$, so we should place a deadlock. 
+    \end{example}
+
+    It turns out that we can make logically equivalent code without locks! By using atomic primitives that have implementations in C, we can create wait-free algorithms. For example, consider the \texttt{int CompAndSwap(int* addr, int expected, int new)} function. If \texttt{*addr == expected}, then we set \texttt{*addr} to \texttt{new} and return $1$. Otherwise, we do nothing and return $0$. Then, the two pieces of code are equivalent, but the advantage of the RHS is that there is never a deadlock. \begin{enumerate}
+      \item In the left, we pass by pointer to increment a variable. 
+      \item In the right, we first set \texttt{old} to the value of \texttt{val}, and if the value of \texttt{val} is equal to \texttt{old} (which may not always be true if some other thread modifies this value), then we set \texttt{old = *val} again and increment it by \texttt{amt}. 
+    \end{enumerate}
+    \noindent\begin{minipage}{.5\textwidth}
+    \begin{lstlisting}[]{Code}
+      void add(int *val, int amt) {
+        pthread_mutex_lock(&m); 
+        *val += amt; 
+        pthread_mutex_unlock(&m); 
+      }
+      .
+    \end{lstlisting}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{.49\textwidth}
+    \begin{lstlisting}[]{Output}
+      void add(int *val, int amt) {
+        do {
+          int old = *val;    
+        }
+        while(!CompAndSwap(val, old, old+amt)); 
+      }
+    \end{lstlisting}
+    \end{minipage}
+    However, the left hand, despite the risk of deadlocks, is still recommended. The mutex API allows for better distribution of CPU. 
+
+       
+  \subsection{Order Violation Bugs and Condition Variables} 
+
+    \begin{definition}[Order Violation Bugs]
+      An \textbf{order violation bug} happens when the desired order between two memory accesses is flipped, i.e. A should always be executed before B, but the order is not enforced during execution. 
+      \begin{enumerate}
+        \item For example, one thread that acts on a linked list may already assume that the linked list is initialized when it is not. Therefore, we should have these threads wait until initialization. 
+        \item Another example is if there is a set of producers and consumers that manage the flow of items through a buffer. If there is no good, then consumers cannot consume and they must wait. If the supply is full then the producers must wait. This also requires some process of waiting. 
       \end{enumerate}
     \end{definition}
 
-    \begin{definition}[Monitor]
-      Furthermore, your computer monitor, which actually displays these pixels to you, must also have metrics that match the GPU. Some properties: 
-      \begin{enumerate} 
-        \item The \textbf{resolution} is the number of pixels that the monitor can display, and is usually measured in pixels. 
-        \item The \textbf{refresh rate} is the number of times the monitor can refresh the image on the screen per second, and is usually measured in Hz. 
-      \end{enumerate}
-      To see these metrics for all monitors connected to your computer, run \textbf{xrandr}, which lists all the resolutions and possible refresh rates for each resolution. 
-    \end{definition}
+    We can use a regular conditional to check, but this may not be efficient due to the following example. 
 
-    \begin{definition}[Graphics Driver]
-      In order for your operating system to communicate with your GPU, you need a \textbf{graphics driver}. This is a piece of software that allows the operating system to communicate with the GPU. There are two main types of graphics drivers:
-      \begin{enumerate} 
-        \item \textbf{Open Source Drivers}: These are drivers that are developed and maintained by the open source community. They are usually included with the Linux kernel, and are generally stable and reliable. 
-        \item \textbf{Proprietary Drivers}: These are drivers that are developed and maintained by the GPU manufacturer. They are usually not included with the Linux kernel, and are generally more feature-rich and performant than open source drivers. 
-      \end{enumerate}
-    Intel drivers are open source, but Nvidia drivers are proprietary (which is why Linus Torvalds has beef with Nvidia).\footnote{A video of Linus Torvalds saying ``fuck you'' to Nvidia: https://www.youtube.com/watch?v=iYWzMvlj2RQ}
-    \end{definition}
+    \begin{example}[Condition Checks with Vanilla While Loops]
+      Say that you want to call the following function on a linked list, but you must wait until the list is not \texttt{NULL}. 
+      \begin{lstlisting}
+        int getItem(list_t *list) {
+          pthread_mutex_lock(&list -> m); 
+          // TODO: wait until list is non-empty
+          int item = list -> head -> item; 
+          list -> head = list -> head -> next; 
+          pthread_mutex_unlock(&list -> m);  
+          return item; 
+        }
+      \end{lstlisting}
 
-    Some popular graphics drivers include \textbf{mesa} for Intel and \textbf{nvidia} drivers for NVIDIA. 
+      To check whether \texttt{list} is not a null pointer, we can simply use a while loop to check. 
 
-    \subsubsection{Multiple GPUs} 
-
-      Everything is pretty straightforward when you have one graphics card, but when you have multiple graphics cards, you have to specify which one you want to use. If you want to only use one GPU, you can just disable the other one in the BIOS. However, if you have an Intel/Nvidia dual driver and want to use both, install \textbf{Nvidia Optimius} (for Ubuntu, it is supported through \textbf{nvidia-prime}).\footnote{This wiki article (https://github.com/Askannz/optimus-manager/wiki) provides a good overview of this matter. },\footnote{Installation instructions here: https://github.com/Askannz/optimus-manager?tab=readme-ov-file} 
-
-      Now make sure that the systemd daemon is running, and you can call \texttt{optimus-manager --switch hybrid} to enable hybrid graphics. This will log you out. 
-
-    \subsection{Peripheral Devices} 
-      
-      Peripheral devices refer to other devices outside of the motherboard, including mice, keyboards for input, monitors, printers, network managers, and usb ports. Even the GPU is considered a peripheral device. These must be connected to the motherboard in some way to be managed by the operating system, and similar to the databus connecting the CPU and memory, there are buses that connect the motherboard and these peripheral devices. 
-
-      \begin{definition}[PCI Bus]
-        The \textbf{PCI (Peripheral Component Interconnect)} bus is a high-speed bus that connects the motherboard to peripheral devices. It is used to connect devices like network cards, sound cards, and graphics cards to the motherboard. PCI buses operated based on the PCI standard, which is a set of specifications that define the physical and electrical characteristics of the bus. 
-      \end{definition}
-
-      The command to use to enumerate all PCI devices is \texttt{sudo lspci} (with \texttt{-v} for verbose). 
-      
-      \begin{figure}[hbt!]
+      \begin{figure}[H]
         \centering 
-        \begin{lstlisting} 
-          00:00.0 Host bridge: Intel Corporation 10th Gen Core Processor 
-          00:01.0 PCI bridge: Intel Corporation 6th-10th Gen Core Processor 
-          00:02.0 VGA compatible controller: Intel Corporation CometLake-H 
-          00:04.0 Signal processing controller: Intel Corporation Xeon 
-          00:08.0 System peripheral: Intel Corporation Xeon E3-1200 v5/v6 
-          00:12.0 Signal processing controller: Intel Corporation Comet 
-          00:13.0 Serial controller: Intel Corporation Device 06fc
-          00:14.0 USB controller: Intel Corporation Comet Lake USB 3.1 
-          00:14.2 RAM memory: Intel Corporation Comet Lake PCH Shared 
-          00:14.3 Network controller: Intel Corporation Comet Lake PCH
-          00:15.0 Serial bus controller: Intel Corporation Comet Lake 
-          00:15.1 Serial bus controller: Intel Corporation Comet Lake 
-          00:16.0 Communication controller: Intel Corporation Comet 
-          00:1c.0 PCI bridge: Intel Corporation Device 06b8 (rev f0)
-          00:1c.6 PCI bridge: Intel Corporation Device 06be (rev f0)
-          00:1d.0 PCI bridge: Intel Corporation Comet Lake PCI Express
-          00:1e.0 Communication controller: Intel Corporation Comet Lake 
-          00:1f.0 ISA bridge: Intel Corporation Device 068e
-          00:1f.3 Audio device: Intel Corporation Comet Lake PCH cAVS
-          00:1f.4 SMBus: Intel Corporation Comet Lake PCH SMBus Controller
-          00:1f.5 Serial bus controller: Intel Corporation Comet Lake 
-          01:00.0 3D controller: NVIDIA Corporation TU117M [GeForce GTX 1650 
-          02:00.0 PCI bridge: Intel Corporation JHL7540 Thunderbolt 3 Bridge
-          03:00.0 PCI bridge: Intel Corporation JHL7540 Thunderbolt 3 Bridge
-          03:01.0 PCI bridge: Intel Corporation JHL7540 Thunderbolt 3 Bridge
-          03:02.0 PCI bridge: Intel Corporation JHL7540 Thunderbolt 3 Bridge
-          03:04.0 PCI bridge: Intel Corporation JHL7540 Thunderbolt 3 Bridge
-          04:00.0 System peripheral: Intel Corporation JHL7540 Thunderbolt 
-          38:00.0 USB controller: Intel Corporation JHL7540 Thunderbolt 3 
-          6c:00.0 Unassigned class [ff00]: Realtek Semiconductor Co., Ltd. 
-          6d:00.0 Non-Volatile memory controller: Samsung Electronics Co 
+        \noindent\begin{minipage}{.5\textwidth}
+        \begin{lstlisting}[]{Code}
+          int tryGetItem(list_t *list, int *out) {
+            int success = 0; 
+            ptherad_mutex_lock(&list -> m); 
+            if (list -> head) {
+              success = 1; 
+              *out = list -> head -> item;
+              list -> head = list -> head -> next; 
+            }
+            pthread_mutex_unlock(&list -> m); 
+            return success; 
+          }
+          .
+          .
         \end{lstlisting}
-        \caption{This is the following output of lspci on my personal computer. } 
-        \label{fig:pci_device}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{.49\textwidth}
+        \begin{lstlisting}[]{Output}
+          int getItem( list_t *list) {
+            pthread_mutex_lock(&list -> m); 
+            // TODO: wait until list is non-empty 
+            while (list -> head == NULL) {
+              pthread_mutex_unlock(&list -> m); 
+              yield();        // optional 
+              pthread_mutex_lock(&list -> m); 
+            }
+            int item = list -> head -> item; 
+            list -> head = list -> head -> next; 
+            pthread_mutex_unlock(&list -> m);  
+            return item; 
+          }
+        \end{lstlisting}
+        \end{minipage}
+        \caption{On the LHS, this returns $0$ if the retrieval is not successful, and so you must wrap this function within some while loop to check if it is actually successful. On the RHS, we can use the \texttt{yield()} function which gives control to the OS to schedule another thread. }
+        \label{fig:cpu_waste}
       \end{figure}
 
-  \subsection{System Hardware}
+      This constant checking through a while loop leads to a waste of CPU resources. Therefore, we want to put the thread to sleep while there is no element in \texttt{list} so other processes can use the CPU core. This is the motivation behind \textit{conditional variables}. 
+    \end{example}
 
-    \subsubsection{Non-Volatile Drive Storage}
-
-      A \textbf{drive} is basically a computer component used to store data. It may be a static storage device (e.g. a HDD or SSD) or may use removable media (e.g. thumb, disk, CD). All drives store nonvolatile data (also called nonvolatile memory, NVM), meaning that the data is not erased when the power is turned off.
+    \begin{definition}[Condition Variables]
+      \textbf{Condition Variables} force a thread to be blocked until a particular condition is reached. This construct is useful for scenarios in which a condition must be met before the thread does some work.
       \begin{enumerate}
-        \item A \textbf{floppy disk drive} is a portable circular floppy plastic/metal disk coated with iron oxide or other magnetic material. They come in many sizes ranging from 3~8 inches in diameter, with the standard capacity being 1.44MB. When inserting the floppy disk into a computer, there is a read/write head that uses a magnet to polarize the iron particles in one of two directions, each represting a 0 or 1 in binary data. The head can also read these polarities in order to retrieve data stored on the disk in the form of polarized particles. Note that the head would read the disk "circularly" as the disk rotates. Each disk would be divided into typically 40 tracks with around 8 equal sectors.
-
-        \item A \textbf{hard disk drive (HDD)} is an electro-mechanical data storage device that stores and retrieves digital data using magnetic storage and one or more rigid (hence, the name hard) rapidly rotating platters coated with magnetic material. Data is accessed in arandom-access manner, meaning that individual blocks of data can be stored and retrieved in any order. They usually come inside a metal case enclosing the entire drive (3.5-inch for computers and 2.5-inch for laptop HDDs). Since the data on the HDD is determined by the polarities of the magnetic material on the disks, it is sensitive to external magnetic fields that may corrupt the data. Furthermore, because the drive heads must align over an area of the disk in order to read or write data, and the disk is constantly spinning, there’s a delay before data can be accessed. The drive may need to read from multiple locations in order to launch a program or load a file, which means it may haveto wait for the platters to spin into the proper position multiple times before it can complete the command. If a drive is asleep or in a low-power state, it can take several seconds more for the disk to spin up to full power and begin operating. Their speeds are measured in RPM, with the normal range of desktop HDDs having 5400-7200 RPM. It is useful to know that 5400 RPM drives offer an average of 100MB/s read and 7200 RPM drives offer 120MB/s.
-
-        \item A \textbf{Solid State Drive (SSD)} is an extra step up from the HDD. From the very beginning, it was clear that hard drives couldn’t possibly match the speeds at which CPUs could operate. Latency in HDDs is measured in milliseconds, compared with nanoseconds for your typical CPU. One millisecond is 1,000,000 nanoseconds, and it typically takes a hard drive 10-15 milliseconds to find data on the drive and begin reading it. The hard drive industry introduced smaller platters, on-disk memory caches, and faster spindle speeds to counteract this trend, but there’s only so fast drives can spin. Western Digital’s 10,000 RPM VelociRaptor family is the fastest set of drives ever built for the consumer market, while some enterprise drives spun as quickly as 15,000 RPM. The problem is, even the fastest spinning drive with the largest caches and smallest platters are still achingly slow as far as your CPU is concerned. Unlike HDDs, soid state drives do not need moving parts or spinning disks (hence their name). Instead, it uses NAND flash memory, which is a type of non-volatile storage that erases data in units called blocks and rewrites data at the Byte level. It also retains data for decades, regardless of whether the device is powered on or off. It is used in not only SSD, but also USB flash drives, SD cards, mobile phones, digital cameras, tablets, and others. The most fundamental unit of storage is the flash memory cell, which uses electron thresholds to hold certain bits of information, usually three bits (called TLC - triple level cell) or four bits (called QLC - quad level cell). If is no electron charge in the cell, the cell represents a 111 (for TLC) and 1111 (for QLC). Since each cell can store multiple bits of information, they are arranged in a large array (consisting of millions of cells stacked on top of each other) into a block, leading to a typical storage between 256KB and 4MB.
+        \item Every CV is bound to exactly one mutex. This is because the state of a condition, even if true on one thread, can be changed immediately by another thread, so some sort of locking is needed. 
+        \item Condition variables have the type \texttt{pthread\_cond\_t}. 
+        \item To initialize a condition variable, use the \texttt{pthread\_cond\_init} function. 
+        \item To destroy it, use \texttt{pthread\_cond\_destroy}. 
+        \item \texttt{pthread\_cond\_wait(\&cond, \&mutex)} takes the address of a condition variable \texttt{cond} and a mutex \texttt{mutex} as its arguments. It causes the calling thread to block on the condition variable cond until another thread signals it (or "wakes" it up).
+        \item The \texttt{pthread\_cond\_signal(\&cond)} function causes the calling thread to unblock (or signal) another thread that is waiting on the condition variable \texttt{cond} (based on scheduling priority). If no threads are currently blocked on the condition, then the function has no effect. Unlike \texttt{pthread\_cond\_wait}, the \texttt{pthread\_cond\_signal} function can be called by a thread regardless of whether or not it owns the mutex in which \texttt{pthread\_cond\_wait} is called.
       \end{enumerate}
-      On Windows, each type of drive on a computer are assigned a device/drive letter, a single alphabetic character A through Z. Computers containing a hard drive always have that default hard drive assigned to a C: drive letter, and external drives may be assigned different letters, such as Google Drive being assigned a G: drive letter. You may also notice that when opening the command prompt on windows, the leftmost letter represents which drive you are currently on. Note that the "wmic" is an abbreviation of Windows Management Interface Command. Some commands may require you to use an \textbf{elevated command prompt}, which can be used by opening the cmd file as an administrator. 
+    \end{definition}
 
-      \begin{lstlisting}
-      C:\Users\bahng>
+    It is important to know about the states that a thread can be in. It can either be currently running/active, ready to run (perhaps through a syscall), or blocked. 
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/states.png}
+      \caption{Note that the only way a thread can be blocked is if it is waiting for a condition to happen. If that condition happened and a signal arrives at the thread, then it ``wakes up.'' Condition variables allow these thread to go in and out of the blocked state.} 
+      \label{fig:states}
+    \end{figure}
+
+    With this, the general design pattern is as such. 
+
+    \begin{theorem}[Condition Variable Design Pattern]
+      To implement this effectively, we must first identify a state that will be accessed by 2+ threads concurrently and add locks to protect the shared state. If we need to wait on some condition, we use condition variables.  
+
+      \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        methodThatWaits() {
+          pthread_mutex_lock(&m); 
+
+          // Read/write shared state 
+
+          while (!checkSharedState()) {
+            pthread_cond_wait(&cv, &m); 
+          }
+
+          // Read/write shared state 
+
+          pthread_mutex_unlock(&m); 
+        }
       \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        methodThatSignals() {
+          ptherad_mutex_lock(&m); 
 
-      \begin{lstlisting}
-        # Lists all drives on your computer
-        # DeviceID = drive letter
-        # DriveType: 2=Removable, 3=Fixed local, 4=Network
-        # FreeSpace and Size in bytes
-        wmic LOGICALDISK LIST BRIEF # Windows cmd
+          // Read/write shared state 
 
-        # Outputs drive model and status
-        # Status OK = good health
-        # Status 'Pred Fail' = potential crash warning
-        wmic diskdrive get status, model # Windows cmd
+          // If checkSharedState() is now true 
+          pthread_cond_signal(&cv); 
 
-        # Checks file system and provides drive issues summary
-        # Non-zero bad sectors require technical help
-        chkdsk c: # Windows cmd
+          // Read/write shared state 
 
-        # Opens window showing all drive types
-        dfrgui # Windows cmd
-
-        # Changes working drive (e.g. d:)
-        <letter>: # Windows cmd
+          pthread_mutex_unlock(&m); 
+        }
+        .
       \end{lstlisting}
-  
-      We demonstrate some of the commands here.
-      \begin{lstlisting}
-      C:\Users\bahng>wmic LOGICALDISK LIST BRIEF
-        DeviceID  DriveType  FreeSpace     ProviderName  Size           VolumeName
-        C:        3          838628864000                1003327844352  OS
-        G:        3          71506178048                 107374182400   Google Drive
+      \end{minipage}
+    \end{theorem}
 
-      C:\Users\bahng>wmic diskdrive get status, model
-        Model                      Status
-        PM9A1 NVMe Samsung 1024GB  OK
-      \end{lstlisting}
+    The implementation is quite complex at first, so let's go through an example. 
 
-    \subsubsection{Volatile, Short-Term Storage}
+    \begin{example}[Soda Machine]
+      Say that we want to model a soda machine, with consumers taking soda from the machine and producers filling the machine up. 
+      \begin{enumerate}
+        \item We'd like to create some variables that encode the state of the soda machine. This is the \textbf{shared state}. 
+          \begin{lstlisting}
+            static volatile int numSodas; 
+            #define MaxSodas 100; 
+          \end{lstlisting}
 
-      Information travels from drives and other stores to the CPU, but the physical distance that the bits must travel across the motherboard also puts an upper limit on the retrieval speed (i.e. the speed of electromagnetic waves), especially if the distance must be covered thousands or millions of times back and forth. This limit is known as \textbf{latency}. This is why computers have a hierarchy of stores reserved for information that is accessed more frequently, some closer to the CPU and others even within the CPU itself!
+        \item We also want to implement \textit{one} lock to protect all shared states, say 
+          \begin{lstlisting}
+            pthread_mutex_t sodaLock; 
+          \end{lstlisting}
+          This allows us to implement mutual exclusion so that only one thread can manipulate the machine (state) at a time. 
+
+        \item The \textbf{ordering constraints} are that the consumer must wait if the machine is empty (CV \texttt{hasSoda}), and the producer must wait if the machine is full (CV \texttt{hasRoom}). 
+
+        \item The first thing we must do is make sure that the consumer and producer function has a lock and unlock over its body since both functions modify the vending machine. 
+
+          \noindent\begin{minipage}{.5\linewidth}
+          \begin{lstlisting}[]{Code}
+            consumer() {
+              pthread_mutex_lock(&sodaLock); 
+
+              // take a soda from machine
+
+              pthread_mutex_unlock(&sodaLock); 
+            }
+          \end{lstlisting}
+          \end{minipage}
+          \hfill
+          \begin{minipage}{.49\linewidth}
+          \begin{lstlisting}[]{Output}
+            producer() {
+              pthread_mutex_lock(&sodaLock); 
+
+              // add a soda to machine
+
+              pthread_mutex_unlock(&sodaLock); 
+            }
+          \end{lstlisting}
+          \end{minipage}
+
+        \item Moreover, the consumer and producer's actions of taking or adding soda is dependent on the state already. For the consumer, it should \textbf{wait} if the machine is empty for a signal that notifiies that it is not empty. Once the consumer receives the signal, it takes a soda and can send a signal that the machine is not full to the producer function. 
+
+          \noindent\begin{minipage}{.5\linewidth}
+          \begin{lstlisting}[]{Code}
+            consumer() {
+              pthread_mutex_lock(&sodaLock); 
+              // wait if empty
+              // take a soda from machine
+              // notify that it is not full 
+              pthread_mutex_unlock(&sodaLock); 
+            }
+          \end{lstlisting}
+          \end{minipage}
+          \hfill
+          \begin{minipage}{.49\linewidth}
+          \begin{lstlisting}[]{Output}
+            producer() {
+              pthread_mutex_lock(&sodaLock); 
+              // wait if full 
+              // add a soda to machine
+              // notify that it is not empty 
+              pthread_mutex_unlock(&sodaLock); 
+            }
+          \end{lstlisting}
+          \end{minipage}
+
+        \item To put this into code, we finally have 
+
+          \noindent\begin{minipage}{.5\linewidth}
+          \begin{lstlisting}[]{Code}
+            consumer() {
+              pthread_mutex_lock(&sodaLock); 
+
+              while (numSodas == 0) {   
+                // while empty 
+                wait(sodaLock, hasSoda); 
+              }
+              numSodas -= 1;    // take soda 
+              signal(hasRoom); 
+              pthread_mutex_unlock(&sodaLock); 
+            }
+          \end{lstlisting}
+          \end{minipage}
+          \hfill
+          \begin{minipage}{.49\linewidth}
+          \begin{lstlisting}[]{Output}
+            producer() {
+              pthread_mutex_lock(&sodaLock); 
+
+              while (numSodas == MaxSodas) {
+                wait(sodaLock, hasRoom); 
+              }
+
+              numSodas += 1;    // add soda 
+              signal(hasSoda);  
+              pthread_mutex_unlock(&sodaLock); 
+            }
+          \end{lstlisting}
+          \end{minipage}
+      \end{enumerate}
+      Let's go through this. From the consumer function, we have: 
+      
+      \begin{enumerate}
+        \item The consumer function can start by first acquiring a lock on the \texttt{sodaLock} mutex using \texttt{pthread\_mutex\_lock()}. This ensures that only one consumer thread can access the shared resources (e.g., \texttt{numSodas}) at a time.
+
+        \item It then enters a while loop\footnote{We want this to be a while loop since we want to reevaluate the condition even after reacquiring the lock. } that checks if \texttt{numSodas} is zero. If \texttt{numSodas} is zero, it means there are no sodas available for consumption. In this case, the consumer thread calls the \texttt{wait()} function, which unlocks the \texttt{sodaLock} mutex and waits for a signal on the \texttt{hasSoda} condition variable. This allows other threads to acquire the lock and proceed.
+
+        \item When the consumer thread receives a signal indicating that sodas are available (\texttt{hasSoda} condition variable), it wakes up and reacquires the lock on \texttt{sodaLock}.
+
+        \item The consumer thread then decrements \texttt{numSodas} by 1, indicating the consumption of a soda.
+
+        \item After consuming a soda, the consumer thread signals the \texttt{hasRoom} condition variable using the \texttt{signal()} function. This notifies any waiting producer threads that there is now room available in the soda buffer.
+
+        \item Finally, the consumer thread unlocks the \texttt{sodaLock} mutex using \texttt{pthread\_mutex\_unlock()}, allowing other threads to access the shared resources.
+      \end{enumerate}
+      
+      From the producer function, we have: 
 
       \begin{enumerate}
-        \item \textbf{Random Access Memory}, or \textbf{RAM}, is short-term memory that acts as a cache for the CPU that is 50-200 times faster than a regular SSD. It is volatile, meaning that all its memory is erased when the computer shuts down. The most recent type of RAM is DDR4, then DDR3, followed by DDR2, DDR, and SDRAM. In addition the speeds of RAM is 
-        \begin{enumerate}
-          \item DDR4: 2133mhz, 2400mhz, 2666mhz, 3200mhz
-          \item DDR3: 1066mhz, 1300mhz, 1600mhz, 1866mhz
-        \end{enumerate}
-        where the mhz value represents how many times per second the RAM can access its memory. However, know that some motherboards have technical limitations to what kind of RAM speed it can handle, so in these cases, the system will throttle your faster RAM stick to meet this need. In terms of capacity, the following gives us nice benchmarks.
-        \begin{enumerate}
-          \item 4-8 GB: Laptops for web browsing and light gaming (e.g. my Macbook Air 2019)
-          \item 16-32 GB: Laptops for gaming (possibly heavy) and programming
-          \item 64-128 GB: Crazy stuff.
-          \item 256 GB: This basically means you have a RAM that is pretty much the size of a typical SSD. This is usually for specialized research computers or clusters. 
-        \end{enumerate}
-        Finally, there are broad categories of RAM. 
-        \begin{enumerate}
-          \item \textbf{Static RAM (SRAM)} requires a constant power flow in order to function and therefore doesn't need to be refreshed to keep the data intact (hence the name static). Note that this does not mean that SRAM is nonvolatile. Therefore, the SRAM is typically used in CPU caches or video cards. 
-          \item \textbf{Dynamic RAM (DRAM)} requires a periodic refresh of power in order to function. The capacitors that store data in DRAM gradually discharge energy (no energy means the data becomes lost). DRAM is found in systems memory and video graphics memory. 
-          \item \textbf{Synchronous Dynamic RAM (SDRAM)} is a DRAM that operates in sync with the CPU clock, which means that it waits for the clock signal before responding to data input. This is advantageous since the CPU can process overlapping instructions in parallel, known as pipelining (the ability to reveive an instruction before the previous instruction has been fully resolved). This allows more instructions to be completed simultaneously. By contrast, DRAM is asynchronous, which means it responsd immediately to user input.
-        \end{enumerate}
-        
-        \item \textbf{CPU caches} have a hierarchy that is divided into (from fastest to slowest) L1, L2, L3, and sometimes even L4. The CPU will check the L1 cache first to see if there is a hit (if there is, then data is retrieved extremely fast), then the L2, and so on. 
-        \begin{enumerate}
-            \item L1: 8-64 KB storage typically (but there are exceptions, i.e. the Apple M1 chip has a 192 KB L1 cache)
-            \item L2: 256KB-8MB storage
-            \item L3: 10-64MB storage (and sometimes up to 256MB for server chips)
-        \end{enumerate}
+        \item The producer function can start by first acquiring a lock on the \texttt{sodaLock} mutex using \texttt{pthread\_mutex\_lock()}. This ensures that only one producer thread can access the shared resources at a time.
+
+        \item It then enters a while loop that checks if \texttt{numSodas} is equal to \texttt{MaxSodas}. If \texttt{numSodas} is equal to \texttt{MaxSodas}, it means the soda buffer is full, and the producer cannot add more sodas. In this case, the producer thread calls the \texttt{wait()} function, which unlocks the \texttt{sodaLock} mutex and waits for a signal on the \texttt{hasRoom} condition variable. This allows other threads to acquire the lock and proceed.
+
+        \item When the producer thread receives a signal indicating that there is room available in the soda buffer (\texttt{hasRoom} condition variable), it wakes up and reacquires the lock on \texttt{sodaLock}.
+
+        \item The producer thread then increments \texttt{numSodas} by 1, indicating the production of a new soda.
+
+        \item After producing a soda, the producer thread signals the \texttt{hasSoda} condition variable using the \texttt{signal()} function. This notifies any waiting consumer threads that a soda is now available for consumption.
+
+        \item Finally, the producer thread unlocks the \texttt{sodaLock} mutex using \texttt{pthread\_mutex\_unlock()}, allowing other threads to access the shared resources.
+
       \end{enumerate}
+      Note that we must have a while loop since if the producer ended up broadcasting the \texttt{hasSoda} condition to say 10 threads when there are 5 sodas, then 5 of those threads will get a soda while 5 may not, and this possibility should be detected by the while loop. 
+    \end{example}
 
-      \begin{lstlisting}
-        # Outputs relevant information about the RAM. 
-        wmic MEMORYCHIP (get BankLabel, DeviceLocator, MemoryType, TypeDetail, Capacity, Speed) # Windows cmd 
+\section{Memory Management}
 
-        # Outputs a list of all specifications of each memory stick.
-        wmic memoryship list full # Windows cmd
+  \subsection{Virtual Memory}
 
-        # Outputs the total RAM memory of your computer.
-        systeminfo | findstr /C:"Total Physical Memory" # Windows cmd
+    We have mentioned that there is a problem where two different application developers, who have linked their own C files to create binaries, can be installed on one computer and run at the same time. However, the linking has already been finished and the memory addresses of the symbols in each executable are fixed. This can be a problem if there are overlaps in the memory addresses. 
 
-        # Outputs the available RAM memory of your computer.
-        systeminfo |find "Available Physical Memory" # Windows cmd
-      \end{lstlisting}
+    \begin{definition}[Virtual Memory]
+      The actual main memory of our system is referred to as the \textbf{physical memory}. To prevent such overlaps, the kernel and each user process has its own \textbf{virtual memory}. That is, there exists a \textbf{memory management unit (MMU)} in the CPU that translates virtual addresses to physical addresses through a hashmap. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/mmu.png}
+        \caption{Memory management unit maps each virtual address to a physical address.} 
+        \label{fig:mmu}
+      \end{figure}
+      This allows the kernel to map the virtual memory of each process to the physical memory.
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/vm_map.png}
+        \caption{Each process has its own virtual memory space, which is mapped by the MMU to the physical memory space. } 
+        \label{fig:vm_map}
+      \end{figure}
+    \end{definition}
 
-      For my computer, the outputs are as such. It shows two memory sticks each with 8GB of memory, a memory type of 0 which is a DDR4 (type 24 means DDR3), speeds of 3200 mhz, and TypeDetail of 128 which means the RAM is synchronous (SDRAM).
-      \begin{lstlisting}
-        C:\Users\bahng>wmic MEMORYCHIP get BankLabel, DeviceLocator, MemoryType, TypeDetail, Capacity, Speed
-        BankLabel  Capacity    DeviceLocator  MemoryType  Speed  TypeDetail
-                    8589934592  DIMM A         0           3200   128
-                    8589934592  DIMM B         0           3200   128
-      \end{lstlisting}
+    \begin{example}[Virtual and Physical Memory Size]
+      Given a $n$-bit machine with $2^m$-bytes of memory, $n > m$ and so there are more virtual addresses than physical addresses. If we have a 64-bit machine with 16GB of memory, then there are $2^{64}$ virtual addresses and $2^{3} \cdot 2^{34} = 2^{37}$ bits of physical memory. If there are 8 processes running then there are $8 \cdot 2^{64} = 2^{67}$ bits of virtual memory. 
+    \end{example}
 
-      The status of your CPU can be checked with the following commands
-      \begin{lstlisting}
-        # Outputs a list of all specifications of the CPU.
-        wmic cpu list full # Windows cmd
+    There are many properties of virtual memory that solves a lot of problems and makes things more convenient. The main property is called \textbf{indirection} which means that the virtual memory is not the actual physical memory. 
+    \begin{enumerate}
+      \item The first problem is that there are much more virtual addresses than physical addresses. Even storing a table for one process would take up more than all of your RAM. Therefore, for every byte in main memory, there exists one physical address (PA) and zero, one, or more virtual addresses (VA). We will elaborate on the specifics of this implementation later. 
+      \item We also need to have memory management. Every process has its own stack, heap, \texttt{.text}, and \texttt{.data} sections. We must be able to allocate and deallocate memory and fit this accordingly. 
+      \item We also need to have protection. We need to ensure that one process cannot read or write to another process's memory.
+      \item While we want isolation, we also want sharing between processes if needed (e.g. signing into Slack using Google on a browser). Furthermore, if there are multiple calls of the \texttt{printf} function, we can just have a single copy of the \texttt{printf} function in memory rather than having multiple copies for each process. This can be done through the concept of permissions. 
+    \end{enumerate}
 
-        # Outputs relevant information about the CPU.
-        wmic cpu (get caption, deviceid, name, numberofcores, maxclockspeed, status) # Windows cmd
-      \end{lstlisting}
-
-  \subsection{Program Lifecycle Phases}
-
-      First, we review some definitions. More on program lifecycle phases \href{https://en.wikipedia.org/wiki/Program_lifecycle_phase}{here}. Programming languages are broadly classified into two types. \textbf{High-level languages} are the familiar programming languages that we work with today (that allow much more abstraction), while \textbf{low-level languages} are very close to the hardware, such as machine language and assembly language. Programmers write programs in \textbf{source code} (usually high-level languages), which are then inputted into \textbf{language processors} that translate them into \textbf{object code} (usually \textbf{machine code} consisting of binary). The duration in which the source code of the program is being edited is called the \textbf{edit time}, while the \textbf{compile time} is when the source code is translated into machine code by a language processor. There are three types of language processors.
+    Let's talk about how we should actually map these addresses. One property of this mapping is that we want contiguous addresses both in the virtual and the physical level so that we can store arrays, exploit locality, etc. Therefore, we can use larger blocks known as \textit{pages}. Just like how we have divided memory addresses into sections that can be used to map to caches, we can divide the memory addresses into sections that can be used to map to the physical memory. Note that this also takes care of the first problem partially since now we can fit this table in the memory. 
+      
+    \begin{definition}[Page]
+      Both in virtual and physical memory, an $n$-bit address can be divided into a \textbf{page number} and an \textbf{offset}. The page number is $n - 12$ and the offset is $12$ bits. The page number is used to index into a \textbf{page table} that maps the page number to a physical address. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/page.png}
+        \caption{A page is a contiguous block of memory addresses.} 
+        \label{fig:page}
+      \end{figure}
+      While the entire page table is stored in memory (at memory stored by a protected CPU register), a portion of the page table is stored in the CPU cache. 
       \begin{enumerate}
-        \item A \textbf{compiler} is a language processor that reads the complete source program written in high-level language as a whole in one go and translates it into an equivalent program in machine language. The source code is translated to object code successfully if it is free of errors. The compiler specifies the errors at the end of the compilation with line numbers when there are any errors in the source code. The errors must be removed before the compiler can successfully recompile the source code again. (e.g. C, C++, C\#, Java)
-        
-        \item An \textbf{assmebler} is used to translate the program written in Assembly language (basically a low-level language with very strong correspondence between the instructions in the language and the machine code instructions) into machine code. The assembler is basically the 1st interface that is able to communicate humans with the machine. We need an assembler to fill the gap between human and machine so that they can communicate with each other. Code written in assembly language is some sort of mnemonics (instructions) like ADD, MUL, MUX, SUB, DIV, MOV and so on, and the assembler is basically able to convert these mnemonics into binary code.
-
-        \item An \textbf{interpreter} translates a single statement of the source program into machine code and executes immediately before moving on to the next line. If there is an error in the statement, the interpreter terminates its translating at that statement and displays an error message. The interpreter moves on to the next line for execution only after the removal of the error. An interpreter directly executes instructions written source code without previously converting them to an object code or machine code. (e.g. Python, Pearl, JavaScript, Ruby)
+        \item The virtual page number (VPN) is equivalent to the block number. 
+        \item The page offset is equivalent to the block offset. 
       \end{enumerate}
-      A quick compare and contrast.
-      \begin{table}
-      \centering
-      \begin{tabular}{|p{7cm}|p{7cm}|}
-      \hline
-      \textbf{Compiler} & \textbf{Interpreter} \\
-      \hline
-      Takes more time to analyze source code but execution time is faster. & Takes less time to analyze source code but execution time is slower. \\
-      \hline
-      Debugging is harder since the compiler generates an error message after the entire scan. & Debugging is easier since the interpreter continues translating the program until an error is met. \\
-      \hline
-      Requires a lot of memory for generating object codes. & Requires less memory because no object code is generated. \\
-      \hline
-      Generates intermediate object code. & No intermediate object code is generated. \\
-      \hline
-      \end{tabular}
+    \end{definition}
+
+    \begin{example}[Page Number]
+      In a 64-bit machine with 16GB of RAM, you have $2^{64} / 2^{12} = 2^{52}$ virtual pages and $2^{37} / 2^{12} = 2^{25}$ physical pages. 
+    \end{example}
+
+    Therefore, our translation table is really a map from a virtual page number to a physical page number, rather than a virtual address to a physical address. This is created at runtime. Therefore, 
+    \begin{enumerate}
+      \item The virtual page number $VP$ is mapped through some map $M$ to get the physical page number $PP$. 
+      \item The virtual offset is the same as the physical offset. 
+    \end{enumerate}
+
+    \begin{definition}[Page Table]
+      The \textbf{page table} is a hashmap that maps the virtual page number to the physical page number defined as the mapping 
+      \begin{equation}
+        H: \underbrace{(VP,m)}_{\text{64 bits}} \longrightarrow PP
+      \end{equation}
+      Each input-output pair is called a \textbf{page table entry (PTE)}, and virtual memory is \textbf{fully associative}, meaning that any virtual page can be placed in any physical page, though it requires a large mapping function (the PT), which is different from CPU caches. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/page_table.png}
+        \caption{The page table only needs the virtual page number plus the metadata to map to the physical page number. The offset is provided by the virtual memory address itself. } 
+        \label{fig:page_table}
+      \end{figure}
+      Note that while we want to store the 52-bit VP in the page table, the actual input is still 64-bits, with 12 bits of metadata $m$. This metadata contains some information about the following 
+      \begin{enumerate}
+        \item A bit that indicates whether the page is a read, write, or executable piece of code (3 bits). 
+        \item A bit that indicates whether the page is valid or not. 
+      \end{enumerate}
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/permissions_vm.png}
+        \caption{The page table entry contains the physical page number and some metadata.} 
+        \label{fig:permissions_vm}
+      \end{figure}
+    \end{definition}
+
+    Therefore, if you malloc, you are really just allocating some virtual memory addresses, which then get mapped to physical memory addresses in one or more pages. 
+
+    \begin{definition}[Page Fault]
+      It is clear that not every virtual page number can be mapped to a physical page number. If it turns out that a \textbf{page fault} happens if 
+      \begin{enumerate}
+        \item the virtual page number maps to no physical page (i.e. is not in the page table) in the RAM
+        \item if some user program tries to access a physical page owned by the kernel
+        \item if the page number maps to some place in the disk (but it is not in physical RAM)
+      \end{enumerate}
+      Page faults can be used in a lot of creative ways, but to reduce the risk of a page fault, e.g. when running out of physical memory, we can move some physical pages into disk and allocate memory by creating a new entry in our page table that maps this application's virtual page into the now empty physical page. 
+    \end{definition}
+
+    Note that by this construction, instructions that are contiguous in virtual memory may not be contiguous in physical memory. This may seem like it defeats the purpose of locality, but for most purposes, the 4KB page size will be enough to exploit it. We also see that malloced addresses in the heap (while we have learned that they were higher on the stack on higher addresses), are not necessarily in higher addresses in physical memory. Therefore, physical memory is scattered, and this is good since you don't need a giant contiguous block of memory to run large programs; you can divide it up into multiple physical pages. 
+
+    \begin{definition}[Swap Space]
+      Sometimes, the memory might not be in physical memory. Since memory is constrained (e.g. only 16GB), if we initialize a large array in the stack or global data, we may run out of memory. Therefore, the OS can flush out some physical pages in memory to disk, which is called \textbf{swapping}. The portion of the disk space that can be used in swapping is called the \textbf{swap space}. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/swap.png}
+        \caption{Swapping out physical pages to disk.} 
+        \label{fig:swap}
+      \end{figure}
+      This allows us to abstract software into having almost infinite memory. Another important property is that swapping is \textbf{write-back} rather than write-through. We really don't want to write to disk every time we modify memory, so some thing may never end up on the disk (e.g. stack for short-lived processes). This is why when we open a file in C or Python, you may have to call \texttt{close()} since that will flush the memory to disk. 
+    \end{definition}
+
+    \begin{example}[Page Fault] 
+      When we swap out a physical page to disk, the physical page is now empty and accessing the virtual memory at this page table will cause a page fault. Say, when we want to write to a memory address that is swapped into the disk. The following will happen. 
+      \begin{enumerate}
+        \item You execute code normally in user mode. 
+        \item Then you try to write to a memory address that is swapped out, say through a \texttt{mov} operation. Say it is the following assembly code. 
+
+          \begin{lstlisting}
+            80483b7: c7 05 10 9d 04 08 0d          movl $0x0,0x8049d10  
+          \end{lstlisting}
+          This raises a page fault, an exception, and so the OS goes into kernel mode. 
+        \item The kernel then finds the location of this physical page in the disk. The implementation is OS-specific (e.g. you can store some metadata). 
+        \item Then it must copy the page back from disk into memory, and it may also have to swap out some other physical page to disk to make space if needed.  
+        \item Then the OS goes back into user mode, which now has access to the relevant memory in disk. 
+      \end{enumerate}
+      Ultimately, the moving operation is called twice. The first time it fails in user mode, and the second time (after the kernel mode, but now back to user mode) it succeeds. Note that this is different from a system call, which returns back to the \textit{next} instruction. This call returns to the current instruction. 
+    \end{example}
+
+    \begin{definition}[Page Sharing]
+      This also makes protection and sharing to be quite nice. Given two virtual pages $VP_1$ and $VP_2$, owned by two different processes, we can have them share information by mapping to the same physical page $PP$. 
+      \begin{table}[H] 
+        \centering 
+        \begin{tabular}{|c|c|c|c|}
+        \hline
+        \textbf{Section} & \textbf{Read} & \textbf{Write} & \textbf{Execute} \\
+        \hline
+        Stack & 1 & 1 & 0 \\
+        \hline
+        Heap & 1 & 1 & 0 \\
+        \hline
+        Static Data & 1 & 1 & 0 \\
+        \hline
+        Literals/const & 1 & 0 & 0 \\
+        \hline
+        Instructions & 1 & 0 & 1 \\
+        \hline
+        \end{tabular}
+        \caption{Permissions for different sections of virtual memory.}
       \end{table}
+    \end{definition}
 
-      The result of a successful compilation is an executable, which is a program in the form of a file containing millions of lines of very simple machine code instructions (e.g. add 2 numbers or compare 2 numbers), also called \textbf{processor instructions}. This executable can be stored somewhere in the computer drive for future use or it may be copied immediately in a faster memory state, such as the RAM. The \textbf{load time} is when the OS takes the program's executable from storage and puts it into an active memory (e.g. RAM) in order to begin execution. 
+    \begin{example}[Page Sharing Between Two Applications]
+      Furthermore, we can set process 1 to have only read permissions and process 2 to have read/write permissions. Therefore, say Google Chrome (process 2) can write your password into some memory, and then Slack (process 1) can read it, copy it into the CPU, and do stuff with it. 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/vm_sharing.png}
+        \caption{Sharing of data between two processes.} 
+        \label{fig:vm_sharing}
+      \end{figure}
+    \end{example}
 
-      The CPU understands only a low level machine code language (aka native code), which is contained within the executable. The language of the machine code is hardwired into the design of the CPU hardware; it is not something that can be changed at will. Each family of compatible CPUs (e.g. the popular Intel x86 family) has its own, idiosyncratic machine code which is not compatible with the machine code of other CPU families. More information \href{https://web.stanford.edu/class/cs101/software-1.html}{here}. Once the instruction bytes are copied from storage to RAM, the CPU can run through the steps/lines at the rate of about 2 billion lines/steps per second. This execution phase, when the CPU executes the instructions until normal termination or a crash, is called the \textbf{runtime}.
+    Now that we see how memory is swapped in the backend, we can see why larger memory can sometimes mean faster programs and why thrashing occurs. 
 
-    \subsubsection{More on Executables}
-
-      More specifically, an \textbf{executable} is a file that contains a list of instructions and data to cause a computer's CPU to perform indicated tasks, as opposed to the data files, which are fundamentally strings of data that must be interpreted (parsed) by a program to be meaningful. Executables usually have extension names $\texttt{.exe}$ or $\texttt{.bat}$, and they can generally be run (invoked) in two ways: 
+    \begin{definition}[Thrashing]
+      The set of virtual pages that a program is ``actively'' accessing at any point in time is called its \textbf{working set}. 
       \begin{enumerate}
-          \item The executable file can be run by simply double clicking on the file name, opening it, and having the user type commands in an interactive session of an interpter (like inputting commands in terminal window or a python shell).
-          \item Alternatively, we can start writing a program, complete writing it, and then have this program compiled into an executable to be invoked.
+        \item If the working set of one process is less than physical memory, then there is good performance for one process. 
+        \item If the working set of all processes is greater than physical memory, then we have \textbf{thrashing}, which is a performance meltdown where pages are swapped between memory and disk continuously, and the CPU is always waiting or paging. 
       \end{enumerate}
-      Some common examples of executables are:
+    \end{definition}
+
+    \begin{example}[Computation Exercise]
+      Suppose that you have 16 KiB pages, 48-bit virtual addresses, and 16 GiB physical memory. How many bits wide are the following fields? 
       \begin{enumerate}
-          \item python.exe - used to run python scripts that have the .py extension, located at 
-          \[\texttt{C: \textbackslash Users\textbackslash bahng\textbackslash AppData\textbackslash Local\textbackslash Programs\textbackslash Python\textbackslash Python39}\]
-          \item pythonw.exe - used to run .pyw files for GUI programs
-          \item terminal.exe (on MacOS)
-          \item cmd.exe (on Windows OS)
-          \item py.exe - an executable used to run the python.exe executable like a shortcut, located at 
-          \[\texttt{C:\textbackslash windows\textbackslash py.exe}\]
+        \item Virtual page number : $48 - 14 = 34$ bits.
+        \item Virtual page offset : 16 KiB is $2^{14}$ bytes, so we need $14$ bits.
+        \item Physical page number : 16 GiB is $2^{34}$ bytes, so we need $34 - 14 = 20$ bits.
+        \item Physical page offset : 16 KiB is $2^{14}$ bytes, so we need $14$ bits.
       \end{enumerate}
-
-    \subsubsection{Static vs Dynamic Languages}
-
-      \textbf{Type-checking} is the process of checking and verifying the type of a construct (constant, variable, array, list, object) and its usage context. It helps in minimizing the possibility of type errors in the program, and type checking may occur either at compile-time (static checking) or at run-time (dynamic checking). 
-      \begin{enumerate}
-        \item \textbf{Statically-Typed Languages}: Since we type check during compilation, every detail about the variables and all the data types must be known before we do the compiling process. Once a variable is assigned a type, it can't be assigned to some other variable of a different type, and so the data type of a declared variable is fixed. This makes sense since in Java, C, C++, etc., the programmer must specify what the data type of each variable is by writing something like $\texttt{int myNum = 15}$.
-
-        \item \textbf{Dynamically-Typed Languages}: Since we type-check during runtime, there is no need to specify the data type of each variable while writing code, which improves writing speed. These languages have the capability to identify the type of each variable during run-time, so we do not need to declare the data types of variables. In these languages, variables are bound to objects at run-time using assignment statements, and most modern languages (e.g. JavaScript, Python, PHP, etc.) are dynamically typed.
-      \end{enumerate}
+      Furthermore, we have 
+      \begin{figure}[H]
+        \centering 
+        \includegraphics[scale=0.4]{img/page_example.png}
+        \caption{Given the virtual address, we can figure out the physical address, VPN, and PPN easily. } 
+        \label{fig:page_example}
+      \end{figure}
+    \end{example}
 
 \section{Filesystems}
 
@@ -1021,6 +1850,13 @@
       \item It is recommended to always use GPT for UEFI boot, as some UEFI implementations do not support booting to the MBR while in UEFI mode.
     \end{enumerate}
 
+\section{I/O Systems}
+
+\section{Storage Management}
+
+\section{Virtualization}
+
+
 \section{Firmware} 
 
     Let us go through the steps of a booting (bootstrapping) process. Administrators have little direct, interactive control over most of the steps required to boot a system, but they can modify bootstrap configurations by editing config files or system startup scripts. 
@@ -1145,588 +1981,6 @@
 
 
     As a critical piece of software, we would expect its configuration files to be in the NVRAM, but GRUB understands most of the filesystems in common use and can find its way into the root filesystem on its own. Therefore, we can read its configuration from a regular text file, kept in \texttt{/boot/grub/grub.cfg}. Changing the boot configuration is as simple as updating the \texttt{grub.cfg} file, but it is not advised to edit it directly. Rather, we can edit the $\texttt{/etc/default/grub}$ file and run $\texttt{sudo update-grub}$ to that the changes are written to $\texttt{grub.cfg}$ automatically.  
-
-\section{Systemd} 
-
-  A \textbf{process} is really any program that is running on your computer. A \textbf{daemon} is a background process that runs continuously, performing specific tasks even when no user is logged in. 
-
-  Once the kernel has been loaded and completed its initialization process, it creates a collection of \textit{spontaneous} (as in the kernel starts them automatically) processes in user space. They're really part of the kernel implementation and don't necessarily correspond to programs in the filesystem. They're not configurable and they don't require administrative attention. These processes can be monitored with the commands \texttt{ps}, \texttt{top}, or \texttt{htop}.
-
-  The most important process is the init process, with a system PID of 1 and with special privileges. It is used to get the system running and for starting other processes. 
-
-  \begin{enumerate}
-    \item Setting the name of the computer 
-    \item Setting the time sone 
-    \item Checking disks with \texttt{fsck} 
-    \item Mounting filesystems 
-    \item Removing old files from the \texttt{/tmp} directory 
-    \item Configuring network interfaces
-    \item Configuring packet filter 
-    \item Starting up other daemons and network services, along with killing zombie processes or parenting orphaned processes. 
-  \end{enumerate}
-
-  There are three flavors of system management processes in widespread use: 
-  \begin{enumerate}
-    \item Historically, SysVinit was a series of plaintext files that ran as scripts to start processes, but due to some problems, Linux now uses systemd.
-    \item An init variant that derives from the BSD UNIX, used on most BSD-based systems. 
-    \item A more recent contender called \textbf{systemd} which aims to cover the init processes and much more. This significant increase in control causes some controversy. 
-    \item Other flavors include Apple MacOS's \textbf{launchd} before it adopted systemd. Ubuntu also used \textbf{Upstart} before migrating to systemd. 
-  \end{enumerate}
-
-  Systemd is essentially a collection of smaller programs, services, and libraries such as systemctl, journalctl, init, process management, network management, login management, logs, etc. Some processes may depend on other processes, and with hundreds of them, it's very hard to do manually, which is why systemd does it all for you. A post on the systemd blog notes that a full build of the project generates 69 different binaries (subject to change). 
-
-  \begin{definition}
-    A \textbf{unit} is anything that is managed by systemd. It can be ``a service, a socket, a device, a mount point, an automount point, a swap file or partition, a startup carget, a watched filesystem path, a time controlled and supervised by systemd, a resource management slice, or a group of externally created processes." Within systemd, the behavior of each unit is defined and configured by a \textbf{unit file}. Within systemd, the behavior of each unit is defined and configured by a \textbf{unit file}. 
-
-    The files are all over the place: 
-      \begin{enumerate}
-        \item \texttt{/lib/systemd/system} contains standard systemd unit files 
-        \item \texttt{/usr/lib/systemd/system} are from locally installed packages, e.g. if I installed a pacman package that contained unit files, then those would go here. 
-        \item \texttt{/etc/systemd/system} is where you put your custom files. etc also has the highest priority, so it overwrites the other files.  
-        \item \texttt{/run/systemd/system} is a scratch area for transient units. 
-      \end{enumerate}
-
-    By convention, unit files are named with a suffix that varies according to the type of unit being configured. For example, service units have a \texttt{.service} suffix and timers user \texttt{.timer}. Within the unit file, some sections e.g. (\texttt{[Unit]}) apply generically to all kinds of units, but others (e.g. \texttt{[Service]}) can appear only in the context of a particular unit type. 
-
-  \end{definition}
-
-  \begin{example}[Service Unit File]
-    If we go into one of these unit files, which have the prefix \texttt{.service}, they are usually formatted as such: 
-
-    \begin{lstlisting}
-      # comments are just the same as in bash Scripts
-      # the headers are important! 
-
-      [Unit]        #  
-      Description=Description of the unit file 
-      Documentation=man:something 
-      After=network.target
-
-      [Service]
-      Type=forking  # tells that the process may exit and is not permanent
-      PIDFile=      # 
-      ExecStartPre= # scripts to run before you start 
-      ExecStart=    # scripts to run when starting 
-      ExecReload=   # script to run when you try to reload the process
-      ExecStop=     # script to run to stop the process 
-
-      [Install]   # Tells at what point should this be running
-      WantedBy=multi-user.target 
-
-    \end{lstlisting} 
-  \end{example}
-  
-  \subsection{systemctl: Managing systemd} 
-
-    \textbf{systemctl} is an all-purpose command for investigating the status of systemd and making changes to its configuration. Running \texttt{systemctl} without any arguments invokes the default \texttt{list-units} subcommand, which shows all loaded and activive services, sockets, targets, mounts, and devices. To show only services, use \texttt{--type=service}. 
-
-    The two main commands that you will use to interact with systemd is \texttt{systemctl} and \texttt{journalctl}. 
-    
-    \begin{enumerate}
-      \item \texttt{systemctl status unit} checks the status, ouputting the description, whether it's enabled/disabled, and whether it's active/inactive. 
-      \item \texttt{systemctl enable unit} enables it, which means that it will start when booting the computer. It does this by creating a symlink to the unit file. This is different from start. 
-      \item \texttt{systemctl disable unit} disables it. 
-      \item \texttt{systemctl start unit} starts it now and runs it immediately. 
-      \item \texttt{systemctl stop unit} makes it inactive. 
-      \item \texttt{systemctl reload} will run whatever is in the \texttt{ExecReload} in the unit file. 
-      \item \texttt{systemctl restart} runs ExecStop and then ExecStart. 
-      \item \texttt{systemctl kill unit} kills the process. 
-    \end{enumerate}
-
-    Some of the statuses that you may see are inactive (deactivated, exited), active (activating, running), failed, static (not started, frozen by systemd), bad (broken, probably due to bad unit files), masked (ignored by systemd), indirect (disabled, but another unit file references it so it could be activated). 
-
-    To troubleshoot, you should run \texttt{systemctl --failed} to see if there are any failed processes, which can be a problem, and then you can use \texttt{journalctl --since=today} to view your systemd logs. This log is important for diagnosing fundamental problems with your system. To view only entries logged at the error level or above, you can set the priorities with \texttt{-p err -b}. 
-
-  \subsection{Targets}
-
-    
-  \subsection{Systemd Logging}
-
-    The \textbf{journald} daemon allows you to capture log messages produced by the kernel and services. These system messages are stored in the \texttt{/run} directory, but we can access them directly with the \texttt{journalctl}  command. 
-
-    \begin{example}
-      
-    \end{example}
-
-    You can configure \textbf{journald} to retain messages from prior boots. To do this, edit the following file and configure the \texttt{Storage} attribute: 
-    \begin{lstlisting}
-    #/etc/systemd/journald.conf
-      [Journal]
-      Storage=persistent
-    \end{lstlisting}
-
-    Then, you can obtain a list of prior boots with \texttt{journalctl --list-boots} and you can access messages from a prior boot by referring to its index or by naming its long-form ID: \texttt{journalctl --b -1}. 
-
-\section{Directory Structure} 
-
-    It should be clear that the $\texttt{~}$ stands for your user home directory, while $\texttt{/}$ stands for the root directory. 
-    \begin{lstlisting}
-    (base) mbahng@xps15:~\$ pwd
-    /home/mbahng
-    (base) mbahng@xps15:~\$ cd /
-    (base) mbahng@xps15:/\$ pwd
-    /
-    \end{lstlisting}
-
-    Let us now take a look at the contents of the root directory: 
-    \begin{lstlisting}
-    (base) mbahng@xps15:~\$ ls /
-    bin    dev   lib    libx32      mnt   root  snap  timeshift  var
-    boot   etc   lib32  lost+found  opt   run   srv   tmp
-    cdrom  home  lib64  media       proc  sbin  sys   usr
-    \end{lstlisting}
-    You can see that the root home directory is in here, as opposed to user home directories in the $\texttt{/home}$ folder. 
-    \begin{enumerate}
-        \item $\texttt{root}$: This contains all the files for when you need to boot. You shouldn't mess with this. 
-        \item $\texttt{etc}$: This is where you system wide configuration for applications is stored (unlike local configuration files for one user, which is stored in your home directory). It is often a target for backups. 
-        \item $\texttt{media}$, $\texttt{mnt}$: Used for mounting external storage systems and even internal storage systems. 
-        \item $\texttt{opt}$: A place where you can install whatever you want. Quite flexible. 
-    \end{enumerate}
-
-  \subsection{Users and Permission}
-
-    \subsubsection{Managing Users}
-
-      You should first check which users are on your system. Most people just check their home directory using 
-      \begin{lstlisting}
-      (base) mbahng@xps15:~\$ ls -l /home
-      total 8
-      drwxr-xr-x  3 root   root   4096 Jan 17 23:57 linuxbrew
-      drwxr-xr-x 44 mbahng mbahng 4096 Jul  2 13:27 mbahng
-      \end{lstlisting}
-      But this is not accurate. Rather, we should check the contents of the $\texttt{/etc/passwd}$ file, which has a list of users in our computer (1 per line). The purpose is to contain a listing of and the options that are associated with your user accounts on your server. 
-      \begin{lstlisting}
-      (base) mbahng@xps15:~\$ cat /etc/passwd
-      root:x:0:0:root:/root:/bin/bash
-      daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
-      bin:x:2:2:bin:/bin:/usr/sbin/nologin
-      sys:x:3:3:sys:/dev:/usr/sbin/nologin
-      sync:x:4:65534:sync:/bin:/bin/sync
-      games:x:5:60:games:/usr/games:/usr/sbin/nologin
-      man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
-      lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
-      mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
-      news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
-      uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
-      proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
-      www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
-      backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
-      list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
-      irc:x:39:39:ircd:/run/ircd:/usr/sbin/nologin
-      gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin
-      nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
-      ...
-      \end{lstlisting}
-      Let us just examine my user. 
-      \begin{lstlisting}
-      (base) mbahng@xps15:~\$ cat /etc/passwd | grep mbahng
-      mbahng:x:1000:1000:mbahng,,,:/home/mbahng:/bin/bash
-      \end{lstlisting}
-      Going from left to right, mbahng is my user, the x stands for a hashed password that cannot be shown, the 1000 is the user id (UID), the 1000 is the group id (GID), mbahng is the user information field (optional), next $\texttt{/home/mbahng}$ is the user's home directory, and finally $\texttt{/bin/bash}$ is the shell designated for the user. When you create a user id when first installing Ubuntu, this will almost always have uid of 1000. On most linux distributions, the user accounts that will be used by humans are given uids of 1000 and above. Note that in Ubunutu 22.04, a home directory is not created automatically (this differs based on distribution) when we create a new user. So note the following commands. To add a user called batman, we have 
-      \begin{lstlisting}
-      (base) mbahng@xps15:~\$ sudo useradd batman         # just add user 
-      (base) mbahng@xps15:~\$ sudo useradd -m batman      # add user with home dir 
-      (base) mbahng@xps15:~\$ cat /etc/passwd | grep batman
-      batman:x:1001:1001::/home/batman:/bin/sh
-      \end{lstlisting}
-      and it gives a new uid that is the next available one from 1000, i.e. 1001. To delete the user, just do 
-      \begin{lstlisting}
-      (base) mbahng@xps15:~\$ sudo userdel batman         # delete user
-      (base) mbahng@xps15:~\$ sudo userdel -r batman      # delete user w/ home dir
-      \end{lstlisting}
-      Now let's talk about changing passwords. If you want to change your own password, you can just type $\texttt{passwd}$ and go through the steps. To set another user's password, you need to be in root mode and type 
-      \begin{lstlisting}
-      (base) mbahng@xps15:~\$ sudo passwd batman          # set password for batman
-      \end{lstlisting}
-
-      Note that we have a hashed version of the user's password in the $\texttt{/etc/passwd}$ file. We can actually see the full hashed versions by going into $\texttt{/etc/shadow}$. 
-
-    \subsubsection{Changing Permission}
-
-      Running $\texttt{ls -l}$ command lists all files and directories in your current working directory, along with their permissions. 
-      \begin{lstlisting}
-        -rw-rw-r--  1 mbahng mbahng 4336730777 Sep 29  2022  cuda_11.8.0_520.61.05_linux.run
-        drwxr-xr-x  9 mbahng mbahng       4096 Jul  1 23:33  Desktop
-        drwxr-xr-x  8 mbahng mbahng       4096 Jul  1 15:08  Documents
-        drwxr-xr-x  6 mbahng mbahng      12288 Jul  1 22:36  Downloads
-        drwxr-xr-x  4 mbahng mbahng       4096 Jun 29 19:43  Games
-        drwxr-xr-x  6 mbahng mbahng       4096 Feb 22 17:27  Jts
-        drwxrwxr-x  5 mbahng mbahng       4096 Jun 28 19:39  KakaoTalk
-        drwxr-xr-x 16 mbahng mbahng       4096 Jun  2 21:13  miniconda3
-        drwxrwxr-x  4 mbahng mbahng       4096 Jun 22 13:12  nltk_data
-      \end{lstlisting}
-      The first columm is a string of 10 characters representing the permissions. They are divided into 4 sections: 
-      \begin{lstlisting}
-      d   rwx   r-x   r-x 
-      \end{lstlisting}
-      The first letter can be a d, l, or -, meaning directory, link, or file, respectively. The next three groups, representing the permissions of the user (third columm), group (fourth), and everyone else, have the same format. It is rwx, which stands for read, write, execute. 
-      \begin{enumerate}
-          \item Read: Means to read a file or read a directory. 
-          \item Write: Means to edit a file or modify the contents of a directory. 
-          \item Execute: Means to run the file as an executable or go $\texttt{cd}$ into the directory. 
-      \end{enumerate}
-      A dash in place of any one of them means that whatever entity does not have the permissions. However, we can set the permissions using the $\texttt{chmod}$ command. If we have a file named $\texttt{testfile.txt}$ in our current directory, we can add or revoke permissions with 
-      \begin{lstlisting}
-      chmod +r testfile.txt   // assign read permissions to all users
-      chmod +w testfile.txt   // assign write permissions to all users
-      chmod +x testfile.txt   // assign execute permissions to all users
-
-      chmod g+rw testfile.txt   // assign read and write to group 
-      chmod u-r testfile.txt   // revoke read to user
-      chmod o+x testfile.txt   // assign execute to other users 
-      \end{lstlisting} 
-      Writing all these can be tedious, so what we can do is take advantage of the numerical encodings of the permissions. Note that $r=4, w=2, x=1$, and so any number between $0$ and $7$ can encode the three bits (through the coefficients of the binary expansion). Therefore, if we wanted every permission for all users, we can write 
-      \begin{lstlisting}
-      chmod 770 testfile.txt
-      \end{lstlisting}
-      where the first 7 stands for $\texttt{rwx}$, the next 7 stands for $\texttt{rwx}$, and the final $0$ stands for $\texttt{---}$. To change the permissions for everything inside a directory (e.g. say you want to make all downloads only readable and writable by you), then you can type 
-      \begin{lstlisting}
-      chmod 600 ~/Downloads/*
-      \end{lstlisting}
-
-    \subsubsection{Changing Ownership}
-
-      If you have multiple users in your computer (type $\texttt{ls /home}$), then you may want to give ownership of a directory or folder to another user. 
-      \begin{lstlisting}
-        (base) mbahng@xps15: ls /home
-        batman mbahng
-      \end{lstlisting}
-      To change permissions of a file/directory to another user and group, we can use the $\texttt{chown}$ command (with sudo) 
-      \begin{lstlisting}
-        sudo chown -R batman:batman Downloads/
-      \end{lstlisting}
-
-\section{Display Servers}
-
-  When you boot up your computer, you are greeted with a graphical user interface (GUI) that allows you to interact with your computer. This is the job of the display server, which is a program that provides graphical display capabilities for the operating system. 
-
-  \begin{definition}[Display Server]
-    A \textbf{display server} is a program that manages the communication between your computer's hardware and graphical software applications. It acts as a bridge for input and output devices; for example, it processes the input from your keyboard and mouse and outputs graphics to the monitor. The display server is responsible for the fundamental task of drawing windows and handling the low-level aspects of input and output, but it doesn't dictate how these windows look or are arranged. For almost every purpose, there are two types of display servers: 
-    \begin{enumerate} 
-      \item \textbf{X}: The X Window System, which is the older and more established display server. 
-      \item \textbf{Wayland}: The newer and more modern display server.
-    \end{enumerate}
-  \end{definition}
-
-  \begin{definition}[X Window System]
-    The \textbf{X Window System} is a windowing protocol for Unix/Linux OSes, similar to the way that Microsoft Windows or Apple Mac OS X can run different apps in separate windows. \textbf{X} defines the protocol for a display server what can render windows on a \textit{display client} (your computer), inside which are running apps.\footnote{Explanation here: https://www.reddit.com/r/linuxquestions/comments/3uh9n9/what\_exactly\_is\_xxorgx11/} 
-    \begin{enumerate} 
-      \item \textbf{X11} refers to version 11 of the X protocol, while 
-      \item \textbf{Xorg} is an open-source implementation of X. 
-    \end{enumerate}
-  \end{definition}
-
-  \begin{definition}[Wayland]
-    X, made in 1984, has developed a lot of cruft over the years, and Wayland is a modern replacement for X. It is a protocol for a compositor to talk to its clients, as well as a C library implementation of that protocol. The compositor can be a standalone display server running on Linux kernel modesetting and evdev input devices, an X application, or a wayland client itself. 
-  \end{definition}
-
-\section{Package Management}
-  
-  Linux comes in many flavors of distributions. Most beginners look at screenshots of these distributions on the internet and judge them based on their aesthetics (e.g. I like how Kali Linux looks so I'll go with that one). A common feature of all Linux distributions is that they provide the user the power to customize their system however they want, so you can essentially make every linux distribution look like any other. So what are some things you should consider when choosing a distribution? 
-
-  \begin{enumerate}
-    \item First is the popularity and how well it is supported. This includes the number of people who use the distribution (e.g. the Ubuntu StackExchange is a very large community) and how good the documentation is overall (e.g. the ArchLinux wiki is very well documented). 
-    \item Each linux distribution essentially consists of a kernel and package manager. The architecture, design, and the update scheme of the kernel may be an interest to many linux users.  
-    \item Every distribution has its own native package manager, and the availability of certain necessary packages, the ease of installation, and the updating schemes is also something to consider.  
-    \item The ideals of the respective communities. The community behind each distribution has a certain set of ideals that they lean more towards. For example, the Ubuntu community likes having programs that are right out of the box, with good GUI support and is more beginner-friendly while Arch has more of a minimal and extremely customizable nature to it with its software being much more CLI dependent. 
-  \end{enumerate}
-
-  Let's begin with the package managers. Every application on your system (Firefox, Spotify, pdf readers, VSCode, etc.) is a package, and manually downloading and managing each one is impossible to do. Therefore, each distribution has its own native package manager that automatically takes care of downloading, installing, removing, checking dependency requirements of each package. In order to download a package, a package manager should also know where it is downloading \textit{from}. Essentially, a package manager itself can be downloaded with other package managers, so package managers are packages as well. 
-  
-  \begin{enumerate}
-    \item \textbf{apt} : The advanced packaging tool is the native manager for Ubuntu distributions. 
-    \item \textbf{pacman} : Native package manager for Arch Linux. 
-    \item \textbf{yay} : The package manager for software in the \textbf{Arch User Repository}. 
-    \item \textbf{snap} : 
-    \item \textbf{flatpak} : 
-    \item \textbf{dpkg} : Package manager for Debian based distributions. 
-  \end{enumerate}
-
-  Chances are if you are using one distribution, you would only have to work with a small subset of these package managers. Each package manager has one or more files in the computer that specify a list of \textbf{repositories}. 
-
-  \subsection{Wget}
-
-    wget is a command-line utility used to download files from the internet. It stands for "web get." 
-
-  \subsection{Pacman}
-
-    For example, the configuration file for pacman is located at \texttt{/etc/pacman.conf}. In the options section, I can configure stuff like text color, enabling/disabling parallel downloads, choosing specific packages to ignore upgrading, etc. Then, we can specify the servers that we should download from. In the text below, the server variable defines which server we should look at first, and then the Include variable stores the location of the file \texttt{mirrorlist} that defines a list of other servers that we should download from. 
-    
-    \begin{figure}
-      \begin{lstlisting} 
-        # The following paths are commented out with their default values listed.
-        # If you wish to use different paths, uncomment and update the paths.
-        #RootDir     = /
-        #DBPath      = /var/lib/pacman/
-        #CacheDir    = /var/cache/pacman/pkg/
-        #LogFile     = /var/log/pacman.log
-        #GPGDir      = /etc/pacman.d/gnupg/
-        #HookDir     = /etc/pacman.d/hooks/
-        HoldPkg     = pacman glibc
-        #XferCommand = /usr/bin/curl -L -C - -f -o %o %u
-        #XferCommand = /usr/bin/wget --passive-ftp -c -O %o %u
-        #CleanMethod = KeepInstalled
-        Architecture = auto
-
-        # Pacman won't upgrade packages listed in IgnorePkg and members of IgnoreGroup
-        #IgnorePkg   =
-        #IgnoreGroup =
-
-        #NoUpgrade   =
-        #NoExtract   =
-
-        # Misc options
-        #UseSyslog
-        #Color
-        #NoProgressBar
-        CheckSpace
-        #VerbosePkgLists
-        ParallelDownloads = 5
-        ILoveCandy
-
-      \end{lstlisting}
-      \caption{Subset of contents of the \texttt{/etc/pacman.conf} file} \label{fig:pacman.conf}
-    \end{figure}
-    
-    The mirrorlist file stores a list of URLs. Each URL is a \textbf{mirror}, which is a server that contains a physical replica of all the packages that are available to you via \texttt{pacman} (hence the name mirror). You can literally type in the links provided in Figure \ref{fig:mirrorlist} (replacing \texttt{\$repo} with \texttt{core} and \texttt{\$arch} with \texttt{x86\_64}). It contains a tarball of each package ready to be downloaded. Some repos might contain more packages than others, some might have packages that only they supply that others don’t, but if you can install the piece of software via your package manager then one of your configured repos is declaring they have it available and therefore should have the file on hand to give to you if asked for it. A list of all available mirrors are available \href{https://archlinux.org/mirrorlist/all/https/}{here} (this only uses HTTPS, but HTTP mirrors are also available).  
-
-    \begin{figure}
-      \begin{lstlisting}
-        Server = https://archlinux.mailtunnel.eu/$repo/os/$arch
-        Server = https://mirror.cyberbits.eu/archlinux/$repo/os/$arch
-        Server = https://mirror.theo546.fr/archlinux/$repo/os/$arch
-        Server = https://mirror.sunred.org/archlinux/$repo/os/$arch
-        Server = https://mirror.f4st.host/archlinux/$repo/os/$arch
-        Server = https://md.mirrors.hacktegic.com/archlinux/$repo/os/$arch
-        Server = https://mirrors.neusoft.edu.cn/archlinux/$repo/os/$arch
-        Server = https://mirror.moson.org/arch/$repo/os/$arch
-        Server = https://archlinux.thaller.ws/$repo/os/$arch
-      \end{lstlisting}
-      \caption{Contents of the \texttt{/etc/pacman.d/mirrorlist} file}\label{fig:mirrorlist}
-    \end{figure}
-    
-    The mirrors that you download from should be trustworthy and fast. The speed is mainly related to how close you are to that mirror geographically, so if you are moving to another country you should probably update this mirrorlist for faster download speeds. There is a default mirrorlist file that is generated, but you can download and use the \textbf{reflector} package to update it.  
-
-    Here are some common commands: 
-    \begin{enumerate}
-      \item Install a package: \texttt{sudo pacman -S pkg1} (\texttt{-s} stands for synchronize)
-
-      \item Remove a package: \texttt{sudo pacman -R pkg}
-      \begin{itemize}
-        \item remove dependencies also: \texttt{-s} (recursive)
-        \item also remove configuration files: \texttt{-n} (no save)
-        \item also removes children packages: \texttt{-c} (cascade)
-      \end{itemize}
-
-      \item Update all packages: \texttt{sudo pacman -Syu}
-      \begin{itemize}
-        \item synchronize: \texttt{-S}
-        \item refresh package databases: \texttt{-y} (completely refresh: \texttt{-yy})
-        \item system upgrade: \texttt{-u}
-      \end{itemize}
-
-      \item List installed packages: \texttt{pacman -Q}
-      \begin{itemize}
-        \item List detailed info about a package: \texttt{pacman -Qi pkg}
-        \item List all files provided by a package: \texttt{pacman -Ql pkg}
-        \item List all orphaned packages: \texttt{pacman -Qdt}
-        \item List all packages that have updates available: \texttt{pacman -Qu}
-        \item List all explicitly installed packages: \texttt{pacman -Qet}
-        \item Display the dependency tree of a package: \texttt{pactree pkg} (from the \texttt{pacman-contrib} package) 
-        \item List last 20 installed packages: 
-        \begin{lstlisting}
-          expac --timefmt='%Y-%m-%d %T' '%l\t%n' | sort | tail -n 20
-        \end{lstlisting}
-      \end{itemize}
-
-      \item To check size of current packages and dependencies, download \texttt{expac} and run \texttt{expac -H M '\%m \\t\%n' | sort -h} 
-
-      \item The package cache stored in \texttt{/var/cache/pacman/pkg/} keeps old or uninstalled versions of packages automatically. This is helpful since it also keeps older versions of packages in the cache, and you can manually downgrade in case some packages break.  
-      \begin{itemize}
-        \item We can delete all cached versions of installed and uninstalled packages, except for the most recent 3, by running \texttt{paccache -r} (provided by the \texttt{pacman-contrib} package). 
-        \item To remove all cached packages not currently installed, run \texttt{pacman -Sc}
-        \item To remove all cached aggressively, run \texttt{pacman -Scc}
-        \item To downgrade, you go into the package cache directory and say you want to see which versions of neovim you have installed. You can \texttt{ls} the directory to see the following. 
-        
-          \begin{lstlisting}
-            neovim-0.9.5-1-x86_64.pkg.tar.zst
-            neovim-0.9.5-1-x86_64.pkg.tar.zst.sig
-            neovim-0.9.5-2-x86_64.pkg.tar.zst
-            neovim-0.9.5-2-x86_64.pkg.tar.zst.sig
-          \end{lstlisting}
-
-          We have an older version of neovim installed, and to roll it back we can use 
-          \begin{lstlisting} 
-            pacman -U neovim-0.9.5-1-x86_64.pkg.tar.zst
-          \end{lstlisting}
-      \end{itemize} 
-    \end{enumerate}
-
-    The pacman log (\texttt{/var/log/pacman.log}) is also useful since it logs all pacman outputs when you do anything with pacman. So if you are looking for the packages that have been installed in the latest \texttt{pacman -Syu}, then you can use this to individually see each package that has been upgraded. 
-
-  \subsection{Yay}
-
-    Yay is used to install from the Arch User repository and must be updated separately. To run this, you can either run \texttt{yay -Syu} or you can just run \texttt{yay}. Since this is not officially maintained, these packages are more likely to break something. The yay logs are not stored separately can can be accessed in the pacman logs. 
-
-  \subsection{Dpkg and Deb files}
-
-    Ubuntu is a Linux distribution within the family of Debian-based systems (with Debian, Linux Mint, etc.). File of the $\texttt{.deb}$ format is used to distribute and install software packages on these systems. A deb package contains the files for a particular software application or library, along with metadata that describes the package and instructions on how to install or remove it. The package format follows a specific structure and includes files such as control files, data files, and scripts. Therefore, many downloaded packages may come in this format, similar to how a file is zipped before we have to extract it. 
-
-    Dpkg is the primary package manager for Debian based systems. It installs, builds, removes, configures, and retrieves information for Debian packages of the $\texttt{.deb}$ format. Given that we have some file $\texttt{package.deb}$ downloaded, the command 
-    \begin{lstlisting}
-      dpkg -i package.deb
-    \end{lstlisting}
-    installs the specified package from the $\texttt{package.deb}$ file. Removing it is just (note without the suffix) 
-    \begin{lstlisting}
-      dpkg -r package
-    \end{lstlisting}
-
-  \subsection{Apt}
-
-    \href{https://www.reddit.com/r/Ubuntu/comments/9awvip/eli5_snap_and_flatpak_how_are_they_differ_from_apt/}{read more here}
-
-    While dpkg is the native package manager for Debian based systems, apt is just a built-in Ubuntu tool to help install these Debian packages and manage dependencies. To run apt commands, we must have root privilege, so we should always use sudo. When these command are run, you should get a confirmation question asking whether you want to continue, with [Y/n]. The capital letter is the default, so you can either enter in `y' or just press ENTER. 
-    \begin{enumerate}
-      \item The update command connects to various URLs to download a list of available packages. Periodically, new packages are introduced to Debian and Ubunutu repositories all the time, so this command refreshes the index so that it knows what packages are available and at what versions. It is a good idea to run this before you use apt commands for the day. 
-      \begin{lstlisting}
-        sudo apt update
-      \end{lstlisting}
-
-      \item The upgrade command just updates all packages and their dependencies to their latest versions. However, this does not update packages which require the installation of \textit{additional} packages. 
-      \begin{lstlisting}
-        sudo apt upgrade 
-      \end{lstlisting}
-
-      \item The dist upgrade updates packages including those that need installation of new dependencies. So it is a good idea to run upgrade first and then dist-upgrade after.  
-      \begin{lstlisting}
-        sudo apt dist-upgrade 
-      \end{lstlisting}
-    \end{enumerate}
-
-    Installing and removing packages is easy. 
-
-    \begin{enumerate}
-      \item We can install from the apt repository with 
-      \begin{lstlisting}
-        sudo apt install htop
-      \end{lstlisting}
-
-      \item We can remove it with 
-      \begin{lstlisting}
-        sudo apt remove htop
-      \end{lstlisting}
-    \end{enumerate}
-
-    If you don't know the name of the application or package you want to install, then you can search for a keyword with apt search. Say that you want to install vim but you don't know what the actual package name is called. You can just type 
-
-    \begin{lstlisting}
-      apt search vim
-    \end{lstlisting}
-
-    The central location where apt gets its updates from is contained in the $\texttt{/etc/apt/sources.list}$ file. Here is a snippet of it in my system. 
-    \begin{lstlisting}
-      # deb cdrom:[Ubuntu 22.04.1 LTS _Jammy Jellyfish_ - Release amd64 (20220809.1)]/ 
-      jammy main restricted
-
-      # See http://help.ubuntu.com/community/UpgradeNotes for how to upgrade to
-      # newer versions of the distribution.
-      deb http://us.archive.ubuntu.com/ubuntu/ jammy main restricted
-      # deb-src http://kr.archive.ubuntu.com/ubuntu/ jammy main restricted
-
-      ## Major bug fix updates produced after the final release of the
-      ## distribution.
-      deb http://us.archive.ubuntu.com/ubuntu/ jammy-updates main restricted
-      # deb-src http://kr.archive.ubuntu.com/ubuntu/ jammy-updates main restricted
-
-      ## N.B. software from this repository is ENTIRELY UNSUPPORTED by the Ubuntu
-      ## team. Also, please note that software in universe WILL NOT receive any
-      ## review or updates from the Ubuntu security team.
-      deb http://us.archive.ubuntu.com/ubuntu/ jammy universe
-      # deb-src http://kr.archive.ubuntu.com/ubuntu/ jammy universe
-      deb http://us.archive.ubuntu.com/ubuntu/ jammy-updates universe
-      # deb-src http://kr.archive.ubuntu.com/ubuntu/ jammy-updates universe
-      ...
-    \end{lstlisting}
-
-  \subsection{Snap and Flatpak}
-
-    Other package managers that you may need to use often are snap and flatpak, which can both be installed with 
-    \begin{lstlisting}
-      sudo apt install snap flatpak 
-    \end{lstlisting}
-
-\section{Windows Managers and Desktop Environments}
-
-  These days, the terms window managers (WMs) and Desktop Environments (DEs) are used interchangeably, but they mean slightly different things. A window manager is the display software that determines how the pixels for each window overlaps with other and their movement. This is generally divided into two paradigms with the most familiar being \textbf{floating WMs} and the other being \textbf{tiling WMs}. Even before I knew about tiling WMs, I found myself manually tiling windows on floating WMs, so the move to tiling WMs was a no-brainer. 
-  
-  Some DEs and WMs are: 
-  \begin{enumerate}
-    \item GNOME 
-    \item KDE Plasma
-    \item Qtile
-  \end{enumerate}
-
-\section{Shells and Terminals}
-
-  Beginners may think of the shell and the terminal to be the same thing, but they are different. The \textbf{shell} is a command line interpreter, a layer that sits on top of the kernel in which the user can interact with. It is essentially the only API to the kernel where the user can input commands and processes them. The \textbf{terminal emulator} is a wrapper program that runs a shell and allows us to access the API. It may be useful to think of the shell as like a programming language and the terminal as a text editor like VSCode. 
-
-  The three most common shells are the following: 
-  \begin{enumerate}
-    \item \textbf{Bash}: 
-    \item \textbf{Zsh}: 
-    \item \textbf{Fish}:  
-  \end{enumerate}
-
-  Some common terminal emulators (most of which comes as a part of the desktop environment) are the following: 
-  \begin{enumerate}
-    \item \textbf{Kitty}: 
-    \item \textbf{Alacritty}: 
-    \item \textbf{Gnome-Terminal}: 
-  \end{enumerate}
-
-  \subsection{Crontab}
-
-    To schedule jobs, you run $\texttt{crontab -e}$, which will give you a text file for which you can list jobs. It looks like  
-
-    \begin{lstlisting}
-      # Edit this file to introduce tasks to be run by cron.
-      # 
-      # Each task to run has to be defined through a single line
-      # indicating with different fields when the task will be run
-      # and what command to run for the task
-      # 
-      # To define the time you can provide concrete values for
-      # minute (m), hour (h), day of month (dom), month (mon),
-      # and day of week (dow) or use '*' in these fields (for 'any').
-      # 
-      # Notice that tasks will be started based on the cron's system
-      # daemon's notion of time and timezones.
-      # 
-      # Output of the crontab jobs (including errors) is sent through
-      # email to the user the crontab file belongs to (unless redirected).
-      # 
-      # For example, you can run a backup of all your user accounts
-      # at 5 a.m every week with:
-      # 0 5 * * 1 tar -zcf /var/backups/home.tgz /home/
-      # 
-      # For more information see the manual pages of crontab(5) and cron(8)
-      # 
-      # m h  dom mon dow   command
-    \end{lstlisting}
-
-    In the bottom line, we can add the following to run $\texttt{sudo apt update}$ every minute. The 5 columns refer to minute (0-59), hour (0-24), date of month (1-31), month (1-12), and date of week (0-7, where 0 and 7 is Sunday). The asterick means every instance of. 
-
-    \begin{lstlisting}
-      # Run every minute
-      * * * * * sudo apt update 
-
-      # Run at 9:15am every first day of the month 
-      15 9 1 * * sudo apt update
-
-      # Run for every minute of every hour for the 13th day of every month if it is Friday
-      * * 13 * 5 sudo apt update
-    \end{lstlisting}
-    You get the idea. 
 
 
 \end{document}
