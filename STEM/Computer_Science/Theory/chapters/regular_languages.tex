@@ -1,0 +1,161 @@
+\section{Regular Languages}  
+
+  We now extend our definition of computational tasks to consider functions with the \textit{unbounded} domain. 
+
+  \begin{definition}[Set of Sequences]
+    Given a set $A$, the set $A^\ast$ is defined 
+    \begin{equation}
+      A^\ast \equiv \bigsqcup_{n=1}^\infty A^n
+    \end{equation}   
+    With this, the set of all binary numbers is $\{0,1\}^\ast$. 
+  \end{definition}
+
+  The big takeaway from this chapter is that we can think of an algorithm as a "finite answer to an infinite number of questions." To express an algorithm, we need to write down a finite set of instructions that will enable us to compute on arbitrarily long inputs. 
+
+  \begin{example}
+    Note that the function $XOR: \{0,1\}^* \longrightarrow \{0,1\}$ equals $1$ iff the number of $1$'s in $x$ is odd. At best, we can compute $XOR_n$, the restriction of $XOR$ to $\{0,1\}^n$ with NAND-CIRC programs. 
+  \end{example}
+
+  \begin{example}
+    The multiplication function takes the binary representation of a pair of integers $x, y \in \mathbb{N}$ and outputs the binary representation of the product $x \cdot y$. 
+    \[MULT: \{0,1\}^* \times \{0,1\}^* \longrightarrow \{0,1\}^*\]
+    Since we can represent a pair of strings as a single string, we will consider functions such as MULT as
+    \[MULT: \{0,1\}^* \longrightarrow \{0,1\}^*\]
+  \end{example}
+
+  \begin{example}[Palindrome function]
+    Another example of an infinite function is 
+    \[PALINDROME (x) = \begin{cases}
+    1 & \forall i \in ||x||, \; x_i = x_{|x|-i} \\
+    0 & else
+    \end{cases}\]
+    which outputs $1$ if $x$ is a (base-2) palindrome and $0$ if not. 
+  \end{example}
+
+  \begin{definition}
+    Sometimes, we can obtain a Boolean variant of a non-Boolean function. This process is called \textbf{booleanizing}. 
+  \end{definition}
+
+  \begin{example}[Boolean variant of MULT]
+    The following is a boolean variant of MULT
+    \[BMULT(x, y, i) = \begin{cases}
+    i\text{th bit of } x\cdot y & i < |x \cdot y|\\
+    0 & else
+    \end{cases}\]
+    Note that if we can compute $BMULT$, we can compute MULT as well, and vice versa. 
+  \end{example}
+
+\subsection{Deterministic Finite Automata}
+
+  \begin{definition}
+  A \textbf{single-pass constant-memory algorithm} is an algorithm that computes an output from an input via a combination of the following steps: 
+  \begin{enumerate}
+      \item Read a bit from the input. 
+      \item Update the \textit{state} (working memory). 
+      \item Repeat the first 2 steps to pass over the input. 
+      \item Stop and produce an output. 
+  \end{enumerate}
+  It is called "single-pass" since it makes a single pass over the input and "constant-memory" since its working memory is finite. Such an algorithm is also known as a \textbf{Deterministic Finite Automaton (DFA)}, or a \textbf{finite state machine}. 
+
+  We can think of such an algorithm as a "machine" that can be in one of $C$ states, for some constant $C$. The machine starts in some initial state and then reads its input $x \in \{0, 1\}^*$ one bit at a time. Whenever the machine reads a bit $\sigma \in {0, 1}$, it transitions into a new state based on $\sigma$ and its prior state. The output of the machine is based on the final state. Every single-pass constant-memory algorithm corresponds to such a machine. If an algorithm uses $c$ bits of memory, then the contents of its memory can be represented as a string of length $c$. Therefore such an algorithm can be in one of at most $2^c$ states at any point in the execution.
+
+  We can specify a DFA of $C$ states by a list of $2C$ rules. Each rule will be of the form “If the DFA is in state $v$ and the bit read from the input is $\sigma$ then the new state is $v^\prime$”. At the end of the computation, we will also have a rule of the form “If the final state is one of the following ... then output 1, otherwise output 0”. 
+  \end{definition}
+
+  For example, the Python program above can be represented by a two-state automaton for computing XOR of the following form:
+  \begin{enumerate}
+      \item Initialize in the state 0
+      \item For every state $s \in \{0,1\}$ and input bit $\sigma$ read, if $\sigma = 1$, then change to state $1-s$, otherwise stay in state $s$
+      \item At the end, output $1$ iff $s = 1$
+  \end{enumerate}
+  It can also be represented in the following graph. 
+  \begin{center}
+  \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm, thick,main node/.style={circle,draw}]
+      \node[main node] (R) {1};
+      \node[main node] (L) [left of=R] {0};
+      \path[every node/.style={font=\sffamily\small}]
+      (L) edge [loop left] node {0} (L)
+          edge [bend left] node {1} (R)
+      (R) edge [loop right] node {0} (R)
+          edge [bend left] node {1} (L);
+  \end{tikzpicture}
+  \end{center}
+  More generally, a $C$-state DFA can be represented as a labeled graph of $C$ nodes. The set $\mathcal{S}$ of states on which the automaton will output $1$ at the end of the computation is known as the set of \textbf{accepting states}. We formally summarize it below. 
+
+  \begin{definition}
+  A \textbf{deterministic finite automaton (DFA)} with $C$ states over $\{0, 1\}$ is a pair $(T, \mathcal{S})$ with
+  \[T: [C] \times \{0,1\} \longrightarrow [C]\]
+  and $\mathcal{S} \subset [C]$. The finite function $T$ is known as the \textbf{transition function} of the DFA. The set $\mathcal{S}$ is known as the set of \textbf{accepting states}. 
+
+  Let $F: \{0,1\}^* \longrightarrow \{0,1\}$ be a Boolean function with the infinite domain $\{0,1\}^*$. We say that $(T, \mathcal{S})$ \textbf{computes} a function $F: \{0,1\}^* \longrightarrow \{0,1\}$ if for every $n \in \mathbb{N}$ and $x \in \{0,1\}^n$, if we define $s_0 = 0$ and $s_{i+1} = T(s_i, x_i)$ for every $i \in [n]$, then 
+  \[s_n \in \mathcal{S} \iff F(x) = 1\]
+  \end{definition}
+
+  Note that the transition function $T$ is a finite function specifying the table of "rules" for which the graph evolves. By defining the DFA $C$ with $(T, \mathcal{S})$, we have essentially reduced a specific type of infinite Boolean function (a single-pass constant-memory algorithm) into a graph and a finite transition function. 
+
+  When constructing a deterministic finite automaton, it helps to start by thinking of it as a single-pass constant-memory algorithm, and then translate this program into a DFA. 
+
+  \begin{definition}
+  We say that a function $F: \{0,1\}^* \longrightarrow \{0,1\}$ is \textbf{DFA computable} if there exists some DFA that computes $F$. 
+  \end{definition}
+
+  \begin{theorem}
+  Let $DFACOMP$ be the set of all Boolean functions $F: \{0,1\}^* \longrightarrow \{0,1\}$ such that there exists a DFA computing $F$. Then, $DFACOMP$ is countable. 
+  \end{theorem}
+
+  \begin{lemma}
+  The set of all Boolean functions $\{f\;|\; f: \mathbb{N} \longrightarrow \{0,1\}\}$ are uncountable. 
+  \end{lemma}
+
+  \begin{corollary}[Existence of DFA-uncomputable functions]
+  There exists a Boolean function $F: \{0,1\}^* \longrightarrow \{0,1\}$ that is not computable by \textit{any} DFA. 
+  \end{corollary}
+
+\subsection{Regular Expressions}
+
+  Searching for a piece of text is a common task in computing. At its heart, the \textit{search problem} is quite simple. We have a collection $X = \{x_0, ..., x_k\}$ of strings (e.g. files on a hard-drive, or student records in a database), and the user wants to find out the subset of all the $x \in X$ that are \textit{matched} by some pattern. In full generality, we can allow the user to specify the pattern by specifying a (computable) function $F: \{0,1\}^* \longrightarrow \{0,1\}$, where $F(x) = 1$ corresponds to the pattern matching $x$. That is, the user provides a program $P$ and the system returns all $x \in X$ such that $P(x) = 1$. 
+
+  However, we don’t want our system to get into an infinite loop just trying to evaluate the program $P$. For this reason, typical systems for searching files or databases do not allow users to specify the patterns using full-fledged programming languages. Rather, such systems use restricted computational models that on the one hand are rich enough to capture many of the queries needed in practice, but on the other hand are restricted enough so that queries can be evaluated very efficiently on huge files and in particular cannot result in an infinite loop. One of the most popular such computational models is \textit{regular expressions}. 
+
+  \begin{definition}
+  A \textbf{regular expression $e$} over an alphabet $\Sigma$ is a string over $\Sigma \cup \{(, ), |, *, \emptyset, ""\}$ that has one of the following forms: 
+  \begin{enumerate}
+      \item $e = \sigma$ where $\sigma \in \Sigma$ 
+      \item $e = (e^\prime \,|\, e^{\prime\prime})$ where $e^\prime, e^{\prime\prime}$ are regular expressions
+      \item $e = (e^\prime)(e^{\prime\prime})$ where $e^\prime, e^{\prime\prime}$ are regular expressions. The parentheses are often dropped, so this is written $e^\prime \, e^{\prime\prime}$
+      \item $e = (e^\prime)^*$ where $e^\prime$ is a regular expression
+  \end{enumerate}
+  Finally, we also allow the following "edge cases": $e = \emptyset$ and $e = ""$. These are the regular expressions corresponding to accepting no strings and accepting only the empty string, respectively. 
+  \end{definition}
+
+  \begin{example}
+  The following are regular expressions over the alphabet $\{0,1\}$. 
+  \[\big( 00(0^*)|11(1^*)\big)^* \;\;\;\;\; 00^*|11\]
+  \end{example}
+
+  Every regular expression $e$ corresponds to a function $\Phi_e : \Sigma^* \longrightarrow \{0,1\}$ where $\Phi_e (x) = 1$ if $x$ \textit{matches} the regular expression. The definition is tedious. 
+
+  \begin{definition}
+  Let $e$ be a regular expression over the alphabet $\Sigma$. The function $\Phi_e : \Sigma^* \longrightarrow \{0,1\}$ is defined as follows: 
+  \begin{enumerate}
+      \item If $e = \sigma$, then $\Phi_e (x) = 1$ iff $x = \sigma$ 
+      \item If $e = (e^\prime \,|\, e^{\prime\prime})$, then $\Phi_e (x) = \Phi_{e^\prime} (x) \vee \Phi_{e^{\prime\prime}} (x)$ where $\vee$ is the OR operator. 
+      \item If $e = (e^\prime) (e^{\prime\prime})$, then $\Phi_e (x) = 1$ iff there is some $x^\prime, x^{\prime\prime} \in \Sigma^*$ such that $x$ is the concatenation of $x^\prime$ and $x^{\prime\prime}$ and $\Phi_{e^\prime} (x^\prime) = \Phi^{e^{\prime\prime}} (x^{\prime\prime}) = 1$ 
+      \item If $e = (e^\prime)^*$ then $\Phi_e (x) = 1$ iff there is some $k \in \mathbb{N}$ and some $x_0, x_1, ..., x_{k-1} \in \Sigma^*$ such that $x$ is the concatenation $x_0, x_1, ..., x_{k-1}$ and $\Phi_{e^\prime} (x_i) = 1$ for every $i \in [k]$. 
+      \item For the edge cases, $\Phi_{\emptyset}$ is the $0$ function, and $\Phi_{""}$ is the function that only outputs $1$ on the empty string $""$. 
+  \end{enumerate}
+  It is said that a regular expression $e$ over $\Sigma$ \textbf{matches} a string $x \in \Sigma^*$ if $\Phi_e (x) = 1$. 
+  \end{definition}
+
+  A Boolean function is called \textit{regular} if it outputs 1 on precisely the set of strings that are matched by some regular expression. 
+
+  \begin{definition}
+  Let $\Sigma$ be a finite set and $F: \Sigma^* \longrightarrow \{0,1\}$ be a Boolean function. We say that $F$ is \textbf{regular} if $F = \Phi_e$ for some regular expression $e$. 
+
+  Similarly, for every formal language $L \subset \Sigma^*$, we say that $L$ is regular if and only if there is a regular expression $e$ such that $x \in L$ iff $e$ matches $x$. 
+  \end{definition}
+
+  \begin{definition}
+  The set of functions computable by DFAs is the same as the set of languages that can be recognized by regular expressions. 
+  \end{definition}
+

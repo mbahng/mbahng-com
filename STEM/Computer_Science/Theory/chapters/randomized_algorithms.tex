@@ -1,0 +1,250 @@
+\section{Probabilistic Computation}
+
+  It turns out that randomness can actually be a resource for computation, enabling us to achieve tasks much more efficiently than previously known. This advantage comes from the idea that calculating the statistics of a system could be done much faster by running several randomized simulations rather than explicit calculations, and these types of randomized algorithms are known as \textit{Monte Carlo algorithms}. 
+
+\subsection{Finding Approximately Good Maximum Cuts}
+
+  Recall the maximum cut problem of finding, given a graph $G = (V, E)$, the cut that maximizes the number of edges. This problem is \textbf{NP}-hard, which means that we do not know of any efficient algorithm that can solve it, but randomization enables a simple algorithm that can cut at least half of the edges. 
+
+  \begin{theorem}[Approximating Max Cut]
+  There is an efficient probabilistic algorithm that on input an $n$-vertex $m$-edge graph $G$, outputs a cut $(S, \overline{S})$ that cuts at least $m/2$ of the edges of $G$ in expectation. 
+  \end{theorem}
+  \begin{proof}
+  We simply choose a \textit{random cut}: we choose a subset $S$ of vertices by choosing every vertex $v$ to be a member of $S$ with probability $1/2$ independently. More specifically, upon input of a graph $G = (V, E)$ with vertices $(v_0, ..., v_{n-1})$, we do
+  \begin{enumerate}
+      \item Pick $x$ uniformly at random in $\{0,1\}^n$
+      \item Let $S \subseteq V$ be the set $\{v_i \;|\; x_i = 1, i \in [n]\}$ that includes all vertices corresponding to coordinates of $x$ where $x_i = 1$. 
+      \item Output the cut $(S, \overline{S})$. 
+  \end{enumerate}
+  \end{proof}
+
+  We claim that the expected number of edges cut by the algorithm is $m/2$. Indeed, for every edge $e \in E$, let $X_e$ be the random variable such that $X_e (x) = 1$ if the edge is cut by $x$, and let $X_e (x) = 0$ otherwise. It is not hard to see that the probability of $X_e (x) = 1$ is $\frac{1}{2}$ (when exactly one of the vertices are in $S$), and hence 
+  \[\mathbb{E} (X_e) = 1/2\]
+  Summing this over all edges and by linearity of expectation, we get
+  \[\mathbb{E}(X) = \sum_{e \in E} \mathbb{E}(X_e) = m \cdot \frac{1}{2} = \frac{m}{2}\]
+  In fact, for \textit{every graph $G$}, the algorithm is guaranteed to cut half of the edges of the input graph in expectation. 
+
+\subsubsection{Amplifying the success of randomized algorithms}
+
+  But note that expectation does not imply concentration. Luckily, we can \textit{amplify} the probability of success by repeating the process several times and outputting the best cut we find. We assume that the probability that the algorithm above succeeds in cutting at least $m/2$ edges is not \textit{too} tiny. 
+
+  \begin{lemma}
+  The probability that a random cut in an $m$ edge graph cuts at least $m/2$ edges is at least $\frac{1}{2m}$. 
+  \end{lemma}
+  \begin{proof}
+  This is quite trivial when looking at specific cases. For example, take the case when $m =1000$ edges. In this case, one can shot that we will cut at least 500 edges with probability at least $0.001$ (and so in particular larger then $\frac{1}{2m} = \frac{1}{2000}$). Specifically, if we assume otherwise, then this means that with probability more than $0.999$ the algorithm cuts $499$ or fewer edges. But since we can never cut more than the total of $1000$ edges, given this assumption, the highest value of the expected number of edges cut is if we cut exactly $499$ edges with probability $0.999$ and cut $1000$ edges with probability $0.001$. But this leads to the expectation being
+  \[0.999 \cdot 499 + 0.001 \cdot 1000 < 500\]
+  which contradicts the fact that the expectation to be at least $500$ in the previous theorem. Generalizing this to $m$ edges, we find that the expected number of edges cut is 
+  \[pm + (1-p) \Big( \frac{m}{2} - \frac{1}{2} \Big) \leq pm + \frac{m}{2} - \frac{1}{2}\]
+  But since $p < \frac{1}{2m} \implies pm < 0.5$, the right hand side is smaller than $m/2$, contradicting the fact that the expected number of edges cut is at least $m/2$. 
+  \end{proof}
+
+  \subsubsection{Success Amplification}
+  To increase the chances of success, we simply need to repeat our program many times, with fresh randomness each time, and output the best cut we get in one of these repetitions. It turns our that if we repeat this experiment $2000m$ times, then by using the inequality
+  \[\Big( 1 - \frac{1}{k} \Big)^k \leq \frac{1}{e} \leq \frac{1}{2}\]
+  we can show that the probability that we will never cut at least $m/2$ edges is at most 
+  \[\Big( 1 - \frac{1}{2m} \Big)^{2000m} \leq 2^{-1000}\]
+
+  This can be generalized in the following lemma. 
+
+  \begin{lemma}
+  There is an algorithm that on input graph $G = (V, E)$ and a number $k$, runs in polynomial time in $|V|$ and $k$ and outputs a cut $(S \overline{S})$ such that
+  \[\mathbb{P}\Big(\text{number of edges cut by } (S, \overline{S}) \geq \frac{|E|}{2} \Big) \geq 1 - 2^{-k}\]
+  \end{lemma}
+  \begin{proof}
+  Just repeat the previous algorithm $200km$ times and compute the probability of failure. 
+  \end{proof}
+
+  \subsubsection{Two-sided Amplification}
+  The analysis above relied on the fact that the maximum has \textit{one sided error}; that is, if we get a cut of size at least $m/2$ then we know we have succeeded. This is common for randomized algorithms, but it is not the only case. In particular, consider the task of computing some Boolean function $F: \{0,1\}^* \longrightarrow \{0,1\}$. A randomized algorithm $A$ for computing $F$, given input $x$, might toss coins and succeed in outputting $F(x)$ with probability, say $0.9$. We say that $A$ has \textit{two sided errors} if there is a positive probability that $A(x)$ outputs $1$ when $F(x) = 0$ and positive probability that $A(x)$ outputs $0$ when $F(x) = 1$. So, we cannot simply repeat it $k$ times and output $1$ if a single one of those repetitions resulted in $1$, nor can we output $0$ if a single one of the repetitions resulted in $0$. But we can output the \textit{majority value} of these repetitions: the probability that the fraction of the repetitions where $A$ will output $F(x)$ will be at least, say $0.89$, will be exceptionally close to $1$ and in such cases we will output the correct answer. 
+
+  \begin{theorem}
+  If $F: \{0,1\}^* \longrightarrow \{0,1\}$ is a function such that there is a polynomial-time algorithm $A$ satisfying 
+  \[\mathbb{P} \big( A(x) = F(x) \big) \geq 0.51\]
+  for every $x \in \{0,1\}^*$, then there is a polynomial time algorithm $B$ satisfying
+  \[\mathbb{P} \big( B(x) = F(x) \big) \geq 1 - 2^{-|x|}\]
+  for every $x \in \{0,1\}^*$. 
+  \end{theorem}
+
+  \subsubsection{Solving SAT through Randomization}
+  The 3SAT problem is \textbf{NP} hard, and so it is unlikely that it has a polynomial (or even subexponential) time algorithm. But this does not mean that we can't do at least somewhat better than the trivial $2^n$ algorithm for $n$-variable 3SAT. The best known worst-case algorithms are randomized and are at their base the following simple algorithm. In this algorithm, called \textit{WalkSAT}, the input is an $n$ variable 3CNF formula $\varphi$, the parameters are any numbers $T, S \in \mathbb{N}$, and the operation is: 
+  \begin{enumerate}
+      \item Repeat the following $T$ steps: 
+      \begin{enumerate}
+          \item Choose a random assignment $x \in \{0,1\}^n$ and repeat the following for $S$ steps: 
+          \begin{enumerate}
+              \item If $x$ satisfies $\varphi$, then output $x$. 
+              \item Otherwise, choose a random clause $(l_i \vee l_j \vee l_k)$ that $x$ does not satisfy, choose a random literal in $l_i \vee l_j \vee l_k$ and modify $x$ to satisfy this literal. 
+          \end{enumerate}
+      \end{enumerate}
+      \item If all the $T \cdot S$ repetitions above did not result in a satisfying assignment, then output $\texttt{Unsatisfiable}$. 
+  \end{enumerate}
+  Note that we are only going though at most $S\cdot T$ configurations of $x \in \{0,1\}^n$, and the running time of this algorithm is $S \cdot T \cdot poly(n)$. The fact that this algorithm is efficient is taken care of, so now the key question is how small we can make $S$ and $T$ so that the probability that WalkSAT outputs $\texttt{Unsatisfiable}$ on a satisfiable formula $\varphi$ is small. It is known that we can do with 
+  \[ST = \Tilde{O} \big( (4/3)^n \big) = \Tilde{O} ( 1.\overline{3}^n)\]
+  However, we will prove a weaker bound in the following theorem (which is still much better than the $2^n$ bound). 
+
+  \begin{theorem}[WalkSAT simple analysis]
+  If we set $T = 100\sqrt{3}^n$ and $S = n/2$, then the probability we output $\texttt{Unsatisfiable}$ for a satisfiable $\varphi$ is at most $\frac{1}{2}$. 
+  \end{theorem}
+
+  \subsubsection{Bipartite Matching}
+
+  \begin{definition}
+  A \textbf{bipartite graph} $G = (L \cup R, E)$ has $2n$ vertices partitioned into $n$-sized sets $L$ and $R$, where all edges have one endpoint in $L$ and the other in $R$.
+  \begin{center}
+      \begin{tikzpicture}[-,>=stealth',shorten >=1pt,auto,node distance=2cm, thick,main node/.style={circle,draw}, every loop/.style={}]
+      \node[main node] (1) {1};
+      \node[main node] (2) [below of=1] {2};
+      \node[main node] (3) [below of=2] {3};
+      \node[main node] (4) [below of=3] {4};
+      \node[main node] (a) [right of=1] {a};
+      \node[main node] (5) [right of=a] {5};
+      \node[main node] (6) [below of=5] {6};
+      \node[main node] (7) [below of=6] {7};
+      \node[main node] (8) [below of=7] {8};
+      \path[every node/.style={font=\sffamily\small}]
+      (1) edge node {} (6)
+      (2) edge node {} (5)
+      (2) edge node {} (8)
+      (3) edge node {} (5)
+      (3) edge node {} (7)
+      (3) edge node {} (8)
+      (4) edge node {} (6);
+      \draw[fill=white, white] (1.5, -0.5) rectangle (2.5, 0.5);
+      \draw[dashed, blue] (-0.5, -6.5) rectangle (1.5, 0.5);
+      \draw[dashed, red] (3, -6.5) rectangle (5, 0.5);
+      \node[left, blue] at (-0.5,-3) {L};
+      \node[right, red] at (5, -3) {R};
+      \end{tikzpicture}
+  \end{center}
+  \end{definition}
+  A \textit{matching problem} is a type of problem where we match nodes to each other with edges. One variant of it is called the \textit{bipartite perfect matching}. The goal is to determine whether there is a \textit{perfect matching}, a subset $M \subseteq E$ of $n$ disjoint edges that connects every vertex $L$ to a unique vertex in $R$. 
+
+  It turns out that by reducing this problem of finding a matching in $G$ to finding a maximum flow (or equivalently, a minimum $s, t$ cut) in a related graph $G^\prime$ (below), we can solve it in polynomial time. 
+  \begin{center}
+      \begin{tikzpicture}[-,>=stealth',shorten >=1pt,auto,node distance=2cm, thick,main node/.style={circle,draw}, every loop/.style={}]
+      \node[main node] (1) {1};
+      \node[main node] (2) [below of=1] {2};
+      \node[main node] (3) [below of=2] {3};
+      \node[main node] (4) [below of=3] {4};
+      \node[main node] (a) [right of=1] {a};
+      \node[main node] (5) [right of=a] {5};
+      \node[main node] (6) [below of=5] {6};
+      \node[main node] (7) [below of=6] {7};
+      \node[main node] (8) [below of=7] {8};
+      \node[main node] (S) [left of=2] {S};
+      \node[main node] (T) [right of=6] {T};
+      \path[every node/.style={font=\sffamily\small}]
+      (1) edge node {} (6)
+      (2) edge node {} (5)
+      (2) edge node {} (8)
+      (3) edge node {} (5)
+      (3) edge node {} (7)
+      (3) edge node {} (8)
+      (4) edge node {} (6)
+      (S) edge node {} (1)
+      (S) edge node {} (2)
+      (S) edge node {} (3)
+      (S) edge node {} (4)
+      (T) edge node {} (5)
+      (T) edge node {} (6)
+      (T) edge node {} (7)
+      (T) edge node {} (8);
+      \draw[fill=white, white] (1.5, -0.5) rectangle (2.5, 0.5);
+      \draw[dashed, blue] (-0.5, -6.5) rectangle (1.5, 0.5);
+      \draw[dashed, red] (3, -6.5) rectangle (5, 0.5);
+      \end{tikzpicture}
+  \end{center}
+  However, there is a different probabilistic algorithm to do this. Let $G$'s vertices be labeled as $L = \{l_0, ..., l_{n-1}\}$ and $R = \{r_0, ..., r_{n-1}\}$. A matching $M$ corresponds to a \textit{permutation} $\pi \in S_n$ where for ever $i \in [n]$, we define $\pi(i)$ to be the unique $j$ such that $M$ contains the edge $\{l_i, r_j\}$. Define an $n \times n$ matrix $A = A(G)$ where $A_{i, j} = 1$ if and only if $\{l_i, r_j\}$ is present and $A_{i, j} = 0$ otherwise. The correspondence between matchings and permutations implies the following claim. 
+
+  \begin{lemma}[Matching polynomial]
+  Define $P = P(G)$ to be the polynomial mapping $\mathbb{R}^{n^2}$ to $\mathbb{R}$ where 
+  \[P(x_{0, 0}, ..., x_{n-1, n-1} = \sum_{\pi \in S_n} \bigg( \prod_{i=0}^{n-1} sign(\pi) A_{i, \pi(i)} \bigg) \prod_{i=0}^{n-1} x_{i, \pi(i)}\]
+  In fact, given the matrix $A$ representing the graph, the polynomial above is the determinant of the matrix $A(x)$, which is obtained by replaying $A_{i, j}$ with $A_{i, j} x_{i, j}$. Then $G$ has a perfect matching if and only if $P$ is not identically zero (i.e. if there exists some assignment $x = (x_{i, j})_{i, j \in [n]} \in \mathbb{R}^{n^2}$ such that $P(x) \neq 0$. 
+  \end{lemma}
+  This reduces testing perfect matching to testing whether a given polynomial $P(\cdot)$ is identically $0$ or not. The kernel of most multivariate nonzero polynomials form a strictly lower dimensional space than the total space, so in order to do this, we just choose a "random" input $x$ and check if $P(x) \neq 0$. However, to transform this into an actual algorithm, we can't work in the real numbers with our finite computational power. We use the following. 
+
+  \begin{theorem}[Schwartz-Zippel Lemma]
+  For every integer $q$ and polynomial $P: \mathbb{R}^n \longrightarrow \mathbb{R}$ with integer coefficients, if $P$ has degree at most $d$ and is not identically zero, then it has at most $d q^{n-1}$ roots in the set 
+  \[[q]^n = \big\{(x_0, ..., x_{n-1}) \;|\; x_i \in \{0, 1, ..., q-1\}\big\}\]
+  \end{theorem}
+
+  Therefore, upon an input of a bipartite graph $G$ on $2n$ vertices $\{l_0, ..., l_{n-1}, r_0, ..., r_{n-1}\}$, the \textit{Perfect-Matching algorithm} can be divided into these steps: 
+  \begin{enumerate}
+    \item For every $i, j \in [n]$, choose $x_{i, j}$ independently at random from $[2n] = \{0, ..., 2n-1\}$. 
+    \item Compute the determinant of the matrix $A(x)$ whose $i, j$th entry equals $x_{i, j}$ if the edge $\{l_i, r_j\}$ is present and $0$ otherwise. 
+    \item Output $\texttt{no perfect matching}$ if determinant is $0$, and output $\texttt{perfect matching}$ otherwise. 
+  \end{enumerate}
+
+
+  \subsection{Modeling Randomized Computation}
+
+  While we have described randomized algorithms in an informal way, we haven't addressed two questions: 
+  \begin{enumerate}
+    \item How do we actually efficiently obtain random strings in the physical world? 
+    \item What is the mathematical model for randomized computations, and is it more powerful than deterministic computation? 
+  \end{enumerate}
+  The first question is important, but we will assume that there are various physical sources of random or unpredictable data, such as a user's mouse movements, network latency, thermal noise, and radioactive decay. For example, many Intel chips come with a random number generator built in. We will focus on the second question. 
+
+  Modeling randomized computation is actually quite easy. We can add the operation
+  \[\texttt{foo = RAND()}\]
+  in addition to things like the NAND operator to any programming language such as NAND-TM, NAND-RAM, NAND-CIRC, etc., where $\texttt{foo}$ is assigned to a random bit in $\{0,1\}$ independently every time it is called. These are called RNAND-TM, RNAND-RAM, and RNAND-CIRC, respectively. 
+
+  Similarly, we can easily define randomized Turing machines as Turing machines in which the transition function $\delta$ gets an extra input (in addition to the current state and symbol read from the tape) a bit $b$ that in each step is chosen at random in $\{0, 1\}$. Of course the function can ignore this bit (and have the same output regardless of whether $b = 0$ or $b= 1$) and hence randomized Turing machines generalize deterministic Turing machines. 
+
+  We can use the $\texttt{RAND()}$ operation to define the notion of a function being computed by a randomized $T(n)$ time algorithm for every nice time bound $T: \mathbb{N} \longrightarrow \mathbb{N}$, but we will only define the class of functions that are computable by randomized algorithms running in \textit{polynomial time}. 
+
+  \begin{definition}[The class \textbf{BPP}]
+  Let $F: \{0, 1\}^* \longrightarrow \{0,1\}$. We say that $F \in \mathbf{BPP}$ if there exist constants $a, b \in \mathbb{N}$ and a RNAND-TM program $P$ such that for every $x \in \{0,1\}^*$, on input $x$, the program $P$ halts within at most $a |x|^b$ steps and 
+  \[\mathbb{P} \big(P(x) = F(x)\big) \geq \frac{2}{3}\]
+  where this probabilty is taken over the result of the RAND operations of $P$. Note that this probability is taken only over the random choices in the execution of $P$ and \textit{not} over the choice of the input $x$. That is, \textbf{BPP} is still a \textit{worst case} complexity class, in the sense that if $F$ is in \textbf{BPP} then there is a polynomial-time randomized algorithm that computes $F$ with probability at least $2/3$ on \textit{every possible} (and not just random) input. 
+  \end{definition}
+
+  We will use the name \textit{polynomial time randomized algorithm} to denote a computation that can be modeled by a polynomial-time RNAND-TM program, RNAND-RAM program, or a randomized Turing machine. 
+
+  Alternatively, we can think of a randomized algorithm $A$ as a \textit{deterministic algorithm} $A^\prime$ that takes two inputs $x$ and $r$ where the input $r$ is chosen at random from $\{0, 1\}^m$ for some $m \in \mathbb{N}$. The equivalence to the previous definition is shown in the following theorem: 
+
+  \begin{definition}[Alternative characterization of \textbf{BPP}]
+  Let $F: \{0, 1\}^* \longrightarrow \{0, 1\}$. Then $F \in \mathbf{BPP}$ if and only if there exists $a, b \in \mathbb{N}$ and $G: \{0, 1\}^* \longrightarrow \{0, 1\}$ such that $G$ is in $\mathbf{P}$ and for every $x \in \{0, 1\}^*$, 
+  \[\mathbb{P}\big( G(xr) = F(x)\big) \geq \frac{2}{3}\]
+  where $r$ is chosen at random from $\{0, 1\}^{a|x|^b}$. As such, if $A$ is a randomized algorithm that on inputs of length $n$ makes at most $m$ coin tosses, we will often use the notation $A(x; r)$ (where $x \in \{0, 1\}^n$ and $r \in \{0, 1\}^m$ to refer to the result of executing $x$ when the coin tosses of $A$ correspond to the coordinates of $r$. This second input $r$ is sometimes called a \textbf{random tape}.
+  \end{definition}
+
+  The relationship between \textbf{BPP} and \textbf{NP} is not known, but we do know the following. 
+
+  \begin{theorem}[Sipser-Gacs Theorem]
+  If $\mathbf{P = NP}$ then $\mathbf{BPP = P}$. 
+  \end{theorem}
+
+  \subsubsection{Success Amplification of two-sided error algorithms}
+  The number $2/3$ may seem arbitrary, but it can be amplified to our liking.
+
+  \begin{theorem}[Amplification]
+  Let $F: \{0, 1\}^* \longrightarrow \{0, 1\}$ be a Boolean function such that there is a polynomial $p: \mathbb{N} \longrightarrow \mathbb{N}$ and a polynomial-time randomized algorithm $A$ satisfying that for every $x \in \{0, 1\}^n$, 
+  \[\mathbb{P} \big( A(x) = F(x) \big) \geq \frac{1}{2} + \frac{1}{p(n)}\]
+  Then for every polynomial $q: \mathbb{N} \longrightarrow \mathbb{N}$, there is a polynomial-time randomized algorithm $B$ satisfying for every $x \in \{0, 1\}^n$,
+  \[\mathbb{P} \big( B(x) = F(x)\big) \geq 1 - 2^{-q(n)}\]
+  \end{theorem}
+
+  \subsubsection{BPP and NP Completeness}
+  The theory of \textbf{NP} completeness still applies to probabilistic algorithms. 
+
+  \begin{theorem}
+  Suppose that $F$ is \textbf{NP} hard and $F \in \mathbf{BPP}$. Then 
+  \[\mathbf{NP \subseteq BPP}\]
+  That is, if there was a randomized polynomial time algorithm for any \textbf{NP} complete problem such as 3SAT, ISET, etc., then there would be such an algorithm for \textit{every} problem in \textbf{NP}. 
+  \end{theorem}
+
+  \subsection{The Power of Randomization}
+  To find out whether randomization can add power to computation (does \textbf{BPP=P}?), we prove a few statements about the relationship of \textbf{BPP} with other complexity classes. 
+
+  \begin{theorem}[Simulating randomized algorithms in exponential time]
+  \[\mathbf{BPP \subseteq EXP}\]
+  \end{theorem}
+  \begin{proof}
+  We can just enumerate over all the (exponentially many) choices for the random coins. 
+  \end{proof}
+
+  Furthermore, 
+  \[\mathbf{P \subseteq BPP \subseteq EXP}\]
+
