@@ -1,33 +1,370 @@
 \section{Finite Computation}
 
+  Let's first set up some notation. In computer science we deal sets---called an \textit{alphabet}---consisting of elements called \textit{characters}.  
+
+  \begin{definition}[Alphabet]
+    A finite set $\Sigma$ is called an \textbf{alphabet}, with its elements called \textbf{characters}. We can look at finite sequences of characters, which is an element of 
+    \begin{equation}
+      \Sigma^\ast \coloneqq \bigsqcup_{k=1}^\infty \Sigma^k 
+    \end{equation}
+  \end{definition}
+
+  Functions of the form $f: \Sigma^n \to \Sigma^m$ with a finite domain and codomain are called \textit{finite functions}, and if $\Sigma = \{0, 1\}$, then it is said to be a \textit{Boolean function}. Mathematical functions are an abstraction, and our goal is to look for physical \footnote{as in, they can be realized by physical systems that we will build on in my computer architecture notes, through they are still theoretical} or lexical models that can \textit{compute} these functions, i.e. have some representation that essentially behaves indistinguishably from the function. The two main categories of representations that we will focus on are circuits and straight-line programs. 
+
+  Considering the set of all finite functions $f: \{0, 1\}^n \to \{0, 1\}^m$ is too unstructured. Taking inspiration from math, we wish to find nice \textit{decompositions} of functions $f$ into simpler ones. The most elementary functions in boolean logic are the $\AND, \OR$, and $\NOT$ functions.  
+
+  \begin{definition}[AND Function]
+    The $\AND$ function is defined 
+    \begin{equation}
+      \AND: \{0,1\}^2 \longrightarrow \{0,1\}, \qquad 
+      \AND (a,b) = a \wedge b = \begin{cases}
+        1 & a = b = 1 \\
+        0 & \text{else}
+      \end{cases}
+    \end{equation}
+  \end{definition}
+
+  \begin{definition}[OR Function]
+    The $\OR$ function is defined 
+    \begin{equation}
+      \OR: \{0,1\}^2 \longrightarrow \{0,1\}, \qquad 
+      \OR (a,b) = a \vee b = \begin{cases}
+        0 & a = b = 0 \\
+        1 & \text{else}
+      \end{cases}
+    \end{equation}
+  \end{definition}
+
+  \begin{definition}[NOT Function]
+    The $\NOT$ function is defined 
+    \begin{equation}
+      \NOT: \{0,1\} \longrightarrow \{0,1\}, \qquad 
+      \NOT (a) = \lnot a = \begin{cases}
+        0 & a = 1 \\
+        1 & a = 0
+      \end{cases}
+    \end{equation}
+  \end{definition}
+
+  Great, so we have developed three rudimentary finite functions---one unary and two binary. We can use these functions to build new functions by composing them. Mathematically, we can write out the symbols as such, for example. 
+
+  \begin{equation}
+    f(x, y) = \AND(\NOT(x), \OR(x, y)) 
+  \end{equation}
+
+  Many functions can be created when composing these extremely simple functions. 
+
+  \begin{example}[Majority Function]
+    Consider the function that outputs whatever the majority bit value is amongst its 3 inputs. 
+    \begin{equation}
+      \mathrm{MAJ}: \{0,1\}^3 \longrightarrow \{0,1\}, \qquad 
+      \mathrm{MAJ} (x) = \begin{cases}
+        1 & x_0 + x_1 + x_2 \geq 2 \\
+        0 & \text{else}
+      \end{cases}
+    \end{equation}
+    Since the OR of three conditions $c_0, c_1, c_2$ can be written as $\OR(c_0, \OR(c_1, c_2))$, we can now translate this function into a formula as follows: 
+    \begin{align}
+      \mathrm{MAJ}(x_0, x_1, x_2) & = \OR\big( \AND (x_0, x_1), \OR(\AND(x_1, x_2), \AND(x_0, x_2)) \big) \\
+      & = \big((x_0 \wedge x_1) \vee (x_1 \wedge x_2)\big) \vee (x_0 \wedge x_2)
+    \end{align}
+  \end{example}
+
+  A natural question to ask is whether \textit{any} finite function can be modeled as a composition of these three functions. 
+
+  \begin{definition}[Universal Operation Set]
+    A set of boolean functions $\mathcal{F}$ is said to be \textbf{universal} if any finite boolean function $f: \{0, 1\}^n \to \{0, 1\}^m$ can be written as a composition of functions in $\mathcal{F}$.
+  \end{definition}
+
+  \begin{theorem}[AON Functions are Universal]
+    $\{\AND, \OR, \NOT\}$ is a universal function set. In fact, any function $f: \{0,1\}^n \longrightarrow \{0,1\}^m$ can be written as a composition of at most $c m 2^n$ AON functions, for some constant $c > 0$. 
+  \end{theorem}
+  \begin{proof}
+    
+  \end{proof}
+
+  This may not be so surprising actually. After all, a finite function $f: \{0,1\}^n \longrightarrow \{0,1\}^m$ can be represented by simply the list of its outputs for each one of the $2^n$ input values. So it makes sense that we could write a composition of similar size to compute it. 
+
+  This simplifies things. If we can make a computational model that can simulate the $\AND, \OR, \NOT$ functions, this model will be able to compute every function. 
+
 \subsection{Circuits}
 
-  \begin{definition}
-    The most common elementary operations for algorithms are \textbf{logical operators} which can be visualized as a \textbf{gate} in a \textbf{Boolean circuit}. 
+  We introduce our first physical model in the form of circuits. Why a circuit? As we will see later in my computer architecture notes, a nice way to physically realize such functions are through transistors, which are similar to gates. 
+
+  \begin{definition}[Boolean Circuit]
+    Let $n, m, s$ be positive integers with $s \geq m$. A \textbf{Boolean $\mathcal{G}$-circuit} with $n$ inputs, $m$ outputs, and $s$ gates, is a labeled directed acyclic graph (DAG) $C = (V, E)$ with $|V| = s+n$ vertices satisfying the following properties: 
+    \begin{enumerate}
+      \item The $n$ \textbf{inputs} refer to vertices that have no in-neighbors. Each input has at least one out-neighbor and are labeled either as $X[i]$ or not at all. 
+
+      \item The other $s$ vertices are known as \textbf{gates} $g \in \mathcal{G}$. The size of $C$ is $s$. 
+
+      \item The $m$ \textbf{outputs} refer to vertices $v$ that have an out-neighbor $u$ that is not an in-neighbor of any other node. The out-neighbors are labeled either as $Y[j]$ or not at all.
+    \end{enumerate}
+
+    \begin{figure}[H]
+      \centering 
+      \begin{circuitikz}[scale=0.4]
+        \draw
+        (2, 2) node[and port] (and1) {}
+        (2, 6) node[not port] (not1) {}
+        (2, 10) node[not port] (not2) {}
+        (8, 2) node[and port] (and2) {}
+        (8, 6) node[and port] (and3) {}
+        (8, -2) node[not port] (not3) {}
+        (14, 6) node[and port] (and4) {}
+        (14, 10) node[and port] (and5) {}
+        (14, 14) node[not port] (not4) {}
+        (19.5, 12) node[and port] (and6) {}
+        (24, 11) node[or port] (or1) {}
+        (-4,-1) node(d) {X[3]}
+        (-4, 3) node(c) {X[2]}
+        (-4, 8) node(b) {X[1]}
+        (-4, 12) node(a) {X[0]}
+        (a)--(not4.in)
+        (a)--(and5.in 1)
+        (b)--(not2.in)
+        (b)--(and1.in 1)
+        (c)--(not1.in) 
+        (c)--(and1.in 2)
+        (d)--(and2.in 2)
+        (d)--(not3.in) 
+        (and1.out)--(and2.in 1)
+        (not1.out)--(and3.in 2)
+        (not2.out)--(and3.in 1)
+        (and2.out)--(and5.in 2) 
+        (and3.out)--(and4.in 1) 
+        (and4.out)--(and6.in 2) 
+        (not3.out)--(and4.in 2) 
+        (and5.out)--(or1.in 2) 
+        (not4.out)--(and6.in 1)
+        (and6.out)--(or1.in 1)
+        (26, 11) node(y) {Y[0]}
+        (or1.out)--(y);
+        \draw[color=blue] (-5, -4) rectangle (-3, 16);
+        \node[color=blue, above] at (-4, 16) {n Inputs};
+        \draw[color=red] (-2, -4) rectangle (25, 16); 
+        \node[color=red, above] at (10,16) {s Gates};
+        \draw[color=teal] (20.5, 8.5) rectangle (24.5, 13);
+        \node[color=teal, below] at (20, 8.5) {m Outputs (Gates)};
+        \node at (18, 5) {$s \geq m$};
+      \end{circuitikz}
+      \caption{} 
+      \label{fig:alleq_label}
+    \end{figure}
   \end{definition}
+
+  Constructing a circuit is similar to composing elementary functions, and the analogue of such functions are \textit{logic gates}.\footnote{Note that gates are \textit{not} the same as functions, but a representation of them. } Let's define some elementary logic gates. Since we have seen that AON is universal, we can define the analogue of the three to get another universal gate set. 
+
+  \begin{definition}[NOT Gate] 
+    A \textbf{NOT gate} is a physical representation of the $\NOT$ function. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{circuitikz}[scale=0.9]
+        \draw
+        (0,2) node[not port] (not) {};
+      \end{circuitikz}    
+      \caption{A helpful hint to remember that this is NOT. Think of the triangle shape as ``doing nothing'' and pay attention to the circle at the tip, which represents negation. } 
+      \label{fig:not_gate}
+    \end{figure}
+  \end{definition}
+
+  \begin{definition}[AND Gate]
+    A \textbf{AND gate} is a physical representation of the $\AND$ function. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{circuitikz}[scale=0.9]
+        \draw
+        (0,2) node[and port] (and) {};
+      \end{circuitikz}    
+      \caption{A helpful hint to remember that this is AND. Think of the D-shape as requiring both inputs to be 1 for the output to be 1.} 
+      \label{fig:and_gate}
+    \end{figure}
+  \end{definition}
+
+  \begin{definition}[OR Gate]
+    A \textbf{OR gate} is a physical representation of the $\OR$ function. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{circuitikz}[scale=0.9]
+        \draw
+        (0,2) node[or port] (or) {};
+      \end{circuitikz}    
+      \caption{A helpful hint to remember that this is OR. Think of the rounded shape as requiring at least one input to be 1 for the output to be 1.} 
+      \label{fig:or_gate}
+    \end{figure}
+  \end{definition}
+
+  A circuit $C: \{0, 1\}^n \to \{0, 1\}^m$ can be thought of as a function from the way it behaves on an input $x \in \{0, 1\}^n$. Analogously to our mathematical model, we can define the representation power of circuits. 
+
+  \begin{definition}[Computability of Circuits]
+    Let $C$ be a $\mathcal{G}$-circuit with $n$ inputs and $m$ outputs, and let $f: \{0, 1\}^n \to \{0, 1\}^m$ be an arbitrary function. $C$ is said to \textbf{compute} $f$ if $C = f$ as functions. 
+  \end{definition}
+
+  \begin{definition}[Universal Gate Set]
+    A set of gates $\mathcal{G}$ is said to be a \textbf{universal gate set} if every finite function $f$ is computable by a $\mathcal{G}$-circuit. 
+  \end{definition}
+
+  \begin{definition}[AON-CIRC]
+    An \textbf{And/Or/Not circuit}, abbreviated as \textbf{AON-CIRC}, is a circuit $C$ made of $\AND, \OR$, and $\NOT$ gates. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[circuit logic US]
+        % Input labels
+        \node (A) at (0,4) {A};
+        \node (B) at (0,3) {B};
+        \node (C) at (0,1.5) {C};
+        \node (D) at (0,0.5) {D};
+
+        % First level gates
+        \node[and gate, draw, logic gate inputs=nn] (and1) at (3,3.5) {};
+        \node[or gate, draw, logic gate inputs=nn] (or1) at (3,1) {};
+
+        % NOT gate
+        \node[not gate, draw] (not1) at (5,3.5) {};
+
+        % Final AND gate
+        \node[and gate, draw, logic gate inputs=nn] (and2) at (7,2.25) {};
+
+        % Connections from inputs to gates
+        \draw (A) -- ++(1,0) |- (and1.input 1);
+        \draw (B) -- ++(1,0) |- (and1.input 2);
+        \draw (C) -- ++(1,0) |- (or1.input 1);
+        \draw (D) -- ++(1,0) |- (or1.input 2);
+
+        % Connections between gates
+        \draw (and1.output) -- (not1.input);
+        \draw (not1.output) -- ++(0.5,0) |- (and2.input 1);
+        \draw (or1.output) -- ++(0.5,0) |- (and2.input 2);
+
+        % Output
+        \draw (and2.output) -- ++(1,0) node[right] {F};
+      \end{tikzpicture}
+      \caption{An example of an AON circuit. Circuits have wires connecting into (from the left) and out (from the right) of each gate. Wires that are not connected to any gate from the left represent inputs to the circuit and from the right represent outputs of the circuit. } 
+      \label{fig:aon-circ}
+    \end{figure}
+  \end{definition}
+
+  Note that parallel edges are allowed. Having parallel edges means that an AND or OR gate $u$ can have both its in-neighbors be the same gate $v$. Since $AND(a, a) = OR(a, a) = a$ for every $a \in \{0,1\}$, such parallel gates don't help in computing new values in circuits with AND/OR/NOT gates.
+
+  \begin{center}
+    \begin{circuitikz}
+      \draw
+      (0, 0) node[and port] (and1) {}
+      (5,0) node[and port] (and2) {}
+      (and1.out)--(and2.in 1)
+      (and1.out)--(and2.in 2) ;
+    \end{circuitikz}
+  \end{center}
+
+  It is immediate that AON-CIRC is universal by construction. 
+
+  \begin{theorem}[AON-CIRC is Universal]
+    $\{\AND, \OR, \NOT\}$ is a universal gate set, i.e. every finite function $f$ can be computed by an AON-CIRC. 
+  \end{theorem}
+  \begin{proof}
+    
+  \end{proof}
+
+  \begin{example}[All Equals Function]
+    Let us define the function $\mathrm{ALLEQ}: \{0,1\}^4 \longrightarrow \{0,1\}$ to be the function that on input $x \in \{0,1\}^4$ outputs $1$ if and only if $x_0 = x_1 = x_2 = x_3$. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{circuitikz}[scale=0.4]
+        \draw
+        (2, 2) node[and port] (and1) {}
+        (2, 6) node[not port] (not1) {}
+        (2, 10) node[not port] (not2) {}
+        (8, 2) node[and port] (and2) {}
+        (8, 6) node[and port] (and3) {}
+        (8, -2) node[not port] (not3) {}
+        (14, 6) node[and port] (and4) {}
+        (14, 10) node[and port] (and5) {}
+        (14, 14) node[not port] (not4) {}
+        (19.5, 12) node[and port] (and6) {}
+        (24, 11) node[or port] (or1) {}
+        (-4,-1) node(d) {X[3]}
+        (-4, 3) node(c) {X[2]}
+        (-4, 8) node(b) {X[1]}
+        (-4, 12) node(a) {X[0]}
+        (a)--(not4.in)
+        (a)--(and5.in 1)
+        (b)--(not2.in)
+        (b)--(and1.in 1)
+        (c)--(not1.in) 
+        (c)--(and1.in 2)
+        (d)--(and2.in 2)
+        (d)--(not3.in) 
+        (and1.out)--(and2.in 1)
+        (not1.out)--(and3.in 2)
+        (not2.out)--(and3.in 1)
+        (and2.out)--(and5.in 2) 
+        (and3.out)--(and4.in 1) 
+        (and4.out)--(and6.in 2) 
+        (not3.out)--(and4.in 2) 
+        (and5.out)--(or1.in 2) 
+        (not4.out)--(and6.in 1)
+        (and6.out)--(or1.in 1)
+        (26, 11) node(y) {Y[0]}
+        (or1.out)--(y);
+      \end{circuitikz}
+      \caption{The Boolean circuit for computing $\mathrm{ALLEQ}$.} 
+      \label{fig:alleq}
+    \end{figure}
+  \end{example}
 
 \subsection{Straight Line Programs}
 
-  \begin{definition}[Straight Line Program]
-    A \textbf{straight-line program} is a program that defines certain functions $F, G, H...$ and uses these programs to define variables of the form 
-    \begin{align*}
-      &\texttt{foo = F(bar,blah)} \\
-      &\texttt{foo = G(bar,blah)} \\
-      &\texttt{foo = H(bar)} \\
-      &\texttt{... = ...}
-    \end{align*}
-    to come to a result. It is called a straight-line program since it contains no loops or branching (e.g. if/then statements). 
+  Our second computational model will be \textit{lexical}---rather than a physical---one. This is more closely related to coding languages and has the advantage that it is often easier to work with for humans. 
 
-    The \textbf{AON-CIRC programming language} has the AND/OR/NOT operations defined. The binary input variables are of the form 
-    \[x = (\texttt{X[0], X[1], ..., X[n-1]})\]
-    and output variables of the form 
-    \[y = (\texttt{Y[0], Y[1], ..., Y[m-1]})\]
-    In every line, the variables on the right-hand side of the assignment operators must either be input variables or variables that have already been assigned a value. We say that an AON-CIRC program $P$ \textit{computes} a function 
-    \[f: \{0,1\}^n \longrightarrow \{0,1\}^m\]
-    if $P(x) = f(x)$ for every $x \in \{0,1\}^n$.
+  \begin{definition}[Straight Line Program]
+    Let $\mathcal{F} = \{f_0, f_1, ..., f_{t-1}\}$ be a finite collection of Boolean operators\footnote{We can think of this as some abstraction from a physical implementation of a function.} $f_i: \{0,1\}^k \longrightarrow \{0,1\}$. 
+
+    A \textbf{$\mathcal{F}$-straight line program} is a program $P$ composed of a finite set of operators $f \in \mathcal{F}$. It consists of a finite sequence of lines, each of which assigns to some variable the result of applying some $f_i \in \mathcal{F}$ to $k_i$ other variables. 
+    \begin{equation}
+      v = f(w, \ldots, u), \qquad f \in \mathcal{F} 
+    \end{equation}
+    In every line, the variables on the right-hand side of the assignment operators must either be input variables or variables that have already been assigned a value.\footnote{It is called a straight-line program since it contains no loops or branching (e.g. if/then statements). } 
+    $\texttt{X[i]}$ and $\texttt{Y[j]}$ denotes the input and output variables. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{lstlisting}
+        foo1 = f(bar,blah)
+        foo2 = g(bar,blah)
+        foo3 = h(bar)
+        ...
+      \end{lstlisting}
+      \caption{An example of a straight line program. } 
+      \label{fig:straight-line}
+    \end{figure}
   \end{definition}
 
-  \begin{example}
+  Again, a straight line program can be thought of as a function. 
+
+  \begin{definition}[Computability of Straight-Line Programs]
+    Let $P$ be a $\mathcal{F}$-straight line program with $n$ inputs and $m$ outputs, and let $f: \{0, 1\}^n \to \{0, 1\}^m$ be an arbitrary function. $P$ is said to \textbf{compute} $f$ if $P = f$ as functions. 
+  \end{definition}
+
+  \begin{definition}[Universal Operator Set]
+    A set of operators $\mathcal{F}$ is said to be a \textbf{universal gate set} if every finite function $f$ is computable by a $\mathcal{F}$-circuit. 
+  \end{definition}
+
+  \begin{definition}[AON Straight Line Program]
+    The \textbf{AON straight line program}, abbreviated \textbf{AON-SLP}, is a straight line prgoram $P$ with the $\AND, \OR$, and $\NOT$ operators. 
+  \end{definition}
+
+  Again, it is immediate that AON straight line programs are universal since it models AON. 
+
+  \begin{theorem}[AON-SLP]
+    $\{\AND, \OR, \NOT\}$ is a universal operator set, i.e. every finite function $f$ can be computed by an AON-SLP.
+  \end{theorem}
+
+  \begin{example}[XOR Function]
     Let the XOR function be defined
     \begin{equation}
       XOR: \{0,1\}^2 \longrightarrow \{0,1\}, \; XOR(a, b) = a + b \pmod{2}
@@ -71,106 +408,49 @@
     \end{lstlisting}
   \end{example}
 
-  The way that we've presented the XOR function through Boolean circuits and straight-line programs hints at the following: 
+\subsection{NAND Circuits and Other Gate Sets}
 
-  \begin{theorem}[Equivalence of circuits and straight line programs]
-    Let $f: \{0,1\}^n \longrightarrow \{0,1\}^m$ and $s \geq m$ be some number. Then $f$ is computable by a Boolean circuit of $s$ gates if and only if $f$ is computable by an AON-CIRC program of $s$ lines. 
-  \end{theorem}
+  We have seen that both AON-CIRC and AON-SLP can both compute the same set of all finite functions, i.e. they are \textit{equivalent in power}. 
 
-  \begin{definition}
-    Let $n, m, s$ be positive integers with $s \geq m$. A \textbf{Boolean circuit} with $n$ inputs, $m$ outputs, and $s$ gates, is a labeled directed acyclic graph (DAG) $G = (V, E)$ with $s+n$ vertices satisfying the following properties: 
-    \begin{enumerate}
-        \item Exactly $n$ of the vertices have no in-neighbors (i.e. inputs). These vertices known known as \textbf{inputs} and are labeled with the $n$ labels
-        \[X[0], X[1], ..., X[n-1]\]
-        Each input has at least one out-neighbor. 
-        \item The other $s$ vertices are known as \textbf{gates}. Each gate is labeled with $\wedge, \vee$, or $\lnot$. Gates labeled with $\wedge$ (AND) or $\vee$ (OR) have two in-neighbors. Gates labeled with $\lnot$ (NOT) have one in-neighbor. \textbf{Parallel edges} are allowed. 
-        \item Exactly $m$ of the gates are also labeled with the $m$ labels 
-        \[Y[0], Y[1], ..., Y[m-1]\]
-        in addition to their label $\wedge$/$\vee$/$\lnot$. These are known as \textbf{outputs}. 
-    \end{enumerate}
-    The \textbf{size} of a Boolean circuit is the number of gates it contains. 
-  \end{definition}
-
-  Having parallel edges means that an AND or OR gate $u$ can have both its in-neighbors be the same gate $v$. Since $AND(a, a) = OR(a, a) = a$ for every $a \in \{0,1\}$, such parallel gates don't help in computing new values in circuits with AND/OR/NOT gates.
-
-  \begin{center}
-    \begin{circuitikz}\draw
-      (0, 0) node[and port] (and1) {}
-      (5,0) node[and port] (and2) {}
-      (and1.out)--(and2.in 1)
-      (and1.out)--(and2.in 2)
-      ;
-    \end{circuitikz}
-  \end{center}
-
-  We clarify the definition with the previous example of the function ALLEQ. 
-
-  \begin{figure}[H]
-    \centering 
-    \begin{circuitikz}[scale=0.4]
-      \draw
-      (2, 2) node[and port] (and1) {}
-      (2, 6) node[not port] (not1) {}
-      (2, 10) node[not port] (not2) {}
-      (8, 2) node[and port] (and2) {}
-      (8, 6) node[and port] (and3) {}
-      (8, -2) node[not port] (not3) {}
-      (14, 6) node[and port] (and4) {}
-      (14, 10) node[and port] (and5) {}
-      (14, 14) node[not port] (not4) {}
-      (19.5, 12) node[and port] (and6) {}
-      (24, 11) node[or port] (or1) {}
-      (-4,-1) node(d) {X[3]}
-      (-4, 3) node(c) {X[2]}
-      (-4, 8) node(b) {X[1]}
-      (-4, 12) node(a) {X[0]}
-      (a)--(not4.in)
-      (a)--(and5.in 1)
-      (b)--(not2.in)
-      (b)--(and1.in 1)
-      (c)--(not1.in) 
-      (c)--(and1.in 2)
-      (d)--(and2.in 2)
-      (d)--(not3.in) 
-      (and1.out)--(and2.in 1)
-      (not1.out)--(and3.in 2)
-      (not2.out)--(and3.in 1)
-      (and2.out)--(and5.in 2) 
-      (and3.out)--(and4.in 1) 
-      (and4.out)--(and6.in 2) 
-      (not3.out)--(and4.in 2) 
-      (and5.out)--(or1.in 2) 
-      (not4.out)--(and6.in 1)
-      (and6.out)--(or1.in 1)
-      (26, 11) node(y) {Y[0]}
-      (or1.out)--(y);
-      \draw[color=blue] (-5, -4) rectangle (-3, 16);
-      \node[color=blue, above] at (-4, 16) {n Inputs};
-      \draw[color=red] (-2, -4) rectangle (25, 16); 
-      \node[color=red, above] at (10,16) {s Gates};
-      \draw[color=teal] (20.5, 8.5) rectangle (24.5, 13);
-      \node[color=teal, below] at (20, 8.5) {m Outputs (Gates)};
-      \node at (18, 5) {$s \geq m$};
-    \end{circuitikz}
-    \caption{} 
-    \label{fig:alleq}
-  \end{figure}
-
-\subsection{Universal Operations and Gate Sets}
-
-  We have seen that the NAND and AON circuts are can be translated back and forth to each other. Similarly, we can do the same with NAND and AON straight line programs. 
-
-  \begin{definition}[Computability]
-    We can also see that a Boolean circuit naturally induces a function defined in the space $\{0,1\}^n$. That is, given Boolean circuit $C$ with $n$ inputs and $m$ outputs, let the \textit{output} of $C$ on the input $x \in \{0,1\}^n$ be denoted $C(x)$. Then, if a function
+  \begin{definition}[NAND Gate]
+    A \textbf{NAND gate} is defined as follows.\footnote{$\NAND$ is really the composition of the NOT and AND functions; that is, $\NAND(a, b) = (\NOT \circ \AND) (a, b)$.}  
     \begin{equation}
-      f: \{0,1\}^n \longrightarrow \{0,1\}^m
+      \NAND: \{0,1\}^2 \longrightarrow \{0,1\}, \qquad 
+      \NAND (a,b) = \overline{a \wedge b} = \begin{cases}
+        0 & a = b = 1 \\
+        1 & \text{else}
+      \end{cases}
     \end{equation}
-    satisfies $f(x) = C(x)$ for all $x \in \{0,1\}^n$, we say that the circuit $C$ \textbf{computes} $f$. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{circuitikz}[scale=0.9]
+        \draw
+        (0,2) node[nand port] (nand) {};
+      \end{circuitikz}    
+      \caption{A helpful hint to remember that this is NAND. Notice the D-shape of the AND gate with the circle at the output representing negation (NOT).} 
+      \label{fig:nand_gate}
+    \end{figure}
   \end{definition}
 
-  \begin{definition}[Equivalent in Power]
-    Two models are said to be \textbf{equivalent in power} if they can be used to compute the same set of functions. 
-  \end{definition}
+  \begin{theorem}[NAND is Universal]
+    The NAND function is universal. It follows that $\NAND$ gates and operators are universal. 
+  \end{theorem}
+  \begin{proof}
+    We can see that, using double negation, 
+    \begin{align}
+      \NOT(a) & = \NOT(\AND(a, a)) \\
+      & = \NAND(a, a)\\
+      \AND(a, b) & = \NOT(\NOT(\AND(a, b))) \\
+      & = \NOT(\NAND(a, b)) \\
+      & = \NAND(\NAND(a, b), \NAND(a, b)) \\
+      \OR(a, b) & = \NOT(\AND(\NOT(a), \NOT(b))) \\
+      & = \NOT(\AND(\NAND(a,a), \NAND(b,b))) \\
+      & = \NAND(\NAND(a, a), \NAND(b, b)) 
+    \end{align}
+  \end{proof}
+
+
 
   Just as we have defined the AON-CIRC program, we can define the notion of computation by a NAND-CIRC program in the natural way. 
 
@@ -185,43 +465,80 @@
     By $O(s)$, we mean that the bound is at most $c \cdot s$, where $c$ is a constant that is independent of $n$. For example, if $f$ can be computed by a Boolean circuit of $s$ gates, then it can be computed by a NAND-CIRC program of at most 3$s$ lines, and if $f$ can be computed by a NAND circuit of $s$ gates, then it can be computed by an AON-CIRC program of at most $2s$ lines. 
   \end{theorem}
 
-  We can expand beyond the basis functions of AND/OR/NOT or NAND to a general set of functions 
-  \[\mathcal{G} = \{G_0, G_1, ..., G_{k-1}\}\]
-  With this, we can define a notion of circuits that use elements of $\mathcal{G}$ as gates and a notion of a \textit{$\mathcal{G}$ programming language} where every line involves assigning to a variable $\texttt{foo}$ the result of applying some $G_i \in \mathcal{G}$ to previously defined or input variables. We state this formally. 
-
-  \begin{definition}[General Straight-line programs]
-    Let $\mathcal{F} = \{f_0, f_1, ..., f_{t-1}\}$ be a finite collection of Boolean functions such that
-    \[f_i: \{0,1\}^k \longrightarrow \{0,1\}\]
-    for some $k_i \in \mathbb{N}$. A \textbf{$\mathcal{F}$ program} is a sequence of lines, each of which assigns to some variable the result of applying some $f_i \in \mathcal{F}$ to $k_i$ other variables. As above, we use $\texttt{X[i]}$ and $\texttt{Y[j]}$ to denote the input and output variables. 
-
-    We say that $\mathcal{F}$ is a \textbf{universal set of operations} (or a \textbf{universal gate set}) if there exists a $\mathcal{F}$ program to compute the function NAND. 
-  \end{definition}
-
-  \begin{definition}[Multiplexor]
-    
-  \end{definition}
-
-  \begin{example}[Multiplexor and Constants are Universal]
-    Let $\mathcal{F} = \{IF, ZERO, ONE\}$ where 
+  \begin{definition}[NOR Gate]
+    A \textbf{NOR gate} is defined as follows.\footnote{NOR is really the composition of the NOT and OR functions; that is, $\NOR(a, b) = (\NOT \circ \OR) (a, b)$. }
     \begin{equation}
-      ZERO: \{0,1\} \longrightarrow \{0\}, \;\; ONE: \{0,1\} \longrightarrow \{1\}
-    \end{equation}
-    are the constant zero and one functions, and 
-    \begin{equation}
-      IF: \{0,1\}^3 \longrightarrow \{0,1\}, \; IF (a, b, c) = \begin{cases}
-        b & a = 1 \\
-        c & else 
+      \NOR: \{0,1\}^2 \longrightarrow \{0,1\}, \qquad 
+      \NOR (a,b) = \overline{a \vee b} = \begin{cases}
+        1 & a = b = 0 \\
+        0 & \text{else}
       \end{cases}
     \end{equation}
-    Then, $\mathcal{F}$ is universal since we can use the following formula to compute NAND: 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{circuitikz}[scale=0.9]
+        \draw
+        (0,2) node[nor port] (nor) {};
+      \end{circuitikz}    
+      \caption{A helpful hint to remember that this is NOR. Notice the rounded shape of the OR gate with the circle at the output representing negation (NOT).} 
+      \label{fig:nor_gate}
+    \end{figure}
+  \end{definition}
+
+  \begin{definition}[XOR Gate]
+    A \textbf{XOR gate} is defined as follows.  
     \begin{equation}
-      NAND(a, b) = IF\big( a, IF(b, ZERO, ONE), ONE\big)
+      \XOR: \{0,1\}^2 \longrightarrow \{0,1\}, \qquad 
+      \XOR (a,b) = a \oplus b = \begin{cases}
+        0 & a = b \\
+        1 & a \neq b
+      \end{cases}
     \end{equation}
+
+    \begin{figure}[H]
+      \centering 
+      \begin{circuitikz}[scale=0.9]
+        \draw
+        (0,2) node[xor port] (xor) {};
+      \end{circuitikz}    
+      \caption{A helpful hint to remember that this is XOR. Notice the additional curve on the OR gate shape, indicating that exactly one input must be 1 for the output to be 1.} 
+      \label{fig:xor_gate}
+    \end{figure}
+  \end{definition}
+
+  \begin{example}[XOR from NAND]
+    XOR can be expressed in terms of other logic gates as follows:
+    \begin{equation}
+      \XOR(a, b) = (a \wedge \neg b) \vee (\neg a \wedge b)
+    \end{equation}
+    We can create a NAND circuit of the XOR function that maps $x_0, x_1 \in \{0,1\}$ to $x_0 + x_1 \pmod{2}$. 
+    \begin{center}
+      \begin{circuitikz}[scale=0.4]
+        \draw
+        (0,0) node[nand port] (nand1) {}
+        (5, 2) node[nand port] (nand2) {}
+        (5, -2) node[nand port] (nand3) {}
+        (10,0) node[nand port] (nand4) {}
+        (nand1.out)--(nand2.in 2)
+        (nand1.out)--(nand3.in 1)
+        (nand2.out)--(nand4.in 1)
+        (nand3.out)--(nand4.in 2) 
+        (-6, 3) node(x1) {X[0]}
+        (-6, -3) node(x2) {X[1]}
+        (x1)--(nand1.in 1)
+        (x2)--(nand1.in 2)
+        (x1)--(nand2.in 1)
+        (x2)--(nand3.in 2)
+        (13,0) node(y) {Y[0]}
+        (nand4.out)--(y);
+      \end{circuitikz}
+    \end{center}
   \end{example}
 
   There are some sets $\mathcal{F}$ that are more restricted in power. For example, it can be shown that if we use only AND or OR gates (without NOT), then we do not get an equivalent model of computation. 
 
-\subsection{Syntactic Sugar}
+\subsection{Conditionals}
 
   Just as we have built the AND, OR, and NOT gates with the NAND gate, we can implement more complex features using our basic building blocks, and then use these new features themselves as building blocks for even more sophisticated features. This is known as \textbf{syntactic sugar}, since we are not modifying the underlying programming model itself, but rather we merely implement new features by syntactically transforming a program that uses such features into one that doesn’t. It makes the language "sweeter" for human use: things can be expressed more clearly, more concisely, or in an alternative style that some may prefer.
 
@@ -240,11 +557,38 @@
 
   Note that compared to writing out the full Boolean circuit without any syntactic sugar, one with sugar will can be much simpler. It's the difference between having access to only NAND, or all of NAND, AND, OR, NOT. 
 
-  \begin{definition}
+  \begin{definition}[NAND-CIRC-PROC]
     We call these the programming language NAND-CIRC augmented with the syntax above (for defining procedures) a \textbf{NAND-CIRC-PROC} program. Note that NAND-CIRC-PROC only allows \textit{non-recursive} procedures (that is, procedures that do not take in its return value as its argument). 
   \end{definition}
 
   We can define conditional (if/then) statements using NAND operators. The idea is to compute the function $IF: \{0,1\}^3 \longrightarrow \{0,1\}$ such that $IF(a, b, c)$ equals $b$ if $a = 1$ and $c$ if $a = 0$. 
+
+  \begin{definition}[Multiplexor Gate]
+    A \textbf{Multiplexor gate} (MUX) is defined as follows.  
+    \begin{equation}
+      \MUX: \{0,1\}^3 \longrightarrow \{0,1\}, \qquad 
+      \MUX (a, b, s) = \begin{cases}
+        a & s = 0 \\
+        b & s = 1
+      \end{cases}
+    \end{equation}
+    A multiplexor can be expressed using basic logic gates as follows:
+    \begin{equation}
+      \MUX(a, b, s) = (a \wedge \neg s) \vee (b \wedge s)
+    \end{equation}
+  \end{definition}
+
+  \begin{definition}[Demultiplexor Gate]
+    A \textbf{Demultiplexor gate} (DEMUX) is defined as follows.  
+    \begin{equation}
+      \DEMUX: \{0,1\}^2 \longrightarrow \{0,1\}^2, \qquad 
+      \DEMUX (d, s) = (y_0, y_1) \text{ where } \begin{cases}
+        y_0 = d \wedge \neg s \\
+        y_1 = d \wedge s
+      \end{cases}
+    \end{equation}
+    A demultiplexor routes the input $d$ to one of two outputs based on the select signal $s$.
+  \end{definition}
 
   \begin{definition}[Conditional Statement]
     The IF function can be implemented from NANDs as follows: 
@@ -268,6 +612,29 @@
   \begin{theorem}
     For every NAND-CIRC-IF program $P$, there exists a standard (i.e. "sugar-free") NAND- CIRC program $P^\prime$ that computes the same function as $P$. 
   \end{theorem}
+
+  \begin{theorem}[Constant Plus Multiplexor is Universal]
+    Let $\mathcal{F} = \{IF, ZERO, ONE\}$ where 
+    \begin{equation}
+      ZERO: \{0,1\} \longrightarrow \{0\}, \;\; ONE: \{0,1\} \longrightarrow \{1\}
+    \end{equation}
+    are the constant zero and one functions, and 
+    \begin{equation}
+      IF: \{0,1\}^3 \longrightarrow \{0,1\}, \; IF (a, b, c) = \begin{cases}
+        b & a = 1 \\
+        c & else 
+      \end{cases}
+    \end{equation}
+    Then, $\mathcal{F}$ is universal. 
+  \end{theorem}
+  \begin{proof}
+    We can use the following formula to compute NAND: 
+    \begin{equation}
+      NAND(a, b) = IF\big( a, IF(b, ZERO, ONE), ONE\big)
+    \end{equation}
+  \end{proof}
+
+\subsection{Arithmetic}
 
   We can write the integer addition function as follows: 
 
@@ -306,41 +673,8 @@
     be the function that, given $x, x^\prime \in \{0,1\}^n$, computes the representation of the product of the numbers that $x$ and $x^\prime$ represent. Then, there is a constant $c$ such that for every $n$, there is a NAND-CIRC program of at most $cn^2$ that computes the function $MULT_n$.\footnote{As we have seen in DSA, \textit{Karatsuba's algorithm} allows us to actually compute that there is a NAND-CIRC program of $O(n^{\log_2 3})$ lines to compute $MULT_n$. }
   \end{theorem}
 
-  The LOOKUP function tells us the value of a certain entry. 
-
-  \begin{definition}[Lookup function]
-    For every $k$, the \textbf{lookup function} of order $k$, 
-    \[LOOKUP_k: \{0,1\}^{2^k} \times \{0,1\}^k \simeq \{0,1\}^{2^k + k} \longrightarrow \{0,1\}\]
-    (where $\simeq$ denotes isomorphism) is defined as follows: For every $x \in \{0,1\}^{2^k}$ and $i \in \{0,1\}^k$, 
-    \[LOOKUP_k (x, i) = x_i\]
-    where $x_i$ denotes the $i$th entry of $x$ in binary representation. 
-  \end{definition}
-
-  \begin{theorem}
-    For every $k > 0$, there is a NAND-CIRC program that computes the function $LOOKUP_k: \{0,1\}^{2^k + k} \longrightarrow \{0,1\}$. The number of lines in this program is at most $4 \cdot 2^k$. This also means that $LOOKUP_k$ can be computed by a Boolean circuit (with AND, OR, and NOT) gates of at most $8 \cdot 2^k$ gates. 
-  \end{theorem}
-
-\subsection{Computability of Finite Functions}
-
-  In fact, we can compute \textit{every} finite function with a large enough Boolean (or equivalently, NAND) circuit. 
-
-  \begin{theorem}[Universality of Finite Functions]
-    There exists some constant $c > 0$ such that for every $n, m > 0$ and function
-    \[f: \{0,1\}^n \longrightarrow \{0,1\}^m\]
-    there is a NAND-CIRC program/NAND circuit,  with at most $c \cdot m 2^n$ lines/gates that computes the function $f$. 
-  \end{theorem}
-
-  Since the models of NAND circuits, NAND-CIRC programs, and AON-CIRC programs, and Boolean circuits are all equivalent to one another, we can restate the theorem as such. 
-
-  This may not be so surprising actually. After all, a finite function $f: \{0,1\}^n \longrightarrow \{0,1\}^m$ can be represented by simply the list of its outputs for each one of the $2^n$ input values. So it makes sense that we could write a NAND-CIRC program of similar size to compute it. 
-
-  \begin{definition}
-    For every $n, m \in \{1, 2, ..., 2s\}$, let $SIZE_{n, m} (s)$ denote the set of all functions $f: \{0,1\}^n \longrightarrow \{0,1\}^m$ such that $f \in SIZE(s)$. We denote $SIZE_n (s)$ to be just $SIZE_{n,1} (s)$. For every integer $s \geq 1$, we let 
-    \[SIZE(s) = \bigcup_{n, m \leq 2s} SIZE_{n, m} (s)\]
-    be the set of all functions $f$ that can be computed by NAND circuits of at most $s$ gates (or equivalently, by NAND-CIRC programs of at most $s$ lines). 
-  \end{definition}
-
   We can summarize the equivalence of these models below: 
+
   \begin{center}
     \begin{tikzpicture}
       \node at (0, 0) {AON-Bool Circuit};
@@ -362,6 +696,12 @@
 \section{Code as Data, Data as Code}
 
   A program is simply a sequence of symbols, each of which can be encoded in binary using (for example) the ASCII standard. Therefore, we can represent every NAND-CIRC program (and hence also every Boolean circuit) as a binary string. This means that we can treat circuits or NAND-CIRC programs both as instructions to carrying computation and also as \textit{data} that could potentially be used as \textit{inputs} to other computations. That is, \textbf{a program is a piece of text, and so it can be fed as input to other programs}. 
+
+  \begin{definition}
+    For every $n, m \in \{1, 2, ..., 2s\}$, let $SIZE_{n, m} (s)$ denote the set of all functions $f: \{0,1\}^n \longrightarrow \{0,1\}^m$ such that $f \in SIZE(s)$. We denote $SIZE_n (s)$ to be just $SIZE_{n,1} (s)$. For every integer $s \geq 1$, we let 
+    \[SIZE(s) = \bigcup_{n, m \leq 2s} SIZE_{n, m} (s)\]
+    be the set of all functions $f$ that can be computed by NAND circuits of at most $s$ gates (or equivalently, by NAND-CIRC programs of at most $s$ lines). 
+  \end{definition}
 
 \subsection{Representing Programs as Strings}
 
