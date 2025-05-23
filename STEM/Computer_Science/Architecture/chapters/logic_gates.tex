@@ -1,4 +1,4 @@
-\section{Logic Gates}
+\section{Circuits and Hardware Description Languages}
 
   We have seen in our theoretical computer science that the $\NAND$ gate is univeral, and we have implemented it with transistors in the previous chapter. Therefore using syntactic sugar, we can apply the rest of the elementary gates. The common unary and binary logic gates are listed below as a refresher. 
 
@@ -84,48 +84,75 @@
     \label{fig:logic-gates}    
   \end{figure}
 
-  \begin{definition}[Multi-Bit NOT Gate]
-    
-  \end{definition}
+  Now that we know about chips, perhaps we are ready to mass produce them. Consider the following scenario where you are a hardware engineer with three boxes full of $\AND, \OR, \NOT$ gates. You need to ship an order of 1000 $\XOR$ gates. How would you do this? To construct one $\XOR$ gate, you can follow the example below. 
 
-  \begin{definition}[Multi-Bit AND Gate]
-    
-  \end{definition}
+  \begin{figure}[H]
+    \centering 
+    \begin{tikzpicture}[circuit logic US]
+      % Input nodes
+      \node (a) at (0,3) {a};
+      \node (b) at (0,1) {b};
 
-  \begin{definition}[Multi-Bit OR Gate]
-    
-  \end{definition}
+      % NOT gates (top and bottom)
+      \node[not gate, draw] (not1) at (2,2.5) {};
+      \node[not gate, draw] (not2) at (2,1.5) {};
 
-  \begin{definition}[Multi-Bit NAND Gate]
-    
-  \end{definition}
+      % AND gates
+      \node[and gate, draw] (and1) at (5,2.9) {};
+      \node[and gate, draw] (and2) at (5,1.1) {};
 
-  \begin{definition}[Multi-Bit XOR Gate]
-    
-  \end{definition}
+      % OR gate
+      \node[or gate, draw, logic gate inputs=nn] (or1) at (6,2) {};
 
-  \begin{definition}[Multi-Bit Multiplexor Gate]
-    
-  \end{definition}
+      % Output node
+      \node (out) at (7,2) {out};
 
-  \begin{definition}[Multi-Bit Demultiplexor Gate]
-    
-  \end{definition}
+      % Main input lines with junction dots
+      \draw (a) -- (1,3) node[circle,fill,inner sep=1pt] {} -- (1.5,3);
+      \draw (b) -- (1/5,1) node[circle,fill,inner sep=1pt] {} -- (1.5,1);
 
+      % Connections from input a
+      \draw (1,3) |- (not2.input);
+      \draw (1,3) -- (3.5,3) |- (and1.input 1);
 
-  boolean operations
+      % Connections from input b  
+      \draw (1.5,1) |- (not1.input);
+      \draw (1.5,1) -- (3.5,1) |- (and2.input 2);
 
-\subsection{Hardware Description Languages (HDL)}
+      % NOT gate outputs to AND gates
+      \draw (not1.output) |- (and1.input 2);
+      \draw (not2.output) |- (and2.input 1);
 
-  Clearly, engineers don't probably spend their days endlessly drawing little gates on paper. Thankfully, we have established that \textit{straight-line programs} are an equivalent model of finite computation, and so we can use lexical programs to model boolean circuits. These programs are called \textbf{hardware description languages (HDL)} and are used to model and design these digital systems. Historically, \textit{Verilog} was the most dominant, but it has been largely replaced by \textit{SystemVerilog} and \textit{VHDL}. Regardless, both of these are a superset of Verilog, and we will begin with this. 
+      % AND gate outputs to OR gate with junction dots
+      \draw (and1.output) |- (or1.input 1);
+      \draw (and2.output) |- (or1.input 2);
 
-  \begin{definition}[Function Module]
+      % Final output
+      \draw (or1.output) -- (out);
+    \end{tikzpicture}
+    \caption{XOR Chip from AON gates.} 
+    \label{fig:xor_from_aon}
+  \end{figure}
+
+  We would take two $\AND$ gates, two $\NOT$ gates, and one $\OR$ gate, mount them on a board according to the figure's layout, and connect the chips to one another by running copper wires among them and soldering the wire ends to the respective input/output pins. After this, we will have 3 exposed wire ends---two inputs and one output. We then solder a pin to each one of these wire ends, seal the entire device (except for the three pins) in a plastic encasing, and label it as $\XOR$. Do this 1000 times and you're done. 
+
+  There's a lot of problems with this, with the foremost being that this might be error-prone, especially in more complex chips. There is guarantee that the given chip diagram is correct. Although we can prove correctness in simple cases like $\XOR$, we cannot do so in realistically complex chips. Thus, we need to empirically test the chip, i.e. connect it to a power supply, activate/deactivate the input pins in various configurations, and hope that the chip outputs will agree with its specifications. 
+
+  Even this debugging process can be quite time-intensive if we endlessly tinker with wires and circuits. Therefore, engineers simulate the construction and testings of these circuits with \textbf{hardware simulators}. Remember that we have established that \textit{straight-line programs} are an equivalent model of finite computation, and so we can use lexical programs to model boolean circuits. These programs are called \textbf{hardware description languages (HDL)} (analogous to software language) and are used to model and design these digital systems. Once you have written a script in some HDL, you can use a \textbf{hardware simulator} (analogous to compiler) to test the circuit. We will use the Verilog language along with the Icarus Verilog hardware simulator.\footnote{Historically the \textit{VHDL} language was created as a military project---and is still in use---but is a bit ugly.  Then, \textit{Verilog} became the most dominant, but it has been largely replaced by \textit{SystemVerilog}. Regardless, both of these are a superset of Verilog, and we will begin with this. Given the Verilog language, \textit{Icarus Verilog} is its corresponding open-source hardware simulator that runs on all platforms (Windows, Mac, Linux).}
+
+  \begin{definition}[Module]
     A \textbf{module} represents some sort of class. 
     \begin{enumerate}
-      \item The \textbf{ports} represent the inputs and outputs of a gate, represented with the \texttt{input} and \texttt{output} keywords. It is conventional to put the outputs first and then the inputs. 
+      \item \textbf{Ports} represent the inputs and outputs of a gate, represented with the \texttt{input} and \texttt{output} keywords. You might see a convention to put the outputs first and then the inputs. 
+      \item \textbf{Wires} are used for connecting different elements, like physical wires between gates. You can think of them as signals, which can be read (is current flowing?) or assigned, but no values get stored in them. They are automatically updated when input changes are specified with the \texttt{wire} keyword. 
+      \item \textbf{Regs} are like variables that store values---similar to physical registers in CPUs. They are specified with the \texttt{reg} keyword. 
       \item The output value is determined by some logic using the \texttt{assign} keyword. 
     \end{enumerate}
+  \end{definition}
 
+\subsection{Structural Modeling}
+  
+  \begin{definition}[Function Module]
     \begin{lstlisting}
       module nand_gate(
         input a, b,
@@ -136,13 +163,60 @@
     \end{lstlisting}
   \end{definition}
 
+  \begin{example}[Gate Level Implementation of Multiplexor]
+    \begin{lstlisting}
+      module multiplex_gate_level(A, B, X, out1); 
+        input A, B, X; 
+        output out1; 
+
+        wire not_x; 
+        wire out_and1, out_and2; 
+
+        not not1(not_X, X); 
+        and and1(out_and1, not_X, A); 
+        and and2(out_and2, X, B); 
+        or or1(out1, out_and1, out_and2); 
+      endmodule
+    \end{lstlisting}
+  \end{example}
+
+  Another way we can do this is by focusing on the flow of data. 
+
+  \begin{example}[Dataflow Level Implementation of Multiplexor]
+    \begin{lstlisting}
+      module multiplex_gate_level(A, B, X, out1); 
+        input A, B, X; 
+        output out1; 
+
+        assign out1 = (~X&A)|(B&X);
+      endmodule
+    \end{lstlisting}
+  \end{example}
+
+\subsection{Behavioral Modeling}
+
+  Can be efficient but a bit cryptic. So we really want to describe the behavior of the circuit rather than what the circuit actually is. So we do not have to worry about the implementation details, like an abstraction above the circuit. 
+
+  \begin{example}[Behavioral Level Implementation of Multiplexor]
+    In here, we don't care what the circuit looks like, and we model the behavior. 
+    \begin{lstlisting}
+      module multiplex_gate_level(A, B, X, out1); 
+        input A, B, X; 
+        output out1; 
+
+        always @(*)
+        begin
+          if(X==0) 
+            out1 = A; 
+          else 
+            out1 = B; 
+        end
+      endmodule
+    \end{lstlisting}
+  \end{example}
+
   \begin{definition}[Test Bench Module]
-    A \textbf{testbench module} represents a suite of inputs that you want to test. 
-    \begin{enumerate}
-      \item Variables that store values---like registers---are specified with the \texttt{reg} keyword. 
-      \item Signals that are continuously driven (i.e. cannot store states) and are automatically updated when inputs changes are specified with the \texttt{wire} keyword. 
-      \item The \textbf{device under test (dut)} connects the testbench signals to the DUT ports using named port connections. 
-    \end{enumerate}
+    A \textbf{testbench module} represents a suite of inputs that you want to test. The \textbf{device under test (dut)} connects the testbench signals to the DUT ports using named port connections. 
 
     \begin{lstlisting}[language=Verilog]
       module nand_gate_tb;
@@ -173,4 +247,35 @@
       endmodule
     \end{lstlisting}
   \end{definition}
+
+\subsection{Multi-Bit Gates}
+
+  \begin{definition}[Multi-Bit NOT Gate]
+    
+  \end{definition}
+
+  \begin{definition}[Multi-Bit AND Gate]
+    
+  \end{definition}
+
+  \begin{definition}[Multi-Bit OR Gate]
+    
+  \end{definition}
+
+  \begin{definition}[Multi-Bit NAND Gate]
+    
+  \end{definition}
+
+  \begin{definition}[Multi-Bit XOR Gate]
+    
+  \end{definition}
+
+  \begin{definition}[Multi-Bit Multiplexor Gate]
+    
+  \end{definition}
+
+  \begin{definition}[Multi-Bit Demultiplexor Gate]
+    
+  \end{definition}
+
 
