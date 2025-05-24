@@ -1,0 +1,304 @@
+\section{Combinational Chips}
+
+
+  Talk about how to construct arithmetic operations with these gates such as adding two integers or multiplying them, and not just that, but other operations that we may need in a programming language. 
+
+\subsection{Addition and Subtraction} 
+
+  We present a hierarchy of three adders, leading to a multi-bit adder chip. Note that every single chip here represents a finite function, and so from  \hyperref[th-thm:aon_univ]{universality of AON gates} we know that an implementation is definitely possible. 
+  
+  \begin{definition}[Half-Adder Chip] 
+    A \textbf{half-adder} is designed to add two bits. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tabular}{|c|c||c|c|}
+          \hline
+          \multicolumn{2}{|c||}{\textbf{Inputs}} & \multicolumn{2}{c|}{\textbf{Outputs}} \\
+          \hline
+          \textbf{a} & \textbf{b} & \textbf{carry} & \textbf{sum} \\
+          \hline
+          0 & 0 & 0 & 0 \\
+          \hline
+          0 & 1 & 0 & 1 \\
+          \hline
+          1 & 0 & 0 & 1 \\
+          \hline
+          1 & 1 & 1 & 0 \\
+          \hline
+        \end{tabular}
+        \caption{Truth table for half adder.}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}
+          % Block diagram
+          \node[rectangle, draw, thick, minimum width=2cm, minimum height=1.5cm, font=\bfseries] 
+              (halfadder) at (0, 0) {Half Adder};
+
+          % Input lines
+          \draw[thick, ->] (-2.5, 0.7) -- (-1, 0.7) node[left] at (-2.5, 0.7) {a};
+          \draw[thick, ->] (-2.5, -0.7) -- (-1, -0.7) node[left] at (-2.5, -0.7) {b};
+
+          % Output lines  
+          \draw[thick, ->] (1, 0.7) -- (2.5, 0.7) node[right] at (2.5, 0.7) {sum};
+          \draw[thick, ->] (1, -0.7) -- (2.5, -0.7) node[right] at (2.5, -0.7) {carry};
+        \end{tikzpicture}
+        \caption{}
+      \end{subfigure}
+      \caption{Chip diagram for half adder.}
+    \end{figure}
+  \end{definition}
+
+  \begin{theorem}[Implementation of Half-Adder]
+    To construct this chip, note that the way sum and carry acts on $a, b$ is identical to the standard $\XOR(a, b)$ and $\AND(a, b)$ functions. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[circuit logic US]
+          % Input nodes
+          \node (a) at (0,2.6) {a};
+          \node (b) at (0,1.4) {b};
+
+          % Logic gates
+          \node[xor gate, draw] (xor1) at (3,2.5) {};
+          \node[and gate, draw] (and1) at (3,1.5) {};
+
+          % Output labels
+          \node (sum) at (5,2.5) {sum};
+          \node (carry) at (5,1.5) {carry};
+
+          % Input connections
+          \draw (a) -| (xor1.input 1);
+          \draw (a) -- (1, 2.6) -- (1, 1.6) -| (and1.input 1);
+          \draw (b) -- (1.5, 1.4) -- (1.5, 2.4) -| (xor1.input 2);
+          \draw (b) -| (and1.input 2);
+
+          % Output connections
+          \draw (xor1.output) -- (sum);
+          \draw (and1.output) -- (carry);
+
+          % Add dots at connection points for clarity
+          \fill (1.5,1.4) circle (1.5pt);
+          \fill (1,2.6) circle (1.5pt);
+        \end{tikzpicture}
+        \caption{}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{lstlisting}
+          module half_adder(
+            input a, b, 
+            output s, c
+          ); 
+            assign s = a ^ b;
+            assign c = a & b;
+          endmodule
+        \end{lstlisting}
+        \caption{HDL implementation.}
+      \end{subfigure}
+      \caption{}
+    \end{figure}
+  \end{theorem}
+
+  \begin{definition}[Full-Adder] 
+    Now that we know how to add two bits, a \textbf{full-adder chip}  allows us to add 3 bits. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tabular}{|c|c|c||c|c|}
+          \hline
+          \multicolumn{3}{|c||}{\textbf{Inputs}} & \multicolumn{2}{c|}{\textbf{Outputs}} \\
+          \hline
+          \textbf{a} & \textbf{b} & \textbf{cin} & \textbf{cout} & \textbf{sum} \\
+          \hline
+          0 & 0 & 0 & 0 & 0 \\
+          \hline
+          0 & 0 & 1 & 0 & 1 \\
+          \hline
+          0 & 1 & 0 & 0 & 1 \\
+          \hline
+          0 & 1 & 1 & 1 & 0 \\
+          \hline
+          1 & 0 & 0 & 0 & 1 \\
+          \hline
+          1 & 0 & 1 & 1 & 0 \\
+          \hline
+          1 & 1 & 0 & 1 & 0 \\
+          \hline
+          1 & 1 & 1 & 1 & 1 \\
+          \hline
+        \end{tabular}
+        \caption{Truth table for full adder.}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}
+          % Block diagram
+          \node[rectangle, draw, thick, minimum width=2cm, minimum height=2cm, font=\bfseries] 
+              (fulladder) at (0, 0) {Full Adder};
+          % Input lines
+          \draw[thick, ->] (-2.5, 1) -- (-1, 1) node[left] at (-2.5, 1) {a};
+          \draw[thick, ->] (-2.5, 0) -- (-1, 0) node[left] at (-2.5, 0) {b};
+          \draw[thick, ->] (-2.5, -1) -- (-1, -1) node[left] at (-2.5, -1) {cin};
+          % Output lines  
+          \draw[thick, ->] (1, 0.5) -- (2.5, 0.5) node[right] at (2.5, 0.5) {sum};
+          \draw[thick, ->] (1, -0.5) -- (2.5, -0.5) node[right] at (2.5, -0.5) {cout};
+        \end{tikzpicture}
+        \caption{Block diagram for full adder.}
+      \end{subfigure}
+      \caption{Chip diagram for full adder.}
+    \end{figure}
+  \end{definition}
+
+  \begin{theorem}[Implementation of Full-Adder]
+    We can implement a full adder with 2 half-adders and an $\OR$ gate. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[circuit logic US]
+        % Input labels
+        \node at (0, 2.8) {A};
+        \node at (0, 2.2) {B};
+        \node at (0, 1.6) {C};
+
+        % First Half Adder
+        \node[rectangle, draw, minimum width=2cm, minimum height=1.2cm] 
+          (ha1) at (2.5, 2.5) {Half Adder};
+
+        % Second Half Adder
+        \node[rectangle, draw, minimum width=2cm, minimum height=1.2cm] 
+          (ha2) at (5.6, 1.9) {Half Adder};
+
+        \node[or gate, draw, scale=1.7] (or1) at (8, 2.5) {};
+
+        \draw (0.2, 2.75) -- (1.5, 2.75);
+        \draw (0.2, 2.25) -- (1.5, 2.25);
+        \draw (0.2, 1.6) -- (4.6, 1.6);
+
+        \draw (3.5, 2.75) -| (or1.input 1);
+        \draw (3.5, 2.25) -- (4.6, 2.25);
+        \draw (6.6, 2.25) -| (or1.input 2);
+        \draw (or1.output) |- (9.4, 2.5);
+        \draw (6.6, 1.6) -- (9.4, 1.6);
+        \node at (9.8, 2.5) {Carry};
+        \node at (9.8, 1.6) {Sum};
+      \end{tikzpicture}
+      \caption{} 
+    \end{figure}
+  \end{theorem}
+
+  \begin{definition}[N-Bit Adder]
+    Usually, $N$ is $16, 32, 64$, or $128$. 
+  \end{definition}
+
+  \begin{theorem}[Implementation of $N$-Bit Addition]
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}
+        % Input labels at the top
+        \node at (1.3, 5) {A3};
+        \node at (2, 5) {B3};
+        \node at (2.7, 5) {cin};
+        \draw[->] (1.3, 4.8) -- (1.3, 4.15);
+        \draw[->] (2, 4.8) -- (2, 4.15);
+        \draw[->] (2.7, 4.8) -- (2.7, 4.15);
+
+        \node at (5.3, 5) {A2};
+        \node at (6, 5) {B2};
+        \node at (6.7, 5) {cin};
+        \draw[->] (5.3, 4.8) -- (5.3, 4.15);
+        \draw[->] (6, 4.8) -- (6, 4.15);
+        \draw[->] (6.7, 4.8) -- (6.7, 4.15);
+
+        \node at (9.3, 5) {A1};
+        \node at (10, 5) {B1};
+        \node at (10.7, 5) {cin};
+        \draw[->] (9.3, 4.8) -- (9.3, 4.15);
+        \draw[->] (10, 4.8) -- (10, 4.15);
+        \draw[->] (10.7, 4.8) -- (10.7, 4.15);
+
+        \node at (13.5, 5) {A0};
+        \node at (14.5, 5) {B0};
+        \draw[->] (13.5, 4.8) -- (13.5, 4.15);
+        \draw[->] (14.5, 4.8) -- (14.5, 4.15);
+
+        \node[rectangle, draw, thick, minimum width=2cm, minimum height=1.2cm] 
+          (fa3) at (2, 3.5) {F A};
+        \node[rectangle, draw, thick, minimum width=2cm, minimum height=1.2cm] 
+          (fa2) at (6, 3.5) {F A};
+        \node[rectangle, draw, thick, minimum width=2cm, minimum height=1.2cm] 
+          (fa1) at (10, 3.5) {F A};
+        \node[rectangle, draw, thick, minimum width=2cm, minimum height=1.2cm] 
+          (ha0) at (14, 3.5) {H A};
+
+        \draw[->] (2, 2.9) -- (2, 2.1);
+        \node[below] at (2, 2.1) {Sum};
+
+        \draw[->] (6, 2.9) -- (6, 2.1);
+        \node[below] at (6, 2.1) {Sum};
+
+        \draw[->] (10, 2.9) -- (10, 2.1);
+        \node[below] at (10, 2.1) {Sum};
+
+        \draw[->] (14, 2.9) -- (14, 2.1);
+        \node[below] at (14, 2.1) {Sum};
+
+        \draw[->] (13,3.5) -- (12.5, 3.5) -- (12.5, 5) -- (11, 5);
+        \draw[->] (9,3.5) -- (8.5, 3.5) -- (8.5, 5) -- (7, 5);
+        \draw[->] (5,3.5) -- (4.5, 3.5) -- (4.5, 5) -- (3, 5);
+        \node at (0, 3.5) {...};
+      \end{tikzpicture}
+      \caption{Ripple carry adder for the last 4 significant bits of two $N$-bit numbers.} 
+    \end{figure}
+  \end{theorem}
+
+  \begin{corollary}[Implemention for $N$-Bit Subtraction]
+    
+  \end{corollary}
+
+  This is a standard construction and a goods start, but there are a few pitfalls of this. First, this does not detect nor handle overflows after adding. This will be handled at the operating system level. Second, addition is limited in that we can only apply it for precisely 2 arguments. 
+
+  \begin{example}[More Arguments for Binary Addition]
+    Note that the full adder---which takes in 3 bits---was designed so that there is enough space for each digit of the 2 inputs, plus a potential carry. If there were 3 inputs, then the full adder would need to support 4 inputs. Even worse, if we have $1 + 1 + 1 + 1 = 100$, then our carry digit will be greater than 1 digit, which messes things up even more. 
+  \end{example}
+
+  Finally, note that this is not a very efficient way to add because there are delays as the carry bit propagates from the least significant to the most significant bit pair. We can improve this with carry look-ahead techniques. 
+
+\subsection{Multiplication} 
+
+  \begin{theorem}[Implementation of Bitshift Operations]
+    
+  \end{theorem}
+
+  The reason bitshift is introduced first is that in binary, bit-shifting is equivalent to multiplication! 
+
+  \begin{theorem}[Implementation of Multiplication in Circuits]
+    
+  \end{theorem}
+
+  \begin{theorem}[Implementation of Moving Data in Circuits]
+    
+  \end{theorem}
+
+\subsection{Arithmetic Logical Unit (ALU)}
+
+\subsection{Conditionals}
+
+  We also want some sort of conditionals. This then can be used to implement loops by checking some conditional. 
+
+  \begin{theorem}[Implementation of Conditionals in Circuits]
+    
+  \end{theorem}
+
+
