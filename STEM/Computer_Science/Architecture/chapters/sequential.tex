@@ -1,6 +1,6 @@
 \section{Sequential Chips}
 
-  Now that we know how the NAND gate---and therefore every other fundamental gate---works, and we have constructed the clock, the next natural step is to be able to store a string of bits.\footnote{Most courses teach combinational logic first and then sequential, but this may not be the most optimal dependency sequence for two reasons. We can indeed do arithmetic without memory by directly applying an electric current to the input wires in a circuit, but this severely limits the computation that we can do. We would essentially have to do everything in ``one shot'' and immediately collect the results. While this is fine for addition, I cannot introduce an efficient schema of multiplication without knowing how to bit-shift, which is dependent on some form of memory. On a broader scale, almost all algorithms we worked with require some memory at some point, so memory may be more fundamental than computation.} Computers must be equipped with memory elements that can preserve data over time. These memory elements are built from \textit{sequential chips}. 
+  Now that we know how the NAND gate---and therefore every other fundamental gate---works, and we have constructed the clock, the next natural step is to be able to store a string of bits.\footnote{Most courses teach combinational logic first and then sequential, but this may not be the most optimal dependency sequence for two reasons. We can indeed do arithmetic without memory by directly applying an electric current to the input wires in a circuit, but this severely limits the computation that we can do. We would essentially have to do everything in ``one shot'' and immediately collect the results. While this is fine for addition, I cannot introduce an efficient schema of multiplication without knowing how to bit-shift, which is dependent on some form of memory. On a broader scale, almost all algorithms we worked with require some memory at some point, so memory may be more fundamental than computation. Thanks the Phillip Williams for talking with me on this!} Computers must be equipped with memory elements that can preserve data over time. These memory elements are built from \textit{sequential chips}. 
 
 \subsection{Latches}
 
@@ -10,7 +10,7 @@
     The \textbf{set-reset (SR) latch} is a circuit that stores 1-bit memory. This is based on \textit{pulses} and we do not care about the duration of a signal. That is, if we activate a signal to inputs $S, R$ at \textit{any} point in time, then the output $Q$ will remain locked in some state, even \textit{after} the input signal disappears. 
   \end{definition}
 
-  The SR latch---like all electronic circuits---require power to work, labeled with $S$ and $R$. The output is really just $Q$, but we can add redundancy by making the inverse $\overline{Q}$ available as well. There are two implementations of an SR latch, which have symmetric behaviors. 
+  The SR latch---like all electronic circuits---require power to work, labeled with $S$ and $R$. The output is really just $Q$, but we can add redundancy by making the inverse $\overline{Q}$ available as well. There are two implementations of an SRlatch, which have symmetric behaviors. 
 
   \begin{theorem}[Active High SR Latch]
     A NOR SR latch can be implemented in the following circuit below, with its corresponding truth table. 
@@ -1008,7 +1008,7 @@
 
 \subsection{Flip Flops}
 
-  So far, we have considered various mechanisms that allowed for greater control of a latch, along with robustness to noise. Now we revisit the final problem of attempting to \textit{coordinate} a group of latches. 
+  So far, we have considered various mechanisms that allowed for greater control of a latch, along with robustness to noise. Now we revisit the final problem of attempting to \textit{coordinate} a group of latches, where timing is a fundamental consideration. Just like the conductor of an orchestra, the clock sets the timing and the pace of everything in the computer, which consists of both fast and slow moving parts. 
 
   \begin{figure}[H]
     \centering 
@@ -1020,13 +1020,27 @@
         \draw (D1.pin 1) -- ++ (-3, 0);
       }
     \end{tikzpicture}
-    \caption{The ideal situation is that all the signals into $D$ will arrive, and then the next clock cycle begins, allowing each of the D-latches to update their states.} 
+    \caption{}
   \end{figure}
 
-  There are new problems when considering a group of latches. First, there are many fast and slow moving parts of a computer. Therefore, we must wait for all wires to arrive---which may be a long time due to propagation delay---before we want to update the group of D-latches. Otherwise, the saved input would be garbage. To fix this, we could just decrease the frequency 
+  Ideally, to synchronize the setting of these latches we'd make all of the inputs the way we want them to be while the clock signal is low. Then, when the clock signal becomes high, these input values would be transmitted to the latches and their values stored. 
+
+  But unwanted fluctuations---known as \textit{glitches}---can occur on the data lines because of propagation delays and even noise.  Conceivably, we can have a situation in which our latches haven't had enough time to achieve their correct values before the clock pulse ends. It is crucial that these inputs are allowed to settle into their correct values while the clock signal is high. This is because there is a different circuit ready to make iemmediate use of the data in the register, even perhaps during the very next clock cycle. The outputs of these latches have to be stable before they are sampled. The data in this register must be accurate before something else reads it. Otherwise, we would have complete garbage outputs. 
+
+  We could try to avoid the problem caused by glitches by speeding up the clock, allowing less time for them to matter, but we also have to allow time for the components to do their jobs. We have to cater for their propagation delays. If a clock is running too quickly, some components won't be able to keep up. 
+
+  We can also make circuits less susceptible to glitches by building edge-triggered devices like pulse latches, but the rising edge of a clock cycle is only in the order of a few nanoseconds, and even with very careful design, there might not be enough time for everything to keep pace. Therefore, the clock period must be so that all of the other circuits have time to stabilize during the same high phase of the same clock cycle. 
+
+  Ultimately, if all circuits in a computer work on the basis that only one signal change per clock cycle matters, then their behavior can be coordinate reliably. One way that we can ensure that this is the case is to build a memory device that is immune to glitches, called the \textit{master-slave D-type flip-flop}. With this, we can precisely control the moment at which a group of them will change state. 
 
   \begin{definition}[Master-Slave D-Type Flip Flop]
-    The \textbf{master-slave D-Type flip-flop}, we can precisely control the moment at which a group of them will change state. 
+    The \textbf{master-slave D-Type flip-flop (DFF)} consists of two active-high gated latches. The left portion, called the \textit{master}, is a gated D-latch. The right portion, called the \textit{slave}, is a gated SR latch that takes the output of the master as its input and is enabled by the inverse of the clock signal. 
+
+    Taken together, the data and the clock inputs enable to the DFF to implement the time-based behavior 
+    \begin{equation}
+      \mathrm{out}(t) = \mathrm{in}(t - 1) 
+    \end{equation}
+    That is, the DFF outputs the input value from the previous time unit. 
 
     \begin{figure}[H]
       \centering 
@@ -1036,21 +1050,24 @@
           \node[nand gate] (nand24) at (-2, -1.1) {};
           \node[nand gate] (nand14) at (0, 1) {}; 
           \node[nand gate] (nand23) at (0, -1) {}; 
-          \draw (-3, 1.2) -- (nand13.input 1);
-          \draw (-3, -1.2) -- (nand24.input 2);
-          \draw (-8.2, -1.2) -- (-8.2, -1.7) -- (-3.3, -1.7) -- (-3.3, 0) -- (-2.7, 0) -- (-2.7,1) -- (nand13.input 2);
-          \draw (-3, 0) -- (-2.7, 0) -- (-2.7,-1) -- (nand24.input 1);
+          \node[not gate] (not) at (-5.5, -1.7) {}; 
+          \draw[red] (-3, 1.2) -- (nand13.input 1);
+          \draw[blue] (-3, -1.2) -- (nand24.input 2);
+          \draw[red] (-8.2, -1.2) -- (-8.2, -1.7) -- (not.input); 
+          \draw[blue] (not.output) -- (-3.3, -1.7) -- (-3.3, 0) -- (-2.7, 0) -- (-2.7,1) -- (nand13.input 2);
+          
+          \draw[blue] (-3, 0) -- (-2.7, 0) -- (-2.7,-1) -- (nand24.input 1);
           \node[right] at (2, 1) {$Q$};
           \node[right] at (2, -1) {$\overline{Q}$};
-          \draw (nand13.output) -- (nand14.input 1);
-          \draw (nand24.output) -- (nand23.input 2);
-          \draw (nand14.output) -- (2, 1); 
-          \draw (nand23.output) -- (2, -1); 
-          \draw (nand14.output) -- (1.5, 1) -- (1.5, 0.8) -- (-1, -0.7) -- (-1, -0.9) -- (nand23.input 1);
-          \draw (nand23.output) -- (1.5, -1) -- (1.5, -0.8) -- (-1, 0.7) -- (-1, 0.9) -- (nand14.input 2);
-          \fill (1.5,1) circle (1.5pt);
-          \fill (1.5,-1) circle (1.5pt);
-          \fill (-2.7,0) circle (1.5pt);
+          \draw[red] (nand13.output) -- (nand14.input 1);
+          \draw[red] (nand24.output) -- (nand23.input 2);
+          \draw[blue] (nand14.output) -- (2, 1); 
+          \draw[red] (nand23.output) -- (2, -1); 
+          \draw[blue] (nand14.output) -- (1.5, 1) -- (1.5, 0.8) -- (-1, -0.7) -- (-1, -0.9) -- (nand23.input 1);
+          \draw[red] (nand23.output) -- (1.5, -1) -- (1.5, -0.8) -- (-1, 0.7) -- (-1, 0.9) -- (nand14.input 2);
+          \fill[blue] (1.5,1) circle (1.5pt);
+          \fill[red] (1.5,-1) circle (1.5pt);
+          \fill[blue] (-2.7,0) circle (1.5pt);
         \end{scope}
 
         \node[nand gate] (nand1) at (-2, 1.1) {};
@@ -1058,38 +1075,471 @@
         \node[nand gate] (nor1) at (0, 1) {}; 
         \node[nand gate] (nor2) at (0, -1) {}; 
 
-        \draw (-3.5, 1.2) -- (nand1.input 1);
-        \draw (-3.5, -1.2) -- (nand2.input 2);
+        \draw[red] (-3.5, 1.2) -- (nand1.input 1);
+        \draw[red] (-3.5, -1.2) -- (nand2.input 2);
         \node[left] at (-3.5,-1.2) {CLK};
         \node[left] at (-3.5,1.2) {$D$};
 
-        \draw (-3.5, -1.2) -- (-3.2, -1.2) -- (-3.2, 1) -- (nand1.input 2);
-        \fill (-3.2, -1.2) circle (1.5pt);
-        \draw (nand1.output) -- (-1.2, 1.1) -- (-1.2, 0.9) -- (-2.7, -0.9) -- (-2.7, -1) -- (nand2.input 1);
+        \draw[red] (-3.5, -1.2) -- (-3.2, -1.2) -- (-3.2, 1) -- (nand1.input 2);
+        \fill[blue] (-3.2, -1.2) circle (1.5pt);
+        \draw[blue] (nand1.output) -- (-1.2, 1.1) -- (-1.2, 0.9) -- (-2.7, -0.9) -- (-2.7, -1) -- (nand2.input 1);
 
-        \draw (nand1.output) -- (nor1.input 1);
-        \draw (nand2.output) -- (nor2.input 2);
-        \draw (nor1.output) -- (2, 1) -- (2, 1.2); 
-        \draw (nor2.output) -- (2, -1) -- (2, -1.2); 
+        \draw[blue] (nand1.output) -- (nor1.input 1);
+        \draw[red] (nand2.output) -- (nor2.input 2);
+        \draw[red] (nor1.output) -- (2, 1) -- (2, 1.2); 
+        \draw[blue] (nor2.output) -- (2, -1) -- (2, -1.2); 
 
-        \draw (nor1.output) -- (1.5, 1) -- (1.5, 0.8) -- (-1, -0.7) -- (-1, -0.9) -- (nor2.input 1);
-        \draw (nor2.output) -- (1.5, -1) -- (1.5, -0.8) -- (-1, 0.7) -- (-1, 0.9) -- (nor1.input 2);
-        \fill (1.5,1) circle (1.5pt);
-        \fill (1.5,-1) circle (1.5pt);
+        \draw[red] (nor1.output) -- (1.5, 1) -- (1.5, 0.8) -- (-1, -0.7) -- (-1, -0.9) -- (nor2.input 1);
+        \draw[blue] (nor2.output) -- (1.5, -1) -- (1.5, -0.8) -- (-1, 0.7) -- (-1, 0.9) -- (nor1.input 2);
+        \fill[red] (1.5,1) circle (1.5pt);
+        \fill[blue] (1.5,-1) circle (1.5pt);
       \end{tikzpicture} 
-      \caption{} 
+      \caption{The master reads the input value $D$ when the clock signal is high (or more specifically, the rising edge of the clock cycle) and latches onto it. Meanwhile, the slave is disabled, so the new output from the flip flop is not available just yet. } 
+    \end{figure}
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[circuit logic US]
+        \begin{scope}[xshift=5cm]
+          \node[nand gate] (nand13) at (-2, 1.1) {};
+          \node[nand gate] (nand24) at (-2, -1.1) {};
+          \node[nand gate] (nand14) at (0, 1) {}; 
+          \node[nand gate] (nand23) at (0, -1) {}; 
+          \node[not gate] (not) at (-5.5, -1.7) {}; 
+          \draw[red] (-3, 1.2) -- (nand13.input 1);
+          \draw[blue] (-3, -1.2) -- (nand24.input 2);
+          \draw[blue] (-8.2, -1.2) -- (-8.2, -1.7) -- (not.input); 
+          \draw[red] (not.output) -- (-3.3, -1.7) -- (-3.3, 0) -- (-2.7, 0) -- (-2.7,1) -- (nand13.input 2);
+          
+          \draw[red] (-3, 0) -- (-2.7, 0) -- (-2.7,-1) -- (nand24.input 1);
+          \node[right] at (2, 1) {$Q$};
+          \node[right] at (2, -1) {$\overline{Q}$};
+          \draw[blue] (nand13.output) -- (nand14.input 1);
+          \draw[red] (nand24.output) -- (nand23.input 2);
+          \draw[red] (nand14.output) -- (2, 1); 
+          \draw[blue] (nand23.output) -- (2, -1); 
+          \draw[red] (nand14.output) -- (1.5, 1) -- (1.5, 0.8) -- (-1, -0.7) -- (-1, -0.9) -- (nand23.input 1);
+          \draw[blue] (nand23.output) -- (1.5, -1) -- (1.5, -0.8) -- (-1, 0.7) -- (-1, 0.9) -- (nand14.input 2);
+          \fill[red] (1.5,1) circle (1.5pt);
+          \fill[blue] (1.5,-1) circle (1.5pt);
+          \fill[red] (-2.7,0) circle (1.5pt);
+        \end{scope}
+
+        \node[nand gate] (nand1) at (-2, 1.1) {};
+        \node[nand gate] (nand2) at (-2, -1.1) {};
+        \node[nand gate] (nor1) at (0, 1) {}; 
+        \node[nand gate] (nor2) at (0, -1) {}; 
+
+        \draw[red] (-3.5, 1.2) -- (nand1.input 1);
+        \draw[blue] (-3.5, -1.2) -- (nand2.input 2);
+        \node[left] at (-3.5,-1.2) {CLK};
+        \node[left] at (-3.5,1.2) {$D$};
+
+        \draw[blue] (-3.5, -1.2) -- (-3.2, -1.2) -- (-3.2, 1) -- (nand1.input 2);
+        \fill[blue] (-3.2, -1.2) circle (1.5pt);
+        \draw[red] (nand1.output) -- (-1.2, 1.1) -- (-1.2, 0.9) -- (-2.7, -0.9) -- (-2.7, -1) -- (nand2.input 1);
+
+        \draw[red] (nand1.output) -- (nor1.input 1);
+        \draw[red] (nand2.output) -- (nor2.input 2);
+        \draw[red] (nor1.output) -- (2, 1) -- (2, 1.2); 
+        \draw[blue] (nor2.output) -- (2, -1) -- (2, -1.2); 
+
+        \draw[red] (nor1.output) -- (1.5, 1) -- (1.5, 0.8) -- (-1, -0.7) -- (-1, -0.9) -- (nor2.input 1);
+        \draw[blue] (nor2.output) -- (1.5, -1) -- (1.5, -0.8) -- (-1, 0.7) -- (-1, 0.9) -- (nor1.input 2);
+        \fill[red] (1.5,1) circle (1.5pt);
+        \fill[blue] (1.5,-1) circle (1.5pt);
+      \end{tikzpicture} 
+      \caption{When the clock cycle falls to low, the slave is enabled. Data is passed from the master to the slave and is therefore available at the output. } 
     \end{figure}
   \end{definition}
 
+  Essentially a DFF is analogous to an airlock consisting of two doors that can never be both open at the same time. The flip flop is never open so an input signal cannot pass straight through like a regular D latch. The output of the flip flop occurs during the next phase of the same clock cycle. For this reason the DFF is sometimes referred to as the \textit{delay-type flip-flop}. 
 
-  The most elementary chip is called a \textit{flip-flop}, of which there are many variants. In here, we will work with the data flip-flop. 
+  \begin{example}[Waveforms of DFF]
+    Let's look at an example where a regular D latch would be insufficient, but a DFF fixes the problem. Note that $Q_m$ behaves just like a D-latch since it is.
+    \begin{enumerate}
+      \item $t = 2$. $C$ has a rising edge and $D = 0$, so $Q_m = 0$. 
+      \item $t = 5$. $D$ has become high, presumably because we want the output at $Q_m$ to go high. But because $C = 0$, this doesn't happen just yet, and the master is still latched in a low state. 
+      \item $t = 6$. When $C = 1$, $Q_m$ reacts immediately to follow $D$, and so it becomes high. 
+      \item $t = 8$. When $C$ goes low again, $D$ is high and so is $Q_m$, and so the master is latched in a high state. 
+      \item $t = 9$. $D$ goes low again, presumably because we want to change the state of the master latch back to low again. But because $C$ is low, $Q_m$ does not follow. 
+      \item $t = 10$. When $C$ goes high, $Q_m$ immediately goes low. 
+      \item $t = 11$. We can see $D$ changing again while the clock is high. Suppose that a completely different circuit depended on the output of $Q_m$ being low. Since $Q_m$ was both low and then high in the same high clock cycle, the circuit might have missed its chance to read from $Q_m$. We want to avoid this, and ideally, we want to (1) set the value of $D$ \textit{before} the clock goes high, and (2) \textit{not} have $D$ change in the middle of a clock high cycle. \item $t = 12$. Now $C$ is low, and the master is latched in a high state. 
+      \item $t = 22$. We can see that the value of $D$ is changing again during a high phase of the clock cycle---another glitch. 
+    \end{enumerate}
+    If we take a look at the output of the slave $Q_s$, which follows $Q_m$ since the master's output is the slave's input. But more importantly, $Q_s$ only follows $Q_m$ while $C$ is low (because the slave is being fed the inverse of the clock signal). 
 
-  \begin{definition}[Flip-Flop]
-    A \textbf{data flip-flop (DFF)} is a device whose interface consists of a single-bit data input and single-bit data output. It also has a clock input that continuously changes accordingly to the master clock's signal. Taken together, the data and the clock inputs enable to the DFF to implement the time-based behavior 
-    \begin{equation}
-      \mathrm{out}(t) = \mathrm{in}(t - 1) 
-    \end{equation}
-    That is, the DFF outputs the input value from the previous time unit. 
+    \begin{enumerate}
+      \item $t = 6$. $Q_m$ is changing from low to high, but $Q_s$ remains low since $C$ is high. While the flip flop is responding to a change in input, the output remains the same. 
+      \item $t = 8$. At the falling edge of the clock cycle, $Q_s$ follows $Q_m$ to become high. Notice that the master's output $Q_m$ cannot be changed now because $C$ is low. This means that changes to the input of the flip-flop cannot impact the output at this point. 
+      \item $t = 9$. The input at $D$ has changed from high to low, as if in readiness for another change to the state of the flip flop. 
+      \item $t = 10$. When $C$ goes high, the output of the master $Q_m$ changes but this has no impact on $Q_s$. The slave isn't listening. 
+      \item $t = 11$. $D$ goes high again during the high phase of the clock cycle. But this glitch has no effect on the output of the flip flop. 
+      \item $t = 20$. We see $Q_s$ changing again to follow $Q_m$ while the clock signal is low. The master will also ignore any changes in the input while the flip flop's output is made available. 
+      \item $t = 21$. We see $D$ goes high, as if to set the state of the flip-flop to high on the next high cycle. 
+      \item $t = 22$. When the clock goes high, $Q_m$ follows $D$ to become high as well. 
+      \item $t = 23$. But the input $D$ falls to low while the clock is high, and so does $Q_m$. 
+      \item $t = 24$. By the time the clock falls to low again, and the slave is once again responding to changes to its input, the flip flop has ignore yet another glitch. 
+    \end{enumerate}
+
+    In summary, the DFF effectively ignores any input fluctuations because the master and slave are enabled on opposite phases of the clock cycle. It is safe because it allows sufficient time for propagation delays and therefore time for the inputs to change and settle down without affecting the output. It is however more complicated and resource-intensive than regular latches. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[xscale=0.5, yscale=0.7]
+        \draw[<->] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        \draw[<->, yshift=-1.5cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        \draw[<->, yshift=-3cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        \draw[<->, yshift=-4.5cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        
+        % Time labels and dotted lines for bottom graph only
+        \foreach \x in {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24} {
+          \draw[dotted, gray] (\x, 1.2) -- (\x, -5.3);
+          \node[below] at (\x, -5.3) {\x};
+        }
+        
+        \node[purple, left] at (-0.2, 0.5) {$D$}; 
+        \node[green, left, yshift=-1cm] at (-0.2, 0.5) {$C$}; 
+        \node[red, left, yshift=-2cm] at (-0.2, 0.5) {$Q_m$}; 
+        \node[red, left, yshift=-3cm] at (-0.2, 0.5) {$Q_s$}; 
+        
+        \draw[purple] (0, 0) -- 
+          (5, 0) -- (5, 1) -- (9, 1) -- (9, 0) -- 
+          (11, 0) -- (11, 1) -- (17, 1) -- (17, 0) -- 
+          (21, 0) -- (21, 1) -- (23, 1) -- (23, 0) -- 
+          (25, 0);
+        \draw[green, yshift=-1.5cm] (0, 0) -- 
+          (2, 0) -- (2, 1) -- (4, 1) -- (4, 0) -- 
+          (6, 0) -- (6, 1) -- (8, 1) -- (8, 0) -- 
+          (10, 0) -- (10, 1) -- (12, 1) -- (12, 0) -- 
+          (14, 0) -- (14, 1) -- (16, 1) -- (16, 0) -- 
+          (18, 0) -- (18, 1) -- (20, 1) -- (20, 0) -- 
+          (22, 0) -- (22, 1) -- (24, 1) -- (24, 0) -- 
+          (25, 0); 
+        \draw[red, yshift=-3cm] (0, 0) -- 
+          (6, 0) -- (6, 1) -- (10, 1) -- (10, 0) -- 
+          (11, 0) -- (11, 1) -- (18, 1) -- (18, 0) -- 
+          (22, 0) -- (22, 1) -- (23, 1) -- (23, 0) -- 
+          (25, 0); 
+        \draw[red, yshift=-4.5cm] (0, 0) -- 
+          (8, 0) -- (8, 1) -- (20, 1) -- (20, 0) -- 
+          (25, 0);
+      \end{tikzpicture}
+      \caption{}
+    \end{figure}
+  \end{example}
+  
+  We revisit the problem of invalid states for SR latches, which lead to race conditions (both 1s for active high and both 0s for active low). We introduce the JK latch, which is not a flip flop yet. Note that you put a pulse through $K$ to reset $Q = 0$, and a pulse through $J$ to set $Q = 1$.
+
+  \begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}[circuit logic US]
+        \node[nand gate] (nand1) at (-2, 1.1) {};
+        \node[nand gate] (nand2) at (-2, -1.1) {};
+        \node[nor gate] (nor1) at (0, 1) {}; 
+        \node[nor gate] (nor2) at (0, -1) {}; 
+
+        \draw[red] (-3, 1.0) -- (nand1.input 2);
+        \draw[red] (-3, -1.0) -- (nand2.input 1);
+        \node[left] at (-3,1.0) {$K$};
+        \node[left] at (-3,-1.0) {$J$};
+        \node[right] at (2, 1) {$Q$};
+        \node[right] at (2, -1) {$\overline{Q}$};
+
+        \draw[red] (nand1.input 1) -- (-2.8, 1.2) -- (-2.8, 1.6) -- (1.2, 1.6) -- (1.2, 1); 
+        \draw[blue] (nand2.input 2) -- (-2.8, -1.2) -- (-2.8, -1.6) -- (1.2, -1.6) -- (1.2, -1); 
+
+        \draw[red] (nand1.output) -- (nor1.input 1);
+        \draw[blue] (nand2.output) -- (nor2.input 2);
+        \draw[red] (nor1.output) -- (2, 1); 
+        \draw[blue] (nor2.output) -- (2, -1); 
+
+        \draw[red] (nor1.output) -- (1.5, 1) -- (1.5, 0.8) -- (-1, -0.7) -- (-1, -0.9) -- (nor2.input 1);
+        \draw[blue] (nor2.output) -- (1.5, -1) -- (1.5, -0.8) -- (-1, 0.7) -- (-1, 0.9) -- (nor1.input 2);
+        \fill[red] (1.5,1) circle (1.5pt);
+        \fill[blue] (1.5,-1) circle (1.5pt);
+      \end{tikzpicture} 
+      \caption{}
+    \end{subfigure}
+    \hfill 
+    \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+      \begin{tikzpicture}[circuit logic US]
+        \node[nand gate] (nand1) at (-2, 1.1) {};
+        \node[nand gate] (nand2) at (-2, -1.1) {};
+        \node[nor gate] (nor1) at (0, 1) {}; 
+        \node[nor gate] (nor2) at (0, -1) {}; 
+
+        \draw[red] (-3, 1.0) -- (nand1.input 2);
+        \draw[red] (-3, -1.0) -- (nand2.input 1);
+        \node[left] at (-3,1.0) {$K$};
+        \node[left] at (-3,-1.0) {$J$};
+        \node[right] at (2, 1) {$Q$};
+        \node[right] at (2, -1) {$\overline{Q}$};
+
+        \draw[blue] (nand1.input 1) -- (-2.8, 1.2) -- (-2.8, 1.6) -- (1.2, 1.6) -- (1.2, 1); 
+        \draw[red] (nand2.input 2) -- (-2.8, -1.2) -- (-2.8, -1.6) -- (1.2, -1.6) -- (1.2, -1); 
+
+        \draw[blue] (nand1.output) -- (nor1.input 1);
+        \draw[red] (nand2.output) -- (nor2.input 2);
+        \draw[blue] (nor1.output) -- (2, 1); 
+        \draw[red] (nor2.output) -- (2, -1); 
+
+        \draw[blue] (nor1.output) -- (1.5, 1) -- (1.5, 0.8) -- (-1, -0.7) -- (-1, -0.9) -- (nor2.input 1);
+        \draw[red] (nor2.output) -- (1.5, -1) -- (1.5, -0.8) -- (-1, 0.7) -- (-1, 0.9) -- (nor1.input 2);
+        \fill[blue] (1.5,1) circle (1.5pt);
+        \fill[red] (1.5,-1) circle (1.5pt);
+      \end{tikzpicture} 
+      \caption{}
+    \end{subfigure}
+    \caption{JK active high latch. When you set $J = K = 1$, the latch oscillates between $Q = 0$ and $Q = 1$ very fast, but this eliminates the possibility where $Q$ is both $1$ or both $0$.}
+  \end{figure}
+
+  Note that we can do the same with an active low JK latch, which will be functionally identical to the active high one. Now we are a step closer to the JK flip flop. By adding a gate/enabler and synching it with the clock, we can get the \textit{level triggered JK flip flop}. 
+
+  \begin{figure}[H]
+    \centering 
+    \begin{tikzpicture}[circuit logic US]
+      \node[nand gate] (nand1) at (-2, 1.1) {};
+      \node[nand gate] (nand2) at (-2, -1.1) {};
+      \node[nor gate] (nor1) at (0, 1) {}; 
+      \node[nor gate] (nor2) at (0, -1) {}; 
+      \draw (-3, 0) -- (-2.7, 0) -- (-2.7, 0.9) -- ([yshift=-0.1cm]nand1.input 2); 
+      \draw (-3, 0) -- (-2.7, 0) -- (-2.7, -0.9) -- ([yshift=0.1cm]nand2.input 1); 
+
+      \draw[] (-3, 1.0) -- (nand1.input 2);
+      \draw[] (-3, -1.0) -- (nand2.input 1);
+      \node[left] at (-3,1.0) {$K$};
+      \node[left] at (-3,-1.0) {$J$};
+      \node[left] at (-3,0) {CLK};
+      \node[right] at (2, 1) {$Q$};
+      \node[right] at (2, -1) {$\overline{Q}$};
+
+      \draw[] (nand1.input 1) -- (-2.8, 1.2) -- (-2.8, 1.6) -- (1.2, 1.6) -- (1.2, 1); 
+      \draw[] (nand2.input 2) -- (-2.8, -1.2) -- (-2.8, -1.6) -- (1.2, -1.6) -- (1.2, -1); 
+
+      \draw[] (nand1.output) -- (nor1.input 1);
+      \draw[] (nand2.output) -- (nor2.input 2);
+      \draw[] (nor1.output) -- (2, 1); 
+      \draw[] (nor2.output) -- (2, -1); 
+
+      \draw[] (nor1.output) -- (1.5, 1) -- (1.5, 0.8) -- (-1, -0.7) -- (-1, -0.9) -- (nor2.input 1);
+      \draw[] (nor2.output) -- (1.5, -1) -- (1.5, -0.8) -- (-1, 0.7) -- (-1, 0.9) -- (nor1.input 2);
+      \fill[] (1.5,1) circle (1.5pt);
+      \fill[] (1.5,-1) circle (1.5pt);
+    \end{tikzpicture} 
+    \caption{Level Triggered JK Flip Flop. } 
+  \end{figure}
+
+  \begin{example}[Waveforms of Level Triggered JK Flip Flop]
+    Let's go through the timing diagram. 
+    \begin{enumerate}
+      \item $t = 1$. When $K = 1$, there is no change in $Q$ since the clock is low. The flip flop is disabled. 
+      \item $t = 2$. The clock is high and the reset signal goes through the AND gate, and $Q = 0$. 
+      \item $t = 10$. $J$ becomes high and the clock is high, enabling the latch again, and consequently $Q$ is high again. 
+      \item $t = 18, 22, 26$. When $C, J, K$ are all high, then the circuit begins to oscillate uncontrollably.  
+    \end{enumerate}
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[xscale=0.45, yscale=0.7]
+        \draw[<->] (-0.2, 1.2) -- (-0.2, -0.2) -- (29.5, -0.2); 
+        \draw[<->, yshift=-1.5cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (29.5, -0.2); 
+        \draw[<->, yshift=-3cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (29.5, -0.2); 
+        \draw[<->, yshift=-4.5cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (29.5, -0.2); 
+        
+        % Time labels and dotted lines for bottom graph only
+        \foreach \x in {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28} {
+          \draw[dotted, gray] (\x, 1.2) -- (\x, -5.3);
+          \node[below] at (\x, -5.3) {\x};
+        }
+        
+        \node[green, left] at (-0.2, 0.5) {CLK}; 
+        \node[purple, left, yshift=-1cm] at (-0.2, 0.5) {$J$}; 
+        \node[purple, left, yshift=-2cm] at (-0.2, 0.5) {$K$}; 
+        \node[red, left, yshift=-3cm] at (-0.2, 0.5) {$Q$}; 
+        
+        \draw[green] (0, 0) -- 
+          (2, 0) -- (2, 1) -- (4, 1) -- (4, 0) -- 
+          (6, 0) -- (6, 1) -- (8, 1) -- (8, 0) -- 
+          (10, 0) -- (10, 1) -- (12, 1) -- (12, 0) -- 
+          (14, 0) -- (14, 1) -- (16, 1) -- (16, 0) -- 
+          (18, 0) -- (18, 1) -- (20, 1) -- (20, 0) -- 
+          (22, 0) -- (22, 1) -- (24, 1) -- (24, 0) -- 
+          (26, 0) -- (26, 1) -- (28, 1) -- (28, 0) -- 
+          (29, 0); 
+        \draw[purple, yshift=-1.5cm] (0, 0) -- 
+          (9, 0) -- (9, 1) -- (15, 1) -- (15, 0) -- 
+          (17, 0) -- (17, 1) -- (19.5, 1) -- (19.5, 0) -- 
+          (22, 0) -- (22, 1) -- (28, 1) -- (28, 0) -- 
+          (29, 0); 
+        \draw[purple, yshift=-3cm] (0, 0) -- 
+          (1, 0) -- (1, 1) -- (5, 1) -- (5, 0) -- 
+          (17.5, 0) -- (17.5, 1) -- (20, 1) -- (20, 0) -- 
+          (22, 0) -- (22, 1) -- (28, 1) -- (28, 0) -- 
+          (29, 0); 
+        \draw[red, yshift=-4.5cm] 
+          (0, 1) -- (2, 1) -- (2, 0) -- 
+          (10, 0) -- (10, 1) -- (18, 1) -- (18, 0) --
+          (18.5, 0) -- (18.5, 1) -- (19, 1) -- (19, 0) --
+          (22, 0) -- (22, 1) -- (22.5, 1) -- (22.5, 0) -- 
+          (23, 0) -- (23, 1) -- (23.5, 1) -- (23.5, 0) -- 
+          (26, 0) -- (26, 1) -- (26.5, 1) -- (26.5, 0) -- 
+          (27, 0) -- (27, 1) -- (27.5, 1) -- (27.5, 0) -- 
+          (29, 0);
+      \end{tikzpicture}
+      \caption{}
+    \end{figure}
+  \end{example}
+
+  To take advantage of this oscillation, we need a flip flop that will only react the inputs while the clock singal is changing from low to high, i.e. on the rising edge. 
+
+  \begin{definition}[Edge Triggered JK Flip Flop]
+    To fix the weird oscillation issues, we can use the edge detection device to get the \textbf{edge triggered JK flip-flop}. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[circuit logic US]
+        \node[and gate] (and) at (-4, 0) {};
+        \node[not gate, scale=0.7] (not) at (-5.3, -0.2) {};
+        \draw (-6.2, 0.09) -- (and.input 1);
+        \draw (-5.8, 0.09) -- (-5.8, -0.2) -- (not.input);
+        \fill (-5.8, 0.09) circle (1.5pt); 
+        \node[left] at (-6.2, 0.2) {CLK}; 
+        \draw(and.output) -- (-2.7, 0);
+        \draw(not.output) -- (and.input 2); 
+
+        \node[nand gate] (nand1) at (-2, 1.1) {};
+        \node[nand gate] (nand2) at (-2, -1.1) {};
+        \node[nor gate] (nor1) at (0, 1) {}; 
+        \node[nor gate] (nor2) at (0, -1) {}; 
+        \draw (-3, 0) -- (-2.7, 0) -- (-2.7, 0.9) -- ([yshift=-0.1cm]nand1.input 2); 
+        \draw (-3, 0) -- (-2.7, 0) -- (-2.7, -0.9) -- ([yshift=0.1cm]nand2.input 1); 
+
+        \draw[] (-3, 1.0) -- (nand1.input 2);
+        \draw[] (-3, -1.0) -- (nand2.input 1);
+        \node[left] at (-3,1.0) {$K$};
+        \node[left] at (-3,-1.0) {$J$};
+        \node[right] at (2, 1) {$Q$};
+        \node[right] at (2, -1) {$\overline{Q}$};
+
+        \draw[] (nand1.input 1) -- (-2.8, 1.2) -- (-2.8, 1.6) -- (1.2, 1.6) -- (1.2, 1); 
+        \draw[] (nand2.input 2) -- (-2.8, -1.2) -- (-2.8, -1.6) -- (1.2, -1.6) -- (1.2, -1); 
+
+        \draw[] (nand1.output) -- (nor1.input 1);
+        \draw[] (nand2.output) -- (nor2.input 2);
+        \draw[] (nor1.output) -- (2, 1); 
+        \draw[] (nor2.output) -- (2, -1); 
+
+        \draw[] (nor1.output) -- (1.5, 1) -- (1.5, 0.8) -- (-1, -0.7) -- (-1, -0.9) -- (nor2.input 1);
+        \draw[] (nor2.output) -- (1.5, -1) -- (1.5, -0.8) -- (-1, 0.7) -- (-1, 0.9) -- (nor1.input 2);
+        \fill[] (1.5,1) circle (1.5pt);
+        \fill[] (1.5,-1) circle (1.5pt);
+      \end{tikzpicture} 
+      \caption{Edge Triggered JK Flip Flop. } 
+    \end{figure}
+  \end{definition}
+
+  It is also called the \textit{universal programmable flip flop} since you can make other types of flip flops from JK flip flops. 
+
+  \begin{example}[Waveforms of Edge Triggered JK Flip Flop]
+    With the edge detector, only the rising edge of each clock pulse has any effect. Notice that when $J$ and $K$ are both high, a clock pulse will cause the flip flop to toggle from one state to the other (at times $t = 18, 22, 26$).  
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[xscale=0.45, yscale=0.7]
+        \draw[<->] (-0.2, 1.2) -- (-0.2, -0.2) -- (29.5, -0.2); 
+        \draw[<->, yshift=-1.5cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (29.5, -0.2); 
+        \draw[<->, yshift=-3cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (29.5, -0.2); 
+        \draw[<->, yshift=-4.5cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (29.5, -0.2); 
+        
+        % Time labels and dotted lines for bottom graph only
+        \foreach \x in {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28} {
+          \draw[dotted, gray] (\x, 1.2) -- (\x, -5.3);
+          \node[below] at (\x, -5.3) {\x};
+        }
+        
+        \node[green, left] at (-0.2, 0.5) {CLK}; 
+        \node[purple, left, yshift=-1cm] at (-0.2, 0.5) {$J$}; 
+        \node[purple, left, yshift=-2cm] at (-0.2, 0.5) {$K$}; 
+        \node[red, left, yshift=-3cm] at (-0.2, 0.5) {$Q$}; 
+        
+        \draw[green] (0, 0) -- 
+          (2, 0) -- (2, 1) -- (2, 0) -- (4, 0) -- 
+          (6, 0) -- (6, 1) -- (6, 0) -- (8, 0) -- 
+          (10, 0) -- (10, 1) -- (10, 0) -- (12, 0) -- 
+          (14, 0) -- (14, 1) -- (14, 0) -- (16, 0) -- 
+          (18, 0) -- (18, 1) -- (18, 0) -- (20, 0) -- 
+          (22, 0) -- (22, 1) -- (22, 0) -- (24, 0) -- 
+          (26, 0) -- (26, 1) -- (26, 0) -- (28, 0) -- 
+          (29, 0); 
+        \draw[purple, yshift=-1.5cm] (0, 0) -- 
+          (9, 0) -- (9, 1) -- (15, 1) -- (15, 0) -- 
+          (17, 0) -- (17, 1) -- (19.5, 1) -- (19.5, 0) -- 
+          (22, 0) -- (22, 1) -- (28, 1) -- (28, 0) -- 
+          (29, 0); 
+        \draw[purple, yshift=-3cm] (0, 0) -- 
+          (1, 0) -- (1, 1) -- (5, 1) -- (5, 0) -- 
+          (17.5, 0) -- (17.5, 1) -- (20, 1) -- (20, 0) -- 
+          (22, 0) -- (22, 1) -- (28, 1) -- (28, 0) -- 
+          (29, 0); 
+        \draw[red, yshift=-4.5cm] 
+          (0, 1) -- (2, 1) -- (2, 0) -- 
+          (10, 0) -- (10, 1) -- (18, 1) -- (18, 0) --
+          (22, 0) -- (22, 1) -- (26, 1) -- (26, 0) -- 
+          (29, 0);
+      \end{tikzpicture}
+      \caption{}
+    \end{figure}
+  \end{example}
+
+  Another simple modification of the JK flip flop gives us another type of flip flop. B simply connecting together $J$ and $K$ to make one input, we now have a device that will toggle from one state to the other when the input is high at the rising edge of the clock. 
+
+  \begin{definition}[T-Type Flip Flip]
+    The \textbf{T-Type flip flop}. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[circuit logic US]
+        \node[and gate] (and) at (-4, 0) {};
+        \node[not gate, scale=0.7] (not) at (-5.3, -0.2) {};
+        \draw (-6.2, 0.09) -- (and.input 1);
+        \draw (-5.8, 0.09) -- (-5.8, -0.2) -- (not.input);
+        \fill (-5.8, 0.09) circle (1.5pt); 
+        \node[left] at (-6.2, 0.2) {CLK}; 
+        \draw(and.output) -- (-2.7, 0);
+        \draw(not.output) -- (and.input 2); 
+
+        \node[nand gate] (nand1) at (-2, 1.1) {};
+        \node[nand gate] (nand2) at (-2, -1.1) {};
+        \node[nor gate] (nor1) at (0, 1) {}; 
+        \node[nor gate] (nor2) at (0, -1) {}; 
+        \draw (-3, 0) -- (-2.7, 0) -- (-2.7, 0.9) -- ([yshift=-0.1cm]nand1.input 2); 
+        \draw (-3, 0) -- (-2.7, 0) -- (-2.7, -0.9) -- ([yshift=0.1cm]nand2.input 1); 
+
+        \draw[] (-3.5, -1.0) -- (-3, -1.0) -- (-3, -0.1) -- (-3.1, 0) -- (-3, 0.1) -- (-3, 1.0) -- (nand1.input 2); 
+        \draw[] (-3.5, -1.0) -- (nand2.input 1);
+        \node[left] at (-3.5,-1.0) {$T$};
+        \node[right] at (2, 1) {$Q$};
+        \node[right] at (2, -1) {$\overline{Q}$};
+
+        \draw[] (nand1.input 1) -- (-2.8, 1.2) -- (-2.8, 1.6) -- (1.2, 1.6) -- (1.2, 1); 
+        \draw[] (nand2.input 2) -- (-2.8, -1.2) -- (-2.8, -1.6) -- (1.2, -1.6) -- (1.2, -1); 
+
+        \draw[] (nand1.output) -- (nor1.input 1);
+        \draw[] (nand2.output) -- (nor2.input 2);
+        \draw[] (nor1.output) -- (2, 1); 
+        \draw[] (nor2.output) -- (2, -1); 
+
+        \draw[] (nor1.output) -- (1.5, 1) -- (1.5, 0.8) -- (-1, -0.7) -- (-1, -0.9) -- (nor2.input 1);
+        \draw[] (nor2.output) -- (1.5, -1) -- (1.5, -0.8) -- (-1, 0.7) -- (-1, 0.9) -- (nor1.input 2);
+        \fill[] (1.5,1) circle (1.5pt);
+        \fill[] (1.5,-1) circle (1.5pt);
+      \end{tikzpicture} 
+      \caption{Edge triggered JK flip flop. } 
+    \end{figure}
   \end{definition}
 
 \subsection{Registers}
