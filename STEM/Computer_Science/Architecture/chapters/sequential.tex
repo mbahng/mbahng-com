@@ -2,9 +2,9 @@
 
   Now that we know how the NAND gate---and therefore every other fundamental gate---works, and we have constructed the clock, the next natural step is to be able to store a string of bits.\footnote{Most courses teach combinational logic first and then sequential, but this may not be the most optimal dependency sequence for two reasons. We can indeed do arithmetic without memory by directly applying an electric current to the input wires in a circuit, but this severely limits the computation that we can do. We would essentially have to do everything in ``one shot'' and immediately collect the results. While this is fine for addition, I cannot introduce an efficient schema of multiplication without knowing how to bit-shift, which is dependent on some form of memory. On a broader scale, almost all algorithms we worked with require some memory at some point, so memory may be more fundamental than computation. Thanks the Phillip Williams for talking with me on this!} Computers must be equipped with memory elements that can preserve data over time. These memory elements are built from \textit{sequential chips}. 
 
-\subsection{Latches}
+\subsection{SR Latches}
 
-  Ideally, we would like a way to store a bit in memory, and this can be done by cross-coupling gates with each other, forming a sort of positive feedback.\footnote{Note that unlike combinational logic, this now deviates from straight-line programming.} Therefore, given a certain signal into our circuit which we call a \textit{latch}, the outputs remain locked---or ``latched''---into a state. 
+  Ideally, we would like a way to store a bit in memory, and this can be done by cross-coupling gates with each other, forming a sort of positive feedback.Therefore, given a certain signal into our circuit which we call a \textit{latch}, the outputs remain locked---or ``latched''---into a state. 
 
   \begin{definition}[SR Latch]
     The \textbf{set-reset (SR) latch} is a circuit that stores 1-bit memory. This is based on \textit{pulses} and we do not care about the duration of a signal. That is, if we activate a signal to inputs $S, R$ at \textit{any} point in time, then the output $Q$ will remain locked in some state, even \textit{after} the input signal disappears. 
@@ -459,6 +459,8 @@
     \end{figure}
   \end{example}
 
+\subsection{Level and Edge Triggered D-Latches}
+
   Note that we still have the problem of invalid signals. For example, if there was an instance that at the same clock time a signal of $S=1, R=1$ (on either an ungated latch or a gated latch with $E=1$), then both $Q$ and $\overline{Q}$ will be $1$, which will cause both to be $0$, and then $1$, and so on. This causes a race condition, which leads to unpredictable behavior. 
 
   \begin{figure}[H]
@@ -496,8 +498,8 @@
 
   It turns out that we can simplify this circuit, making it cheaper to produce while still behaving identically. This gives us the D-latch. 
 
-  \begin{definition}[D Latch]
-    The \textbf{(gated) data latch (D-latch)} gives us more control over storing a 1-bit in memory. 
+  \begin{definition}[Level Triggered D-Latch]
+    The \textbf{(gated) data latch (D-latch)}, also called a \textbf{clocked D-latch}, gives us more control over storing a 1-bit in memory. 
 
     \begin{figure}[H]
       \centering
@@ -510,7 +512,6 @@
           \draw (latch.pin 6) -- ++(0.5,0) node[right] {Q};
           \draw (latch.pin 4) -- ++(0.5,0) node[right] {$\overline{Q}$};
         \end{tikzpicture}
-        \caption{Chip notation for D latch.}
       \end{subfigure}
       \hfill 
       \begin{subfigure}[b]{0.48\textwidth}
@@ -519,16 +520,17 @@
             \hline
             $E$ & $D$ & $Q$ & $\overline{Q}$ \\
             \hline
-            0 & X & $Q_{\mathrm{prev}}$ & $\overline{Q_{\mathrm{prev}}}$ \\
+            0 & 0 & $Q_{\mathrm{prev}}$ & $\overline{Q_{\mathrm{prev}}}$ \\
+            \hline
+            0 & 1 & $Q_{\mathrm{prev}}$ & $\overline{Q_{\mathrm{prev}}}$ \\
             \hline
             1 & 0 & 0 & 1 \\
             \hline
             1 & 1 & 1 & 0 \\
             \hline
           \end{tabular}
-        \caption{Truth table. Note that the }
       \end{subfigure}
-      \caption{}
+      \caption{Chip notation and truth table of a D latch. Note that when $E = 0$, the latch simply outputs the previously stored element $Q = Q_{\mathrm{prev}}$. }
     \end{figure}
 
     \begin{figure}[H]
@@ -600,7 +602,7 @@
     \end{figure}
   \end{definition}
 
-  \begin{example}[D Latch]
+  \begin{example}[Level Triggered D-Latch]
     The essence of the behavior is the output follows the input while $E$ is enabled. 
 
     \begin{figure}[H]
@@ -636,11 +638,7 @@
     \end{figure}
   \end{example} 
 
-  Therefore, if we want to store a bit of information, we set $E = 1$, collect that bit from $D$, and then set $E = 0$ to latch it in place. 
-
-\subsection{Clocked Latches}
-
-  This behavior is quite stable for storing 1-bit, but we need more control when storing a multi-bit buffer, where we need several D-latches working in tandem. The general idea is that if we have a multi-bit buffer, we want a set of D-latches to be enabled and disabled at once. 
+  Therefore, if we want to store a bit of information, we set $E = 1$, collect that bit from $D$, and then set $E = 0$ to latch it in place. This behavior is quite stable for storing 1-bit, but we need more control when storing a multi-bit buffer, where we need several D-latches working in tandem. The general idea is that if we have a multi-bit buffer, we want a set of D-latches to be enabled and disabled at once. 
 
   \begin{figure}[H]
     \centering 
@@ -735,7 +733,7 @@
     \end{figure}
   \end{definition}
 
-  We want to build a D-latch that will respond to changes in $D$ \textit{at the rising edge}, with subsequent changes in $D$ being ignored until the next rising edge. 
+  As a summary, for level-triggered (transparent) latches, we have active high and active low. Analogously, for edge-triggered latches, we have rising edge and falling edge. We want to build a D-latch that will respond to changes in $D$ \textit{at the rising edge}, with subsequent changes in $D$ being ignored until the next rising edge. 
 
   \begin{figure}[H]
     \centering
@@ -855,17 +853,17 @@
     \end{figure}
   \end{definition}
 
-  Now if we combine our D latch with the edge detection device, we change it from a level-triggered device to an edge-triggered device. Since we are using a clock as our trigger, we also call this a \textit{clocked D-latch}. 
+  Now if we combine our D latch with the edge detection device, we change it from a level-triggered device to an edge-triggered device. Since we are using a clock as our trigger, we also call this a \textit{pulse D-latch}. 
 
-  \begin{definition}[Clocked D Latch]
-    A \textbf{clocked D latch}, also called an \textbf{edge-triggered D-latch},\footnote{Sometimes, this is referred to as a flip flop, but we will distinguish that a bit later.} is a D-latch that is enabled on the rising edge of a clock cycle. 
+  \begin{definition}[Edge-Triggered D-Latch, Pulse Latch]
+    An \textbf{edge-triggered D-latch}, also known as a \textbf{pulse D-latch},\footnote{Often, edge-triggered latches are in general referred to as a flip flop, but we will distinguish that a bit later.} is a D-latch that is enabled on the rising edge of a clock cycle. 
 
     \begin{figure}[H]
       \centering 
       \begin{tikzpicture}[circuit logic US]
         \node[flipflop D] (D1){};
       \end{tikzpicture}
-      \caption{A pulse D latch. Note that the triangle is used to indicate that the clock is inputted. } 
+      \caption{A clocked D latch. Note that the triangle is used to indicate that the clock is inputted. } 
     \end{figure}
 
     \begin{figure}[H]
@@ -909,7 +907,7 @@
     \end{figure}
   \end{definition}
 
-  \begin{example}[Clocked D Latch Waveforms]
+  \begin{example}[Edge-Triggered D-Latch Waveforms]
     \begin{figure}[H]
       \centering 
       \begin{tikzpicture}[scale=0.7]
@@ -942,17 +940,13 @@
     \end{figure}
   \end{example}
 
-  \begin{definition}[Pulse Latch]
+  \begin{definition}[Set-Reset Inputs]
     Another enhancement we can make is to have an option to manually set the latch to be either $Q = 1$ or $0$, independent of the clock. This gives us the \textbf{pulse D-latch}, which allows us to initialize it unconditionally. 
 
     \begin{figure}[H]
       \centering 
       \begin{tikzpicture}
         \node[latch, align=center, add async SR] (latch) at (0,0) {};
-        \draw (latch.pin 1) -- ++(-0.5,0) node[left] {};
-        \draw (latch.pin 3) -- ++(-0.5,0) node[left] {};
-        \draw (latch.pin 6) -- ++(0.5,0) node[right] {};
-        \draw (latch.pin 4) -- ++(0.5,0) node[right] {};
       \end{tikzpicture}
       \caption{D latch with asynchronous set/reset.} 
     \end{figure}
@@ -1149,11 +1143,11 @@
         \fill[red] (1.5,1) circle (1.5pt);
         \fill[blue] (1.5,-1) circle (1.5pt);
       \end{tikzpicture} 
-      \caption{When the clock cycle falls to low, the slave is enabled. Data is passed from the master to the slave and is therefore available at the output. } 
+      \caption{When the clock cycle falls to low, the slave is enabled, making this an edge triggered device. Data is passed from the master to the slave and is therefore available at the output. } 
     \end{figure}
   \end{definition}
 
-  Essentially a DFF is analogous to an airlock consisting of two doors that can never be both open at the same time. The flip flop is never open so an input signal cannot pass straight through like a regular D latch. The output of the flip flop occurs during the next phase of the same clock cycle. For this reason the DFF is sometimes referred to as the \textit{delay-type flip-flop}. 
+  Essentially a DFF is analogous to an airlock consisting of two doors that can never be both open at the same time. The flip flop is never open so an input signal cannot pass straight through like a regular D latch. The output of the flip flop occurs during the next phase of the same clock cycle. 
 
   \begin{example}[Waveforms of DFF]
     Let's look at an example where a regular D latch would be insufficient, but a DFF fixes the problem. Note that $Q_m$ behaves just like a D-latch since it is.
@@ -1229,7 +1223,7 @@
     \end{figure}
   \end{example}
   
-  We revisit the problem of invalid states for SR latches, which lead to race conditions (both 1s for active high and both 0s for active low). We introduce the JK latch, which is not a flip flop yet. Note that you put a pulse through $K$ to reset $Q = 0$, and a pulse through $J$ to set $Q = 1$.
+  Now let's look at two more types of flip-flops. We revisit the problem of invalid states for SR latches, which lead to race conditions (both 1s for active high and both 0s for active low). We introduce the JK latch, which is not a flip flop yet. Note that you put a pulse through $K$ to reset $Q = 0$, and a pulse through $J$ to set $Q = 1$.
 
   \begin{figure}[H]
     \centering
@@ -1297,41 +1291,45 @@
     \caption{JK active high latch. When you set $J = K = 1$, the latch oscillates between $Q = 0$ and $Q = 1$ very fast, but this eliminates the possibility where $Q$ is both $1$ or both $0$.}
   \end{figure}
 
-  Note that we can do the same with an active low JK latch, which will be functionally identical to the active high one. Now we are a step closer to the JK flip flop. By adding a gate/enabler and synching it with the clock, we can get the \textit{level triggered JK flip flop}. 
+  Note that we can do the same with an active low JK latch, which will be functionally identical to the active high one. Now we are a step closer to the JK flip flop.  
 
-  \begin{figure}[H]
-    \centering 
-    \begin{tikzpicture}[circuit logic US]
-      \node[nand gate] (nand1) at (-2, 1.1) {};
-      \node[nand gate] (nand2) at (-2, -1.1) {};
-      \node[nor gate] (nor1) at (0, 1) {}; 
-      \node[nor gate] (nor2) at (0, -1) {}; 
-      \draw (-3, 0) -- (-2.7, 0) -- (-2.7, 0.9) -- ([yshift=-0.1cm]nand1.input 2); 
-      \draw (-3, 0) -- (-2.7, 0) -- (-2.7, -0.9) -- ([yshift=0.1cm]nand2.input 1); 
+  \begin{definition}[Level Triggered JK Flip-Flop]
+    By adding a gate/enabler and synching it with the clock, we can get the \textbf{level triggered JK flip flop}. 
 
-      \draw[] (-3, 1.0) -- (nand1.input 2);
-      \draw[] (-3, -1.0) -- (nand2.input 1);
-      \node[left] at (-3,1.0) {$K$};
-      \node[left] at (-3,-1.0) {$J$};
-      \node[left] at (-3,0) {CLK};
-      \node[right] at (2, 1) {$Q$};
-      \node[right] at (2, -1) {$\overline{Q}$};
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[circuit logic US]
+        \node[nand gate] (nand1) at (-2, 1.1) {};
+        \node[nand gate] (nand2) at (-2, -1.1) {};
+        \node[nor gate] (nor1) at (0, 1) {}; 
+        \node[nor gate] (nor2) at (0, -1) {}; 
+        \draw (-3, 0) -- (-2.7, 0) -- (-2.7, 0.9) -- ([yshift=-0.1cm]nand1.input 2); 
+        \draw (-3, 0) -- (-2.7, 0) -- (-2.7, -0.9) -- ([yshift=0.1cm]nand2.input 1); 
 
-      \draw[] (nand1.input 1) -- (-2.8, 1.2) -- (-2.8, 1.6) -- (1.2, 1.6) -- (1.2, 1); 
-      \draw[] (nand2.input 2) -- (-2.8, -1.2) -- (-2.8, -1.6) -- (1.2, -1.6) -- (1.2, -1); 
+        \draw[] (-3, 1.0) -- (nand1.input 2);
+        \draw[] (-3, -1.0) -- (nand2.input 1);
+        \node[left] at (-3,1.0) {$K$};
+        \node[left] at (-3,-1.0) {$J$};
+        \node[left] at (-3,0) {CLK};
+        \node[right] at (2, 1) {$Q$};
+        \node[right] at (2, -1) {$\overline{Q}$};
 
-      \draw[] (nand1.output) -- (nor1.input 1);
-      \draw[] (nand2.output) -- (nor2.input 2);
-      \draw[] (nor1.output) -- (2, 1); 
-      \draw[] (nor2.output) -- (2, -1); 
+        \draw[] (nand1.input 1) -- (-2.8, 1.2) -- (-2.8, 1.6) -- (1.2, 1.6) -- (1.2, 1); 
+        \draw[] (nand2.input 2) -- (-2.8, -1.2) -- (-2.8, -1.6) -- (1.2, -1.6) -- (1.2, -1); 
 
-      \draw[] (nor1.output) -- (1.5, 1) -- (1.5, 0.8) -- (-1, -0.7) -- (-1, -0.9) -- (nor2.input 1);
-      \draw[] (nor2.output) -- (1.5, -1) -- (1.5, -0.8) -- (-1, 0.7) -- (-1, 0.9) -- (nor1.input 2);
-      \fill[] (1.5,1) circle (1.5pt);
-      \fill[] (1.5,-1) circle (1.5pt);
-    \end{tikzpicture} 
-    \caption{Level Triggered JK Flip Flop. } 
-  \end{figure}
+        \draw[] (nand1.output) -- (nor1.input 1);
+        \draw[] (nand2.output) -- (nor2.input 2);
+        \draw[] (nor1.output) -- (2, 1); 
+        \draw[] (nor2.output) -- (2, -1); 
+
+        \draw[] (nor1.output) -- (1.5, 1) -- (1.5, 0.8) -- (-1, -0.7) -- (-1, -0.9) -- (nor2.input 1);
+        \draw[] (nor2.output) -- (1.5, -1) -- (1.5, -0.8) -- (-1, 0.7) -- (-1, 0.9) -- (nor1.input 2);
+        \fill[] (1.5,1) circle (1.5pt);
+        \fill[] (1.5,-1) circle (1.5pt);
+      \end{tikzpicture} 
+      \caption{Level Triggered JK Flip Flop. } 
+    \end{figure}
+  \end{definition}
 
   \begin{example}[Waveforms of Level Triggered JK Flip Flop]
     Let's go through the timing diagram. 
@@ -1497,8 +1495,8 @@
 
   Another simple modification of the JK flip flop gives us another type of flip flop. B simply connecting together $J$ and $K$ to make one input, we now have a device that will toggle from one state to the other when the input is high at the rising edge of the clock. 
 
-  \begin{definition}[T-Type Flip Flip]
-    The \textbf{T-Type flip flop}. 
+  \begin{definition}[Toggle Flip Flip]
+    The \textbf{toggle flip-flop}, also known as the \textbf{T-Type flip-flop}, is used as an oscillator (?). 
 
     \begin{figure}[H]
       \centering 
@@ -1538,100 +1536,212 @@
         \fill[] (1.5,1) circle (1.5pt);
         \fill[] (1.5,-1) circle (1.5pt);
       \end{tikzpicture} 
-      \caption{Edge triggered JK flip flop. } 
+      \caption{Toggle flip flop. } 
     \end{figure}
-  \end{definition}
-
+  \end{definition} 
+  
 \subsection{Registers}
 
-  To understand anything that the CPU does, we must understand assembly language. In here, everything is done within registers, and we can see how the CPU fetches, decodes, and executes instructions. So what exactly are these registers? 
+  The DFF then unlocks the our first type of memory. 
 
   \begin{definition}[Register]
-    A register is a small, fast storage location within the CPU. It is used to store data that is being used immediately, and is the only place where the CPU can perform operations, which is why it must move data from memory to registers before it can perform operations on it. Everything in a register is in binary, at most 8 bytes, or 64 bits. 
-
-    There are very specific types of registers that you should know. All of these registers are implemented for all assembly languages and are integral to the workflow of the CPU.  
+    A \textbf{$w$-bit register} is a memory device, composed up of $w$ DFFs, that can hold $w$ bits of memory. It supports 
     \begin{enumerate}
-      \item \textbf{parameter registers} which store the parameters of a function.
-      \item \textbf{Return registers} which store return values of functions. 
-      \item \textbf{stack pointers} which point to the top of the stack (at the top of the current stack frame). 
-      \item \textbf{frame pointers} which point to the base of the current stack frame.
-      \item \textbf{instruction pointers} which point to the next instruction to be executed.
+      \item \textit{Read}. 
+      \item \textit{Write}. 
     \end{enumerate}
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[circuit logic US, yscale=0.7, xscale=0.65]
+        \foreach \x in {0, 5, 10, 15} {
+          \node[latch, align=center, scale=0.8] (latch) at (\x,0) {};
+          \draw (latch.pin 1) -- ++(-0.5,0) node[left] {} -- ++ (0, 1.5) node[above] {input bit}; 
+          \draw (latch.pin 3) -- ++(-0.5,0) node[left] {} -- ++ (0, -1) -- (-2, -1.95); 
+          \fill (-1.8 + \x, -1.95) circle (2.5pt);
+          \draw (latch.pin 6) -- ++(0.5,0) node[right] {} -- ++ (0, -4) node[below] {output bit};
+        } 
+        \node[and gate, scale=1.5] (and) at (-2.8, -1.95) {}; 
+        \draw (and.output) -- (-1.8, -1.95);
+        
+        \node[left] (clk) at (-3.8, -1.75) {CLK};
+        \node[left] (load) at (-3.8, -2.15) {load}; 
+        \draw (clk.east) -- (and.input 1); 
+        \draw (load.east) -- (and.input 2);
+      \end{tikzpicture}
+      \caption{4-bit register. Since $\overline{Q}$ is redundant we do not consider it as an output in our register. } 
+    \end{figure}
   \end{definition}
 
-  \begin{definition}[32 and 64 Bit Machines]
-    There are two types of machines that tend to format these boxes very differently: 32-bit and 64-bit machines. 
+  So we now have the flexibility to construct memory of arbitrary size. The general convention is to make the registers multiples of 2. 
+
+  \begin{definition}[Word]
+    The \textbf{word size} of a register $w$ is the number of bits it can hold. 
     \begin{enumerate}
-      \item 32 bit machines store addresses in 32 bits, so they can have $2^{32}$ addresses, which is about 4 GB of memory. 
-      \item 64 bit machines store addresses in 64 bits, so they can have $2^{64}$ addresses, which is about 16 EB of memory. This does not mean that the actual RAM is 16 EB, but it means that the machine can \textit{handle} that much memory. 
-      \begin{lstlisting} 
-        ...
-        0x00007FFF7FBFF860 --> 0b000000000000000000000000011111111111
-                               111101111111101111111111100001100000
-        0x00007FFF7FBFF861 --> 0b000000000000000000000000011111111111
-                               111101111111101111111111100001100001
-        0x00007FFF7FBFF862 --> 0b000000000000000000000000011111111111
-                               111101111111101111111111100001100010
-        0x00007FFF7FBFF863 --> 0b000000000000000000000000011111111111
-                               111101111111101111111111100001100011
-        0x00007FFF7FBFF864 --> 0b000000000000000000000000011111111111
-                               111101111111101111111111100001100100
-        ...
-      \end{lstlisting}
+      \item $8$-bit and $16$-bit registers were used in the early days of computing. 
+      \item $32$-bit personal computers were introduced in the 1980s, but they are mostly considered obsolete as of 2025. These machines are known as \textit{32-bit machines}. 
+      \item $64$-bit personal computers are the most dominant, known as \textit{64-bit machines}. 
     \end{enumerate}
-    The numbers typically mean the size of the type that the machine works best with, so all memory addresses will be 32 or 64 bits wide. Most machines are 64-bits, and so everything in this notes will assume that we are working with a 64 bit machine. As we will later see, this is why pointers are 8 bytes long, i.e. 64 bits. This is because the memory addresses are 64 bits long, though all of them are not used. 
+  \end{definition} 
+
+  It is sort of understandable that making word sizes as power of 2 makes things a bit more convenient. They can be stacked and grouped together conveniently, giving us the following familiar terms. 
+
+  \begin{definition}[Byte]
+    A \textbf{Byte} is a group of 8-bits. 
   \end{definition}
 
-\subsection{Memory Banks}
-
-  \begin{definition}[Memory]
-    The \textbf{memory} is where the computer stores data and instructions, which can be though of as a giant array of memory addresses, with each containing a byte. This data consists of graphical things or even instructions to manipulate other data. It can be visualized  as a long array of boxes that each have an \textbf{address} (where it is located) and \textbf{contents} (what is stored in it).
-
-    Memory simply works as a bunch of bits in your computer with each bit having some memory address, which is also a bit. For example, the memory address \texttt{0b0010} (2) may have the bit value of \texttt{0b1} (1) stored in it. 
+\subsection{Applications}
+  
+  \begin{definition}[Divide by 2 Chip]
+    The \textbf{divide-by-2 chip} simply splits the frequency of the clock input by 2. It is implemented with a pulse latch---i.e. an edge-triggered D-latch. 
 
     \begin{figure}[H]
       \centering 
-      \includegraphics[scale=0.4]{img/memory_visual_bit.png}
-      \caption{Visualization of memory as a long array of boxes of bits. }
-      \label{fig:memory_visual_bit}
-    \end{figure}
+      \begin{tikzpicture}[circuit logic US]
+        \node[flipflop D] (D){}; 
+        \draw (D.pin 4) -- ++(0.2, 0) -- ++(0, 2.5) -- ++(-2.5, 0) -- ++(0, -0.7) -- (D.pin 1);
+        \draw (D.pin 6) -- ++(1,0) node[right] {};
+        \draw (D.pin 3) -- ++(-0.5,0) node[left] {CLK};
 
-    However, computers do not need this fine grained level of control on the memory, and they really work at the Byte level rather than the bit level. Therefore, we can visualize the memory as a long array of boxes indexed by \textit{Bytes}, with each value being a byte as well. In short, the memory is \textbf{byte-addressable}. In certain arthitectures, some systems are \textbf{word-addressable}, meaning that the memory is addressed by words, which are 4 bytes.\footnote{Note that in here the size of a word is 2 bytes rather than 4 as stated above. This is just how it is defined in some \texttt{x86} architectures.}
-
-    \begin{figure}[H]
-      \centering 
-      \includegraphics[scale=0.4]{img/memory_visual_byte.png}
-      \caption{Visualization of memory as a long array of boxes of bytes. Every address is a byte and its corresponding value at that address is also a byte, though we represent it as a 2-digit hex. } 
-      \label{fig:memory_visual_byte}
+      \end{tikzpicture}
+      \caption{The output $\overline{Q}$ gets rewired into the input $D$, causing the frequency to slow down.}
     \end{figure}
   \end{definition}
 
-  It is intuitive to think that given some multi-byte object like an \texttt{int} (4 bytes), the beginning of the int would be the lowest address and the end of the int would be the highest address, like how consecutive integers are stored in an array. However, this is not always the case (almost always not the case since most computers are little-endian).  
-
-  \begin{definition}[Endian Architecture]
-    Depending on the machine architecture, computers may store these types slightly differently in their \textit{byte} order. Say that we have an integer of value \texttt{0xA1B2C3D4} (4 bytes). Then, 
-    \begin{enumerate} 
-      \item A \textbf{big-endian architecture} (e.g. SPARC, z/Architecture) will store it so that the least significant byte has the highest address.
-      \item A \textbf{little-endian architecture} (e.g. x86, x86-64, RISC-V) will store it so that the least significant byte has the lowest address. 
-      \item A \textbf{bi-endian architecture} (e.g. ARM, PowerPC) can specify the endianness as big or little. 
-    \end{enumerate}
+  \begin{example}[Waveforms of Divide by 2 Latch]
+    The way the divide-by-2 chip acts on a clock waveform is pretty straightforward. 
 
     \begin{figure}[H]
       \centering 
-      \includegraphics[scale=0.4]{img/endianness.png}
-      \caption{The big vs little endian architectures. } 
-      \label{fig:endianness}
+      \begin{tikzpicture}[xscale=0.5, yscale=0.7]
+        \draw[<->] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        \draw[<->, yshift=-1.5cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        
+        % Time labels and dotted lines for bottom graph only
+        \foreach \x in {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24} {
+          \draw[dotted, gray] (\x, 1.2) -- (\x, -2.3);
+          \node[below] at (\x, -2.3) {\x};
+        }
+        
+        \node[green, left] at (-0.2, 0.5) {$C$}; 
+        \node[green, left, yshift=-1cm] at (-0.2, 0.5) {$Q$}; 
+        
+        \draw[green] (0, 0) -- 
+          (2, 0) -- (2, 1) -- (4, 1) -- (4, 0) -- 
+          (6, 0) -- (6, 1) -- (8, 1) -- (8, 0) -- 
+          (10, 0) -- (10, 1) -- (12, 1) -- (12, 0) -- 
+          (14, 0) -- (14, 1) -- (16, 1) -- (16, 0) -- 
+          (18, 0) -- (18, 1) -- (20, 1) -- (20, 0) -- 
+          (22, 0) -- (22, 1) -- (24, 1) -- (24, 0) -- 
+          (25, 0); 
+        \draw[green, yshift=-1.5cm] (0, 0) -- 
+          (4, 0) -- (4, 1) -- (8, 1) -- (8, 0) -- 
+          (12, 0) -- (12, 1) -- (16, 1) -- (16, 0) -- 
+          (20, 0) -- (20, 1) -- (24, 1) -- (24, 0) --
+          (25, 0);
+      \end{tikzpicture}
+      \caption{}
     \end{figure}
-  \end{definition}
-
-  We can simply print out the hex values of primitive types to see how they are stored in memory, but it does not provide the level of details that we want on which bytes are stored where. At this point, we must use certain \textbf{debuggers} to directly look at the memory. For x86 architectures, we can use \texttt{gdb} and for ARM architectures, we can use \texttt{lldb}. At this point, we need to understand assembly to look through debuggers, so we will provide the example here. 
-
-  \begin{example}[Endianness of C Int in x86-64]
-    To do. 
   \end{example}
 
-  \begin{example}[Endianness of C Int in ARM64]
-    To do. 
+  This actually gives us a pretty surprising circuit. 
+
+  \begin{definition}[Counter Chip]
+    A \textbf{$n$-bit counter chip} outputs values that increment at every transition of a clock cycle in the following manner. 
+
+    \begin{lstlisting}
+      0...000 
+      0...001
+      0...010 
+      0...011 
+      0...100 
+      ...
+      1...111 
+      0...000
+    \end{lstlisting}
+
+    It is implemented by stacking $n$ divide-by-2 chips together, composing them to get lower and lower frequencies of the same clock. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[circuit logic US, yscale=0.7, xscale=0.65]
+        \foreach \x in {0, 5, 10, 15} {
+          \node[latch, align=center, scale=0.8] (latch) at (\x,0) {};
+          \draw (latch.pin 1) -- ++(-0.5,0) node[left] {} -- ++ (0, 1.5) node[above] {input bit}; 
+          \draw (latch.pin 3) -- ++(-0.5,0) node[left] {} -- ++ (0, -1) -- (-2, -1.95); 
+          \fill (-1.8 + \x, -1.95) circle (2.5pt);
+          \draw (latch.pin 6) -- ++(0.5,0) node[right] {} -- ++ (0, -4) node[below] {output bit};
+        } 
+        \node[and gate, scale=1.5] (and) at (-2.8, -1.95) {}; 
+        \draw (and.output) -- (-1.8, -1.95);
+        
+        \node[left] (clk) at (-3.8, -1.75) {CLK};
+        \node[left] (load) at (-3.8, -2.15) {load}; 
+        \draw (clk.east) -- (and.input 1); 
+        \draw (load.east) -- (and.input 2);
+      \end{tikzpicture}
+      \caption{4-bit register. Since $\overline{Q}$ is redundant we do not consider it as an output in our register. To reset it, we can use the set-reset latches connected to one power source to initialize it to $0$. } 
+    \end{figure}
+  \end{definition}
+
+  \begin{example}[4-Bit Counter Chip]
+    If we analyze the waveforms of a clock and the effects of a 4-bit counter, note that at every step, we simply divide by 2. However, if we look at the values of $Q$ at every timestep, the oscillations of each divide-by-2 chip result in a counter! 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[xscale=0.5, yscale=0.7]
+        \draw[<->] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        \draw[<->, yshift=-1.5cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        \draw[<->, yshift=-3cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        \draw[<->, yshift=-4.5cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        \draw[<->, yshift=-6cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        
+        % Time labels and dotted lines for bottom graph only
+        \foreach \x in {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24} {
+          \draw[dotted, gray] (\x, 1.2) -- (\x, -6.8);
+          \node[below] at (\x, -6.8) {\x};
+        }
+        
+        \node[green, left] at (-0.2, 0.5) {$C$}; 
+        \node[blue, left, yshift=-1cm] at (-0.2, 0.5) {$Q_0$}; 
+        \node[blue, left, yshift=-2cm] at (-0.2, 0.5) {$Q_1$}; 
+        \node[blue, left, yshift=-3.2cm] at (-0.2, 0.5) {$Q_2$}; 
+        \node[blue, left, yshift=-4.5cm] at (-0.2, 0.5) {$Q_3$}; 
+        
+        \draw[green] (0, 0) -- 
+          (1, 0) -- (1, 1) -- (2, 1) -- (2, 0) -- 
+          (3, 0) -- (3, 1) -- (4, 1) -- (4, 0) -- 
+          (5, 0) -- (5, 1) -- (6, 1) -- (6, 0) -- 
+          (7, 0) -- (7, 1) -- (8, 1) -- (8, 0) -- 
+          (9, 0) -- (9, 1) -- (10, 1) -- (10, 0) -- 
+          (11, 0) -- (11, 1) -- (12, 1) -- (12, 0) -- 
+          (13, 0) -- (13, 1) -- (14, 1) -- (14, 0) -- 
+          (15, 0) -- (15, 1) -- (16, 1) -- (16, 0) -- 
+          (17, 0) -- (17, 1) -- (18, 1) -- (18, 0) -- 
+          (19, 0) -- (19, 1) -- (20, 1) -- (20, 0) -- 
+          (21, 0) -- (21, 1) -- (22, 1) -- (22, 0) -- 
+          (23, 0) -- (23, 1) -- (24, 1) -- (24, 0) -- 
+          (25, 0);
+        \draw[blue, yshift=-1.5cm] (0, 0) -- 
+          (2, 0) -- (2, 1) -- (4, 1) -- (4, 0) -- 
+          (6, 0) -- (6, 1) -- (8, 1) -- (8, 0) -- 
+          (10, 0) -- (10, 1) -- (12, 1) -- (12, 0) -- 
+          (14, 0) -- (14, 1) -- (16, 1) -- (16, 0) -- 
+          (18, 0) -- (18, 1) -- (20, 1) -- (20, 0) -- 
+          (22, 0) -- (22, 1) -- (24, 1) -- (24, 0) -- 
+          (25, 0); 
+        \draw[blue, yshift=-3cm] (0, 0) -- 
+          (4, 0) -- (4, 1) -- (8, 1) -- (8, 0) -- 
+          (12, 0) -- (12, 1) -- (16, 1) -- (16, 0) -- 
+          (20, 0) -- (20, 1) -- (24, 1) -- (24, 0) --
+          (25, 0);
+        \draw[blue, yshift=-4.5cm] (0, 0) -- 
+          (8, 0) -- (8, 1) -- (16, 1) -- (16, 0) -- 
+          (24, 0) -- (24, 1) -- (25, 1);
+        \draw[blue, yshift=-6cm] (0, 0) -- 
+          (16, 0) -- (16, 1) -- (25, 1);
+      \end{tikzpicture}
+      \caption{From $t = 0$ to $t = 1$, we have $Q = Q_3 Q_2 Q_1 Q_0 = 0000$. The next time period, we have $Q = 0001$, and so on. This is precisely a counter.}
+    \end{figure}
   \end{example}
 
-\subsection{Counter Chips}
