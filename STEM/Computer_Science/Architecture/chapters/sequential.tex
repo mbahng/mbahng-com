@@ -1554,13 +1554,13 @@
     \begin{figure}[H]
       \centering 
       \begin{tikzpicture}[circuit logic US, yscale=0.7, xscale=0.65]
-        \foreach \x in {0, 5, 10, 15} {
+        \foreach \x [count=\i from 0] in {0, 5, 10, 15} {
           \node[latch, align=center, scale=0.8] (latch) at (\x,0) {};
-          \draw (latch.pin 1) -- ++(-0.5,0) node[left] {} -- ++ (0, 1.5) node[above] {input bit}; 
+          \draw (latch.pin 1) -- ++(-0.5,0) node[left] {} -- ++ (0, 1.5) node[above] {in\i}; 
           \draw (latch.pin 3) -- ++(-0.5,0) node[left] {} -- ++ (0, -1) -- (-2, -1.95); 
           \fill (-1.8 + \x, -1.95) circle (2.5pt);
-          \draw (latch.pin 6) -- ++(0.5,0) node[right] {} -- ++ (0, -4) node[below] {output bit};
-        } 
+          \draw (latch.pin 6) -- ++(0.5,0) node[right] {} -- ++ (0, -4) node[below] {out\i};
+        }
         \node[and gate, scale=1.5] (and) at (-2.8, -1.95) {}; 
         \draw (and.output) -- (-1.8, -1.95);
         
@@ -1602,7 +1602,6 @@
         \draw (D.pin 4) -- ++(0.2, 0) -- ++(0, 2.5) -- ++(-2.5, 0) -- ++(0, -0.7) -- (D.pin 1);
         \draw (D.pin 6) -- ++(1,0) node[right] {};
         \draw (D.pin 3) -- ++(-0.5,0) node[left] {CLK};
-
       \end{tikzpicture}
       \caption{The output $\overline{Q}$ gets rewired into the input $D$, causing the frequency to slow down.}
     \end{figure}
@@ -1648,6 +1647,9 @@
 
   \begin{definition}[Counter Chip]
     A \textbf{$n$-bit counter chip} outputs values that increment at every transition of a clock cycle in the following manner. 
+    \begin{equation}
+      Q(t) = Q(t - 1)
+    \end{equation}
 
     \begin{lstlisting}
       0...000 
@@ -1665,20 +1667,13 @@
     \begin{figure}[H]
       \centering 
       \begin{tikzpicture}[circuit logic US, yscale=0.7, xscale=0.65]
-        \foreach \x in {0, 5, 10, 15} {
+        \foreach \x [count=\i from 0] in {0, 5, 10, 15} {
           \node[latch, align=center, scale=0.8] (latch) at (\x,0) {};
-          \draw (latch.pin 1) -- ++(-0.5,0) node[left] {} -- ++ (0, 1.5) node[above] {input bit}; 
-          \draw (latch.pin 3) -- ++(-0.5,0) node[left] {} -- ++ (0, -1) -- (-2, -1.95); 
-          \fill (-1.8 + \x, -1.95) circle (2.5pt);
-          \draw (latch.pin 6) -- ++(0.5,0) node[right] {} -- ++ (0, -4) node[below] {output bit};
-        } 
-        \node[and gate, scale=1.5] (and) at (-2.8, -1.95) {}; 
-        \draw (and.output) -- (-1.8, -1.95);
-        
-        \node[left] (clk) at (-3.8, -1.75) {CLK};
-        \node[left] (load) at (-3.8, -2.15) {load}; 
-        \draw (clk.east) -- (and.input 1); 
-        \draw (load.east) -- (and.input 2);
+          \draw (latch.pin 4) -- ++(0.2,0) -- ++(0, 3) -- ++(-3.2, 0) -- ++(0, -1) -- (latch.pin 1);
+          \draw (latch.pin 6) -- ++(0.6, 0) -- ++(0, -1.9) -- ++ (1.8, 0) node[below left] {$Q_\i$}; 
+        }
+        \node[left] (clk) at (-2, -1) {CLK}; 
+        \draw (-2, -0.95) -- (-1.2, -0.95); 
       \end{tikzpicture}
       \caption{4-bit register. Since $\overline{Q}$ is redundant we do not consider it as an output in our register. To reset it, we can use the set-reset latches connected to one power source to initialize it to $0$. } 
     \end{figure}
@@ -1742,6 +1737,79 @@
           (16, 0) -- (16, 1) -- (25, 1);
       \end{tikzpicture}
       \caption{From $t = 0$ to $t = 1$, we have $Q = Q_3 Q_2 Q_1 Q_0 = 0000$. The next time period, we have $Q = 0001$, and so on. This is precisely a counter.}
+    \end{figure}
+  \end{example}
+
+  This is extremely useful in almost every situation. First, we can now implement a program counter. Second, when multitasking in an operating system on a single core, we can have a scheduler that allows us to switch from one application to another. 
+
+  If we connect the latches a bit differently, we can get a shift register, which allows us to do bit-shift operations. 
+
+  \begin{definition}[Shift Registers]
+    A \textbf{shift register} takes in a serial input and gives a serial output. It essentially does a bitshift. 
+    \begin{align}
+      Q(t + 1, \mathrm{in}) & = [ Q_3(t + 1), Q_2 (t + 1), Q_1 (t + 1), Q_0 (t + 1) ] = [ \mathrm{in}, Q_3 (t), Q_2 (t), Q_1 (t) ] \\ 
+      \mathrm{out} & = Q_0 (t)
+    \end{align} 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[circuit logic US, yscale=0.7, xscale=0.6]
+        \foreach \x [count=\i from 0] in {0, 5, 10, 15} {
+          \node[latch, align=center, scale=0.8] (latch) at (\x,0) {};
+          \draw (latch.pin 1) -- ++(-1,0);
+          \draw (latch.pin 3) -- ++(-0.5,0) node[left] {} -- ++ (0, -1) -- (-2, -1.95); 
+          \draw (latch.pin 6) -- ++(1.3,0);
+        }
+        \node[left] (clk) at (-2.8, -1.95) {CLK};
+        \draw (clk.east) -- (-1.8, -1.95);
+        \node at (18.5, 1) {out}; 
+        \node at (-2.8, 1) {in}; 
+      \end{tikzpicture}
+      \caption{4-bit register. Since $\overline{Q}$ is redundant we do not consider it as an output in our register. } 
+    \end{figure}
+  \end{definition}
+
+  \begin{example}[4-Bit Shift Register] 
+    Say that we start off with a buffer of $0000$, and we input in a $1$ every time interval. Then, with the clock, the flip-flops will make sure to update the shift register consistently. Note that $D_{\mathrm{in}}$ does not have to be perfectly initialized to $1$ at exactly the rising or falling edge. From our construction we have flexibility. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[xscale=0.5, yscale=0.7]
+        \draw[<->] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        \draw[<->, yshift=-1.5cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        \draw[<->, yshift=-3cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        \draw[<->, yshift=-4.5cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        \draw[<->, yshift=-6cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        \draw[<->, yshift=-7.5cm] (-0.2, 1.2) -- (-0.2, -0.2) -- (25.5, -0.2); 
+        
+        % Time labels and dotted lines for bottom graph only
+        \foreach \x in {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24} {
+          \draw[dotted, gray] (\x, 1.2) -- (\x, -8.3);
+          \node[below] at (\x, -8.3) {\x};
+        }
+        
+        \node[green, left] at (-0.2, 0.5) {$C$}; 
+        \node[blue, left, yshift=-1cm] at (-0.2, 0.5) {$d_{\mathrm{in}}$}; 
+        \node[red, left, yshift=-2cm] at (-0.2, 0.5) {$Q_0$}; 
+        \node[red, left, yshift=-3.2cm] at (-0.2, 0.5) {$Q_1$}; 
+        \node[red, left, yshift=-4.5cm] at (-0.2, 0.5) {$Q_2$}; 
+        \node[red, left, yshift=-6cm] at (-0.2, 0.5) {$Q_3$}; 
+        
+        \draw[green] (0, 0) -- 
+          (2, 0) -- (2, 1) -- (4, 1) -- (4, 0) -- 
+          (6, 0) -- (6, 1) -- (8, 1) -- (8, 0) -- 
+          (10, 0) -- (10, 1) -- (12, 1) -- (12, 0) -- 
+          (14, 0) -- (14, 1) -- (16, 1) -- (16, 0) -- 
+          (18, 0) -- (18, 1) -- (20, 1) -- (20, 0) -- 
+          (22, 0) -- (22, 1) -- (24, 1) -- (24, 0) -- 
+          (25, 0); 
+        \draw[blue, yshift=-1.5cm] (0, 0) -- (2.4, 0) -- (2.4, 1) -- (25, 1);
+        \draw[red, yshift=-3cm] (0, 0) -- (4, 0) -- (4, 1) -- (25, 1);
+        \draw[red, yshift=-4.5cm] (0, 0) -- (8, 0) -- (8, 1) -- (25, 1);
+        \draw[red, yshift=-6cm] (0, 0) -- (12, 0) -- (12, 1) -- (25, 1);
+        \draw[red, yshift=-7.5cm] (0, 0) -- (16, 0) -- (16, 1) -- (25, 1);
+      \end{tikzpicture}
+      \caption{From $t = 0$ to $t = 4$, we have $Q = 0000$. From $t = 4$ to $t = 8$, we have $Q = 1000$. From $t = 8$ to $t = 12$, we have $Q = 1100$. From $t = 12$ to $t = 16$, we have $Q = 1110$. From $t = 16$ to $t = 20$, we have $Q = 1111$.}
     \end{figure}
   \end{example}
 
