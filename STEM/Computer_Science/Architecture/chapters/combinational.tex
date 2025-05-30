@@ -174,6 +174,265 @@
 
 \subsection{Comparator}
 
+  \begin{definition}[1-Bit Comparator]
+    A \textbf{1-bit (magnitude) comparator} simply takes in 2 1-bit numbers $a, b \in \{0, 1\}$ and outputs whether $a > b$, $a = b$, or $a < b$. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{circuitikz}[circuit logic US]
+          \node[op amp] (opamp) at (0, 0) {};
+          \draw (opamp.+) to[short] ++(-1,0) node[left] {$b$};
+          \draw (opamp.-) to[short] ++(-1,0) node[left] {$a$};
+          \draw (opamp.out)++(0.5,0) -- ++(0, 0.4) -- ++(0.5, 0) node[right] {$l$};
+          \draw (opamp.out) -- ++(1,0) node[right] {$e$};
+          \draw (opamp.out)++(0.5,0) -- ++(0, -0.4) -- ++(0.5, 0) node[right] {$g$};
+        \end{circuitikz}
+        \caption{}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tabular}{|c|c|c|c|c|}
+          \hline
+          a & b & aEQb & aGTb & bGTa \\
+          \hline
+          0 & 0 & 1 & 0 & 0 \\
+          \hline
+          0 & 1 & 0 & 0 & 1 \\
+          \hline
+          1 & 0 & 0 & 1 & 0 \\
+          \hline
+          1 & 1 & 1 & 0 & 0 \\
+          \hline
+        \end{tabular}
+        \caption{Truth table.}
+      \end{subfigure}
+    \end{figure}
+
+    The implementation is quite simple. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{circuitikz}[circuit logic US, scale=1.4]
+        \node[not gate, scale=0.5] (not1) at (-1.5, 1.6) {}; 
+        \node[and gate] (and1) at (0, 1.5) {}; 
+        \node[xnor gate] (xnor) at (0.5, 0) {}; 
+        \node[and gate] (and2) at (0, -2) {}; 
+        \node[not gate, point down, scale=0.5] (not2) at (-1.5, -1) {}; 
+        \draw (-3.5, 1.6) node[left] {$a$} -- (not1.input);
+        \draw (-3.5, 1.4) node[left] {$b$} -- (and1.input 2);
+        \draw (not1.output) -- (and1.input 1);
+        \draw (-2.7, 1.6) -- (-2.7, -1.9) -- (and2.input 1);
+        \draw (not2.output) -- (-1.5, -2.1) -- (and2.input 2); 
+        \fill (-1.5, 1.4) circle (1.5pt); 
+        \fill (-1.5, -0.1) circle (1.5pt); 
+        \draw (-2.7, 0.1) -- (xnor.input 1); 
+        \draw (-1.5, -0.1) -- (xnor.input 2); 
+        \draw (-1.5, 1.4) -- (not2.input); 
+        \draw (and1.output) -- ++(0.5, 0) node[right] {$l$};
+        \draw (xnor.output) -- ++(0.5, 0) node[right] {$e$};
+        \draw (and2.output) -- ++(0.5, 0) node[right] {$g$};
+      \end{circuitikz}
+      \caption{} 
+    \end{figure}
+  \end{definition}
+
+  Now that we have a 1-bit comparator, given two $n$-bit inputs, all we have to do is apply the 1-bit comparator starting from the most significant bit to the least significant bit, and this gives us an $n$-bit comparator. However, this is pretty slow since it is sequential, but implementing one-shot $n$-bit comparators requires an exponentially large circuit. Therefore, we compromise between the two schemes. The general idea is that we implement $2$-bit and $4$-bit one-shot comparators, and then use them to sequentially compare bigger---e.g. $32$-bit---numbers. 
+
+  \begin{definition}[2-Bit Comparator]
+    A 2-bit comparator is implemented as such. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{circuitikz}[circuit logic US, scale=1.4]
+        \foreach \w in {0, 1, 2, 3} {
+          \node[not gate, scale=0.6, point down] (not) at (-4 + \w, 4) {}; 
+          \draw (not.output) -- ++(0, -7); 
+          \draw (-4.3 + \w, 5) -- ++(0, -8); 
+          \draw (-4.3 + \w, 4.5) -- ++(0.3, 0) -- (not.input); 
+          \fill (-4 + \w, 4.5) circle (1.5pt); 
+        }
+
+        \node[above] at (-4.3, 5) {$a_1$}; 
+        \node[above] at (-3.3, 5) {$a_0$}; 
+        \node[above] at (-2.3, 5) {$b_1$}; 
+        \node[above] at (-1.3, 5) {$b_0$}; 
+
+        \node[and gate, scale=0.8, inputs=nnn] (and1) at (1, 2 + 0.6) {}; 
+        \node[and gate, scale=0.8, inputs=nnn] (and2) at (1, 2) {}; 
+        \node[and gate, scale=0.8, inputs=nnn] (and3) at (1, 2 - 0.6) {}; 
+        \node[nor gate, scale=0.8, inputs=nnn] (nor1) at (2, 2) {}; 
+        \draw (and1.output) -- ++(0.3, 0) -- ++(0, -0.5) -- (nor1.input 1);
+        \draw (and2.output) -- (nor1.input 2);
+        \draw (and3.output) -- ++(0.3, 0) -- ++(0, 0.5) -- (nor1.input 3);
+
+        \node[and gate, scale=0.8, inputs=nnn] (and4) at (1, -2 + 0.6) {}; 
+        \node[and gate, scale=0.8, inputs=nnn] (and5) at (1, -2) {}; 
+        \node[and gate, scale=0.8, inputs=nnn] (and6) at (1, -2 - 0.6) {}; 
+        \node[nor gate, scale=0.8, inputs=nnn] (nor2) at (2, -2) {}; 
+        \draw (and4.output) -- ++(0.3, 0) -- ++(0, -0.5) -- (nor2.input 1);
+        \draw (and5.output) -- (nor2.input 2);
+        \draw (and6.output) -- ++(0.3, 0) -- ++(0, 0.5) -- (nor2.input 3);
+
+        \draw (-3.3, 0.7 + 2) -- (and1.input 1); 
+        \draw (-2, 0.6 + 2) -- (and1.input 2); 
+        \draw (-1, 0.5 + 2) -- (and1.input 3); 
+        \fill (-3.3, 0.7 + 2) circle (1.5pt); 
+        \fill (-2, 0.6 + 2) circle (1.5pt); 
+        \fill (-1, 0.5 + 2) circle (1.5pt); 
+
+        \draw (-4.3, 0.1 + 2) -- (and2.input 1); 
+        \draw (-2, -0.1 + 2) -- (and2.input 3); 
+        \fill (-4.3, 0.1 + 2) circle (1.5pt); 
+        \fill (-2, -0.1 + 2) circle (1.5pt); 
+
+        \draw (-4.3, -0.5 + 2) -- (and3.input 1); 
+        \draw (-3.3, -0.6 + 2) -- (and3.input 2); 
+        \draw (-1, -0.7 + 2) -- (and3.input 3); 
+        \fill (-4.3, -0.5 + 2) circle (1.5pt); 
+        \fill (-3.3, -0.6 + 2) circle (1.5pt); 
+        \fill (-1, -0.7 + 2) circle (1.5pt); 
+
+        \draw (-4, 0.7 - 2) -- (and4.input 1); 
+        \draw (-3, 0.6 - 2) -- (and4.input 2); 
+        \fill (-4, 0.7 - 2) circle (1.5pt); 
+        \fill (-3, 0.6 - 2) circle (1.5pt); 
+
+        \draw (-3, 0.1 - 2) -- (and5.input 1); 
+        \draw (-2.3, - 2) -- (and5.input 2); 
+        \draw (-1.3, -0.1 - 2) -- (and5.input 3); 
+        \fill (-3, 0.1 - 2) circle (1.5pt); 
+        \fill (-2.3, - 2) circle (1.5pt); 
+        \fill (-1.3, -0.1 - 2) circle (1.5pt); 
+
+        \draw (-4, -0.5 - 2) -- (and6.input 1); 
+        \draw (-2.3, -0.7 - 2) -- (and6.input 3); 
+        \fill (-4, -0.5 - 2) circle (1.5pt); 
+        \fill (-2.3, -0.7 - 2) circle (1.5pt); 
+
+        \node[xnor gate, scale=0.8, inputs=nnn] (xnor1) at (1, 0.5) {}; 
+        \node[and gate, scale=0.8, inputs=nnn] (and) at (2.5, 0) {}; 
+        \node[xnor gate, scale=0.8, inputs=nnn] (xnor2) at (1, -0.5) {}; 
+        \draw (xnor1.output) -- ++(0.2, 0) -- ++(0, -0.4) -- (and.input 1); 
+        \draw (xnor2.output) -- ++(0.2, 0) -- ++(0, 0.4) -- (and.input 3); 
+        \draw (-3.3, 0.6) -- (xnor1.input 1); 
+        \draw (-1.3, 0.4) -- (xnor1.input 2); 
+        \draw (-4.3, -0.4) -- (xnor2.input 1); 
+        \draw (-2.3, -0.6) -- (xnor2.input 2); 
+        \fill (-3.3, 0.6) circle (1.5pt);
+        \fill (-1.3, 0.4)  circle (1.5pt);
+        \fill (-4.3, -0.4) circle (1.5pt);
+        \fill (-2.3, -0.6) circle (1.5pt);
+
+        \draw (nor1.output) -- ++(0.3, 0) node[right] {$a > b$}; 
+        \draw (and.output) -- ++(0.3, 0) node[right] {$a = b$}; 
+        \draw (nor2.output) -- ++(0.3, 0) node[right] {$a < b$}; 
+      \end{circuitikz}
+      \caption{Credits to GeeksForGeeks.} 
+    \end{figure}
+  \end{definition}
+
+  \begin{definition}[4-Bit Comparator]
+    A 4-bit comparator is implemented as such. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{circuitikz}[circuit logic US, scale=1.4]
+        \foreach \h in {0, 2, 4, 6} {
+          \node[not gate, scale=0.6] (not1\h) at (-3, 0.5 + \h) {}; 
+          \node[not gate, scale=0.6] (not2\h) at (-3, -0.5 + \h) {}; 
+          \node[and gate, scale=0.8] (and1\h) at (-1.5, 0.4 + \h) {}; 
+          \node[and gate, scale=0.8] (and2\h) at (-1.5, -0.4 + \h) {}; 
+          \node[or gate, scale=0.8] (or\h) at (0, \h) {}; 
+          \draw (not1\h.input) -- ++(-1, 0); 
+          \draw (not2\h.input) -- ++(-1, 0); 
+          \draw (not1\h.output) -- (and1\h.input 1); 
+          \draw (not2\h.output) -- (and2\h.input 2); 
+          \fill (-3.7, 0.5 + \h) circle (1.5pt); 
+          \fill (-3.7, -0.5 + \h) circle (1.5pt); 
+          \draw (-3.7, 0.5 + \h) -- (-2.7, -0.3 + \h) -- (and2\h.input 1); 
+          \draw (-3.7, -0.5 + \h) -- (-2.7, 0.3 + \h) -- (and1\h.input 2); 
+          \draw (and1\h.output) -- ++(0.3, 0) -- ++(0, -0.3) -- (or\h.input 1);
+          \draw (and2\h.output) -- ++(0.3, 0) -- ++(0, 0.3) -- (or\h.input 2);
+        }
+        \node[left] at (-4.2, 0.5 + 6) {$a_3$}; 
+        \node[left] at (-4.2, -0.5 + 6) {$b_3$}; 
+        \node[left] at (-4.2, 0.5 + 4) {$a_2$}; 
+        \node[left] at (-4.2, -0.5 + 4) {$b_2$}; 
+        \node[left] at (-4.2, 0.5 + 2) {$a_1$}; 
+        \node[left] at (-4.2, -0.5 + 2) {$b_1$}; 
+        \node[left] at (-4.2, 0.5 + 0) {$a_0$}; 
+        \node[left] at (-4.2, -0.5 + 0) {$b_0$}; 
+
+        \node[and gate, inputs=nnnn, scale=0.7] (and1) at (1.5, 4.5) {}; 
+        \node[and gate, inputs=nnnn, scale=0.7] (and2) at (1.5, 3.7) {}; 
+        \node[and gate, inputs=nnnn, scale=0.7] (and3) at (1.5, 2.5) {}; 
+        \node[and gate, inputs=nnnn, scale=0.7] (and4) at (1.5, 1.7) {}; 
+        \node[and gate, inputs=nnnn, scale=0.7] (and5) at (1.5, 0.5) {}; 
+        \node[and gate, inputs=nnnn, scale=0.7] (and6) at (1.5, -0.3) {}; 
+        \node[and gate, inputs=nnnn, scale=0.7] (and7) at (1.5, -1.15) {}; 
+
+        \draw (0.8, 0.55 + 4) -- (and1.input 2); \fill (0.8, 0.55 + 4) circle (1.5pt);
+        \draw (and14.output)++(0.3, 0) -- (and1.input 4); 
+
+        \draw (0.8, -0.25 + 4) -- (and2.input 2); \fill (0.8, -0.25 + 4) circle (1.5pt);
+        \draw (and24.output)++(0.3, 0) -- (and2.input 4); 
+
+        \draw (0.8, 0.55 + 2) -- (and3.input 2); \fill (0.8, 0.55 + 2) circle (1.5pt);
+        \draw (0.7, 0.45 + 2) -- (and3.input 3); \fill (0.7, 0.45 + 2) circle (1.5pt);
+        \draw (and12.output)++(0.3, 0) -- (and3.input 4); 
+        \fill (and12.output)++(0.3, 0) circle (1.5pt); 
+
+        \draw (0.8, -0.25 + 2) -- (and4.input 2); \fill (0.8, -0.25 + 2) circle (1.5pt);
+        \draw (0.7, -0.35 + 2) -- (and4.input 3); \fill (0.7, -0.35 + 2) circle (1.5pt);
+        \draw (and22.output)++(0.3, 0) -- (and4.input 4); 
+        \fill (and22.output)++(0.3, 0) circle (1.5pt); 
+
+        \draw (0.8, 0.65) -- (and5.input 1); \fill (0.8, 0.65) circle (1.5pt);
+        \draw (0.7, 0.55) -- (and5.input 2); \fill (0.7, 0.55) circle (1.5pt);
+        \draw (0.6, 0.45) -- (and5.input 3); \fill (0.6, 0.45) circle (1.5pt);
+        \draw (and10.output)++(0.3, 0) -- (and5.input 4); 
+        \fill (and10.output)++(0.3, 0) circle (1.5pt); 
+
+        \draw (0.8, -0.15) -- (and6.input 1); \fill (0.8, -0.15) circle (1.5pt);
+        \draw (0.7, -0.25) -- (and6.input 2); \fill (0.7, -0.25) circle (1.5pt);
+        \draw (0.6, -0.35) -- (and6.input 3); \fill (0.6, -0.35) circle (1.5pt);
+        \draw (and20.output)++(0.3, 0) -- (and6.input 4); 
+        \fill (and20.output)++(0.3, 0) circle (1.5pt); 
+
+        \draw (or0.output) -- ++(0.1, 0) -- (0.5, -1.3) -- (and7.input 4); 
+        \draw (or2.output) -- ++(0.2, 0) -- (0.6, -1.2) -- (and7.input 3); 
+        \draw (or4.output) -- ++(0.3, 0) -- (0.7, -1.1) -- (and7.input 2); 
+        \draw (or6.output) -- ++(0.4, 0) -- (0.8, -1.0) -- (and7.input 1); 
+
+        \node[or gate, scale=0.7, inputs=nnnn] (ori) at (3.3, 2.55) {}; 
+        \draw (and16.output)++(0.6, 0) -- ++(3.1, 0) -- ++ (0, -3.7) -- (ori.input 1); 
+        \draw (and1.output) -- ++(0.6, 0) -- ++(0, -1.9) -- (ori.input 2);
+        \draw (and3.output) -- ++(0.6, 0) -- ++(0, 0) -- (ori.input 3);
+        \draw (and5.output) -- ++(0.6, 0) -- ++(0, 1.9) -- (ori.input 4);
+
+        \node[or gate, scale=0.7, inputs=nnnn] (oro) at (3, 0.1) {}; 
+        \draw (and26.output)++(0.4, 0) -- ++(3, 0) -- ++ (0, -5.35) -- (oro.input 1); 
+        \draw (and2.output) -- ++(0.3, 0) -- ++(0, -3.55) -- (oro.input 2);
+        \draw (and4.output) -- ++(0.2, 0) -- ++(0, -1.65) -- (oro.input 3);
+        \draw (and6.output) -- ++(0.2, 0) -- ++(0, 0.25) -- (oro.input 4);
+
+        \draw (ori.output) -- ++(0.2, 0) node[right] {$a < b$}; 
+        \draw (oro.output) -- ++(0.2, 0) node[right] {$a > b$}; 
+        \draw (and7.output) -- ++ (1.8, 0) node[right] {$a = b$}; 
+      \end{circuitikz}
+      \caption{Implementation of 4-bit magnitude comparator.} 
+    \end{figure}
+  \end{definition}
+
+  Therefore, 
+
+  \begin{definition}[$n$-Bit Comparator]
+    A $n$-bit comparator is implemented sequentially with 4-bit comparators. 
+  \end{definition}
+
 \subsection{Addition and Subtraction} 
 
   We present a hierarchy of three adders, leading to a multi-bit adder chip. Note that every single chip here represents a finite function, and so from  \hyperref[th-thm:aon_univ]{universality of AON gates} we know that an implementation is definitely possible. 
