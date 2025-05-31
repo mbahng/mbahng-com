@@ -1,2 +1,631 @@
 \section{ARM Data Movement} 
 
+  At this point (assuming you are going through my computer science notes in order), we have encountered our first lexical computer language. We aren't just describing things with psuedocode like we did with architecture, and we aren't relying on hardware-like systems like circuits or Conway's game of life here. This extra level of abstraction is nice to work with, but in order to fully appreciate it, we must know how to convert assembly into machine code. As we have seen, this is done in two steps. 
+  \begin{enumerate}
+    \item \textit{Assemblers} convert them into object files. 
+    \item \textit{Linkers} use a relocation table to convert them into executables, written in machine code. 
+  \end{enumerate} 
+  This is essentially a translation from one language into another, and to do this, we might want to have some organization in our code. Therefore, we divide \texttt{.s} files into \textit{sections}. Furthermore, we might want to include instructions that tell the assembler---not the CPU---how to process your code, analogous to preprocessing text or tuning parameters for translation. 
+
+  Both sections and directives have a period \texttt{.} at the front of their name, so you must tell them apart by context. 
+
+  \begin{definition}[Section]
+    In order for assemblers and linkers to interpret your programs, we must organize them into \textbf{sections}. Each section---specified by the distinctive \texttt{.} at the front of its name---specifies the following non-exhaustive list of properties. 
+    \begin{enumerate}
+      \item The read/write/executable permissions. 
+      \item How data is initialized. 
+    \end{enumerate}
+  \end{definition} 
+
+  \begin{example}[Must-Know Sections]
+    The main sections you should be familiar with are 
+    \begin{enumerate}
+      \item \texttt{.text} (read+execute). This is where you write your code. 
+      \item \texttt{.data} (read+write). This is where you store data and memory. 
+      \item \texttt{.rodata} (read). Stores constant data that should not be modified during program execution. 
+      \item \texttt{.bss} (read+write). Zero-initialized and stores uninitialized variables. 
+    \end{enumerate}
+  \end{example} 
+
+  You can also create your own sections. 
+
+\subsection{Loading}
+
+  The first thing you should know about are registers. Here are the register conventions for ARM64. 
+
+  \begin{definition}[ARM64 Registers]
+    A 64-bit program on an ARM processor has access to 31-general purpose registers, a program counter, and a stack pointer (aka a combination zero register). 
+    \begin{enumerate}
+      \item \texttt{X0} - \texttt{X30}. These 31 registers are general purpose. You can use them for anything you want, though there are some standards. 
+      \item \texttt{SP, XZR}. The link register. If you call a function, this register will be used to hold the return address. 
+      \item \texttt{PC}. Program counter. The memory address of the currently executing instruction. 
+    \end{enumerate}
+    All the X registers can be operated on as 32-bit registers by referring to them as W0–W30 and WZR. When we do this, the instruction will use the lower 32 bits of the register and set the upper 32 bits to zero. Using 32 bits saves memory, since you only use 4 bytes rather than 8 bytes for each quantity saved. 
+    Some Apple specific things: 
+    \begin{enumerate}
+      \item Apple reserves X18 for its own use. Do not use this register. 
+      \item The frame pointer register (\texttt{FP}, \texttt{X29}) must always address a valid frame record. This is for backtraces. 
+    \end{enumerate}
+  \end{definition}
+
+  \begin{definition}[Basic Load Operations]
+    \begin{lstlisting}[language=arm]
+      ldr x0, [x1]          # Load 64-bit from [x1]
+      ldr w0, [x1]          # Load 32-bit from [x1]
+      ldrh w0, [x1]         # Load 16-bit halfword (zero extend)
+      ldrb w0, [x1]         # Load 8-bit byte (zero extend)
+      
+      # Sign-extending loads
+      ldrsw x0, [x1]        # Load 32-bit, sign extend to 64-bit
+      ldrsh x0, [x1]        # Load 16-bit, sign extend to 64-bit
+      ldrsh w0, [x1]        # Load 16-bit, sign extend to 32-bit
+      ldrsb x0, [x1]        # Load 8-bit, sign extend to 64-bit
+      ldrsb w0, [x1]        # Load 8-bit, sign extend to 32-bit
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Basic Store Operations]
+    \begin{lstlisting}[language=arm]
+      str x0, [x1]          # Store 64-bit to [x1]
+      str w0, [x1]          # Store 32-bit to [x1]
+      strh w0, [x1]         # Store 16-bit halfword to [x1]
+      strb w0, [x1]         # Store 8-bit byte to [x1]
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Addressing Modes]
+    \begin{lstlisting}[language=arm]
+      # Immediate offset
+      ldr x0, [x1, #8]      # Load from [x1 + 8]
+      str x0, [x1, #16]     # Store to [x1 + 16]
+      
+      # Register offset
+      ldr x0, [x1, x2]      # Load from [x1 + x2]
+      ldr x0, [x1, x2, lsl #3]  # Load from [x1 + (x2 << 3)]
+      
+      # Pre-indexed (update base register before)
+      ldr x0, [x1, #8]!     # x1 = x1 + 8, then load from [x1]
+      str x0, [x1, #-16]!   # x1 = x1 - 16, then store to [x1]
+      
+      # Post-indexed (update base register after)
+      ldr x0, [x1], #8      # Load from [x1], then x1 = x1 + 8
+      str x0, [x1], #16     # Store to [x1], then x1 = x1 + 16
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Pair Load/Store Operations]
+    \begin{lstlisting}[language=arm]
+      # Load/store register pairs
+      ldp x0, x1, [x2]      # Load pair: x0=[x2], x1=[x2+8]
+      stp x0, x1, [x2]      # Store pair: [x2]=x0, [x2+8]=x1
+      
+      # With immediate offset
+      ldp x0, x1, [x2, #16] # Load pair from [x2+16], [x2+24]
+      stp x0, x1, [x2, #32] # Store pair to [x2+32], [x2+40]
+      
+      # Pre/post-indexed pairs
+      ldp x0, x1, [x2, #16]!    # x2+=16, then load pair
+      stp x0, x1, [x2], #16     # Store pair, then x2+=16
+      
+      # Mixed register sizes
+      ldp w0, w1, [x2]      # Load 32-bit pair
+      stp w0, w1, [x2]      # Store 32-bit pair
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Atomic and Exclusive Operations]
+    \begin{lstlisting}[language=arm]
+      # Load/store exclusive
+      ldxr x0, [x1]         # Load exclusive 64-bit
+      stxr w2, x0, [x1]     # Store exclusive 64-bit (w2 = status)
+      ldxrh w0, [x1]        # Load exclusive 16-bit
+      stxrh w2, w0, [x1]    # Store exclusive 16-bit
+      ldxrb w0, [x1]        # Load exclusive 8-bit
+      stxrb w2, w0, [x1]    # Store exclusive 8-bit
+      
+      # Clear exclusive monitor
+      clrex                 # Clear exclusive access monitor
+      
+      # Load/store exclusive pairs
+      ldxp x0, x1, [x2]     # Load exclusive pair
+      stxp w3, x0, x1, [x2] # Store exclusive pair (w3 = status)
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[PC-Relative Addressing]
+    \begin{lstlisting}[language=arm]
+      # Address generation
+      adr x0, label         # Load address of label (PC + offset)
+      adrp x0, label        # Load page address of label
+      
+      # PC-relative loads
+      ldr x0, =value        # Load literal (assembler places in literal pool)
+      ldr x0, label         # Load from label address
+      
+      # Combined page + offset addressing
+      adrp x0, symbol@PAGE
+      add x0, x0, symbol@PAGEOFF
+      ldr x1, [x0]          # Load from symbol
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Data Movement Operations]
+    \begin{lstlisting}[language=arm]
+      # Basic move operations
+      mov x0, x1            # Move register to register
+      mov x0, #42           # Move immediate to register
+      
+      # Move with zero/not/keep
+      movz x0, #0x1234      # Move immediate, zero other bits
+      movn x0, #0x1234      # Move NOT of immediate
+      movk x0, #0x5678, lsl #16  # Move immediate, keep other bits
+      
+      # Conditional moves (covered in logical section)
+      csel x0, x1, x2, eq   # Conditional select
+      csinc x0, x1, x2, ne  # Conditional select and increment
+      
+      # Register to register with operations
+      sxtb x0, w1           # Sign extend byte to 64-bit
+      sxth x0, w1           # Sign extend halfword to 64-bit
+      sxtw x0, w1           # Sign extend word to 64-bit
+      uxtb w0, w1           # Zero extend byte to 32-bit
+      uxth w0, w1           # Zero extend halfword to 32-bit
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Advanced Load/Store]
+    \begin{lstlisting}[language=arm]
+      # Load with acquire, store with release (memory ordering)
+      ldar x0, [x1]         # Load acquire
+      stlr x0, [x1]         # Store release
+      ldarb w0, [x1]        # Load acquire byte
+      stlrb w0, [x1]        # Store release byte
+      ldarh w0, [x1]        # Load acquire halfword
+      stlrh w0, [x1]        # Store release halfword
+      
+      # Prefetch operations
+      prfm pldl1keep, [x0]  # Prefetch for load, L1 cache, keep
+      prfm pstl1strm, [x0, #64]  # Prefetch for store, L1, streaming
+      
+      # Non-temporal loads/stores
+      ldnp x0, x1, [x2]     # Load pair non-temporal
+      stnp x0, x1, [x2]     # Store pair non-temporal
+    \end{lstlisting}
+  \end{definition}
+
+\subsection{Arithmetic} 
+
+  \begin{definition}[Addition]
+    \begin{lstlisting}[language=arm]
+      add x0, x1, x2      # x0 = x1 + x2 (64-bit)
+      add w0, w1, w2      # w0 = w1 + w2 (32-bit)
+      add x0, x1, #42     # x0 = x1 + 42 (immediate)
+      adds x0, x1, x2     # Add and set flags
+      adc x0, x1, x2      # Add with carry
+      adcs x0, x1, x2     # Add with carry and set flags
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Subtraction]
+    \begin{lstlisting}[language=arm]
+      sub x0, x1, x2      # x0 = x1 - x2
+      sub w0, w1, w2      # 32-bit subtract
+      sub x0, x1, #42     # x0 = x1 - 42
+      subs x0, x1, x2     # Subtract and set flags
+      sbc x0, x1, x2      # Subtract with carry
+      sbcs x0, x1, x2     # Subtract with carry and set flags
+      neg x0, x1          # x0 = -x1 (negate)
+      negs x0, x1         # Negate and set flags
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Multiplication]
+    \begin{lstlisting}[language=arm]
+      mul x0, x1, x2      # x0 = x1 * x2 (low 64 bits)
+      smull x0, w1, w2    # Signed multiply 32 to 64 bit
+      umull x0, w1, w2    # Unsigned multiply 32 to 64 bit
+      smulh x0, x1, x2    # Signed multiply high (upper 64 bits)
+      umulh x0, x1, x2    # Unsigned multiply high
+      madd x0, x1, x2, x3 # x0 = x3 + (x1 * x2) (multiply-add)
+      msub x0, x1, x2, x3 # x0 = x3 - (x1 * x2) (multiply-subtract)
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Division]
+    \begin{lstlisting}[language=arm]
+      sdiv x0, x1, x2     # x0 = x1 / x2 (signed)
+      udiv x0, x1, x2     # x0 = x1 / x2 (unsigned)
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Multiply-Accumulate]
+    \begin{lstlisting}[language=arm]
+      madd x0, x1, x2, x3   # x0 = x3 + (x1 * x2)
+      msub x0, x1, x2, x3   # x0 = x3 - (x1 * x2)
+      smaddl x0, w1, w2, x3 # x0 = x3 + (w1 * w2) signed 32 to 64
+      smsubl x0, w1, w2, x3 # x0 = x3 - (w1 * w2) signed 32 to 64
+      umaddl x0, w1, w2, x3 # x0 = x3 + (w1 * w2) unsigned 32 to 64
+      umsubl x0, w1, w2, x3 # x0 = x3 - (w1 * w2) unsigned 32 to 64
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Bitwise Operations]
+    \begin{lstlisting}[language=arm]
+      and x0, x1, x2      # Bitwise AND
+      orr x0, x1, x2      # Bitwise OR
+      eor x0, x1, x2      # Bitwise XOR (exclusive OR)
+      bic x0, x1, x2      # Bit clear (x0 = x1 & ~x2)
+      orn x0, x1, x2      # OR NOT (x0 = x1 | ~x2)
+      eon x0, x1, x2      # XOR NOT (x0 = x1 ^ ~x2)
+      mvn x0, x1          # Move NOT (x0 = ~x1)
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Shift Operations]
+    \begin{lstlisting}[language=arm]
+      lsl x0, x1, #5      # Logical shift left by 5
+      lsr x0, x1, #3      # Logical shift right by 3
+      asr x0, x1, #2      # Arithmetic shift right by 2
+      ror x0, x1, #4      # Rotate right by 4
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Combined Operations]
+    \begin{lstlisting}[language=arm]
+      # Add with shifted register
+      add x0, x1, x2, lsl #3    # x0 = x1 + (x2 << 3)
+      sub x0, x1, x2, asr #2    # x0 = x1 - (x2 >> 2)
+      
+      # Bitwise with shifted register  
+      and x0, x1, x2, ror #4    # x0 = x1 & (x2 rotated right 4)
+      orr x0, x1, x2, lsl #1    # x0 = x1 | (x2 << 1)
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Comparison Operations]
+    \begin{lstlisting}[language=arm]
+      cmp x1, x2          # Compare (sets flags, x1 - x2)
+      cmn x1, x2          # Compare negative (sets flags, x1 + x2)
+      tst x1, x2          # Test (sets flags, x1 & x2)
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Conditional Operations]
+    \begin{lstlisting}[language=arm]
+      csel x0, x1, x2, eq    # x0 = (condition) ? x1 : x2
+      csinc x0, x1, x2, ne   # x0 = (condition) ? x1 : x2+1
+      csinv x0, x1, x2, gt   # x0 = (condition) ? x1 : ~x2
+      csneg x0, x1, x2, lt   # x0 = (condition) ? x1 : -x2
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Absolute Value and Min/Max]
+    \begin{lstlisting}[language=arm]
+      # Using conditional select for abs(x1)
+      cmp x1, #0
+      csneg x0, x1, x1, ge    # x0 = (x1 >= 0) ? x1 : -x1
+      
+      # Min/max using conditional select
+      cmp x1, x2
+      csel x0, x1, x2, lt     # x0 = min(x1, x2)
+      csel x0, x1, x2, gt     # x0 = max(x1, x2)
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Increment/Decrement]
+    \begin{lstlisting}[language=arm]
+      add x0, x0, #1      # Increment by 1
+      sub x0, x0, #1      # Decrement by 1
+      adds x0, x0, #1     # Increment and set flags
+      subs x0, x0, #1     # Decrement and set flags
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Modulo Operation]
+    \begin{lstlisting}[language=arm]
+      # x0 = x1 % x2 (signed) - No direct instruction
+      sdiv x3, x1, x2     # x3 = x1 / x2
+      msub x0, x3, x2, x1 # x0 = x1 - (x3 * x2)
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Power of 2 Operations]
+    \begin{lstlisting}[language=arm]
+      # Multiply by power of 2
+      lsl x0, x1, #3      # x0 = x1 * 8 (2^3)
+      
+      # Divide by power of 2
+      lsr x0, x1, #2      # x0 = x1 / 4 (unsigned)
+      asr x0, x1, #2      # x0 = x1 / 4 (signed)
+    \end{lstlisting}
+  \end{definition}
+
+\subsection{Logical Operations}
+
+  \begin{definition}[Bit Field Operations]
+    \begin{lstlisting}[language=arm]
+      sbfx x0, x1, #5, #8   # Signed bit field extract
+      ubfx x0, x1, #5, #8   # Unsigned bit field extract  
+      sbfiz x0, x1, #5, #8  # Signed bit field insert zeros
+      ubfiz x0, x1, #5, #8  # Unsigned bit field insert zeros
+      bfi x0, x1, #5, #8    # Bit field insert
+      bfxil x0, x1, #5, #8  # Bit field extract and insert low
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Bit Manipulation]
+    \begin{lstlisting}[language=arm]
+      rbit x0, x1           # Reverse bits
+      rev x0, x1            # Reverse bytes (64-bit)
+      rev32 x0, x1          # Reverse bytes in 32-bit words
+      rev16 x0, x1          # Reverse bytes in 16-bit halfwords
+      clz x0, x1            # Count leading zeros
+      cls x0, x1            # Count leading sign bits
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Advanced Logical Operations]
+    \begin{lstlisting}[language=arm]
+      # Bitwise operations with immediates
+      and x0, x1, #0xFF00   # AND with immediate mask
+      orr x0, x1, #0x0F0F   # OR with immediate mask
+      eor x0, x1, #0xAAAA   # XOR with immediate mask
+      
+      # Test and branch on bit
+      tbz x1, #5, label     # Test bit zero and branch
+      tbnz x1, #5, label    # Test bit non-zero and branch
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Conditional Logic]
+    \begin{lstlisting}[language=arm]
+      ccmp x1, x2, #0, eq   # Conditional compare
+      ccmn x1, x2, #0, ne   # Conditional compare negative
+      cset x0, eq           # Conditional set (x0 = condition ? 1 : 0)
+      csetm x0, ne          # Conditional set mask (x0 = condition ? -1 : 0)
+      cinc x0, x1, gt       # Conditional increment
+      cinv x0, x1, lt       # Conditional invert
+      cneg x0, x1, ge       # Conditional negate
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Logical Shift Operations]
+    \begin{lstlisting}[language=arm]
+      # Standalone shift operations
+      lsl x0, x1, x2        # Logical shift left by register
+      lsr x0, x1, x2        # Logical shift right by register
+      asr x0, x1, x2        # Arithmetic shift right by register
+      ror x0, x1, x2        # Rotate right by register
+      
+      # Shift with immediate
+      lsl x0, x1, #5        # Logical shift left by immediate
+      lsr x0, x1, #3        # Logical shift right by immediate
+      asr x0, x1, #2        # Arithmetic shift right by immediate
+      ror x0, x1, #4        # Rotate right by immediate
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Pattern Operations]
+    \begin{lstlisting}[language=arm]
+      # Extract and duplicate patterns
+      extr x0, x1, x2, #8   # Extract from register pair
+      dup v0.8b, w1         # Duplicate scalar to vector
+      
+      # Bit pattern generation
+      movz x0, #0x1234      # Move with zero (clear other bits)
+      movn x0, #0x1234      # Move with NOT (invert pattern)
+      movk x0, #0x5678, lsl #16  # Move and keep (insert pattern)
+    \end{lstlisting}
+  \end{definition}
+
+\subsection{Assembling and Disassembling} 
+
+  \begin{definition}[Instruction Syntax]
+    Every ARM instruction---regardless of whether we're in 32-bit or 64-bit ARM---can be fit into 32 bits of memory. The fixed-length variable of this is good for speed.   
+    
+    \begin{figure}[H]
+      \centering 
+      \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|}
+      \hline
+      \textbf{31} & \textbf{30} & \textbf{29} & \textbf{28-24} & \textbf{23-22} & \textbf{21} & \textbf{20-16} & \textbf{15-10} & \textbf{9-5} & \textbf{4-0} \\
+      \hline
+      Bits & Opcode & Set Condition Code & Opcode & Shift & 0 & Rm & Imm & Rn & Rd \\
+      \hline
+      \end{tabular}
+      \caption{Instruction encoding format.} 
+    \end{figure}
+
+    \begin{enumerate}
+      \item \textit{Bits}. If this bit is $0$, then any registers are interpreted as the 32-bit \texttt{W} version. If $1$, then they are the full 64-bit version of the register.\footnote{You cannot mix W and Z bits in the same instruction!}
+
+      \item \textit{Opcode}. which instruction are we performing, e.g. \texttt{ADD} or \texttt{MUL}. 
+
+      \item \textit{Shift}. These two bits specify shifting operations that could be applied to the data. 
+
+      \item \textit{Set Condition Code}. A single bit indicating if this instruction should update any condition flags. If we don't want the result of this instruction to affect following branch instructions, we set it to $0$. 
+
+      \item \textit{Rm, Rn}. Operand registers to use as input. 
+        
+      \item \textit{Rd}. Destination register, i.e. where to put the result of whatever this instruction does. 
+
+      \item \textit{Imm6}. An immediate operand which is usually a small bit of data that you can specify directly in the instruction. So, if you want to add 1 to a register, you could have this as 1, rather than putting 1 in another register and adding the two registers. These are usually the bits left over after everything else is specified.
+    \end{enumerate}
+  \end{definition}
+
+  A \textbf{dump} refers to a representation of the contents and structure of an object file or memory at a specific point in time. Once a file is assembled it's almost impossible to read. Fortunately, there are some nice shell commands to help us. 
+
+  \begin{definition}[\texttt{objdump}]
+    Taken from the man pages, the \textbf{objdump} utility prints the contents of object files and final linked images named on the command line. 
+    \begin{enumerate}
+      \item \texttt{-d}, \texttt{--disassemble}. Disassemble all executable sections found in the input files. On some architectures (AArch64, PowerPC, x86), all known instructions are disassembled by default. 
+      \item \texttt{-t}, \texttt{--syms}. Display the symbol table. 
+    \end{enumerate}
+  \end{definition}
+
+  \begin{example}[\texttt{objdump -d}]
+    \begin{figure}[H]
+      \centering 
+      \begin{lstlisting}
+        .text
+          .globl _main
+          _main:
+              mov x0, #0x1
+              b _exit
+      \end{lstlisting}
+      \caption{} 
+    \end{figure} 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{lstlisting}
+        > objdump -d hello 
+
+        hello:  file format mach-o arm64
+
+        Disassembly of section __TEXT,__text:
+
+        00000001000003c0 <_main>:
+        1000003c0: d2800020     mov     x0, #0x1                ; =1
+        1000003c4: 14000001     b       0x1000003c8 <_exit+0x1000003c8>
+
+        Disassembly of section __TEXT,__stubs:
+
+        00000001000003c8 <__stubs>:
+        1000003c8: 90000030     adrp    x16, 0x100004000 <_exit+0x100004000>
+        1000003cc: f9400210     ldr     x16, [x16]
+        1000003d0: d61f0200     br      x16
+        
+      \end{lstlisting}
+      \caption{} 
+    \end{figure}
+
+    The mov command has the hex command \texttt{d2800020}, which translates in binary to 
+    \begin{lstlisting}
+      1101 0010 1000 0000 0000 0000 0010 0000
+    \end{lstlisting}
+
+    \begin{enumerate}
+      \item The first bit is 1, meaning use the 64-bit version of the registers, in this case X0 rather than W0.
+
+      \item The third bit is 0, which means that this instruction doesn’t set any flags that would affect conditional instructions.
+
+      \item The second bit combined with the fourth to ninth bits make up the opcode for this MOV instruction. This is move wide immediate, meaning it contains a 16-bit immediate value.
+
+      \item The next 2 bits of 0 indicate there is no shift operation involved.
+
+      \item The next 16 bits are the immediate value which is 1.
+
+      \item The last 5 bits are the register to load. These are 0 since we are loading register X0.
+    \end{enumerate}
+  \end{example}
+
+  \begin{definition}[\texttt{xxd}]
+    
+  \end{definition} 
+
+\subsection{Directive}
+
+  \begin{definition}[Directive]
+    A \textbf{directive} is an instruction to the assembler. It tells the assembler how to process your code, but doesn't generate machine instructions, making it like commands for the assembler and not the CPU. 
+
+    \begin{enumerate}
+      \item 
+    \end{enumerate}
+  \end{definition}
+
+  \begin{example}[Symbol Control]
+    \begin{lstlisting}[language=assembly]
+      .globl _main       // Make symbol globally visible
+      .local helper      // Keep symbol local to this file
+      .extern _printf    // Reference external symbol
+      .weak _optional    // Make symbol weakly defined
+    \end{lstlisting}
+  \end{example}
+
+  \begin{example}[Data Creation]
+    \begin{lstlisting}[language=assembly]
+      .byte 0x42         // Create 1-byte value
+      .word 42           // Create 4-byte value  
+      .quad 42           // Create 8-byte value
+      .asciz "hello"     // Create null-terminated string
+      .ascii "hello"     // Create string (no null terminator)
+      .space 64          // Reserve 64 bytes of space
+      .fill 10, 4, 0     // Fill 10 4-byte words with 0
+    \end{lstlisting}
+  \end{example}
+
+  \begin{example}[Alignment]
+    \begin{lstlisting}[language=assembly]
+      .align 4           // Align to 4-byte boundary
+      .p2align 2         // Align to 2^2 = 4-byte boundary  
+      .balign 16         // Align to 16-byte boundary
+    \end{lstlisting}
+  \end{example}
+
+  \begin{example}[Section Control]
+    \begin{lstlisting}[language=assembly]
+      .text              // Switch to code section
+      .data              // Switch to data section
+      .bss               // Switch to uninitialized data section
+      .section my_custom // Create/switch to custom section
+    \end{lstlisting}
+  \end{example}
+
+  \begin{example}[Conditional Assembly]
+    \begin{lstlisting}[language=assembly]
+      .ifdef DEBUG
+        .asciz "Debug build"
+      .else  
+        .asciz "Release build"
+      .endif
+    \end{lstlisting}
+  \end{example}
+
+  \begin{example}[Macros]
+    \begin{lstlisting}[language=assembly]
+      .macro SAVE_REGS
+        stp x29, x30, [sp, #-16]!
+        mov x29, sp
+      .endm
+
+      # Usage:
+      _my_function:
+        SAVE_REGS          // Expands to the macro content
+        // ... function body
+        ret
+    \end{lstlisting}
+  \end{example}
+
+  \begin{example}[]
+    \begin{lstlisting}
+      
+    \end{lstlisting}
+  \end{example}
+
+  \begin{example}
+    
+    \begin{lstlisting}
+      # DIRECTIVES (instructions to assembler):
+      .globl _main        # "Make this symbol global"
+      .align 4            # "Align the next thing to 4 bytes"
+      .asciz "hello"      # "Create a null-terminated string here"
+
+      # INSTRUCTIONS (actual CPU operations):
+      mov x0, #42         # CPU instruction: move 42 into x0
+      bl _printf          # CPU instruction: branch with link
+      ret                 # CPU instruction: return 
+    \end{lstlisting}
+  \end{example}
+
+
+  You open up your text editor on an M1 Mac, and every assembly program should start with this. 
+
+  \begin{lstlisting}
+    .globl _main
+    _main:
+      ...
+      b _exit
+  \end{lstlisting}
+  
+  \texttt{.globl} is an assembler directive that makes the symbol \texttt{\_main} globally visible to the linker. This allows other files/modules to reference this \texttt{\_main} function. \texttt{b \_exit} is a specific function that tell the program to shut down. 
+
