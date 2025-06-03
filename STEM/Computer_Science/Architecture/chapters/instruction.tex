@@ -634,22 +634,56 @@
 
   At this point, we introduced the text and data segments as simply some blocks of memory that are allocated before a program starts executing. We will see the full significance of this segments soon. 
 
+  \begin{example}[Maximum of Array of Integers]
+    \begin{lstlisting}
+      .section .data
+
+        data_items: 
+          .long 3,67,34,222,45,75,54,34,44,33,22,11,66,0
+
+      .section .text
+
+        .globl _start
+
+        _start:
+          movl $0, %edi
+          movl data_items(, %edi,4), %eax
+          movl %eax, %ebx
+
+        start_loop: 
+          cmpl $0, %eax 
+          je loop_exit 
+          incl %edi 
+          movl data_items(,%edi,4), %eax 
+          cmpl %ebx, %eax
+          jle start_loop 
+          movl %eax, %ebx
+          jmp start_loop 
+
+        loop_exit: 
+          movl $1, %eax 
+          int $0x80 
+    \end{lstlisting}
+  \end{example}
+
 \subsection{Stack Memory} 
 
   Say you are working with an architecture consisting of 32 8-bit registers. You might be working on a program that---during runtime---works with a lot more than just 32 numbers. To solve this, you take advantage of the large pool of RAM that you have already built for yourself. Say you want to store \texttt{0x18} originally in register \texttt{r1} into memory. If you do it, then you will have to store the address of \texttt{0x18} \textit{somewhere} in one of your registers. Therefore you have simply replaced the value with its address and have not saved any space at all! In fact, it is counterproductive since now you have to wait for slow access times into the memory. \footnote{If you read up on the implementation of arrays in my DSA notes, you might think of putting them into a list, storing the front of the array in memory, and having a special terminating character indicating the end of an array. But not all data structures can---nor should---be nicely formatted in this list.}
 
-  Designing the memory so that it works like a \hyperref[dsa-def:stack]{stack} data structure turns out to solve this problem, along with other ones such as function call traces. In fact, the stack is so important that is pretty much universal across all computer architectures. The general idea is to simulate intermediate storage by pushing and popping temporary variables onto the stack. The stack pointer is \textit{not} a fundamental part of memory since memory is just an array of Bytes. It is a part of the ISA. 
+  Designing the memory so that it works like a \hyperref[dsa-def:stack]{stack} data structure turns out to solve this problem, along with other ones such as function call traces. In fact, the stack is so important that is pretty much universal across all computer architectures. The general idea is to simulate intermediate storage by pushing and popping temporary variables onto the stack.\footnote{The model of memory as a stack is \textit{not} a fundamental part of memory since memory is just an array of bytes. The stack, along with the ideas of a stack/base pointer is a part of the ISA.}
 
   \begin{definition}[Stack Memory/Segment]
     The \textbf{stack memory} is an address space that stores 
     \begin{enumerate}
-      \item \textit{Intermediate calculations} 
-      \item \textit{Return addresses}
-      \item \textit{Local }
+      \item \textit{Intermediate calculations}, i.e. temporary results when registers are insufficient. 
+      \item \textit{Return addresses}, which specifies where to resume execution after function calls. 
+      \item \textit{Local variables}. temporary data within functions. 
+      \item \textit{Saved registers}. Preserved register values during function calls. 
+      \item \textit{Processor state}. Flags and registers during interrupts/exceptions. 
     \end{enumerate}
   \end{definition}
 
-  The main API of the stack is at the top address, which is at the \textit{stack pointer}. 
+  Note that the problem of extra storage is only the first application of the stack. The main API of the stack is at the top address, which is at the \textit{stack pointer}. 
 
   \begin{definition}[Stack Pointer]
     The \textbf{stack pointer} is a register---denoted \texttt{sp}---that stores the address of the top of the stack. 
@@ -676,8 +710,8 @@
     \end{enumerate}
   \end{definition}
 
-  \begin{definition}[Base Pointer]
-    
+  \begin{definition}[Function]
+    A function is a series of instructions. 
   \end{definition}
 
   \begin{definition}[Call, Return]
@@ -701,67 +735,181 @@
     \end{enumerate}
   \end{definition}
 
-\subsection{Functions and Control Transfer}
+  \begin{definition}[Stack Frame]
+    The \textbf{stack frame} refers to the portion of the stack allocated to a single function call. The currently executing function is always at the top of the stack, and its stack frame is referred to as the \textbf{active frame}. 
+  \end{definition}
 
-  These are really the three basic functions needed to do anything in assembly, but let's talk about an important implementation called the \textbf{control transfer}. Say that you want to compute a function. 
-  \begin{enumerate}
-    \item Then we must retrieve the data from the memory. 
-    \item We must load it into our registers in the CPU and perform some computation. 
-    \item Then we must store the data back into memory. 
-  \end{enumerate}
+  \begin{definition}[Base/Frame Pointer]
+    When a function is called, 
+    \begin{enumerate}
+      \item a new \textbf{stack frame} is created on the call stack. 
+      \item The base point is set to the base/start of this frame, called the \textbf{frame/base pointer}, denoted \texttt{bp}. 
+    \end{enumerate}
+  \end{definition}
 
-  Let’s begin with a refresher on how the call stack is managed. Recall that \texttt{\%rsp} is the stack pointer and always points to the top of the stack. The register \texttt{\%rbp} represents the base pointer (also known as the frame pointer) and points to the base of the current stack frame. The stack frame (also known as the activation frame or the activation record) refers to the portion of the stack allocated to a single function call. The currently executing function is always at the top of the stack, and its stack frame is referred to as the active frame. The active frame is bounded by the stack pointer (at the top of stack) and the frame pointer (at the bottom of the frame). The activation record typically holds local variables for a function.
+  Note that the active frame is bounded by the stack pointer (at the top of stack) and the frame pointer (at the bottom of the frame). The stack pointer helps us execute the current function in the active frame, while the base pointer helps us backtrack to the previous function (that called the current function) to continue the program. Both pointers serve a dual purpose. 
 
   \begin{figure}[H]
     \centering 
-    \includegraphics[scale=0.6]{img/stackFrame.png}
-    \caption{The current active frame belongs to the callee function (fname). The memory between the stack pointer and the frame pointer is used for local variables. The stack pointer moves as local values are pushed and popped from the stack. In contrast, the frame pointer remains relatively constant, pointing to the beginning (the bottom) of the current stack frame. As a result, compilers like GCC commonly reference values on the stack relative to the frame pointer. In Figure 1, the active frame is bounded below by the base pointer of fname, which is stack address 0x418. The value stored at address 0x418 is the "saved" \texttt{\%rbp} value (0x42c), which itself is an address that indicates the bottom of the activation frame for the main function. The top of the activation frame of main is bounded by the return address, which indicates where in the main function program execution resumes once the callee function fname finishes executing. }
-    \label{fig:stack_frame_management}
+    \begin{tikzpicture}
+      % Top address (0x000)
+      \fill[gray!20, draw=black] 
+        (0, 6.8) 
+        rectangle 
+        (3, 7.1);
+      \node[left] at (-0.1, 6.95) {\small 0xFFFF};
+      
+      % Ellipsis
+      \node at (1.5, 6.4) {\vdots};
+      
+      \foreach \i in {15,16,17,18,19} {
+        \pgfmathsetmacro{\addr}{4096 + \i * 4}
+        \fill[red, draw=black] 
+          (0, \i*0.3) 
+          rectangle 
+          (3, \i*0.3 + 0.3);
+        \node[left] at (-0.1, \i*0.3 + 0.15) {\small 0x\pgfmathprintnumber[int detect,1000 sep={}]{\addr}};
+      }
+      
+      \foreach \i in {13,14} {
+        \pgfmathsetmacro{\addr}{4096 + \i * 4}
+        \fill[blue!20, draw=black] 
+          (0, \i*0.3) 
+          rectangle 
+          (3, \i*0.3 + 0.3);
+        \node[left] at (-0.1, \i*0.3 + 0.15) {\small 0x\pgfmathprintnumber[int detect,1000 sep={}]{\addr}};
+      }
+      
+      \foreach \i in {10,11,12} {
+        \pgfmathsetmacro{\addr}{4096 + \i * 4}
+        \fill[green, draw=black] 
+          (0, \i*0.3) 
+          rectangle 
+          (3, \i*0.3 + 0.3);
+        \node[left] at (-0.1, \i*0.3 + 0.15) {\small 0x\pgfmathprintnumber[int detect,1000 sep={}]{\addr}};
+      }
+      
+      \foreach \i in {3,4,5,6,7,8,9} {
+        \pgfmathsetmacro{\addr}{4096 + \i * 4}
+        \fill[yellow, draw=black] 
+          (0, \i*0.3) 
+          rectangle 
+          (3, \i*0.3 + 0.3);
+        \node[left] at (-0.1, \i*0.3 + 0.15) {\small 0x\pgfmathprintnumber[int detect,1000 sep={}]{\addr}};
+      }
+      
+      \foreach \i in {0,1,2} {
+        \pgfmathsetmacro{\addr}{4096 + \i * 4}
+        \fill[gray!20, draw=black] 
+          (0, \i*0.3) 
+          rectangle 
+          (3, \i*0.3 + 0.3);
+        \node[left] at (-0.1, \i*0.3 + 0.15) {\small 0x\pgfmathprintnumber[int detect,1000 sep={}]{\addr}};
+      }
+      
+      \draw[<-, thick] (3.2, 3.15) -- (4, 3.15);
+      \draw[<-, thick] (3.2, 1.05) -- (4, 1.05);
+      \node[right] at (4, 3.15) {\texttt{bp}}; 
+      \node[right] at (4, 1.05) {\texttt{sp}}; 
+      
+      \node at (1.5, -0.3) {\vdots};
+      
+      % Bottom address (0xFFFF)
+      \fill[gray!20, draw=black] (0, -1.3) rectangle (3, -1);
+      \node[left] at (-0.1, -1.15) {\small 0x0000};
+    \end{tikzpicture}
+    \caption{The entire memory is shown as an array, with high address at the top. The stack in practice turns out to start from the high addresses and grow down. So the ``top'' of the stack is really the bottom. The red indicates the outermost function, i.e. our first stack frame. The blue indicates a function called with red, our second stack frame. Continuing with green, and the yellow is our active frame. The stack pointer is at the bottom while the base pointer stores the last address in green right before going into the yellow stack frame.}
   \end{figure}
 
+  \begin{example}[]
+    
+  \end{example}
 
-  Once we have done this we are really done. Formally, this is called Turing complete (?). 
+  \begin{example}[]
+    
+  \end{example}
 
-  \begin{definition}[Control Transfers]
-    We list some. 
-    \begin{enumerate}
-      \item Push 
-      \item Pop 
-      \item Call to call a function 
-      \item Return to return from a function 
-      \item Continue 
-      \item Get out of stack with leave.  
-    \end{enumerate}
+  \begin{example}[]
+    
+  \end{example}
+
+  The opcodes that are used to interact with the stack frame are called \textit{control transfers}, since they take care of storing variables on the stack before ``transferring'' control to another stack frame. Let's introduce two more. 
+
+  \begin{definition}[Continue]
+    
+  \end{definition}
+
+  \begin{definition}[Leave]
+    You can get out of stack with leave.
   \end{definition}
 
   \begin{example}[Control Transfer Example]
     We show this with a minimal example with psuedocode. 
   \end{example}
 
-
   \begin{example}[Multiple Functions Example]
     Now what happens if there are multiple functions calling each other? Take a look at the following example with two functions. 
-    
   \end{example}
 
-  There is a bit of a concern here from the previous example. The main function had two functions that returned two values. As the subfunction stack frame is removed from the stack, the return value is stored in the \texttt{\%rax} register. If another function is called right after, then the return value of the second function will overwrite that of the previous one. This was not a problem in the previous example since the return value of the \texttt{assign} function was not used. However, if it was, then the return value of the \texttt{adder} function would have overwritten it. This is known as register saving. 
-  \begin{enumerate}
-    \item For \textbf{caller-saved registers}, the caller function is responsible for saving the value of the register before calling a function and restoring it after the function returns. The caller should save values in its stack frame before calling the callee function, e.g. by pushing all the return values of each callee in the caller stack frame. Then it will restore values after the call. 
+  There is a bit of a concern here from the previous example. The main function had two functions that returned two values. As the subfunction stack frame is removed from the stack, the return value is stored in the \texttt{\%rax} register. If another function is called right after, then the return value of the second function will overwrite that of the previous one. This was not a problem in the previous example since the return value of the \texttt{assign} function was not used. However, if it was, then the return value of the \texttt{adder} function would have overwritten it. This is known as register saving, and there are two types. 
+
+  \begin{definition}[Caller-Saved Registers]
+    For \textbf{caller-saved registers}, the caller function is responsible for saving the value of the register before calling a function and restoring it after the function returns. The caller should save values in its stack frame before calling the callee function, e.g. by pushing all the return values of each callee in the caller stack frame. Then it will restore values after the call. 
 
     \begin{center}
       \textit{Therefore, if we have a set of registers $\{\texttt{\%reg}\}$, the caller must take everything and push them in the caller stack frame. Then it will restore them after the call.}
     \end{center}
+  \end{definition}
 
-    \item For \textbf{callee-saved registers}, it is the callee's responsibility to save any data in these registers before using the registers. 
+  \begin{definition}[Callee-Saved Registers]
+    For \textbf{callee-saved registers}, it is the callee's responsibility to save any data in these registers before using the registers. 
 
-      \begin{center} 
-        \textit{Therefore, if we have a set of registers $\{\texttt{\%reg}\}$, then inside the callee stack frame, the callee must take everything and push them in the callee stack frame. Once it computes the final return value, then it will restore all the saved register values from the callee stack frame back into the registers for the caller to use.}
-      \end{center}
-  \end{enumerate}
+    \begin{center} 
+      \textit{Therefore, if we have a set of registers $\{\texttt{\%reg}\}$, then inside the callee stack frame, the callee must take everything and push them in the callee stack frame. Once it computes the final return value, then it will restore all the saved register values from the callee stack frame back into the registers for the caller to use.}
+    \end{center}
+  \end{definition}
 
   Ideally, we want \textit{one} calling convention to simply separate implementation details between caller and callee. In general, however, neither is best. If the caller isn't using a register, then caller-save is better, and if callee doesn't need a register, then callee-save is better. If we do need to save, then callee save generally makes smaller programs, so we compromise and use a combination of both caller-save and callee-save. 
 
 \subsection{Heap Memory}
+
+  \begin{definition}[Heap Memory]
+    The \textbf{heap address space} 
+  \end{definition}
+
+  \begin{figure}[H]
+    \centering 
+    \begin{tikzpicture}
+      % Main memory rectangle
+      \draw[thick] (0,0) rectangle (4,8);
+      
+      % Section divisions
+      \draw (0,1) -- (4,1);    % text
+      \draw (0,2) -- (4,2);    % initialized data
+      \draw (0,3) -- (4,3);    % unitialized data
+      \draw[dashed] (0,4.5) -- (4,4.5);
+      \draw[dashed] (0,6.5) -- (4,6.5);
+      
+      % Arrows showing growth direction
+      \draw[->, thick] (2,4.5) -- (2,5);     % heap grows up
+      \draw[->, thick] (2,6.5) -- (2,6);     % stack grows down
+      
+      % Section labels
+      \node at (2,0.5) {text/code};
+      \node at (2,1.5) {Initialized data};
+      \node at (2,2.5) {Unitialized data};
+      \node at (2,3.75) {heap};
+      \node at (2,7.25) {stack};
+      
+      % Address labels
+      \node[left] at (-0.2,0) {\texttt{0x0000}};
+      \node[left] at (-0.2,8) {\texttt{0xFFFF}};
+      
+      % Empty space in middle
+      \node at (2,5.5) {};
+    \end{tikzpicture}
+    \caption{Division of address spaces in total memory.} 
+  \end{figure}
 
 \subsection{Assembling and Linking}
 
