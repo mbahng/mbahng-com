@@ -1,0 +1,64 @@
+\section{Remote Access} 
+
+  This is about remote accessing, mainly with SSH. 
+
+  \begin{definition}[SSH Configuration File]
+    In \texttt{\$HOME/.ssh/}, you will see some public-private key files. You may be logging into remote servers as such. 
+
+    \begin{lstlisting}
+      > ssh username@123.123.123.123 
+      > ssh username@login.duke.edu
+    \end{lstlisting}
+
+    This can be quite tedious, so you can create a \texttt{\$HOME/.ssh/config} file to store shortcuts. 
+    \begin{lstlisting}
+      Host server1
+        HostName 123.123.123.123
+        User username
+    \end{lstlisting}
+    and then you can connect as such. 
+    \begin{lstlisting}
+      > ssh server1
+    \end{lstlisting}
+  \end{definition}
+
+  \begin{definition}[Installing Packages without Sudo]
+    Most likely when you are SSHing into a remote server, it is a computing cluster that you do not have admin access to, and you cannot thus include global packages. Therefore, the default method of installing binaries is by building them from source. You should therefore have a designated directory where you put all of your binaries in (I use \texttt{\$HOME/.local/bin}) and include it in \texttt{\$PATH}. 
+  \end{definition}
+
+\subsection{Clipboard}
+
+  Clipboards have been a pain in the ass for me. Say that you connect to a remote server from your local machine, and then you open neovim in your remote machine. You can use \texttt{y} or \texttt{d} to copy/cut things and \texttt{p} to paste them in other buffers within the server, but you cannot easily copy/paste between your local machine and remote server. This becomes a pain when you need to paste some code on the remote server to GPT or when you take a code snippet from github and try to paste it on the buffer in the remote session. To fix this, you need a clipboard provider on the remote server. Do the following. I did this when my local machine has MacOS with ARM64 architecture, connecting to a remote machine running Ubuntu 22.04 with x86. Given the differences, the following steps should work. 
+
+  \begin{enumerate}
+    \item \textit{You may not have to do this step, but I did this while troubleshooting}. Install \texttt{xclip} on the remote server. If you don't have sudo access, then just build it from source. Then add the binary to somewhere in \texttt{\$PATH}. 
+
+    \item Install \texttt{lemonade} on both your local machine and the remote server. Make sure they are both in your \texttt{\$PATH}. 
+
+    \item Make a script on your local machine for sanity checking, call it \texttt{remote} or something, and add it to path. It should have the following. Note that the \texttt{-R}flag is important.\footnote{https://gist.github.com/bketelsen/27c2cd5b1376e72e240321baa0fbc81a} 
+
+    \begin{lstlisting}
+      #!/bin/bash
+      ps cax | grep lemonade> /dev/null
+      if [ $? -eq 0 ]; then
+        echo "lemonade is running."
+      else
+        echo "lemonade is not running."
+        nohup lemonade server &
+      fi
+      ssh -R 2489:127.0.0.1:2489 mb625@123.123.123.123
+    \end{lstlisting}
+
+    \item Make sure to put the following in your \texttt{config} file. I put it in both your local and remote.\footnote{https://github.com/neovim/neovim/issues/8028} 
+
+    \begin{lstlisting}
+      ForwardX11 yes
+      ForwardX11Trusted yes
+    \end{lstlisting}
+
+    \item You may also have to set \texttt{clipboard=unnamedplus}. I had this on by default. 
+
+    \item Make sure that you do not have the keymaps \texttt{y} to \texttt{+y} enabled. 
+  \end{enumerate}
+
+  We are done. Run \texttt{:checkhealth} on neovim in your remote server and confirm that lemonade is detected. 
