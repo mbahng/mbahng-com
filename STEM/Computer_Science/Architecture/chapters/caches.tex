@@ -97,205 +97,293 @@
 
 \subsection{Caches}
 
-    In theory, a cache should know which subsets of a program's memory it should hold, when it should copy a subset of a program's data from main memory to the cache (or vice versa), and how it can determine whether a program's data is present in the cache. Let's talk about the third point first. It all starts off with a CPU requesting some memory address, and we want to determine whether it is in the cache or not. To do this, we need to look a little deeper into memory addresses. 
+  In theory, a cache should know which subsets of a program's memory it should hold, when it should copy a subset of a program's data from main memory to the cache (or vice versa), and how it can determine whether a program's data is present in the cache. Let's talk about the third point first. It all starts off with a CPU requesting some memory address, and we want to determine whether it is in the cache or not. To do this, we need to look a little deeper into memory addresses. 
 
-    \begin{definition}[Portions of Memory Addresses]
-      A memory address is a $m$-bit number.\footnote{64 in 64-bit machines.} It is divided up into three portions. 
-      \begin{enumerate}
-        \item The \textbf{tag} field with $t$ bits at the beginning.
-        \item The \textbf{index} field with $i$ bits in the middle. 
-        \item The \textbf{offset} field with $o$ bits at the end.
-      \end{enumerate}
-      The tag plus the index together refers to the \textbf{block number}. 
-      \begin{figure}[H]
-        \centering 
-        \includegraphics[scale=0.4]{img/memory_portions.png}
-        \caption{Portions of a 16 bit memory address with $t = 4, i = 7, o = 5$. } 
-        \label{fig:memory_portions}
-      \end{figure}
-    \end{definition}
+  \begin{definition}[Portions of Memory Addresses]
+    A memory address is a $m$-bit number.\footnote{64 in 64-bit machines.} It is divided up into three portions. 
+    \begin{enumerate}
+      \item The \textbf{tag} field with $t$ bits at the beginning.
+      \item The \textbf{index} field with $i$ bits in the middle. 
+      \item The \textbf{offset} field with $o$ bits at the end.
+    \end{enumerate}
+    The tag plus the index together refers to the \textbf{block number}. 
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}
+        \node[draw, rectangle, minimum width=2cm, minimum height=0.8cm, fill=green!20] (tag_header) at (0,0) {Tag};
+        \node[draw, rectangle, minimum width=2cm, minimum height=0.8cm, fill=blue!20] (index_header) at (2,0) {Index};
+        \node[draw, rectangle, minimum width=2cm, minimum height=0.8cm, fill=red!20] (offset_header) at (4,0) {Offset};
 
-    Before we see why we do this, we should also define the portions of a CPU. 
+        \node[draw, rectangle, minimum width=2cm, minimum height=0.8cm, fill=green!10] (tag_value) at (0,-0.8) {1010};
+        \node[draw, rectangle, minimum width=2cm, minimum height=0.8cm, fill=blue!10] (index_value) at (2,-0.8) {0000011};
+        \node[draw, rectangle, minimum width=2cm, minimum height=0.8cm, fill=red!10] (offset_value) at (4,-0.8) {00100};
+      \end{tikzpicture}
+      \caption{Portions of a 16 bit memory address with $t = 4, i = 7, o = 5$. } 
+      \label{fig:memory_portions}
+    \end{figure}
+  \end{definition}
 
-    \begin{definition}[CPU Cache]
-      A \textbf{CPU cache} divides its storage space as follows. A cache is essentially an array of sets, where $S$ is the number of sets. Each set is divided into $E$ units called \textbf{cache lines/rows}, with each cache line independent of all others and contains two important types of information. 
-      \begin{enumerate}
-        \item The \textbf{cache block} stores a subset of program data from main memory, of size $2^o$.\footnote{In Intel computers, it is typically 64 bytes long and for Mac Silicon, it is 128 bytes.} Sometimes, the block is referred to as the cache line. Note that is the cache block size is $2^o$ bytes, then the block offset field has length $\log_2 2^o = o$.
-        \item The \textbf{metadata} stores the \textbf{valid bit} (which tells us if the actual data in memory is valid), and the \textbf{tag} of length $t$ (the same as the tag length of the memory address) which tells us the memory address of the data in the cache. 
-      \end{enumerate}
-      Therefore, the \textbf{cache size} is defined to be $C = S \cdot E \cdot B$ (the metadata is not included). 
-      \begin{figure}[H]
-        \centering 
-        \includegraphics[scale=0.4]{img/direct_mapped_cache.png}
-        \caption{Diagram of a direct-mapped cache.} 
-        \label{fig:direct_mapped_cache}
-      \end{figure}
-      CPU caches are built-in fast memory (SRAM) that stores stuff. There are two types: 
-      \begin{enumerate}
-        \item \textbf{i-cache} stores copies of instructions. 
-        \item \textbf{d-cache} stores copies of data from commonly referenced locations. 
-      \end{enumerate}
-      We saw that caches come in different levels, they all just hold words retrieved from a higher level of memory. 
-      \begin{enumerate}
-        \item CPU registers hold words retrieved from L1 cache. 
-        \item L1 holds cache lines retrieved from L2 cache. 
-        \item L2 cache holds cache lines retrieved from L3 cache or the main memory.  
-        \item Main memory holds disk blocks retrieved from local disks. 
-        \item Local disks hold blocks retrieved from remote disks or network servers. 
-      \end{enumerate}
+  Before we see why we do this, we should also define the portions of a CPU. 
 
-      \begin{figure}[H]
-        \centering 
-        \includegraphics[scale=0.4]{img/cache_retrieve.png}
-        \caption{How caches retrieve data from higher levels of memory.} 
-        \label{fig:cache_retrieve}
-      \end{figure}
-    \end{definition}
+  \begin{definition}[CPU Cache]
+    A \textbf{CPU cache} divides its storage space as follows. A cache is essentially an array of sets, where $S$ is the number of sets. Each set is divided into $E$ units called \textbf{cache lines/rows}, with each cache line independent of all others and contains two important types of information. 
+    \begin{enumerate}
+      \item The \textbf{cache block} stores a subset of program data from main memory, of size $2^o$.\footnote{In Intel computers, it is typically 64 bytes long and for Mac Silicon, it is 128 bytes.} Sometimes, the block is referred to as the cache line. Note that is the cache block size is $2^o$ bytes, then the block offset field has length $\log_2 2^o = o$.
+      \item The \textbf{metadata} stores the \textbf{valid bit} (which tells us if the actual data in memory is valid), and the \textbf{tag} of length $t$ (the same as the tag length of the memory address) which tells us the memory address of the data in the cache. 
+    \end{enumerate}
+    Therefore, the \textbf{cache size} is defined to be $C = S \cdot E \cdot B$ (the metadata is not included). 
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}
+        % Headers
+        \node[anchor=east] at (-0.2, 0.5) {Line};
+        \node[anchor=center] at (0.3, 0.5) {V};
+        \node[anchor=center] at (1.5, 0.5) {Tag};
+        \node[anchor=center] at (4, 0.5) {Cache Data Block};
 
-    \begin{example}[Simple Calculations]
-      Given a direct-mapped cache specified by a block size of 8 bytes and a cache capacity of 4 KB, 
-      \begin{enumerate}
-        \item the cache can hold 512 blocks. 
-        \item the block offset field is $\log_2 8 = 3$ bits wide. 
-        \item the address \texttt{0x1F = 0b00011111} is in block number $3$ since the last three bits are the offset, and whatever is left (passed through the hashamp, which is simply modulo), is the block number. 
-      \end{enumerate}
-    \end{example}
+        % Table structure
+        \foreach \i in {0,1,2,3,4,5,6,7} {
+            \pgfmathsetmacro{\y}{-\i * 0.5}
+            
+            % Line numbers
+            \node[anchor=east, gray] at (-0.2, \y) {\i};
+            
+            % V column
+            \draw[thick] (0, \y + 0.25) rectangle (0.6, \y - 0.25);
+            
+            % Tag column  
+            \draw[thick] (0.6, \y + 0.25) rectangle (2.4, \y - 0.25);
+            
+            % Data block column
+            \draw[thick] (2.4, \y + 0.25) rectangle (5.6, \y - 0.25);
+        }
 
-    In \textbf{I/O caches}, software keeps copies of cached items in memory, indexed by name via a hash table.
+        % Highlighted row 3
+        \fill[yellow!30] (0, -1.5 + 0.25) rectangle (5.6, -1.5 - 0.25);
+        \draw[thick] (0, -1.5 + 0.25) rectangle (0.6, -1.5 - 0.25);
+        \draw[thick] (0.6, -1.5 + 0.25) rectangle (2.4, -1.5 - 0.25);
+        \draw[thick] (2.4, -1.5 + 0.25) rectangle (5.6, -1.5 - 0.25);
 
-    At the lowest level, registers are explicitly program-controlled, but when accessing any sort of higher memory, the CPU doesn't know whether some data is in the cache, memory, or the disk. 
+        % Content for row 3
+        \node[anchor=center] at (0.3, -1.5) {1};
+        \node[anchor=center] at (1.5, -1.5) {01110010...};
+      \end{tikzpicture}
+      \caption{Diagram of a direct-mapped cache.} 
+      \label{fig:direct_mapped_cache}
+    \end{figure}
+    CPU caches are built-in fast memory (SRAM) that stores stuff. There are two types: 
+    \begin{enumerate}
+      \item \textbf{i-cache} stores copies of instructions. 
+      \item \textbf{d-cache} stores copies of data from commonly referenced locations. 
+    \end{enumerate}
+    We saw that caches come in different levels, they all just hold words retrieved from a higher level of memory. 
+    \begin{enumerate}
+      \item CPU registers hold words retrieved from L1 cache. 
+      \item L1 holds cache lines retrieved from L2 cache. 
+      \item L2 cache holds cache lines retrieved from L3 cache or the main memory.  
+      \item Main memory holds disk blocks retrieved from local disks. 
+      \item Local disks hold blocks retrieved from remote disks or network servers. 
+    \end{enumerate}
 
     \begin{figure}[H]
       \centering 
-      \includegraphics[scale=0.4]{img/hierarchy2.png}
-      \caption{} 
-      \label{fig:hierarchy2}
+      \includegraphics[scale=0.4]{img/cache_retrieve.png}
+      \caption{How caches retrieve data from higher levels of memory.} 
+      \label{fig:cache_retrieve}
     \end{figure}
+  \end{definition}
 
-    Finally, let's compare software vs hardware caches. 
-
-    \begin{definition}[Software Caches]
-      When implementing caches in software, there are large time differences (DRAM vs disk, local vs remote), and they can be tailored to specific uses cases. They also have flexible and sophisticated approaches with data structures (like trees) and can perform complex computation. 
-    \end{definition}
-
-    Theoretically, when implementing hash tables, you never actually have to evict something. You can have the values of the table to be a linked list where we add to the head. If there is unlimited chaining, we have a full associative cache, and if we have limited chaining (e.g. 5), it is like a 5-way set associative cache. If it goes out of bound, we can implement LRU by removing the tail of the linked list. 
-
-    \begin{definition}[Hardware Caches]
-      In hardware caches, there are smaller time differences, needs to be as fast as possible, and parallelization is emphasized. 
-    \end{definition}
-
-    There are slightly different implementations of caching, and for each implementation, we will describe 
+  \begin{example}[Simple Calculations]
+    Given a direct-mapped cache specified by a block size of 8 bytes and a cache capacity of 4 KB, 
     \begin{enumerate}
-      \item how to load data from memory into the cache, 
-      \item how to retrieve data from the cache, 
-      \item how to write data to the cache. 
+      \item the cache can hold 512 blocks. 
+      \item the block offset field is $\log_2 8 = 3$ bits wide. 
+      \item the address \texttt{0x1F = 0b00011111} is in block number $3$ since the last three bits are the offset, and whatever is left (passed through the hashamp, which is simply modulo), is the block number. 
+    \end{enumerate}
+  \end{example}
+
+  In \textbf{I/O caches}, software keeps copies of cached items in memory, indexed by name via a hash table.
+
+  At the lowest level, registers are explicitly program-controlled, but when accessing any sort of higher memory, the CPU doesn't know whether some data is in the cache, memory, or the disk. That is, 
+
+  \begin{figure}[H]
+    \centering 
+    \begin{tabular}{|l|l|l|}
+      \hline
+      \textbf{Level} & \textbf{Storage Type} & \textbf{Management} \\
+      \hline
+      CPU Registers & Registers & Explicitly program-controlled \\
+       & & (e.g., refer to \%rax, \%rbx) \\
+      \hline
+      L1 Cache & On-chip L1 cache (SRAM) & \multirow{2}{*}{\begin{tabular}[c]{@{}l@{}}Program sees main memory \\ hardware manages caching \end{tabular}} \\
+      \cline{1-2}
+      L2/L3 Cache & On-chip L2/off-chip L3 & \\
+       & cache (SRAM) & \\
+      \hline
+      Main Memory & Main memory (DRAM) & \multirow{2}{*}{\begin{tabular}[c]{@{}l@{}}Explicitly managed by software \\ (e.g., OS, web browser)\end{tabular}} \\
+      \cline{1-2}
+      Local Storage & Local secondary storage & \\
+       & (local disks) & \\
+      \cline{1-2}
+      Remote Storage & Remote secondary storage & \\
+       & (distributed file systems, web servers) & \\
+      \hline
+    \end{tabular}
+    \caption{} 
+    \label{fig:hierarchy2}
+  \end{figure}
+
+  Finally, let's compare software vs hardware caches. 
+
+  \begin{definition}[Software Caches]
+    When implementing caches in software, there are large time differences (DRAM vs disk, local vs remote), and they can be tailored to specific uses cases. They also have flexible and sophisticated approaches with data structures (like trees) and can perform complex computation. 
+  \end{definition}
+
+  Theoretically, when implementing hash tables, you never actually have to evict something. You can have the values of the table to be a linked list where we add to the head. If there is unlimited chaining, we have a full associative cache, and if we have limited chaining (e.g. 5), it is like a 5-way set associative cache. If it goes out of bound, we can implement LRU by removing the tail of the linked list. 
+
+  \begin{definition}[Hardware Caches]
+    In hardware caches, there are smaller time differences, needs to be as fast as possible, and parallelization is emphasized. 
+  \end{definition}
+
+  There are slightly different implementations of caching, and for each implementation, we will describe 
+  \begin{enumerate}
+    \item how to load data from memory into the cache, 
+    \item how to retrieve data from the cache, 
+    \item how to write data to the cache. 
+  \end{enumerate}
+
+\subsection{Direct Mapped Cache} 
+
+  A direct mapped cache is a caching implementation when we assume that $E = 1$, which means that for any given memory address, there is only one possible cache line that can store this data at that memory address. That is, the cache is really just a bunch of sets with one cache line each, and each cache line is completely isolated from the others. Whether we load data from memory into cache or try to retrieve data from the cache, it's really the same process. 
+
+  \begin{theorem}[Placement]
+    To load data from memory into the cache, which happens when there is a \textbf{cache miss}, we do the following. 
+    \begin{enumerate}
+      \item The CPU requests a memory address $M = (T, I, O)$. 
+      \item There exists a hashmap $H$ that maps the index $I$ to a cache line. 
+      \item At line $H(I)$, we can get a cache miss and must load from memory into this cache. 
+      \item We wait until the memory has retrieved the data from the portion of the memory. i.e. we wait for the $2^o$ bytes located at addresses $(T, I, 0\ldots 0)$ to $(T, I, 1\ldots 1)$. Call this data $D$. 
+      \item The $2^o$ byte string $D$ is stored in the cache data block at line $M(I)$,ready to be used. 
+    \end{enumerate}
+  \end{theorem}
+
+  \begin{theorem}[Lookup]
+    To see whether a requested memory address is in the cache, we do the following. 
+    \begin{enumerate}
+      \item The CPU requests a memory address $M = (T, I, O)$. 
+      \item There exists a hashmap $H$ that maps the index $I$ to a cache line. 
+      \item At line $H(I)$, check the cache line's valid bit. If it is not valid, then this is a cache miss and we must go to the memory to retrieve the data, leading to the above process. 
+      \item Since there could be multiple $I$ that maps to the same cache line, there will be overlap. But this is where the tag portion comes in. At cache line $H(I)$, the CPU checks the cache tag to see if it matches the memory tag $T$. 
+      \item If it does, then we have just found a way to identify the first $t + i$ bits of the requested memory address, and we have gotten a cache hit. Now, we know that the cache's data block holds the data that the program is looking for. We use the low-order offset bits of the address to extract the program's desired data from the stored block. 
+    \end{enumerate}
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/cache_request.png}
+      \caption{Diagram of a cache request. Note that since the entire data in the memory block stored in the cache, we can take advantage of spatial locality.}  
+      \label{fig:cache_request}
+    \end{figure}
+  \end{theorem}
+
+  So far, we've talked about reading operations, but what about writing to the cache? It is generally implemented in two ways. 
+
+  \begin{definition}[Write-Through, Write-Back Cache]
+    Note that when we write data to cache, it does not need to be immediately written to memory, but rather it can be flushed to memory at a later time. This is efficient since if we have repeated operations on a single memory address, we don't have to go back and forth between the CPU and memory. 
+    \begin{enumerate}
+      \item In a \textbf{write-through cache}, a memory write operation modifies the value in the cache and simultaneously writes the value to the corresponding location in memory. It is always synchronized. 
+      \item In a \textbf{write-back cache}, a memory write operation modifies the value stored in the cache's data block, but does \textit{not} update main memory. Instead, the cache sets a \textbf{dirty bit} in the metadata to indicate that the cache block has been modified. The modified block is only written back to memory when the block is replaced in the cache. 
+
+      \begin{figure}[H]
+        \centering 
+        \begin{tikzpicture}
+          % Headers
+          \node[anchor=east] at (-0.2, 0.5) {Line};
+          \node[anchor=center] at (0.25, 0.5) {V};
+          \node[anchor=center] at (0.75, 0.5) {D};
+          \node[anchor=center] at (1.5, 0.5) {Tag};
+          \node[anchor=center] at (4, 0.5) {Cache Data Block};
+
+          % Table structure
+          \foreach \i in {0,1,2,3} {
+              \pgfmathsetmacro{\y}{-\i * 0.6}
+              
+              % Line numbers
+              \node[anchor=east, black] at (-0.2, \y) {\i};
+              
+              % V column
+              \draw[thick] (0, \y + 0.3) rectangle (0.5, \y - 0.3);
+              
+              % D column
+              \draw[thick] (0.5, \y + 0.3) rectangle (1.0, \y - 0.3);
+              
+              % Tag column  
+              \draw[thick] (1.0, \y + 0.3) rectangle (2.0, \y - 0.3);
+              
+              % Data block column
+              \draw[thick] (2.0, \y + 0.3) rectangle (6.0, \y - 0.3);
+          }
+        \end{tikzpicture}
+        \caption{A dirty bit (labeled with $D$) is a one bit flag that indicates whether the data stored in a cache line has been modified. When set, the data in the cache line is out o sync with main memory and must be written back (flushed) back to memory before eviction. } 
+        \label{fig:dirty_bit}
+      \end{figure}
+    \end{enumerate}
+    As usual, the difference between the designs reveals a trade-off. Write-through caches are less complex than write-back caches, and they avoid storing extra metadata in the form of a dirty bit for each line. On the other hand, write-back caches reduce the cost of repeated writes to the same location in memory.
+  \end{definition}
+
+  \begin{theorem}[Replacement]
+    Replacement occurs exactly the same way as if we just did a placement and is trivial. We retrieve the data block from the memory and store it in the cache. Direct-mapping conveniently determines which cache line to evict when loading new data. Given new memory $M = (T, I, O)$, you \textit{must} evict the cache line at $H(I)$. 
+  \end{theorem}
+
+\subsection{N way Set-Associative Cache}
+
+  Note that for both examples, given a fixed hashmap $H$ it is not possible to store data in two memory addresses $M_1$ and $M_2$ where both $H(I_1) = H(I_2)$. Therefore, the choice of hashing must be done so that it minimizes the number of collisions. So far, we have only considered memory read operations for which a CPU performs lookups on the cache. Caches must also allows programs to store values. However, there is a better way to do this: just construct it so that each set has more than one cache line, and so data in index portions of different memory addresses can be stored in different cache lines.
+
+  In here, we deal with $E \neq 1$, and so there are multiple set each with multiple lines. This means that the cache is more like a 2D array, and when we want to retrieve an index, we must look through the $H(I)$th line in \textit{each} set to see if the tag matches. 
+
+  \begin{theorem}[Lookup]
+    To see whether a requested memory address is in the cache, we do the following. 
+    \begin{enumerate}
+      \item The CPU requests a memory address $M = (T, I, O)$. 
+      \item We iterate through each of the $S$ sets in the cache, looking at cache line $M(I)$. 
+      \item For each line, we check if it is valid and if so, whether the line tag matches the memory tag. If we get a hit, then we have found the data in the cache. 
     \end{enumerate}
 
-  \subsubsection{Direct Mapped Cache} 
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/retrieve_set_associative.png}
+      \caption{Diagram of a 2 set-associative cache.} 
+      \label{fig:retrieve_set_associative}
+    \end{figure}
+  \end{theorem}
 
-    A direct mapped cache is a caching implementation when we assume that $E = 1$, which means that for any given memory address, there is only one possible cache line that can store this data at that memory address. That is, the cache is really just a bunch of sets with one cache line each, and each cache line is completely isolated from the others. Whether we load data from memory into cache or try to retrieve data from the cache, it's really the same process. 
+  If you have a \textbf{fully associative cache}, then you have one set with $E = C/B$ lines. Therefore, you can really put any memory address data in any cache line. There is a clear tradeoff here. As we increase $N$, we can get more flexibility in using all of our cache space, but the time complexity of retrieving and writing data scales linearly. In fact, this linear scan is too slow for a cache, which is why you need to implement some parallel tag search, but this turns out to be quite expensive to build.\footnote{You have to copy the request tag with a circuit and compare it to all the tags in the cache, which turns out to be a much larger circuit.}
 
-    \begin{theorem}[Placement]
-      To load data from memory into the cache, which happens when there is a \textbf{cache miss}, we do the following. 
-      \begin{enumerate}
-        \item The CPU requests a memory address $M = (T, I, O)$. 
-        \item There exists a hashmap $H$ that maps the index $I$ to a cache line. 
-        \item At line $H(I)$, we can get a cache miss and must load from memory into this cache. 
-        \item We wait until the memory has retrieved the data from the portion of the memory. i.e. we wait for the $2^o$ bytes located at addresses $(T, I, 0\ldots 0)$ to $(T, I, 1\ldots 1)$. Call this data $D$. 
-        \item The $2^o$ byte string $D$ is stored in the cache data block at line $M(I)$,ready to be used. 
-      \end{enumerate}
-    \end{theorem}
+  Though we have a more robust implementation with associative mapping, placement and replacement now face the problem of \textit{which} set to place the data in or evict existing data. 
 
-    \begin{theorem}[Lookup]
-      To see whether a requested memory address is in the cache, we do the following. 
-      \begin{enumerate}
-        \item The CPU requests a memory address $M = (T, I, O)$. 
-        \item There exists a hashmap $H$ that maps the index $I$ to a cache line. 
-        \item At line $H(I)$, check the cache line's valid bit. If it is not valid, then this is a cache miss and we must go to the memory to retrieve the data, leading to the above process. 
-        \item Since there could be multiple $I$ that maps to the same cache line, there will be overlap. But this is where the tag portion comes in. At cache line $H(I)$, the CPU checks the cache tag to see if it matches the memory tag $T$. 
-        \item If it does, then we have just found a way to identify the first $t + i$ bits of the requested memory address, and we have gotten a cache hit. Now, we know that the cache's data block holds the data that the program is looking for. We use the low-order offset bits of the address to extract the program's desired data from the stored block. 
-      \end{enumerate}
-      \begin{figure}[H]
-        \centering 
-        \includegraphics[scale=0.4]{img/cache_request.png}
-        \caption{Diagram of a cache request. Note that since the entire data in the memory block stored in the cache, we can take advantage of spatial locality.}  
-        \label{fig:cache_request}
-      \end{figure}
-    \end{theorem}
+  \begin{theorem}[Placement]
+    To load data from memory into the cache this is trivial since we can just go through the sets, find one where the valid bit is $0$, and just place the data there.  
+  \end{theorem}
 
-    So far, we've talked about reading operations, but what about writing to the cache? It is generally implemented in two ways. 
+  In replacement, this is a bit trickier, but using the principle of temporal locality, we can try and replace the least recently used cache. This tries to minimize cache misses, but not slow down the lookup too much. 
 
-    \begin{definition}[Write-Through, Write-Back Cache]
-      Note that when we write data to cache, it does not need to be immediately written to memory, but rather it can be flushed to memory at a later time. This is efficient since if we have repeated operations on a single memory address, we don't have to go back and forth between the CPU and memory. 
-      \begin{enumerate}
-        \item In a \textbf{write-through cache}, a memory write operation modifies the value in the cache and simultaneously writes the value to the corresponding location in memory. It is always synchronized. 
-        \item In a \textbf{write-back cache}, a memory write operation modifies the value stored in the cache's data block, but does \textit{not} update main memory. Instead, the cache sets a \textbf{dirty bit} in the metadata to indicate that the cache block has been modified. The modified block is only written back to memory when the block is replaced in the cache. 
+  \begin{theorem}[Replacement]
+    To replace data on the cache, we use the \textbf{least recently used (LRU)} algorithm. This matches temporal locality, but it also requires some additional state to be kept. 
+  \end{theorem}
 
-        \begin{figure}[H]
-          \centering 
-          \includegraphics[scale=0.4]{img/dirty_bit.png}
-          \caption{A dirty bit is a one bit flag that indicates whether the data stored in a cache line has been modified. When set, the data in the cache line is out o sync with main memory and must be written back (flushed) back to memory before eviction. } 
-          \label{fig:dirty_bit}
-        \end{figure}
-      \end{enumerate}
-      As usual, the difference between the designs reveals a trade-off. Write-through caches are less complex than write-back caches, and they avoid storing extra metadata in the form of a dirty bit for each line. On the other hand, write-back caches reduce the cost of repeated writes to the same location in memory.
-    \end{definition}
+\subsection{Cache Misses} 
 
-    \begin{theorem}[Replacement]
-      Replacement occurs exactly the same way as if we just did a placement and is trivial. We retrieve the data block from the memory and store it in the cache. Direct-mapping conveniently determines which cache line to evict when loading new data. Given new memory $M = (T, I, O)$, you \textit{must} evict the cache line at $H(I)$. 
-    \end{theorem}
+  There are three types of cache misses. 
 
-  \subsubsection{N way Set-Associative Cache}
-
-    Note that for both examples, given a fixed hashmap $H$ it is not possible to store data in two memory addresses $M_1$ and $M_2$ where both $H(I_1) = H(I_2)$. Therefore, the choice of hashing must be done so that it minimizes the number of collisions. So far, we have only considered memory read operations for which a CPU performs lookups on the cache. Caches must also allows programs to store values. However, there is a better way to do this: just construct it so that each set has more than one cache line, and so data in index portions of different memory addresses can be stored in different cache lines.
-
-    In here, we deal with $E \neq 1$, and so there are multiple set each with multiple lines. This means that the cache is more like a 2D array, and when we want to retrieve an index, we must look through the $H(I)$th line in \textit{each} set to see if the tag matches. 
-
-    \begin{theorem}[Lookup]
-      To see whether a requested memory address is in the cache, we do the following. 
-      \begin{enumerate}
-        \item The CPU requests a memory address $M = (T, I, O)$. 
-        \item We iterate through each of the $S$ sets in the cache, looking at cache line $M(I)$. 
-        \item For each line, we check if it is valid and if so, whether the line tag matches the memory tag. If we get a hit, then we have found the data in the cache. 
-      \end{enumerate}
-
-      \begin{figure}[H]
-        \centering 
-        \includegraphics[scale=0.4]{img/retrieve_set_associative.png}
-        \caption{Diagram of a 2 set-associative cache.} 
-        \label{fig:retrieve_set_associative}
-      \end{figure}
-    \end{theorem}
-
-    If you have a \textbf{fully associative cache}, then you have one set with $E = C/B$ lines. Therefore, you can really put any memory address data in any cache line. There is a clear tradeoff here. As we increase $N$, we can get more flexibility in using all of our cache space, but the time complexity of retrieving and writing data scales linearly. In fact, this linear scan is too slow for a cache, which is why you need to implement some parallel tag search, but this turns out to be quite expensive to build.\footnote{You have to copy the request tag with a circuit and compare it to all the tags in the cache, which turns out to be a much larger circuit.}
+  \begin{definition}[Cold (Compulsory) Miss]
+    A \textbf{cold miss} occurs when the cache is empty and the CPU requests a memory address. This is the first time the CPU is requesting this memory address, and so it must go to the memory to retrieve the data.
+  \end{definition}
   
-    Though we have a more robust implementation with associative mapping, placement and replacement now face the problem of \textit{which} set to place the data in or evict existing data. 
+  \begin{definition}[Capacity Miss]
+    A \textbf{capacity miss} occurs when the cache is full and the CPU requests a memory address that is not in the cache. This is because the cache is full and so the CPU must evict some data to make space for the new data.
+  \end{definition}
 
-    \begin{theorem}[Placement]
-      To load data from memory into the cache this is trivial since we can just go through the sets, find one where the valid bit is $0$, and just place the data there.  
-    \end{theorem}
-
-    In replacement, this is a bit trickier, but using the principle of temporal locality, we can try and replace the least recently used cache. This tries to minimize cache misses, but not slow down the lookup too much. 
-
-    \begin{theorem}[Replacement]
-      To replace data on the cache, we use the \textbf{least recently used (LRU)} algorithm. This matches temporal locality, but it also requires some additional state to be kept. 
-    \end{theorem}
-
-  \subsubsection{Types of Cache Misses} 
-
-    There are three types of cache misses. 
-
-    \begin{definition}[Cold (Compulsory) Miss]
-      A \textbf{cold miss} occurs when the cache is empty and the CPU requests a memory address. This is the first time the CPU is requesting this memory address, and so it must go to the memory to retrieve the data.
-    \end{definition}
-    
-    \begin{definition}[Capacity Miss]
-      A \textbf{capacity miss} occurs when the cache is full and the CPU requests a memory address that is not in the cache. This is because the cache is full and so the CPU must evict some data to make space for the new data.
-    \end{definition}
-
-    \begin{definition}[Conflict Miss]
-      A \textbf{conflict miss} occurs from premature eviction of a warm block. 
-    \end{definition}
+  \begin{definition}[Conflict Miss]
+    A \textbf{conflict miss} occurs from premature eviction of a warm block. 
+  \end{definition}
 
   Valgrind's cachegrind mode. 
 
