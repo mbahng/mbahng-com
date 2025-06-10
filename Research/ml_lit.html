@@ -11,7 +11,7 @@
       background-color: #ffffff; 
       font-family: Arial, sans-serif;
     }
-    .node { cursor: move; }
+    .node { cursor: pointer; }
     .link { stroke: #999; stroke-opacity: 0.6; }
     text { font-family: Arial, sans-serif; font-size: 12px; pointer-events: none; fill: #000; }
     .arrowhead { fill: #999; }
@@ -42,6 +42,139 @@
       color: #666;
       max-width: 200px;
     }
+
+    /* Markdown viewer modal */
+    .markdown-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 2000;
+      display: none;
+    }
+
+    .markdown-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      width: 80%;
+      max-width: 800px;
+      height: 80%;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .markdown-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid #eee;
+      background: #f8f9fa;
+      border-radius: 8px 8px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .markdown-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin: 0;
+      color: #333;
+    }
+
+    .close-btn {
+      background: #ff4757;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .close-btn:hover {
+      background: #ff3838;
+    }
+
+    .markdown-body {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+
+    /* Markdown styling */
+    .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+      color: #333;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+
+    .markdown-body h1 {
+      font-size: 24px;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 8px;
+    }
+
+    .markdown-body h2 {
+      font-size: 20px;
+    }
+
+    .markdown-body h3 {
+      font-size: 16px;
+    }
+
+    .markdown-body p {
+      margin-bottom: 12px;
+      color: #555;
+    }
+
+    .markdown-body code {
+      background: #f1f3f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+    }
+
+    .markdown-body pre {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      border-left: 4px solid #007bff;
+    }
+
+    .markdown-body blockquote {
+      border-left: 4px solid #ddd;
+      margin: 0;
+      padding-left: 16px;
+      color: #666;
+      font-style: italic;
+    }
+
+    .markdown-body ul, .markdown-body ol {
+      padding-left: 20px;
+      margin-bottom: 12px;
+    }
+
+    .markdown-body li {
+      margin-bottom: 4px;
+    }
+
+    .markdown-body a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    .markdown-body a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -55,11 +188,25 @@
     <div id="connection-count">0 connections</div>
     <div style="margin-top: 5px; font-size: 10px;">
       <strong>Auto-detected from index</strong><br>
-      Drag to move • Scroll to zoom
+      Drag to move • Scroll to zoom<br>
+      <strong>Click nodes to view content</strong>
     </div>
   </div>
   
   <div id="graph"></div>
+  
+  <!-- Markdown viewer modal -->
+  <div class="markdown-modal" id="markdownModal">
+    <div class="markdown-content">
+      <div class="markdown-header">
+        <h2 class="markdown-title" id="markdownTitle">Document Title</h2>
+        <button class="close-btn" onclick="closeMarkdownModal()">Close</button>
+      </div>
+      <div class="markdown-body" id="markdownBody">
+        <!-- Rendered markdown content will go here -->
+      </div>
+    </div>
+  </div>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.16.0/d3.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
@@ -68,8 +215,46 @@
     let nodes = [];
     let links = [];
     let simulation;
+    let notesData = {}; // Store the original notes data for viewing
     
     let tagColors = {};
+    
+    // Modal functions
+    function showMarkdownModal(nodeData) {
+      const modal = document.getElementById('markdownModal');
+      const title = document.getElementById('markdownTitle');
+      const body = document.getElementById('markdownBody');
+      
+      title.textContent = nodeData.label;
+      
+      // Get the original content from notesData
+      const originalContent = notesData[nodeData.id];
+      if (originalContent && originalContent.content) {
+        body.innerHTML = marked.parse(originalContent.content);
+      } else {
+        body.innerHTML = '<p>Content not available</p>';
+      }
+      
+      modal.style.display = 'block';
+    }
+    
+    function closeMarkdownModal() {
+      document.getElementById('markdownModal').style.display = 'none';
+    }
+    
+    // Close modal when clicking outside
+    document.getElementById('markdownModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeMarkdownModal();
+      }
+    });
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeMarkdownModal();
+      }
+    });
     
     async function init() {
       try {
@@ -82,6 +267,9 @@
         
         updateLoading(`Found ${markdownFiles.length} files, loading...`);
         const { notes, links: fileLinks } = await loadMarkdownFiles(markdownFiles);
+        
+        // Store notes data for modal viewing
+        notesData = notes;
         
         updateLoading('Analyzing connections...');
         
@@ -214,26 +402,6 @@
       return tagColorMap;
     }
     
-    function generateTagColors(allTags) {
-      const colors = [];
-      
-      // Generate a diverse set of colors using HSL
-      for (let i = 0; i < allTags.length; i++) {
-        const hue = (i * 137.508) % 360; // Golden angle for good distribution
-        const saturation = 60 + (i % 3) * 15; // Vary saturation between 60-90%
-        const lightness = 45 + (i % 4) * 10;  // Vary lightness between 45-75%
-        colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
-      }
-      
-      // Create mapping from tags to colors
-      const tagColorMap = {};
-      allTags.forEach((tag, index) => {
-        tagColorMap[tag] = colors[index];
-      });
-      
-      return tagColorMap;
-    }
-    
     function collectAllTags(notes) {
       const allTags = new Set();
       
@@ -340,7 +508,6 @@
       const nodes = Object.keys(notes).map(note => ({
         id: note,
         label: getDisplayName(note),
-        content: notes[note].content,
         tags: notes[note].tags
       }));
       
@@ -376,7 +543,6 @@
       nodes.forEach(node => {
         node.link_count = nodeLinkCount[node.id] || 0;
         node.color = getColorForTags(node.tags);
-        delete node.content;
       });
       
       return { nodes, edges };
@@ -443,7 +609,8 @@
         .attr("stroke", "#fff")
         .attr("stroke-width", 1.5)
         .on("click", function(d) {
-          window.open(d.id, '_blank')
+          // Show markdown modal instead of opening new window
+          showMarkdownModal(d);
         })
         .call(d3.drag()
           .on("start", dragstarted)
