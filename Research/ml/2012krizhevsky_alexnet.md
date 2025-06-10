@@ -3,12 +3,9 @@
 [[1998lecun_lenet]]
 
 # Contributions 
-   Implemented a large convnet (5 conv + 3 FC) with non-saturating neurons. 
-   Trained with regularization such as dropout and data augmentation, which are low cost (translation, flips, crops)
-   Achieve SOTA accuracy on ImageNet-1K of top-1 62.5% and top-5 83%. 
+   Implemented a large convnet (5 conv + 3 FC) to achieve SOTA accuracy on ImageNet-1K of top-1 62.5% and top-5 83%. 
 
 # Background 
-
 
 
 # Architecture and Training
@@ -31,5 +28,8 @@
 
    Equal learning rate for all layers. When error plateaued, reduce LR by 0.1.  
 
+# Data Augmentation and Multiview Voting
    
+   Generating image translations and horizontal reflections. Image is 256x256. Extract random 224x224 patches (and horizontal reflections) and use them to train. This increases training set by factor of 2048. We need to do data augmentation, otherwise the net overfits heavily, forcing us to use smaller network. At test time, network makes prediction by extracting 5 224x224 patches (4 corners and center) along with horizontal reflexctions (10 patches in total) and averages predictions. 
 
+   Second way of augmenting is altering intensities of RGB channels in training images. Do PCA and scale the corresponding eigenvalue by random Gaussian. 

@@ -27,6 +27,7 @@
  [[2013kingma_vae|2013kingma_vae]]
  [[2013krause_stanfordcars|2013krause_stanfordcars]]
  [[2013mikolov_word2vec|2013mikolov_word2vec]]
+ [[2013sermanet_overfeat|2013sermanet_overfeat]] 
  [[2013srivastava_dropout|2013srivastava_dropout]]
  [[2013zeiler_understandingcnns|2013zeiler_understandingcnns]]
  [[2014cho_neural-machine-translation|2014cho_neural-machine-translation]]
