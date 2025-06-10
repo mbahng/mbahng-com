@@ -4,7 +4,7 @@
 
 # Contribution
 
-   Introduced new CNN architecture that got 1st on ImageNet 2013 competition. 14.18% error rate for accurate model, and ensemble of 7 accurate models gives 13.6% error. 
+   Introduced new CNN architecture featuring multiscale sliding-window approach that got 4th/1st/1st on ImageNet 2013 competition in classification, localization, and detection, respectively. 14.18% error rate for accurate model, and ensemble of 7 accurate models gives 13.6% error. 
 
 # Background 
 
@@ -67,7 +67,7 @@
    For training, remember that for each sample $(I, C, B)$ of the image, class, and bounding box, we augment the dataset to get $(I_{jk}, C, B)$ where we take subimages. Furthermore, $I$ is scaled to $I^s$, so we really have the dataset $(I_{jk}^s, C, B)$. 
 
    1. We take the subimages $I_{jk}^s \subset I$ and use the augmented labels $(I_{jk}^s, C)$ for classifier. Basic cross entopy. 
-   2. For the bounding boxes, we have $(I_{jk}^s, B)$. If $B$ and $I_{jk}^s$ have less than 50% overlap, then don't use this training label since since the object is mostly outside of these locations, it will be better handled by regression windows that do contain the object. Use $L^2$ loss. 
+   2. For the bounding boxes, we have $(I_{jk}^s, B)$. If $B$ and $I_{jk}^s$ have less than 50% overlap, then don't use this training label since since the object is mostly outside of these locations, it will be better handled by regression windows that do contain the object. Use $L^2$ loss, though this could be changed to directly optimize IoU. 
 
    Multiscale training, where we scale up the image (up to a factor of 1.4 here), and then recompute the convolutions the same way, is important as it makes model robust and boosts confidence. This also leads to bounding boxes to have different sizes and dimensions. At this point, the entire network should produce results like this. 
 
