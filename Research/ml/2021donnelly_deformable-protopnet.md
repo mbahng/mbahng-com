@@ -5,7 +5,7 @@
 # Contributions 
 Developed prototype network with spatially flexible **deformable** prototypes as shown below. This is different from having 9 different prototypes on a vanilla ProtoPnet. Rather, the 9 squares represent *one*  deformable prototype. More explained later. 
 
-![[deformable.png]]
+![[ml/img/deformable.png]]
 Angular margins to training algorithm. 
 Achieves SOTA accuracy on CUB-200-2011 and Stanford Dogs. 
 Builds upon the architecture of vanilla ProtoPnet, the orthonormality and cosine similarity from TesNet, and the deformable operations as deformable convolutions. 
@@ -30,5 +30,6 @@ $$g(\hat{\mathbf{z}})_{a,b,m,n}^{(c,l)} = \hat{\mathbf{p}}_{m,n}^{(c,l)} \cdot \
 
 With this, the similarity score between a deformable prototype $\hat{p}^{(c, l)}$ and the entire image $z$ is simply 
 $$g(\hat{z})^{(c, l)} = \max_{a, b} g(\hat{z})^{(c, l)}_{a, b}$$
+
 # Interpolation
 To compute this $\Delta$, we use feature interpolation to define image features as fractional positions. Previous works used bilinear interpolation, but does not work here since it breaks the norm condition (i.e. lands outside of hypersphere). So we use a slightly modified one that takes 4 points on the hypersphere and interpolates between them. 
