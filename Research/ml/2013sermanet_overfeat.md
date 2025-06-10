@@ -29,11 +29,11 @@
    4. The classifier has a fixed input size of $5 \times 5$ and produces a $C$-dimensional output vector for each location within pooled maps. The classifier is applied in sliding window fashion to the pooled maps, yielding $C$-dimensional output maps for a given $(\Delta_x, \Delta_y)$ combination. 
    5. The output maps for different $(\Delta_x, \Delta_y)$ combinations are reshaped into a single 3D output map (two spatial dimensions and $C$ classes). 
 
-   ![image](ml/img/overfeat_arch.png)
+   ![image](img/overfeat_arch.png)
 
    This is computationally fine since we're working with convnets, and by including the padding we aren't really adding too much computation. 
 
-   ![image](ml/img/overfeat_conv_fine.png)
+   ![image](img/overfeat_conv_fine.png)
 
 # Localization Architecture and Training 
 

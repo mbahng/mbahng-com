@@ -80,7 +80,7 @@
 
    Trained a 3 layer model for pictures of fruits and city buildings. 1st layer had 9 feature maps, 2nd 45, 3rd 150. 
 
-   ![image](ml/img/2010zeiler_results.png)
+   ![image](img/2010zeiler_results.png)
 
 
    

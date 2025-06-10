@@ -6,7 +6,7 @@
 
    Developed prototype network with spatially flexible **deformable** prototypes as shown below. This is different from having 9 different prototypes on a vanilla ProtoPnet. Rather, the 9 squares represent *one*  deformable prototype. More explained later. 
 
-   ![image](ml/img/deformable.png)
+   ![image](img/deformable.png)
 
    1. Angular margins to training algorithm. 
 
