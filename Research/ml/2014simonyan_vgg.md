@@ -1,3 +1,3 @@
 [[2014simonyan_vgg.pdf]]
 
-[[2012krizhevsky_alexnet]]
+[[2012krizhevsky_alexnet]], [[2013sermanet_overfeat]]
