@@ -61,9 +61,9 @@
       left: 50%;
       transform: translate(-50%, -50%);
       background: white;
-      width: 80%;
-      max-width: 800px;
-      height: 80%;
+      width: 95%;
+      max-width: none;
+      height: 95%;
       border-radius: 8px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
       display: flex;
@@ -176,6 +176,13 @@
       text-decoration: underline;
     }
 
+    .markdown-body img {
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+      height: auto;
+    }
+
     /* MathJax styling */
     .markdown-body .MathJax {
       font-size: 1em !important;
@@ -252,6 +259,75 @@ window.MathJax = {
     
     let tagColors = {};
     
+    // Function to protect math expressions from markdown processing
+    function protectMathExpressions(content) {
+      const mathBlocks = [];
+      let counter = 0;
+      
+      // First, protect display math ($$...$$)
+      content = content.replace(/\$\$([\s\S]*?)\$\$/g, (match) => {
+        const placeholder = `MATHBLOCK${counter}MATHBLOCK`;
+        mathBlocks[counter] = match;
+        counter++;
+        return placeholder;
+      });
+      
+      // Then protect inline math ($...$)
+      content = content.replace(/\$([^$\n]+?)\$/g, (match) => {
+        const placeholder = `MATHBLOCK${counter}MATHBLOCK`;
+        mathBlocks[counter] = match;
+        counter++;
+        return placeholder;
+      });
+      
+      return { content, mathBlocks };
+    }
+    
+    // Function to restore math expressions after markdown processing
+    function restoreMathExpressions(html, mathBlocks) {
+      mathBlocks.forEach((mathExpr, index) => {
+        const placeholder = `MATHBLOCK${index}MATHBLOCK`;
+        html = html.replace(placeholder, mathExpr);
+      });
+      return html;
+    }
+
+    // Function to fix image paths in markdown content
+    function fixImagePaths(content, filePath) {
+      // Get the directory of the markdown file
+      const fileDir = filePath.substring(0, filePath.lastIndexOf('/') + 1);
+      
+      // Replace relative image paths
+      return content.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, altText, imagePath) => {
+        // If it's already an absolute URL or starts with http, leave it alone
+        if (imagePath.startsWith('http') || imagePath.startsWith('/')) {
+          return match;
+        }
+        
+        // If the image path doesn't start with the file directory, prepend it
+        let fixedPath = imagePath;
+        if (!imagePath.startsWith(fileDir)) {
+          // Handle different cases:
+          // - img/file.png -> ml/img/file.png
+          // - ../img/file.png -> img/file.png (then -> ml/img/file.png)
+          // - ./img/file.png -> ml/img/file.png
+          
+          if (imagePath.startsWith('./')) {
+            fixedPath = fileDir + imagePath.substring(2);
+          } else if (imagePath.startsWith('../')) {
+            // Go up one directory from the file location
+            const parentDir = fileDir.substring(0, fileDir.lastIndexOf('/', fileDir.length - 2) + 1);
+            fixedPath = parentDir + imagePath.substring(3);
+          } else {
+            // Relative path, prepend the file directory
+            fixedPath = fileDir + imagePath;
+          }
+        }
+        
+        return `![${altText}](${fixedPath})`;
+      });
+    }
+
     // Modal functions
     function showMarkdownModal(nodeData) {
       const modal = document.getElementById('markdownModal');
@@ -263,7 +339,19 @@ window.MathJax = {
       // Get the original content from notesData
       const originalContent = notesData[nodeData.id];
       if (originalContent && originalContent.content) {
-        body.innerHTML = marked.parse(originalContent.content);
+        // Fix image paths first
+        let contentWithFixedPaths = fixImagePaths(originalContent.content, nodeData.id);
+        
+        // Protect math expressions from markdown processing
+        const { content: protectedContent, mathBlocks } = protectMathExpressions(contentWithFixedPaths);
+        
+        // Parse markdown with protected math
+        let html = marked.parse(protectedContent);
+        
+        // Restore math expressions
+        html = restoreMathExpressions(html, mathBlocks);
+        
+        body.innerHTML = html;
         
         // Re-render MathJax after content is added
         if (window.MathJax) {

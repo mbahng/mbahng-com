@@ -14,22 +14,26 @@
    2. This is not strictly the same as transposed convolution, which is another upsampling method that acts on the image as a tranposed matrix multiplication.  However PyTorch cites this paper in their docs for `ConvTranspose2d` method. 
 
    General idea to compute the deconvolution is to take image $y$ and for each of its channels $y_c$, find sparse images $z_k$'s such that if we take a linear combination of the convolved $z_k$, then we can reconstruct $y_c$. 
+
    $$
       y_c \approx \sum f_{k, c} \ast z_k
    $$
+
    This isn't really an upsampling per say (?), but it allows us to directly view each $f_{k, c} \ast z_k$ in pixel space. This allows us to view what the CNN is interpreting each $z_k$ as and what features are important. This is summarized by asking the following question, gotten from [Jason](https://stackoverflow.com/questions/69782823/understanding-the-pytorch-implementation-of-conv2dtranspose): ''What arguments would I give to a normal, forward convolution layer such that it would give the tensor at hand, that I'm feeding into a transposed conv layer?''
 
 ## Implementation 
 
    Recall sparse dictionary learning, where we find an over-complete linear decomposition of input $y \in \mathbb{R}^d$ using dictionary $D^{d \times m}$, which has the total loss function 
+
    $$ 
       \min_D \frac{1}{N} \sum_{i=1}^N \min_{p^{(i)}} \| Dp - x^{(i)}\|_2^2  + \; \lambda \|p\|_1
    $$
+
    Learning $D$ and $p$ leads to an overcomplete representation, so we add a sparsity term to the loss. Therefore, we can try to model every element $x$ as some sparse linear combination of important features in $D$. We take a similar approach, but rather than each column of $D$ being in the pixel space, we embed it in latent space. 
 
    Consider an input image $y^i \in (K_0, N_r, N_c)$, and let each channel be $y^i_c \in (N_r, N_c)$. We want to represent the image $y^i_c$ as a linear combination of $K_1$ latent representations $z^i_k$. Note that $K_1$ is analogous to $m$ above. 
 
-   The parameters of the deconvolution layers consist of filters $\{f_{k, c} \in (H, H)\}_{k \in K_1, c \in K_0}$  and latent feature embeddings $\{z^i_k \in (N_r + H - 1, N_c + H - 1)\}_{k \in K_1}$. These shapes ensure that the convolution 
+   The parameters of the deconvolution layers consist of filters $\{f_{k, c} \in (H, H)\}_{k \in K_{1}, c \in K_{0}}$ and latent feature embeddings $\{z^i_k \in (N_r + H - 1, N_c + H - 1)\}_{k \in K_1}$. These shapes ensure that the convolution 
 
    $$ 
       f_{k, c} \ast z_k^i = f_{k, c} \oplus z_k^i \in (N_r, N_c) 
@@ -40,6 +44,7 @@
    $$ 
       \hat{y_c^i} = \sum_{k=1}^{K_1} z_k^i \oplus f_{k, c}
    $$ 
+
    Note that the convolutions are learned across both the input channels $K_0$ and latent channels $K_1$, while there are a fixed $K_1$ latent features to learn. We optimize over all $z$ and $f$. However, this is an underdetermined system, so we add a sparsity regularization term to the $z^i$. We do this because we want the latent features to be like edges and simple shapes, while the convolutions as feature extractors shouldn't be limited in complexity. 
    
    $$
@@ -53,9 +58,11 @@
    $$
 
    Summing over the whole dataset of $I$ images $y = \{y^1 ,\ldots, y^I\}$ gives 
+
    $$
       C_l(y) = \frac{\lambda}{2} \sum_{i=1}^{I} \sum_{c=1}^{K_{l-1}} \left\| \sum_{k=1}^{K_l} g_{k,c}^l \left( z_{k,l}^i \oplus f_{k,c}^l \right) - z_{c,l-1}^i \right\|_2^2 + \sum_{i=1}^{I} \sum_{k=1}^{K_l} |z_{k,l}^i|^p 
    $$
+
    where $g$ is a fixed binary matrix determining connectivity between layers so that appropriate pairs are compared. We train this and the learned filters are $f^l_{k, c}$. 
 
    To use this model, take image $y^\prime$. 
