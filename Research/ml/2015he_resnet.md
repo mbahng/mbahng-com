@@ -34,7 +34,7 @@
    
 # Even Deeper: Bottleneck Layers 
 
-   Things like looking bright by just making resnets deeper. But if we want to go even deeper into 152 layers, this will require too many parameters, so we look at an even simpler form of block. We call this the **bottleneck**, which uses a stack of 3 layers (1x1, 3x3, 1x1) rather than 2 (3x3, 3x3). Both designs have similar time complexity. 
+   Things like looking bright by just making resnets deeper. But if we want to go even deeper into 152 layers, this will require too many parameters, so we look at an even simpler form of block. We call this the **bottleneck**, which uses a stack of 3 layers (1x1, 3x3, 1x1) rather than 2 (3x3, 3x3). This bottleneck is really the 1x1 convolution before the 3x3, which reduces the input dimension and improves computational complexity. Both designs have similar time complexity. 
 
    ![image](img/resnet_bottleneck.png)
 
