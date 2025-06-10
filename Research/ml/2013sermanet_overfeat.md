@@ -1,5 +1,7 @@
 [[2013sermanet_overfeat.pdf]] 
 
+[[2012krizhevsky_alexnet.md]]
+
 # Contribution
 
    Introduced new CNN architecture that got 1st on ImageNet 2013 competition. 14.18% error rate for accurate model, and ensemble of 7 accurate models gives 13.6% error. 
