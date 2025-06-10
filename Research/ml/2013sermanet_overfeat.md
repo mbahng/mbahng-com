@@ -35,3 +35,7 @@
 
    ![image](ml/img/overfeat_conv_fine.png)
 
+# Localization Architecture and Training 
+
+# Detection
+
