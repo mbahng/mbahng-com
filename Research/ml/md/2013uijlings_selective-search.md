@@ -20,7 +20,7 @@
    So the total similarity is the combination of the four. 
 
    $$
-      s(r_i, r_j) = a_1 s_colour(r_i, r_j) + a_2 s_texture(r_i, r_j) + a_3 s_size(r_i, r_j) + a_4 s_fill(r_i, r_j)
+      s(r_i, r_j) = a_1 s_{colour}(r_i, r_j) + a_2 s_{texture}(r_i, r_j) + a_3 s_{size}(r_i, r_j) + a_4 s_{fill}(r_i, r_j)
    $$
 
    Then these are greedily merged starting with the pairs that have the highest similarity, and we continue on until we hit a threshold. 
