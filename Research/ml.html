@@ -1,5 +1,4 @@
-<!DOCTYPE html<!DOCTYPE html>
-<html>
+<!DOCTYPE html>
 <head>
   <meta charset="utf-8">
   <title>ML Literature Graph</title>
@@ -425,7 +424,7 @@ window.MathJax = {
     async function init() {
       try {
         updateLoading('Reading index file...');
-        const markdownFiles = await scanDirectory('ml/');
+        const markdownFiles = await scanDirectory();
         
         if (markdownFiles.length === 0) {
           throw new Error('No markdown files found in index');
@@ -470,14 +469,14 @@ window.MathJax = {
       loadingDiv.querySelector('div').textContent = message;
     }
     
-    async function scanDirectory(dirPath) {
+    async function scanDirectory() {
       // Try to parse the index file to get the file list
       const indexFile = 'ml/index_ml.md';
       try {
         const response = await fetch(indexFile);
         if (response.ok) {
           const content = await response.text();
-          const files = parseIndexFile(content, dirPath);
+          const files = parseIndexFile(content);
           if (files.length > 0) {
             return files;
           }
@@ -489,46 +488,34 @@ window.MathJax = {
       return [];
     }
     
-    function parseIndexFile(content, basePath) {
+    function parseIndexFile(content) {
       const files = [];
       
-      // Parse markdown links: [text](filename.md) or [[filename]] or just filename.md
-      const patterns = [
-        /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g, // [[file.md|display]] or [[file.md]]
-      ];
+      // Split content into lines and process each line
+      const lines = content.split('\n');
       
-      for (const pattern of patterns) {
-        let match;
-        while ((match = pattern.exec(content)) !== null) {
-          let filename = match[1] || match[2];
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        
+        // Skip empty lines and headers
+        if (!trimmedLine || trimmedLine.startsWith('#')) {
+          continue;
+        }
+        
+        // Check if line contains a .md filename
+        if (trimmedLine.endsWith('.md')) {
+          // Remove any leading bullets, numbers, or markdown syntax
+          let filename = trimmedLine.replace(/^[-*+]\s*/, '') // Remove bullet points
+                                    .replace(/^\d+\.\s*/, '') // Remove numbered lists
+                                    .replace(/^\[([^\]]*)\]\([^)]*\)/, '$1') // Extract from markdown links
+                                    .trim();
           
-          // Clean up the filename
-          filename = filename.trim();
-          
-          // Remove any pipe syntax content (everything after |)
-          if (filename.includes('|')) {
-            filename = filename.split('|')[0].trim();
-          }
-          
-          // Add .md if missing
-          if (!filename.endsWith('.md')) {
-            filename += '.md';
-          }
-          
-          // Skip if it looks like a URL or contains spaces (probably not a file)
-          if (filename.includes('http') || filename.includes('pdf') || filename.includes('img') || filename.includes(' ')) {
-            continue;
-          }
-          
-          // Add base path if not already present
-          let fullPath = filename;
-          if (!fullPath.startsWith(basePath)) {
-            fullPath = basePath + filename;
-          }
-          
-          // Add to files if not already present
-          if (!files.includes(fullPath)) {
-            files.push(fullPath);
+          // If it's just a filename, add the full path
+          if (filename && !filename.includes('/')) {
+            const fullPath = `ml/md/${filename}`;
+            if (!files.includes(fullPath)) {
+              files.push(fullPath);
+            }
           }
         }
       }
@@ -653,7 +640,7 @@ window.MathJax = {
     
     function generateGraphData(notes, links) {
       function getDisplayName(filePath) {
-        const fileName = filePath.replace('ml/', '').replace('.md', '');
+        const fileName = filePath.replace('ml/md/', '').replace('.md', '');
         
         if (fileName.toLowerCase() === 'readme') return 'README';
         
@@ -688,8 +675,8 @@ window.MathJax = {
         for (const dst of dstList) {
           const potentialTargets = [
             dst,
-            'ml/' + dst,
-            'ml/' + dst + '.md',
+            'ml/md/' + dst,
+            'ml/md/' + dst + '.md',
             dst + '.md'
           ];
           

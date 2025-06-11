@@ -1,1 +1,1 @@
-[[2024yang_socialmind]]
+2024yang_socialmind.md
