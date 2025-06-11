@@ -1,3 +1,3 @@
 [[2014szegedy_googlenet.pdf]]
 
-[[2012krizhevsky_alexnet]]
+[[2014lin_nin]]
