@@ -9,7 +9,9 @@
 1998lecun_lenet.md
 2002hinton_contrastive-divergence.md
 2004lowe_sift.md
+2005dalal_hog.md
 2006feifei_caltech101.md
+2006li_oneshot.md
 2009deng_imagenet.md
 2009felzenszwalb_object-detection-deformable.md
 2009krizhevsky_cifar.md
