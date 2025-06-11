@@ -1,0 +1,855 @@
+<!DOCTYPE html<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>AR/VR Literature Graph</title>
+  <style>
+    body { 
+      margin: 0; 
+      padding: 0; 
+      overflow: hidden; 
+      background-color: #ffffff; 
+      font-family: Arial, sans-serif;
+    }
+    .node { cursor: pointer; }
+    .link { stroke: #999; stroke-opacity: 0.6; }
+    text { font-family: Arial, sans-serif; font-size: 12px; pointer-events: none; fill: #000; }
+    .arrowhead { fill: #999; }
+    svg { width: 100vw; height: 100vh; }
+    
+    .loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 255, 255, 0.9);
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      z-index: 1000;
+      text-align: center;
+    }
+    
+    .info {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      font-size: 12px;
+      color: #666;
+      max-width: 200px;
+    }
+
+    /* Markdown viewer modal */
+    .markdown-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 2000;
+      display: none;
+    }
+
+    .markdown-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      width: 95%;
+      max-width: none;
+      height: 95%;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .markdown-header {
+      padding: 15px 20px;
+      border-bottom: 1px solid #eee;
+      background: #f8f9fa;
+      border-radius: 8px 8px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .markdown-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin: 0;
+      color: #333;
+    }
+
+    .close-btn {
+      background: #ff4757;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .close-btn:hover {
+      background: #ff3838;
+    }
+
+    .markdown-body {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+
+    /* Markdown styling */
+    .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+      color: #333;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+
+    .markdown-body h1 {
+      font-size: 24px;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 8px;
+    }
+
+    .markdown-body h2 {
+      font-size: 20px;
+    }
+
+    .markdown-body h3 {
+      font-size: 16px;
+    }
+
+    .markdown-body p {
+      margin-bottom: 12px;
+      color: #555;
+    }
+
+    .markdown-body code {
+      background: #f1f3f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+    }
+
+    .markdown-body pre {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 6px;
+      overflow-x: auto;
+      border-left: 4px solid #007bff;
+    }
+
+    .markdown-body blockquote {
+      border-left: 4px solid #ddd;
+      margin: 0;
+      padding-left: 16px;
+      color: #666;
+      font-style: italic;
+    }
+
+    .markdown-body ul, .markdown-body ol {
+      padding-left: 20px;
+      margin-bottom: 12px;
+    }
+
+    .markdown-body li {
+      margin-bottom: 4px;
+    }
+
+    .markdown-body a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    .markdown-body a:hover {
+      text-decoration: underline;
+    }
+
+    .markdown-body img {
+      display: block;
+      margin: 0 auto;
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* PDF link styling */
+    .markdown-body .pdf-link {
+      display: inline-block;
+      background: #ff6b6b;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: bold;
+      margin: 2px;
+    }
+
+    .markdown-body .pdf-link:hover {
+      background: #ff5252;
+      text-decoration: none;
+    }
+
+    .markdown-body .pdf-link::before {
+      content: "📄 ";
+    }
+
+    /* MathJax styling */
+    .markdown-body .MathJax {
+      font-size: 1em !important;
+    }
+
+    .markdown-body .MathJax_Display {
+      margin: 1em 0 !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading">
+    <div>Scanning ML Directory...</div>
+    <div style="font-size: 12px; margin-top: 10px; color: #666;">Reading index file</div>
+  </div>
+  
+  <div class="info" id="info" style="display: none;">
+    <div id="file-count">0 files found</div>
+    <div id="connection-count">0 connections</div>
+    <div style="margin-top: 5px; font-size: 10px;">
+      <strong>Auto-detected from index</strong><br>
+      Drag to move • Scroll to zoom<br>
+      <strong>Click nodes to view content</strong>
+    </div>
+  </div>
+  
+  <div id="graph"></div>
+  
+  <!-- Markdown viewer modal -->
+  <div class="markdown-modal" id="markdownModal">
+    <div class="markdown-content">
+      <div class="markdown-header">
+        <h2 class="markdown-title" id="markdownTitle">Document Title</h2>
+        <button class="close-btn" onclick="closeMarkdownModal()">Close</button>
+      </div>
+      <div class="markdown-body" id="markdownBody">
+        <!-- Rendered markdown content will go here -->
+      </div>
+    </div>
+  </div>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.16.0/d3.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+</body>
+
+<script>
+// MathJax configuration - using only ASCII quotes
+window.MathJax = {
+  tex: {
+    inlineMath: [
+      ["$", "$"], 
+      ["\\(", "\\)"]
+    ],
+    displayMath: [
+      ["$$", "$$"], 
+      ["\\[", "\\]"]
+    ],
+    processEscapes: true,
+    processEnvironments: true
+  },
+  options: {
+    skipHtmlTags: ["script", "noscript", "style", "textarea", "pre"]
+  }
+};
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.min.js"></script>
+
+<script>
+    let nodes = [];
+    let links = [];
+    let simulation;
+    let notesData = {}; // Store the original notes data for viewing
+    
+    let tagColors = {};
+    
+    // Function to convert PDF wiki-links to clickable HTML links
+    function convertPdfLinks(content) {
+      // Match [[filename.pdf]] patterns
+      return content.replace(/\[\[([^|\]]+\.pdf)(?:\|([^\]]+))?\]\]/g, (match, filename, displayText) => {
+        // Use display text if provided, otherwise use filename without extension
+        const linkText = displayText || filename.replace('.pdf', '');
+        // Create the PDF path - relative to the ml directory where this HTML file is located
+        const pdfPath = `arvr/pdf/${filename}`;
+        // Return HTML link that will be processed by marked
+        return `<a href="${pdfPath}" target="_blank" class="pdf-link">${linkText}</a>`;
+      });
+    }
+    
+    // Function to protect math expressions from markdown processing
+    function protectMathExpressions(content) {
+      const mathBlocks = [];
+      let counter = 0;
+      
+      // First, protect display math ($$...$$)
+      content = content.replace(/\$\$([\s\S]*?)\$\$/g, (match) => {
+        const placeholder = `MATHBLOCK${counter}MATHBLOCK`;
+        mathBlocks[counter] = match;
+        counter++;
+        return placeholder;
+      });
+      
+      // Then protect inline math ($...$)
+      content = content.replace(/\$([^$\n]+?)\$/g, (match) => {
+        const placeholder = `MATHBLOCK${counter}MATHBLOCK`;
+        mathBlocks[counter] = match;
+        counter++;
+        return placeholder;
+      });
+      
+      return { content, mathBlocks };
+    }
+    
+    // Function to restore math expressions after markdown processing
+    function restoreMathExpressions(html, mathBlocks) {
+      mathBlocks.forEach((mathExpr, index) => {
+        const placeholder = `MATHBLOCK${index}MATHBLOCK`;
+        html = html.replace(placeholder, mathExpr);
+      });
+      return html;
+    }
+
+    // Function to fix image paths in markdown content
+    function fixImagePaths(content, filePath) {
+      // Get the directory of the markdown file
+      const fileDir = filePath.substring(0, filePath.lastIndexOf('/') + 1);
+      
+      // Replace relative image paths
+      return content.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, altText, imagePath) => {
+        // If it's already an absolute URL or starts with http, leave it alone
+        if (imagePath.startsWith('http') || imagePath.startsWith('/')) {
+          return match;
+        }
+        
+        // If the image path doesn't start with the file directory, prepend it
+        let fixedPath = imagePath;
+        if (!imagePath.startsWith(fileDir)) {
+          if (imagePath.startsWith('./')) {
+            fixedPath = fileDir + imagePath.substring(2);
+          } else if (imagePath.startsWith('../')) {
+            // Go up one directory from the file location
+            const parentDir = fileDir.substring(0, fileDir.lastIndexOf('/', fileDir.length - 2) + 1);
+            fixedPath = parentDir + imagePath.substring(3);
+          } else {
+            // Relative path, prepend the file directory
+            fixedPath = fileDir + imagePath;
+          }
+        }
+        
+        return `![${altText}](${fixedPath})`;
+      });
+    }
+
+    // Modal functions
+    function showMarkdownModal(nodeData) {
+      const modal = document.getElementById('markdownModal');
+      const title = document.getElementById('markdownTitle');
+      const body = document.getElementById('markdownBody');
+      
+      title.textContent = nodeData.label;
+      
+      // Get the original content from notesData
+      const originalContent = notesData[nodeData.id];
+      if (originalContent && originalContent.content) {
+        // Fix image paths first
+        let contentWithFixedPaths = fixImagePaths(originalContent.content, nodeData.id);
+        
+        // Convert PDF wiki-links to HTML links
+        contentWithFixedPaths = convertPdfLinks(contentWithFixedPaths);
+        
+        // Protect math expressions from markdown processing
+        const { content: protectedContent, mathBlocks } = protectMathExpressions(contentWithFixedPaths);
+        
+        // Parse markdown with protected math
+        let html = marked.parse(protectedContent);
+        
+        // Restore math expressions
+        html = restoreMathExpressions(html, mathBlocks);
+        
+        body.innerHTML = html;
+        
+        // Re-render MathJax after content is added
+        if (window.MathJax) {
+          MathJax.typesetPromise([body]).catch(function (err) {
+            console.log('MathJax typeset failed: ' + err.message);
+          });
+        }
+      } else {
+        body.innerHTML = '<p>Content not available</p>';
+      }
+      
+      modal.style.display = 'block';
+    }
+    
+    function closeMarkdownModal() {
+      document.getElementById('markdownModal').style.display = 'none';
+    }
+    
+    // Close modal when clicking outside
+    document.getElementById('markdownModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeMarkdownModal();
+      }
+    });
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeMarkdownModal();
+      }
+    });
+    
+    async function init() {
+      try {
+        updateLoading('Reading index file...');
+        const markdownFiles = await scanDirectory('arvr/');
+        
+        if (markdownFiles.length === 0) {
+          throw new Error('No markdown files found in index');
+        }
+        
+        updateLoading(`Found ${markdownFiles.length} files, loading...`);
+        const { notes, links: fileLinks } = await loadMarkdownFiles(markdownFiles);
+        
+        // Store notes data for modal viewing
+        notesData = notes;
+        
+        updateLoading('Analyzing connections...');
+        
+        // Collect all unique tags and generate colors
+        const allTags = collectAllTags(notes);
+        tagColors = generateTagColors(allTags);
+        console.log(`Found ${allTags.length} unique tags:`, allTags);
+        
+        const { nodes: graphNodes, edges } = generateGraphData(notes, fileLinks);
+        
+        nodes = graphNodes;
+        links = edges;
+        
+        updateLoading('Creating visualization...');
+        setTimeout(() => {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('info').style.display = 'block';
+          document.getElementById('file-count').textContent = `${nodes.length} papers`;
+          document.getElementById('connection-count').textContent = `${links.length} connections`;
+          createGraph();
+        }, 500);
+        
+      } catch (error) {
+        document.getElementById('loading').innerHTML = 
+          '<div>Error scanning directory</div><div style="font-size: 12px; color: #999;">' + error.message + '</div>';
+        console.error(error);
+      }
+    }
+    
+    function updateLoading(message) {
+      const loadingDiv = document.getElementById('loading');
+      loadingDiv.querySelector('div').textContent = message;
+    }
+    
+    async function scanDirectory(dirPath) {
+      // Try to parse the index file to get the file list
+      const indexFile = 'arvr/index_arvr.md';
+      try {
+        const response = await fetch(indexFile);
+        if (response.ok) {
+          const content = await response.text();
+          const files = parseIndexFile(content, dirPath);
+          if (files.length > 0) {
+            return files;
+          }
+        }
+      } catch (e) {
+        // Index file doesn't exist, try next
+      }
+      // If no index file found, return empty array
+      return [];
+    }
+    
+    function parseIndexFile(content, basePath) {
+      const files = [];
+      
+      // Parse markdown links: [text](filename.md) or [[filename]] or just filename.md
+      const patterns = [
+        /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g, // [[file.md|display]] or [[file.md]]
+      ];
+      
+      for (const pattern of patterns) {
+        let match;
+        while ((match = pattern.exec(content)) !== null) {
+          let filename = match[1] || match[2];
+          
+          // Clean up the filename
+          filename = filename.trim();
+          
+          // Remove any pipe syntax content (everything after |)
+          if (filename.includes('|')) {
+            filename = filename.split('|')[0].trim();
+          }
+          
+          // Add .md if missing
+          if (!filename.endsWith('.md')) {
+            filename += '.md';
+          }
+          
+          // Skip if it looks like a URL or contains spaces (probably not a file)
+          if (filename.includes('http') || filename.includes('pdf') || filename.includes('img') || filename.includes(' ')) {
+            continue;
+          }
+          
+          // Add base path if not already present
+          let fullPath = filename;
+          if (!fullPath.startsWith(basePath)) {
+            fullPath = basePath + filename;
+          }
+          
+          // Add to files if not already present
+          if (!files.includes(fullPath)) {
+            files.push(fullPath);
+          }
+        }
+      }
+      
+      return files.sort();
+    }
+    
+    function extractTagsFromContent(content) {
+      const lines = content.split('\n');
+      if (lines.length < 2) return [];
+      
+      const secondLine = lines[1].trim();
+      if (!secondLine) return [];
+      
+      // Extract tags that start with #
+      const tagMatches = secondLine.match(/#[\w-]+/g);
+      return tagMatches ? tagMatches.map(tag => tag.substring(1)) : [];
+    }
+    
+    function generateTagColors(allTags) {
+      const colors = [];
+      
+      // Generate a diverse set of colors using HSL
+      for (let i = 0; i < allTags.length; i++) {
+        const hue = (i * 137.508) % 360; // Golden angle for good distribution
+        const saturation = 60 + (i % 3) * 15; // Vary saturation between 60-90%
+        const lightness = 45 + (i % 4) * 10;  // Vary lightness between 45-75%
+        colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
+      }
+      
+      // Create mapping from tags to colors
+      const tagColorMap = {};
+      allTags.forEach((tag, index) => {
+        tagColorMap[tag] = colors[index];
+      });
+      
+      return tagColorMap;
+    }
+    
+    function collectAllTags(notes) {
+      const allTags = new Set();
+      
+      Object.values(notes).forEach(note => {
+        if (note.tags && note.tags.length > 0) {
+          note.tags.forEach(tag => allTags.add(tag.toLowerCase()));
+        }
+      });
+      
+      return Array.from(allTags).sort();
+    }
+    
+    function getColorForTags(tags) {
+      if (!tags || tags.length === 0) {
+        return '#808080'; // Grey for no tags
+      }
+      
+      // Use the first tag to determine color
+      const firstTag = tags[0].toLowerCase();
+      return tagColors[firstTag] || '#96CEB4'; // Default green if tag not found
+    }
+    
+    async function loadMarkdownFiles(filePaths) {
+      const notes = {};
+      const links = {};
+      let loaded = 0;
+      
+      for (const filePath of filePaths) {
+        try {
+          const response = await fetch(filePath);
+          if (!response.ok) {
+            console.warn(`Could not load ${filePath}: ${response.status}`);
+            continue;
+          }
+          
+          const content = await response.text();
+          const fileName = filePath.toLowerCase();
+          
+          // Extract tags from the second line
+          const tags = extractTagsFromContent(content);
+          
+          notes[fileName] = {
+            content: content,
+            html: marked.parse(content),
+            tags: tags
+          };
+          
+          links[fileName] = [];
+          
+          // Extract links using regex patterns
+          const linkPatterns = [
+            /\[\[(.*?)\]\]/g,           // [[link]]
+            /\[([^\]]+)\]\(([^)]+)\)/g, // [text](link)  
+            /!\[\[(.*?)\]\]/g           // ![[image]]
+          ];
+          
+          for (const pattern of linkPatterns) {
+            let match;
+            while ((match = pattern.exec(content)) !== null) {
+              let link = match[1];
+              link = link.split('|')[0];
+              link = link.split('#')[0];
+              link = link.trim().toLowerCase();
+              if (link) {
+                links[fileName].push(link);
+              }
+            }
+          }
+          
+          loaded++;
+          if (loaded % 5 === 0 || loaded === filePaths.length) {
+            updateLoading(`Loaded ${loaded}/${filePaths.length} files...`);
+            await new Promise(resolve => setTimeout(resolve, 10));
+          }
+          
+        } catch (error) {
+          console.warn(`Error loading ${filePath}:`, error);
+        }
+      }
+      
+      return { notes, links };
+    }
+    
+    function generateGraphData(notes, links) {
+      function getDisplayName(filePath) {
+        const fileName = filePath.replace('arvr/', '').replace('.md', '');
+        
+        if (fileName.toLowerCase() === 'readme') return 'README';
+        
+        // Format: {4 digit year}{author}_{title} (e.g., "2017Vaswani_attention_is_all_you_need")
+        const match = fileName.match(/^(\d{4})([^_]+)_(.+)$/);
+        if (match) {
+          const [, year, author, titlePart] = match;
+          const title = titlePart.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          const authorName = author.charAt(0).toUpperCase() + author.slice(1);
+          return `${title} (${authorName}, ${year})`;
+        }
+        
+        // Fallback: just clean up the filename
+        const cleaned = fileName.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        return cleaned;
+      }
+      
+      const nodes = Object.keys(notes).map(note => ({
+        id: note,
+        label: getDisplayName(note),
+        tags: notes[note].tags
+      }));
+      
+      const edges = [];
+      const nodeLinkCount = {};
+      
+      Object.keys(notes).forEach(note => {
+        nodeLinkCount[note] = 0;
+      });
+      
+      for (const [src, dstList] of Object.entries(links)) {
+        for (const dst of dstList) {
+          const potentialTargets = [
+            dst,
+            'arvr/' + dst,
+            'arvr/' + dst + '.md',
+            dst + '.md'
+          ];
+          
+          let matched = false;
+          for (const target of potentialTargets) {
+            if (notes[target.toLowerCase()]) {
+              edges.push({ source: src, target: target.toLowerCase() });
+              nodeLinkCount[src] += 1;
+              nodeLinkCount[target.toLowerCase()] += 1;
+              matched = true;
+              break;
+            }
+          }
+        }
+      }
+      
+      nodes.forEach(node => {
+        node.link_count = nodeLinkCount[node.id] || 0;
+        node.color = getColorForTags(node.tags);
+      });
+      
+      return { nodes, edges };
+    }
+    
+    function createGraph() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      
+      const svg = d3.select("#graph")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+      
+      const g = svg.append("g");
+      
+      // Define arrowhead marker
+      svg.append("defs").append("marker")
+        .attr("id", "arrowhead")
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 25)
+        .attr("refY", 0)
+        .attr("markerWidth", 15)
+        .attr("markerHeight", 15)
+        .attr("orient", "auto-start-reverse")
+        .append("path")
+        .attr("d", "M0,-5L10,0L0,5")
+        .attr("class", "arrowhead");
+      
+      const zoom = d3.zoom()
+        .scaleExtent([0.1, 4])
+        .on("zoom", zoomed);
+      
+      svg.call(zoom);
+      
+      function zoomed() {
+        g.attr("transform", d3.event.transform);
+      }
+      
+      simulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).id(d => d.id).distance(200))
+        .force("charge", d3.forceManyBody().strength(-300))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .alphaDecay(0.02)
+        .alphaMin(0.001)
+        .on("tick", ticked);
+      
+      const link = g.append("g")
+        .attr("class", "links")
+        .selectAll("line")
+        .data(links)
+        .enter().append("line")
+        .attr("class", "link")
+        .attr("marker-start", "url(#arrowhead)");
+      
+      const node = g.append("g")
+        .attr("class", "nodes")
+        .selectAll("circle")
+        .data(nodes)
+        .enter().append("circle")
+        .attr("class", "node")
+        .attr("r", d => 20 + Math.sqrt(d.link_count || 0) * 2)
+        .attr("fill", d => d.color)
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 1.5)
+        .on("click", function(d) {
+          // Show markdown modal instead of opening new window
+          showMarkdownModal(d);
+        })
+        .call(d3.drag()
+          .on("start", dragstarted)
+          .on("drag", dragged)
+          .on("end", dragended));
+      
+      const text = g.append("g")
+        .attr("class", "texts")
+        .selectAll("text")
+        .data(nodes)
+        .enter().append("text")
+        .attr("x", 15)
+        .attr("y", ".31em")
+        .text(d => d.label)
+        .style("font-size", "20px")
+        .style("fill", "#333");
+      
+      function ticked() {
+        link
+          .each(function(d) {
+            // Calculate the distance between nodes
+            const dx = d.target.x - d.source.x;
+            const dy = d.target.y - d.source.y;
+            const dr = Math.sqrt(dx * dx + dy * dy);
+            
+            // Calculate the radius of the source node
+            const sourceRadius = 20 + Math.sqrt(d.source.link_count || 0) * 2;
+            
+            // Shorten the line to stop at the edge of the source node
+            const offsetX = (dx / dr) * sourceRadius;
+            const offsetY = (dy / dr) * sourceRadius;
+            
+            d3.select(this)
+              .attr("x1", d.source.x + offsetX)
+              .attr("y1", d.source.y + offsetY)
+              .attr("x2", d.target.x)
+              .attr("y2", d.target.y);
+          });
+        
+        node
+          .attr("cx", d => d.x)
+          .attr("cy", d => d.y);
+        
+        text
+          .attr("x", d => d.x + 15)
+          .attr("y", d => d.y + 4);
+      }
+      
+      function dragstarted(d) {
+        if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      }
+      
+      function dragged(d) {
+        d.fx = d3.event.x;
+        d.fy = d3.event.y;
+      }
+      
+      function dragended(d) {
+        if (!d3.event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      }
+    }
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+      if (simulation) {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        d3.select("#graph svg").attr("width", width).attr("height", height);
+        simulation.force("center", d3.forceCenter(width / 2, height / 2));
+        simulation.alpha(0.3).restart();
+      }
+    });
+    
+    // Start the application
+    init();
+</script>
+</html>
