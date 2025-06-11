@@ -8,6 +8,7 @@
 1997hochreiter_lstm.md
 1998lecun_lenet.md
 2002hinton_contrastive-divergence.md
+2004felzenszwalb-graph-image-seg.md
 2004lowe_sift.md
 2005dalal_hog.md
 2006feifei_caltech101.md
