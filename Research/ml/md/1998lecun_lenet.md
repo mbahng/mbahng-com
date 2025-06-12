@@ -1,5 +1,6 @@
 [[1998lecun_lenet.pdf]]
 #architecture 
+[[1958rosenblatt_perceptron]]
 
 
 # Contributions 
