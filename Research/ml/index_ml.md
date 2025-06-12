@@ -37,6 +37,7 @@
 2009felzenszwalb_object-detection-deformable.md
 2009krizhevsky_cifar.md
 2010kingma_score-matching-images.md
+2010mikolov_rnn-language.md
 2010vincent_stacked-dae.md
 2010wah_cub200-2011.md
 2010wilinder_cub200.md
@@ -54,6 +55,7 @@
 2012krizhevsky_alexnet.md
 2013bengio_generalized-dae-generative.md
 2013girshik_rcnn.md
+2013kalchbrenner_rnn-translation.md
 2013kingma_vae.md
 2013krause_stanfordcars.md
 2013mikolov_word2vec.md

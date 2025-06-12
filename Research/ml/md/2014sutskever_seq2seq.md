@@ -1,4 +1,3 @@
 [[2014sutskever_seq2seq.pdf]]
 
-[[1997hochreiter_lstm]]
-
+[[2014cho_rnn-encoder-decoder-smt]], [[1997hochreiter_lstm]]
