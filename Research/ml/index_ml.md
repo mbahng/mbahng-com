@@ -18,7 +18,7 @@
 2001breiman_random-forest.md
 2001horchreiter_gradient-flow-rnns.md
 2002hinton_contrastive-divergence.md
-2003bengion_neural-prob-language-model.md
+2003bengio_neural-prob-language-model.md
 2003zou_elastic-net.md
 2004felzenszwalb-graph-image-seg.md
 2004lowe_sift.md
