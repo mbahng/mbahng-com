@@ -57,6 +57,7 @@
 2013bengio_generalized-dae-generative.md
 2013girshik_rcnn.md
 2013kalchbrenner_rnn-translation.md
+2013kalchbrenner_rcnn-discourse.md
 2013kingma_vae.md
 2013krause_stanfordcars.md
 2013mikolov_word2vec.md
