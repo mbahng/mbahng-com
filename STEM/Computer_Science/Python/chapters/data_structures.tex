@@ -1,0 +1,179 @@
+\section{Data Structure}
+
+\subsection{Lists}
+
+  Lists are implemented as an array of pointers, which can point to any object in memory which is why Python lists can be dynamically allocated. We should be familiar with the general operations we can do with a list, which are implemented as dunder methods. 
+
+  \begin{definition}[Length]
+    The \texttt{list.\_\_len\_\_()} method returns the length of a list, which is stored as metadata and is thus $O(1)$ retrieval time. It is invoked by \texttt{len(list) <-> list.\_\_len\_\_()}. 
+  \end{definition}
+
+  \begin{definition}[Set Item, Get Item, Del Item]
+    The following three methods are getter, setter, and delete functions on the \texttt{list[T]} array given the index. 
+    \begin{enumerate}
+      \item The \texttt{\_\_getitem\_\_(i) -> T} returns the value of the index of the list. Since we can do pointer arithmetic on the array, which is again just 8 byte pointers, we essentially have $O(1)$ retrieval time. It is invoked by \texttt{list[i] <-> list.\_\_getitem\_\_(i)}. 
+      \item The \texttt{\_\_setitem\_\_(i, val) -> None} returns \texttt{None} and sets the value of the index. It is invoked by \texttt{list[i] = val <-> list.\_\_setitem\_\_(i, val)}. 
+      \item The \texttt{\_\_delitem\_\_(i) -> None} deletes the value at that index. It is invoked by \texttt{del list[i] <-> list.\_\_delitem\_\_(i)}. 
+    \end{enumerate}
+  \end{definition}
+
+  The next few definitions are not dunder methods, but are important. 
+  \begin{definition}[Append, Insert, Pop]
+    \texttt{List.append(val)} is amortized $O(1)$ but is quite slow if we are inserting into the middle with \texttt{List.insert(i, val)}. 
+    \texttt{List.pop()} is great for removing from the back of the list, with $O(1)$, but not so great for removing from the front, where all the elements have to be shifted $O(n)$. 
+    Dynamically resizing the array, where all the elements of the previous array gets copied over to a larger array, is slightly different. For example, in an old implementation of Python, the new size is implemented to be \texttt{new\_size + new\_size >> 3 + (new\_size < 9 ? 3 : 6)}, which approximately doubles the size (like Java, which exactly doubles the list size), giving us amortized $O(1)$. 
+  \end{definition}
+
+  \begin{definition}[Extend]
+    
+  \end{definition}
+
+  \begin{definition}[Sort]
+    
+  \end{definition}
+
+  List slicing is quite slow since we are copying the references to every element in the list. Note that the values are not copied themselves, but we are creating an array of new pointers. 
+
+  Slicing can be done past last index. Slicing creates a copy of the sublist. 
+
+  \begin{definition}[Queues]
+    A \texttt{collections.deque} (double ended queue) is implemented as a doubly linked list. 
+  \end{definition}
+
+\subsection{Hash Maps}
+
+  In general, a hashmap can be implemented in the following ways. We take an object and hash its \textit{value}, giving us another memory address. This intuitively implies that this object is immutable, since changing the object will lead to a different memory address. A convenient way to bypass this is to convert lists into tuples.\footnote{However, there are languages where you can hash mutable objects. Again, this is an implementation detail.} The hash function may map two different values to the same memory address, so we can deal with collisions in different ways.\footnote{Good visuals here: \href{https://www.geeksforgeeks.org/open-addressing-collision-handling-technique-in-hashing/}{https://www.geeksforgeeks.org/open-addressing-collision-handling-technique-in-hashing/}.}
+
+  \begin{enumerate}
+    \item \textit{Linked List}. The hashed address actually is a linked list, and every time we add to it we append to the linked list. 
+    \item \textit{Probing}. If we have two objects $x_1$ and $x_2$ which both map to the same $y = h(x_1) = h(x_2)$, then we can predefine another function $f$ that will act on $h(x_2)$ when it sees that $h(x_1)$ is already occupied, effectively mapping it to $f(h(x_2))$. Two common ones is $f(x) = x + 1$, which maps it to the next address, called \textit{linear probing}, or we can scale it in different ways, e.g. \textit{quadratic probing}. 
+    \item \textit{Double Hashing, Open Addressing}. We can hash the hash differently, effectively doing $(h_1(x) + i \cdot h_2(x)) \mathrm{mod} S$, and keep incrementing $i$ from $0$ to whenever it sees a new spot. 
+  \end{enumerate}
+
+  \begin{definition}[Python Dictionaries]
+    Python does indeed implement dictionaries as hash maps/tables and uses open addressing to handle collisions, meaning that it can only store one and only one entry. Python's hash table is also a contiguous block of memory, so you can actually do $O(1)$ lookup by index as well, though the indices aren't stored. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{lstlisting}
+        -+-----------------+
+        0| <hash|key|value>|
+        -+-----------------+
+        1|      ...        |
+        -+-----------------+
+        .|      ...        |
+        -+-----------------+
+        i|      ...        |
+        -+-----------------+
+        .|      ...        |
+        -+-----------------+
+        n|      ...        |
+        -+-----------------+ 
+      \end{lstlisting}
+      \caption{Logical model of Python Hash table. It consists of the keys, the hash of the keys, and the values that are stored in the hashed memory address. The indices are shown on the left, but they are not stored along with the table. }
+      \label{fig:hash_table}
+    \end{figure}
+
+    When a new dict is initialized, it starts with 8 slots. 
+    \begin{enumerate}
+      \item When adding entries to the table, we take the key $k$, hash it to $h$, and we do an additional mask operation \texttt{i = mask(key) \& mask}, where \texttt{mask = PyDictMINSIZE - 1} (in CPython). 
+      \item If the slot is empty, the entry is added to the slot. If the slot is occupied, CPython (and PyPy) compares the hash and the key (with \texttt{==}, not \texttt{is}) of the entry in the slot against what we are inserting. If \textit{both} match, it thinks the entry already exists and uses open addressing to move onto the next entry. 
+      \item The dict will be resized if it is 2/3 full to avoid slowing down lookups. 
+    \end{enumerate}
+  \end{definition}
+
+  It is well known that the keys and hash tables are not guaranteed to be in sorted order, and this is true in general. However, in Python it is different. 
+
+  \begin{theorem}
+    From Python 3.7+ (for all implementations) and CPython 3.6+, dicts preserve insertion order, so calling \texttt{dict.keys()} will return keys in insertion order
+  \end{theorem}
+
+  \begin{example}[Back to References]
+    As a review, when we iterate over a dict with an enhanced for loop, we are just calling \texttt{next} on the keys or values that may be a copy by value or a copy by reference. 
+
+    \noindent\begin{minipage}{.5\textwidth}
+    \begin{lstlisting}[]{Code}
+      # y is copied by value so incrementing 
+      # it rebinds it
+      >>> x = {"a" : 1, "b" : 2, "c" : 3}
+      >>> for k in x: 
+      ...     y = x[k]
+      ...     y += 1
+      ... 
+      >>> x
+      {'a': 1, 'b': 2, 'c': 3} 
+    \end{lstlisting}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{.49\textwidth}
+    \begin{lstlisting}[]{Output}
+      # v is passed by value, so incrementing 
+      # it rebinds it
+      >>> x = {"a" : 1, "b" : 2, "c" : 3}
+      >>> for v in x.values(): 
+      ...     v += 1
+      ... 
+      >>> x
+      {'a': 1, 'b': 2, 'c': 3} 
+      .
+    \end{lstlisting}
+    \end{minipage}
+  \end{example}
+
+
+  We should also be familiar with some of the dunder methods. 
+
+  \begin{definition}[Get]
+    There are two ways to access from a dictionary. 
+    \begin{enumerate}
+      \item \texttt{dict[key]} retrieves the value and throws a \texttt{KeyNotFoundError} if a key does not exist. 
+      \item \texttt{dict.get(key, def)} retrieves the value and will return \texttt{def} if the key does not exist. 
+    \end{enumerate}
+  \end{definition}
+  
+  \begin{definition}[Items]
+    Given a dictionary \texttt{dict}, we can run \texttt{dict.items()} to get a \textit{view} of the dictionary. Since this is a view, it does not copy the entire dictionary, and is presented as a list of tuples. However, this is not an iterator either. T 
+  \end{definition}
+
+
+  Let's look through the different dict-like data structures. 
+
+  \begin{definition}[Defaultdict]
+    A nice trick is to initialize a \texttt{collections.defaultdict}, which is a subclass of \texttt{Dict} that allows you to use \texttt{dict[key]} and automatically initializes the value to some default value if the key does not exist. It is initialized in the following ways. 
+    \begin{enumerate}
+      \item \texttt{defaultdict(int)} 
+      \item \texttt{defaultdict(dict: Dict)} 
+      \item \texttt{defaultdict(log: Function, dict)} runs the function \texttt{log} every time a new key is added. 
+    \end{enumerate}
+  \end{definition}
+
+  \begin{definition}[Counter]
+    \texttt{collections.Counter} is good for finding the count of elements and does not require you to initialize the count to $0$ before incrementing it. 
+
+    \noindent\begin{minipage}{.5\textwidth}
+    \begin{lstlisting}[]{Code}
+      data = [1, 1, 2, 3] 
+      counter = {} 
+      for d in data: 
+          if d not in counter: 
+              counter[d] = 0 
+          counter[d] += 1
+      {1: 2, 2: 1, 3: 1}
+    \end{lstlisting}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{.49\textwidth}
+    \begin{lstlisting}[]{Output}
+      from collections import Counter
+      data = [1, 1, 2, 3] 
+      counter = Counter() 
+      for d in data: 
+          counter[d] += 1 
+      Counter({1: 2, 2: 1, 3: 1})
+      .
+    \end{lstlisting}
+    \end{minipage}
+  \end{definition}
+
+\subsection{Heaps}
+

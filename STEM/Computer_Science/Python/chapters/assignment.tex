@@ -1,0 +1,422 @@
+\section{Names and Values}
+
+  There are a lot of parallel characteristics between python variable assignment and C++ pointers. When we assign a variable to an object in python, what we are doing under the hood is creating the value/object in the heap memory (hence we use \texttt{malloc} rather than initializing on the stack) and initializing a pointer to point to that place in memory. 
+
+  The left hand side is called a \textbf{name}, or a \textbf{variable}, and the right hand side is called the \textbf{value}. We say \textit{the name references, is assigned, or is bound to the value}. In fact, this name is really just a pointer to the memory location of where the value is stored, and we can access this using the built-in \texttt{id} function. 
+
+  \begin{figure}[H]
+    \centering 
+    \begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        # Python 
+        x = 4
+        print(x) # 4
+        print(id(x)) # 4382741696
+        .
+        .
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        # C  
+        int* x_ = malloc(sizeof(int)); 
+        *x_ = 4; 
+        int** x = &x_; 
+        printf("%d\n", **x); // 4
+        printf("%p\n", *x);  // 0x600003ff4000
+      \end{lstlisting}
+    \end{minipage}
+    \caption{Referencing an int variable in Python and C. I realize that this isn't completely equivalent since the C code uses a pointer to a pointer, but it helps explain other things a bit easier so bear with me. } 
+    \label{fig:int}
+  \end{figure}
+
+  \begin{figure}[H]
+    \centering 
+    \begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        # Python 
+        y = [1, 2, 3]
+        print(y)        # [1, 2, 3]
+        print(id(y))    # 4314417472
+        .
+        .
+        .
+        .
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        # C  
+        int* x_ = malloc(sizeof(int) * 3); 
+        x_[0] = 1; x_[1] = 2; x_[2] = 3; 
+        int** x = &x_; 
+        for (int i = 0; i < 3; ++i) {
+          printf("%d ", *(*x+i)); // 1 2 3
+        }
+        printf("\n%p", *x);  // 0x6000011cc040
+      \end{lstlisting}
+    \end{minipage}
+    \caption{Referencing a list in Python and C.} 
+    \label{fig:list}
+  \end{figure}
+
+\subsection{Mutating vs Rebinding}
+
+  So far so good. But what if we wanted to change \texttt{x} or \texttt{y}? This is where we have to be careful about when defining \textit{change}. 
+  \begin{enumerate}
+    \item We can change by taking the value that the name references/points to and \textit{mutate} it. Types of values where we can do this are called \textit{mutable types}, which have methods that allow this change (e.g. \texttt{\_\_setitem\_\_} or \texttt{append} for lists). In this case, the memory address it points to should stay the same. 
+    \item We can change by creating a new value/object and changing the name to point to this new object. If no other variables points to the original object, then the memory is automatically freed. This is how \textit{immutable types} are changed, and the memory address it points to should be different. What immutable really means is that you cannot change the value that the pointer is pointing to without changing the actual memory location. 
+  \end{enumerate}
+
+  So which one is it that Python does? The answer is: it depends.\footnote{For more information, look at \href{https://nedbatchelder.com/text/names.html}{https://nedbatchelder.com/text/names.html}.} 
+
+  \begin{example}[Pass By Reference vs By Value]
+    There are two ways a programmer can interpret the following iconic example.
+    \begin{lstlisting}
+      x = 4 
+      y = x 
+      print(x, y) # obviously prints 4, 4
+      y = 5
+      print(x, y) # what about this? 
+    \end{lstlisting}
+
+    \begin{enumerate}
+      \item \textit{Passing By Reference}. The first interpretation is that by setting \texttt{y = 5}, we are modifying the value that \texttt{y} points to be \texttt{5}. Since the pointer \texttt{x} also points to the same memory address pointed by \texttt{y}, then \texttt{x} also should equal \texttt{5}. 
+      \item \textit{Passing By Value}. By setting \texttt{y = 5}, we create a new \texttt{int} object, reassign the pointer \texttt{y} to the new object. Therefore \texttt{x} still points to \texttt{4} and \texttt{y} now points to \texttt{5}. 
+    \end{enumerate}
+    \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        // Pass by Reference
+        int* x_ = malloc(sizeof(int)); 
+        *x_ = 4; 
+        int** x = &x_; 
+        int** y = &x_; 
+        printf("%d, %d\n", **x, **y); // 4, 4
+
+        **y = 5; 
+        printf("%d, %d\n", **x, **y); // 5, 5
+        .
+        .
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        // Pass by Value
+        int* x_ = malloc(sizeof(int)); 
+        *x_ = 4; 
+        int** x = &x_; 
+        int** y = &x_; 
+        printf("%d, %d\n", **x, **y); // 4, 4
+
+        int *y_ = malloc(sizeof(int)); 
+        *y_ = 5; 
+        y = &y_; 
+        printf("%d, %d\n", **x, **y); // 4, 5
+      \end{lstlisting}
+    \end{minipage}
+
+    Though Python does not technically use references vs values, this analogy is helpful to think about.  
+  \end{example}
+
+  Seeing as how an integer is immutable and a list is mutable, let's look at how it affects them. 
+
+  \noindent\begin{minipage}{.5\textwidth}
+  \begin{lstlisting}[]{Code}
+    x = 4 
+    print(x, id(x)) # 4 4374664384
+    x = x + 1
+    print(x, id(x)) # 5 4374664416
+  \end{lstlisting}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{.49\textwidth}
+  \begin{lstlisting}[]{Output}
+    y = [1, 2]
+    print(y, id(y))  # [1, 2] 4340042048
+    y.append(3)
+    print(y, id(y)) # [1, 2, 3] 4340042048
+  \end{lstlisting}
+  \end{minipage}
+
+  As we see, we rebind for immutable types, which changes the pointing memory address, and mutate for mutable types, which doesn't change the address. Therefore, if an object is mutable, then we can mutate it. 
+
+  \begin{example}[Warning]
+    This is very subtle and implementation specific. For immutable types, we are pretty much guaranteed rebinding, but for mutable types, we may not be so sure.  
+    \begin{enumerate}
+      \item If we instantiate two lists and concatenate them using \texttt{+} into a list with a new name, we call the \texttt{\_\_add\_\_} method, which creates a new list object and binds it to that new list.  
+      \begin{lstlisting}
+        y = [1, 2]
+        z = [3]
+        print(y, id(y))  # [1, 2] 4380248384
+        print(z, id(z))  # [3] 4380250176
+        a = z + y
+        print(a, id(a))  # [1, 2, 3] 4380551424
+
+        a[1] = 4
+        print(a) # [3, 4, 2]
+        print(y) # [1, 2]
+        print(z) # [3]
+      \end{lstlisting}
+
+      \item If we instantiate two lists and extend them using \texttt{+=}, then we call the \texttt{\_\_extend\_\_} method, which extends \texttt{z} with a copy of \texttt{y}. Note that \texttt{z[1:]} and \texttt{y} are two different lists objects in memory, not the same reference. 
+      \begin{lstlisting}
+        y = [1, 2]
+        z = [3]
+        print(y, id(y))  # [1, 2] 4380248384
+        print(z, id(z))  # [3] 4380250176
+        z += y
+        print(z, id(z))  # [3, 1, 2] 4380250176
+
+        z[2] = 9
+        print(y) # [1, 2]
+        print(z) # [3, 1, 9]
+      \end{lstlisting}
+
+      \item Just to see an example of an immutable type, even using the \texttt{iadd} method does not keep its original memory address. The entire thing is always allocated to new memory. 
+        \begin{lstlisting}
+          x = "Hello " 
+          print(id(x)) # 4382416384
+          print(x)     # Hello
+          x += "World"
+          print(id(x)) # 4382723056
+          print(x)     # Hello World
+        \end{lstlisting}
+    \end{enumerate}
+  \end{example}
+
+  This explains a lot of the weird phenomena, and it is extremely important to know whether a variable is copied by reference or by value, since you'll be able to predict the behavior on one variable if you modify the other one. The common immutable types in Python are string, int, float.
+
+
+  \begin{example}
+    To drive the point home, take a look at this. T
+
+    \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        # Pass by value
+        x = 4 
+        y = x
+        # Points to same address
+        print(id(x)) # 4382741696 
+        print(id(y)) # 4382741696 
+        x += 1 
+        # Now it doesn't
+        print(x)    # 5
+        print(y)    # 4
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        # Pass by reference
+        x = [] 
+        y = x
+        # Points to same address 
+        print(id(x)) # 4383459648
+        print(id(y)) # 4383459648
+        x.append(1) 
+        # Still points to same address
+        print(x)     # [1]
+        print(y)     # [1]
+      \end{lstlisting}
+    \end{minipage}
+  \end{example}
+
+  \begin{example}[Common Traps]
+    To initialize a list of zeros, we can just do 
+    \begin{lstlisting}
+      >>> x = [0] * 5
+      >>> x[0] = 1
+      >>> x
+      [1, 0, 0, 0, 0] 
+    \end{lstlisting}
+    This is all good since primitive types are immutable, so modifying one really just rebinds it to another value and doesn't affect the others. However, if we are initializing a list of lists, then we get something different. 
+    \begin{lstlisting}
+      >>> x = [[]] * 5
+      >>> print(x)
+      [[], [], [], [], []]
+      >>> x[0].append(1)
+      >>> x
+      [[1], [1], [1], [1], [1]] 
+    \end{lstlisting}
+    This is because we are instantiating 5 names that all point to the same empty list. Modifying one really is an act of mutating, leading to the changes persisting across all names. This is because the inner list is multiplied and therefore copied \textit{by reference}. This means that all the lists are simply pointing to the same object in memory, and modifying one modifies all.  
+  \end{example}
+
+\subsection{Assignments are Everywhere}
+
+  Let's look at a few more examples where assignment are, starting with enhanced for loops. 
+
+  \begin{theorem}[Assignments in Enhanced For Loops]
+    Enhanced for loops of form \texttt{for elem in x} is really an assignment of \texttt{elem} to each element of \texttt{x}. All of the following are assignments. 
+    \begin{lstlisting}
+      for elem in ... 
+      [... for elem in ...]
+      (... for elem in ...)
+      {... for elem in ...}
+    \end{lstlisting}
+  \end{theorem}
+
+  Take a look at this anomaly. 
+  \begin{lstlisting}
+    x = [1, 2, 3] 
+    for elem in x: 
+        elem += 1 
+    print(x) # [1, 2, 3]
+  \end{lstlisting}
+  With the above theorem, the problem is clear. In the first iteration, we have \texttt{elem = 1} and \texttt{x[0] = 1}. \texttt{elem} has been incremented with \texttt{iadd} and therefore is rebound to \texttt{2}, but this does not affect \texttt{x[0]}, leading to no changes. Note that if the elements were mutable, then we can make these changes persist. 
+  \begin{lstlisting}
+    x = [[1], [2], [3]]
+    for elem in x: 
+        elem[0] += 1 
+    print(x) # [[2], [3], [4]]
+  \end{lstlisting}
+  In here, \texttt{elem} and \texttt{x[0]} are bound to \texttt{[1]} and have the same memory address. I then access the memory address of the first element of \texttt{elem} and rebind it to its increment. While the \texttt{1} changes to a \texttt{2}, and \texttt{elem[0]} points to a different memory address, the memory address of \texttt{elem[0]} itself does not change! Therefore, we have effectively changed the value of the element and have basically mutated the array using the \texttt{setitem} dunder method. 
+  
+  This also persists in functions as well. 
+
+  \begin{theorem}[Assignments in Functions]
+    Arguments in functions are also assigned, in local scope of course.  
+  \end{theorem}
+
+  Compare these two snippets. 
+
+  \noindent\begin{minipage}{.5\textwidth}
+  \begin{lstlisting}[]{Code}
+    def augment_twice(a_list, val):
+      a_list.append(val)
+      a_list.append(val)
+
+    nums = [1, 2, 3]
+    augment_twice(nums, 4)
+    print(nums)         # [1, 2, 3, 4, 4]
+  \end{lstlisting}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{.49\textwidth}
+  \begin{lstlisting}[]{Output}
+    def augment_twice_bad(a_list, val):
+      a_list = a_list + [val, val]
+
+    nums = [1, 2, 3]
+    augment_twice_bad(nums, 4)
+    print(nums)         # [1, 2, 3]
+    .
+  \end{lstlisting}
+  \end{minipage}
+
+  \begin{enumerate}
+    \item In the LHS, \textbf{nums} is bound to \texttt{[1, 2, 3]}. In the function scope, \texttt{a\_list} is also bound to the same list. We augment \texttt{4} twice, which mutates the object, and upon returning, the name \texttt{a\_list} is removed. However, the changes persist and is seen by \texttt{nums}. 
+    \item In the RHS, \texttt{nums} is also bound to \texttt{[1, 2, 3]}. In the function, \texttt{a\_list} is being rebound since we use the \texttt{add} method, effectively creating a new list in memory. Now the two variables point to different objects with different memory addresses, and when the function returns, the new list is deleted. Note that this could be avoided if we use the \texttt{iadd} dunder method, which leads to the memory address being preserved. 
+  \end{enumerate}
+
+\subsection{Object Caching}
+
+  In general, if we initialize two variables to be the same value, they do not point to the same memory address. 
+
+  \noindent\begin{minipage}{.5\textwidth}
+  \begin{lstlisting}[]{Code}
+    # Example of when two variables are 
+    # initialized to be the same value, but 
+    # do not point to the same memory
+    x = 1000
+    y = 1000
+    print(id(x)) # 4385025360
+    print(id(y)) # 4385026288 
+    .
+    .
+    .
+  \end{lstlisting}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{.49\textwidth}
+  \begin{lstlisting}[]{Output}
+    int* x_ = malloc(sizeof(int)); 
+    *x_ = 1000; 
+    int** x = &x_; 
+
+    int* y_ = malloc(sizeof(int)); 
+    *y_ = 1000; 
+    int** y = &y_; 
+
+    printf("%p\n", *x); 0x600001be8040 
+    printf("%p\n", *y); 0x600001be8050 
+  \end{lstlisting}
+  \end{minipage}
+
+  However, we can initialize \texttt{y} to be equal to \texttt{x}, which tells it to point to the same memory address as \texttt{x} is, thus having the same \texttt{id}. 
+
+  \noindent\begin{minipage}{.5\textwidth}
+  \begin{lstlisting}[]{Code}
+    x = 1000 
+    y = x 
+    print(id(x)) # 4303203888 
+    print(id(y)) # 4303203888 
+    .
+    .
+    .
+    .
+  \end{lstlisting}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{.49\textwidth}
+  \begin{lstlisting}[]{Output}
+    int* x_ = malloc(sizeof(int)); 
+    *x_ = 1000; 
+    int** x = &x_; 
+
+    int** y = &x_; 
+
+    printf("%p\n", *x); 0x600002368040 
+    printf("%p\n", *y); 0x600002368040 
+  \end{lstlisting}
+  \end{minipage}
+
+  This does not change for mutable types either. 
+  \begin{lstlisting}
+    x = [] 
+    print(id(x)) # 4378741056
+    x = [] 
+    print(id(x)) # 4378742848
+  \end{lstlisting}
+
+  Usually, just setting the values equal does not have it point to the same memory address, but for integers \texttt{[-5, 256]}, Python caches these numbers so that even if we initialize two numbers with the same integer value, they will always point to the same address. 
+
+  \begin{lstlisting}
+    # Don't need to set y = x
+    x = 200 
+    y = 200 
+    print(id(x)) # 4314934592 
+    print(id(y)) # 4314934592
+  \end{lstlisting}
+
+  This is a CPython-specific fact that you should be aware of. 
+
+\subsection{Default Arguments are Evaluated when Function is Defined}
+
+  We are used to writing functions with default arguments. An important implementation detail is that default arguments are evaluated when a function is \textit{defined}, not when it is called. Consider the following buggy example. 
+
+  \begin{lstlisting}
+    def stuff(x = []): 
+        x.append(3)
+        print(x)
+
+    stuff() # [3]
+    stuff() # [3, 3]
+  \end{lstlisting}
+
+  There are two unexpected errors with this: 
+  \begin{enumerate}
+    \item We would expect the second call to \texttt{stuff} to print \texttt{[3]}. 
+    \item The list that \texttt{x} references to should be garbage collected (more on this later) when the name has been deleted after the function returned, but it did not. 
+  \end{enumerate}
+
+  We will address this first problem. It turns out that the default argument \texttt{[]} is created in memory and every call with the default argument assigns \texttt{x} to this same list object in the same address. That is, no new lists are created. 
+
+  This is of course not a problem if default arguments are immutable types likes integers. Even though the default argument is bound to the same object in memory for all calls, the value cannot be modified since you can only rebind it to another object, so it will not contaminate other calls. 
+
+\subsection{Item Assignment with Walrus Operator}
+
+  Avoids Repeated Computation
+

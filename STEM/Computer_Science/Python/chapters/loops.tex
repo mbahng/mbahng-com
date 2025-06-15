@@ -1,0 +1,185 @@
+\section{Iterators and Loops}
+
+  Iterables, Iterators, Generators, zipping, range vs xrange. Range is an iterable, not iterator. 
+
+  For loops and while loops are straightforward enough, but it's important to know the difference between them. 
+
+\subsection{Dynamic Evaluation of Condition During Loop}
+
+  In while loops, the condition is rechecked and thus any functions called during this is recomputed at each loop, and so when deleting things from a list, the loop already accounts for the new length. However, a for loop evaluates the length of the list only once and leads to index violation errors.  
+
+  \noindent\begin{minipage}{.5\textwidth}
+  \begin{lstlisting}[]{Code}
+    x = [1, 2, 3, 4]
+    print(x)
+    i = 0
+    while i < len(x): 
+        print(len(x))
+        if x[i] == 2: 
+            del x[i]
+        i += 1
+    print(x)
+
+    [1, 2, 3, 4]
+    4
+    4
+    3
+    [1, 3, 4]
+    
+  \end{lstlisting}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{.49\textwidth}
+  \begin{lstlisting}[]{Output}
+    x = [1, 2, 3, 4]
+    print(x) 
+
+    for i in range(len(x)):
+        print(i, x[i])
+        if x[i] == 2: 
+            del x[i]
+    print(x)
+
+    [1, 2, 3, 4]
+    0 1
+    1 2
+    2 4
+    IndexError: list index out of range
+    .
+  \end{lstlisting}
+  \end{minipage}
+
+  This can also be a problem when evaluating to a list where you may need to append more elements to it. Here we use the previous initial list. We want to append 5 and 6 since 2 and 4 are even, but the extra 6 added will require us to add 7 as well.   In a for loop, this also breaks down. The for loop only accounts up to the length of the original list, which will end with 6 as the last element added. Whether you want the condition to by dynamically evaluated at every loop depends on the problem. 
+
+  \noindent\begin{minipage}{.5\textwidth}
+  \begin{lstlisting}[]{Code}
+    x = [1, 2, 3, 4] 
+    print(x)
+
+    i = 0 
+    while i < len(x): 
+        print(x[i])
+        if x[i] % 2 == 0: 
+            x.append(max(x) + 1) 
+        i += 1
+
+    print(x)
+
+    [1, 2, 3, 4]
+    [1, 2, 3, 4, 5, 6, 7] 
+  \end{lstlisting}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{.49\textwidth}
+  \begin{lstlisting}[]{Output}
+    x = [1, 2, 3, 4]
+    print(x)
+
+    for i in range(len(x)): 
+        if x[i] % 2 == 0: 
+            x.append(max(x) + 1) 
+
+    print(x)
+
+    [1, 2, 3, 4]
+    [1, 2, 3, 4, 5, 6]
+    .
+    .
+    .
+  \end{lstlisting}
+  \end{minipage}
+
+\subsection{Iterators and Enhanced For Loops}
+
+  A list is an example of an \textit{iterable} object. An \texttt{Iterable} class implements an \texttt{\_\_iter\_\_()} method that transforms it into an \texttt{Iterator} object. An \texttt{Iterator} objects allows one to generate some value every time a \texttt{\_\_next\_\_()} method is called. It should implement the next function and an \texttt{\_\_iter\_\_()} method also, which just returns itself. Here is an example for a list. 
+
+  \begin{lstlisting}
+    class Iterator: 
+
+      def __init__(self, input: list): 
+        self.index = 0 
+        self.input = input
+        self.limit = len(input)
+
+      def __iter__(self): 
+        return self
+
+      def __next__(self): 
+        if self.index > self.limit: 
+          raise StopIteration
+        self.index += 1 
+        return self.input[self.index]
+  \end{lstlisting}
+
+  So far, we have talked about looping through a list by looking at the indices. Another way is to to use an \textit{enhanced for loop} to iterate directly over the values. When we use an enhanced for loop, we are really just creating an iterator object around the list and doing a while loop. Therefore, a for loop is really just a while loop!  
+
+  \noindent\begin{minipage}{.5\textwidth}
+  \begin{lstlisting}[]{Code}
+    x = [1, 2, 3, 4] 
+    for elem in x: 
+        print(elem)
+    .
+    .
+    .
+    .
+    .
+  \end{lstlisting}
+  \end{minipage}
+  \hfill
+  \begin{minipage}{.49\textwidth}
+  \begin{lstlisting}[]{Output}
+    x = [1, 2, 3, 4] 
+    x_ = iter(x) 
+    while True: 
+      try: 
+        item = next(x_)
+      except StopIteration: 
+        break 
+      print(item)
+  \end{lstlisting}
+  \end{minipage}
+
+  This means that every for loop is really just a while loop. For loops were created early on in programming for convenience. Even when doing for loops over indexes, the \texttt{range} is really an iterable, and so you can convert it into an iterator and do the same thing. 
+
+  Another fact about \texttt{range} is that it is \textit{lazy}, meaning that to save memory, calling \texttt{range(100)} does not generate a list of 100 elements. The iterator really evaluates the next number on demand, which adds runtime overhead but saves memory.   
+
+  \begin{example}[Common Trap]
+    Look at the following code 
+    \begin{lstlisting}
+      >>> x = [1, 2, 3, 4]
+      >>> for elem in x: 
+      ...     elem += 1 
+      ... 
+      >>> x
+      [1, 2, 3, 4] 
+    \end{lstlisting}
+    This is clearly not our intended behavior. This is because in the backend, the \texttt{elem} is really being returned by calling \texttt{next()} on the iterator object. The type being returned is an \texttt{int}, a primitive type, and therefore it is passed \textit{by value}. Even though \texttt{elem} and \texttt{x[i]} points to the same memory address, once we reassign \texttt{elem += 1}, elem just gets reassigned to another number, which does not affect \texttt{x[i]}. Note that this does not work as well since \texttt{elem} is just being copied by value and not by reference, and again further changes to \texttt{elem} will decouple it from \texttt{x[i]}. 
+    \begin{lstlisting}
+      >>> x = [1, 2, 3, 4] 
+      >>> for i, elem in enumerate(x): 
+      ...     elem = x[i]
+      ...     elem += 1
+      ... 
+      >>> x
+      [1, 2, 3, 4] 
+    \end{lstlisting}
+    To actually fix this behavior, we must make sure to call the \texttt{\_\_setitem\_\_(i, val)} method, which can be done as such. 
+    \begin{lstlisting}
+      >>> x = [1, 2, 3, 4]
+      >>> for i in range(len(x)): 
+      ...     x[i] += 1 
+      ... 
+      >>> x
+      [2, 3, 4, 5] 
+    \end{lstlisting}
+    Note that if we had nonprimitive types in the list, then the iterator will copy by reference, and we don't have this problem. 
+    \begin{lstlisting}
+      >>> x = [[1], [2], [3]]
+      >>> for elem in x: 
+      ...     elem.append(4)
+      ... 
+      >>> x
+      [[1, 4], [2, 4], [3, 4]] 
+    \end{lstlisting}
+  \end{example}
+
