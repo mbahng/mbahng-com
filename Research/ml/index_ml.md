@@ -56,8 +56,8 @@
 2012krizhevsky_alexnet.md
 2013bengio_generalized-dae-generative.md
 2013girshik_rcnn.md
-2013kalchbrenner_rnn-translation.md
 2013kalchbrenner_rcnn-discourse.md
+2013kalchbrenner_rnn-translation.md
 2013kingma_vae.md
 2013krause_stanfordcars.md
 2013mikolov_word2vec.md
@@ -121,6 +121,7 @@
 2018frankle_lotteryticket.md
 2018kingma_glow.md
 2018li_prototypeautoencoder.md
+2018liu-transformer-wikipedia.md
 2018peters_elmo.md
 2018radford_gpt.md
 2018redmon_yolov3.md
