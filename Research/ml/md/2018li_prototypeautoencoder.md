@@ -1,10 +1,11 @@
 [[2018li_prototypeautoencoder.pdf]]
+#interpretable
+[[2013zeiler_understandingcnns]]
 
 ## Background. 
 
-   Lots of post-hoc interpretations on neural nets. Want another source of interpretability. 
-[[2014szegedy_googlenet.pdf]]
-	
+   Lots of post-hoc interpretations on neural nets. Want another source of interpretability. Activation maps (AM) are too prone to confirmation bias since we are doing post hoc interpretation. We want the architecture itself to be interpretable. 
+
 ## Contribution
 
    Introduces an autoencoder based prototype network with a new prototype layer where each unit of that layer stores a weight vector that resembles an encoded training input. 
