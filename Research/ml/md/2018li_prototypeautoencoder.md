@@ -2,15 +2,15 @@
 #interpretable
 [[2013zeiler_understandingcnns]]
 
-## Background. 
+# Background. 
 
    Lots of post-hoc interpretations on neural nets. Want another source of interpretability. Activation maps (AM) are too prone to confirmation bias since we are doing post hoc interpretation. We want the architecture itself to be interpretable. 
 
-## Contribution
+# Contribution
 
    Introduces an autoencoder based prototype network with a new prototype layer where each unit of that layer stores a weight vector that resembles an encoded training input. 
 
-## Model Inference. 
+# Model Inference. 
 
    1. Take image $x \in \mathbb{R}^p$. Encoder $f: \mathbb{R}^p \to \mathbb{R}^q$ maps $x \mapsto z$ into latent space.  
 
@@ -27,7 +27,7 @@
 
       iii) A softmax layer $s: \mathbb{R}^K \to \mathbb{R}^K$.
 
-## Training. 
+# Training. 
 
    1. Training is straightforward through backpropagation, but we want to optimize for both CE and interpretability. 
 
@@ -44,7 +44,7 @@
 
    $R_1$ encourages each prototype vector to be as close to at least one of training examples in latent space. $R_2$ requires every encoded training example to be as close to one of the prototype vectors. Sort of like a dual optimization problem. 
 
-## Results. 
+# Results. 
 
    1. Done on MNIST, some reconstruction of cars (not Stanford Cars), and FashionMNIST. 
 
