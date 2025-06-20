@@ -54,6 +54,7 @@
 2012alain_ae-estimating-score.md
 2012hinton_prevent-coadapting.md
 2012krizhevsky_alexnet.md
+2012schuster_jap-kor-voice-search.md
 2013bengio_generalized-dae-generative.md
 2013girshik_rcnn.md
 2013kalchbrenner_rcnn-discourse.md
@@ -85,10 +86,12 @@
 2015girshick_fast-rcnn.md
 2015he_resnet.md
 2015ioffe_batch-norm.md
+2015jean_large-vocab-for-nmt.md
 2015kingma_adam.md
 2015lake_concept-learning.md
 2015long_fcnn.md
 2015luong-attention-nmt.md
+2015luong_addressing-rare-word-prob-nmt.md
 2015luong_attention-nmt.md
 2015radford_dcgan.md
 2015redmon_yolo.md
