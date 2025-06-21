@@ -152,6 +152,7 @@
 2023touvron_llama2.md
 2024bi_deepseek.md
 2024deepseek_deepseek-v2.md
+2024meta_llama3.md
 2024openai_gpt4.md
 2024wang_yolov10.md
 2024wang_yolov9.md
