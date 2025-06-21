@@ -105,6 +105,7 @@
 2016bertinetto_feedforward-oneshot.md
 2016chen_xgboost.md
 2016dinh_realnvp.md
+2016he_resnet-identity.md
 2016hendrycks_gelu.md
 2016huang_densenet.md
 2016isola_cgan-image-translation.md
@@ -139,6 +140,7 @@
 2020brown_gpt3.md
 2020dosovitskiy_vit.md
 2020foret_sharpness-awareness-maximization.md
+2020kolesnikov_big-transfer.md
 2020rymarczyk_protopshare.md
 2020tam_fiedler.md
 2021donnelly_deformable-protopnet.md
