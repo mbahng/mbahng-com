@@ -123,6 +123,7 @@
 2018devlin_bert.md
 2018frankle_lotteryticket.md
 2018kingma_glow.md
+2018kitaev_transformer-constituency-parsing.md
 2018li_prototypeautoencoder.md
 2018liu-transformer-wikipedia.md
 2018peters_elmo.md
@@ -147,8 +148,17 @@
 2022wang_yolov7.md
 2023diao_pqindex.md
 2023reis_yolov8.md
+2023touvron_llama.md
+2023touvron_llama2.md
+2024bi_deepseek.md
+2024deepseek_deepseek-v2.md
+2024openai_gpt4.md
 2024wang_yolov10.md
 2024wang_yolov9.md
 2024willard_protopnext.md
+2024xin_deepseek-prover-1.5.md
+2025deepseek_deepseek-r1.md
+2025deepseek_deepseek-v3.md
+2025google_gemini.md
 dataset.md
 dataset.md
