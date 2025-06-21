@@ -62,3 +62,7 @@
    ![image](img/vit_res.png)
 
    Note that the ViT model has much less image-specific inductive bias than CNNs. In CNNs, the 2-dim structure, translation invariance, and locality are all baked in. In ViTs, the MLP layers are local and translationally invariant, while self-attention layers are global. The 2-D neighborhood structure is used very sparingly. 
+
+   Another nice property is that in CNNs, the value of an output pixel can only be changed so far. If we have only 1 conv layer, the receptive field is just the convolution size, and this may increase slightly more as we go deeper. However, in transformers, due to the global property of attention, we can immediately look far out without having to go as deep. 
+
+   ![image](img/vit_receptive_field.png)
