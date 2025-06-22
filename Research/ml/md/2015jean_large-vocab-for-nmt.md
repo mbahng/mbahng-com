@@ -31,7 +31,7 @@
    The probability of the next target word is computed as 
 
    $$
-      p(y_t | y_{<t}, x) = \frac{1}{Z} \exp \left\{ w_t^T \phi (y_{t-1}, z_t, c_t) + b_t \right\}, \qquad Z = \sum_{k:y_k \in V} \exp \left\{ w_k^T \phi (y_{t-1}, z_t, c_t) + b_k \right\}
+      p(y_t | y_{\lt t}, x) = \frac{1}{Z} \exp \left\{ w_t^T \phi (y_{t-1}, z_t, c_t) + b_t \right\}, \qquad Z = \sum_{k:y_k \in V} \exp \left\{ w_k^T \phi (y_{t-1}, z_t, c_t) + b_k \right\}
    $$
 
    where $\phi$ is an affine transformation followed by a nonlinear activation, $\mathbf{w}_t$ and $b_t$ are the target word vector and bias, and $Z$ is the normalization constant over all target words $V$. 
@@ -99,5 +99,10 @@
 # Results 
 
    Everything is BLEU. Clearly RNNsearch-LV outperforms all other. 
-
-   ![image](img/large-vocab-nmt.png)
+   $$
+   \begin{align}
+      \mathbf{c}_t^i, \mathbf{m}_t^i &= \text{LSTM}_i(\mathbf{c}_{t-1}^i, \mathbf{m}_{t-1}^i, \mathbf{x}_t^{i-1}; \mathbf{W}^i) \\
+      \mathbf{x}_t^i &= \mathbf{m}_t^i \\
+      \mathbf{c}_t^{i+1}, \mathbf{m}_t^{i+1} &= \text{LSTM}_{i+1}(\mathbf{c}_{t-1}^{i+1}, \mathbf{m}_{t-1}^{i+1}, \mathbf{x}_t^i; \mathbf{W}^{i+1})
+   \end{align}
+   $$
