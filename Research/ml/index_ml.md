@@ -113,6 +113,7 @@
 2016oord_pixel-rnn.md
 2016redmon_yolov2.md
 2016selvaraju_gradcam.md
+2016sennrich_nmt-rare-words-subword-units.md
 2016wu_google-nmt.md
 2017dai_deformable-convnets.md
 2017horn_inaturalist.md
