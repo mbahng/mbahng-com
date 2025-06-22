@@ -152,6 +152,7 @@
 2022hoffmann_compute-optimal-llms.md
 2022li_yolov6.md
 2022wang_yolov7.md
+2023almazrouei_falcon.md
 2023diao_pqindex.md
 2023reis_yolov8.md
 2023touvron_llama.md
