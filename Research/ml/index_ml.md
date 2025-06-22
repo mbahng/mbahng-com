@@ -126,7 +126,7 @@
 2018kingma_glow.md
 2018kitaev_transformer-constituency-parsing.md
 2018li_prototypeautoencoder.md
-2018liu-transformer-wikipedia.md
+2018liu_transformer-wikipedia.md
 2018peters_elmo.md
 2018radford_gpt.md
 2018redmon_yolov3.md
