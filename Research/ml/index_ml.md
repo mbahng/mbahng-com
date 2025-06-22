@@ -142,12 +142,14 @@
 2020brown_gpt3.md
 2020dosovitskiy_vit.md
 2020foret_sharpness-awareness-maximization.md
+2020kaplan_scaling-laws-for-lm.md
 2020kolesnikov_big-transfer.md
 2020rymarczyk_protopshare.md
 2020tam_fiedler.md
 2021donnelly_deformable-protopnet.md
 2021nauta_prototree.md
 2021wang_tesnet.md
+2022hoffmann_compute-optimal-llms.md
 2022li_yolov6.md
 2022wang_yolov7.md
 2023diao_pqindex.md
