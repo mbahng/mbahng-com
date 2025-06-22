@@ -134,6 +134,7 @@
 2019berthelot_mixmatch.md
 2019berthelot_remixmatch.md
 2019chen_protopnet.md
+2019child_sparse-transformer.md
 2019lu_cglow.md
 2019radford_gpt2.md
 2019zhou_omniscale-net.md
