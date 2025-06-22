@@ -1,5 +1,7 @@
 [[2003bengio_neural-prob-language-model.pdf]]
 #language
+[[1958rosenblatt_perceptron]]
+
 # Contributions 
 
    Uses feedforward neural net to concurrently learn the two things. 
