@@ -1,6 +1,6 @@
 [[2016sennrich_nmt-rare-words-subword-units.pdf]]
 #language 
-[[2015luong_addressing-rare-word-prob-nmt]] 
+[[2015luong_attention-nmt]]
 
 # Contributions 
 
