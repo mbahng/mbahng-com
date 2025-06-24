@@ -70,6 +70,111 @@
       max-width: 200px;
     }
     
+    .legend-dropdown {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      font-size: 12px;
+      color: #666;
+      min-width: 150px;
+      max-width: 250px;
+    }
+    
+    .legend-header {
+      padding: 10px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 8px;
+      transition: background-color 0.2s;
+    }
+    
+    .legend-header:hover {
+      background: rgba(240, 240, 240, 0.5);
+    }
+    
+    .legend-title {
+      font-weight: bold;
+      font-size: 14px;
+      color: #333;
+    }
+    
+    .dropdown-arrow {
+      transition: transform 0.2s;
+      font-size: 10px;
+    }
+    
+    .dropdown-arrow.open {
+      transform: rotate(180deg);
+    }
+    
+    .legend-content {
+      padding: 0 10px 10px 10px;
+      max-height: 300px;
+      overflow-y: auto;
+      border-top: 1px solid #eee;
+    }
+    
+    .legend-controls {
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 3px;
+      justify-content: space-between;
+    }
+    
+    .legend-left {
+      display: flex;
+      align-items: center;
+    }
+    
+    .legend-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 6px;
+      border: 1px solid #ddd;
+    }
+    
+    .legend-toggle {
+      width: 30px;
+      height: 16px;
+      background-color: #ccc;
+      border-radius: 8px;
+      position: relative;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    
+    .legend-toggle.active {
+      background-color: #4CAF50;
+    }
+    
+    .legend-toggle::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background-color: white;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.3s;
+    }
+    
+    .legend-toggle.active::after {
+      transform: translateX(14px);
+    }
+    
     /* Markdown viewer modal */
     .markdown-modal {
       position: fixed;
@@ -245,6 +350,28 @@
         </div>
       </div>
       
+      <!-- Legend Dropdown -->
+      <div class="legend-dropdown" id="legend" style="display: none;">
+        <div class="legend-header" id="legend-header">
+          <span class="legend-title">Tags</span>
+          <span class="dropdown-arrow">▼</span>
+        </div>
+        <div class="legend-content" id="legend-content" style="display: none;">
+          <div class="legend-controls">
+            <div class="legend-item">
+              <span style="font-weight: bold; font-size: 11px;">Toggle All</span>
+              <div class="legend-toggle active" id="toggle-all"></div>
+            </div>
+            <div style="margin-top: 4px; font-size: 10px; color: #999;">
+              Multi-tag nodes show pizza slices
+            </div>
+          </div>
+          <div class="legend-items" id="legend-items">
+            <!-- Legend items will be dynamically generated -->
+          </div>
+        </div>
+      </div>
+      
       <div id="graph"></div>
     </div>
   </div>
@@ -292,6 +419,7 @@ window.MathJax = {
   let simulation;
   let notesData = {};
   let tagColors = {};
+  let tagVisibility = {}; // Track which tags are visible
   let currentDirectory = 'ml'; // Default directory
   
   // Get directory from URL parameter
@@ -425,7 +553,168 @@ window.MathJax = {
   
   // Function to count annotated papers (non-gray colored nodes)
   function countAnnotatedPapers(nodes) {
-    return nodes.filter(node => node.color !== '#808080').length;
+    return nodes.filter(node => {
+      if (node.tags && node.tags.length > 0) {
+        return true; // Has tags, so it's annotated
+      }
+      return node.color !== '#808080'; // Check color for no-tag nodes
+    }).length;
+  }
+  
+  // Function to toggle tag visibility
+  function toggleTagVisibility(tag) {
+    tagVisibility[tag] = !tagVisibility[tag];
+    updateGraphVisibility();
+  }
+  
+  // Function to update graph based on tag visibility
+  function updateGraphVisibility() {
+    if (!simulation) return;
+    
+    // Update node visibility
+    d3.selectAll('.node')
+      .style('opacity', d => {
+        if (!d.tags || d.tags.length === 0) {
+          return tagVisibility['no-tags'] ? 1 : 0.02;
+        }
+        // For multi-tag nodes, show if ANY of its tags are visible
+        const hasVisibleTag = d.tags.some(tag => tagVisibility[tag.toLowerCase()]);
+        return hasVisibleTag ? 1 : 0.02;
+      })
+      .style('pointer-events', d => {
+        if (!d.tags || d.tags.length === 0) {
+          return tagVisibility['no-tags'] ? 'auto' : 'none';
+        }
+        const hasVisibleTag = d.tags.some(tag => tagVisibility[tag.toLowerCase()]);
+        return hasVisibleTag ? 'auto' : 'none';
+      });
+    
+    // Update text visibility
+    d3.selectAll('.texts text')
+      .style('opacity', d => {
+        if (!d.tags || d.tags.length === 0) {
+          return tagVisibility['no-tags'] ? 1 : 0.02;
+        }
+        const hasVisibleTag = d.tags.some(tag => tagVisibility[tag.toLowerCase()]);
+        return hasVisibleTag ? 1 : 0.02;
+      });
+    
+    // Update link visibility
+    d3.selectAll('.link')
+      .style('opacity', d => {
+        const sourceVisible = getNodeVisibility(d.source);
+        const targetVisible = getNodeVisibility(d.target);
+        return (sourceVisible && targetVisible) ? 0.6 : 0.02;
+      });
+  }
+  
+  // Helper function to check if a node should be visible
+  function getNodeVisibility(node) {
+    if (!node.tags || node.tags.length === 0) {
+      return tagVisibility['no-tags'];
+    }
+    // For multi-tag nodes, visible if ANY tag is visible
+    return node.tags.some(tag => tagVisibility[tag.toLowerCase()]);
+  }
+  
+  // Function to toggle all tags on/off
+  function toggleAllTags() {
+    const toggleAllBtn = document.getElementById('toggle-all');
+    const isCurrentlyActive = toggleAllBtn.classList.contains('active');
+    
+    // Set all tags to the opposite of current state
+    const newState = !isCurrentlyActive;
+    
+    // Update toggle all button
+    if (newState) {
+      toggleAllBtn.classList.add('active');
+    } else {
+      toggleAllBtn.classList.remove('active');
+    }
+    
+    // Update all tag visibility states
+    Object.keys(tagVisibility).forEach(tag => {
+      tagVisibility[tag] = newState;
+    });
+    
+    // Update all individual toggle buttons
+    document.querySelectorAll('.legend-toggle[data-tag]').forEach(toggle => {
+      if (newState) {
+        toggle.classList.add('active');
+      } else {
+        toggle.classList.remove('active');
+      }
+    });
+    
+    // Update graph visibility
+    updateGraphVisibility();
+  }
+  
+  // Function to create and populate the legend
+  function createLegend(allTags) {
+    const legendContainer = document.getElementById('legend-items');
+    legendContainer.innerHTML = '';
+    
+    // Initialize all tags as visible
+    tagVisibility['no-tags'] = true;
+    allTags.forEach(tag => {
+      tagVisibility[tag] = true;
+    });
+    
+    // Add "No tags" entry for gray nodes
+    const noTagItem = document.createElement('div');
+    noTagItem.className = 'legend-item';
+    noTagItem.innerHTML = `
+      <div class="legend-left">
+        <div class="legend-color" style="background-color: #808080;"></div>
+        <span>No tags</span>
+      </div>
+      <div class="legend-toggle active" data-tag="no-tags"></div>
+    `;
+    legendContainer.appendChild(noTagItem);
+    
+    // Add entries for each tag
+    allTags.forEach(tag => {
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.innerHTML = `
+        <div class="legend-left">
+          <div class="legend-color" style="background-color: ${tagColors[tag]};"></div>
+          <span>${tag}</span>
+        </div>
+        <div class="legend-toggle active" data-tag="${tag}"></div>
+      `;
+      legendContainer.appendChild(item);
+    });
+    
+    // Add click event listeners to individual toggles
+    document.querySelectorAll('.legend-toggle[data-tag]').forEach(toggle => {
+      toggle.addEventListener('click', function() {
+        const tag = this.getAttribute('data-tag');
+        this.classList.toggle('active');
+        toggleTagVisibility(tag);
+      });
+    });
+    
+    // Add click event listener to toggle all button
+    document.getElementById('toggle-all').addEventListener('click', toggleAllTags);
+    
+    // Add click event listener to dropdown header
+    document.getElementById('legend-header').addEventListener('click', toggleLegendDropdown);
+  }
+  
+  // Function to toggle legend dropdown
+  function toggleLegendDropdown() {
+    const content = document.getElementById('legend-content');
+    const arrow = document.querySelector('.dropdown-arrow');
+    
+    if (content.style.display === 'none') {
+      content.style.display = 'block';
+      arrow.classList.add('open');
+    } else {
+      content.style.display = 'none';
+      arrow.classList.remove('open');
+    }
   }
   
   async function init() {
@@ -464,6 +753,7 @@ window.MathJax = {
       setTimeout(() => {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('info').style.display = 'block';
+        document.getElementById('legend').style.display = 'block';
         
         // Count annotated papers and display as "X papers read out of Y"
         const annotatedCount = countAnnotatedPapers(nodes);
@@ -471,6 +761,10 @@ window.MathJax = {
         document.getElementById('file-count').textContent = `${annotatedCount} papers read out of ${totalCount}`;
         
         document.getElementById('connection-count').textContent = `${links.length} connections`;
+        
+        // Create the legend
+        createLegend(allTags);
+        
         createGraph();
       }, 500);
       
@@ -578,8 +872,97 @@ window.MathJax = {
       return '#808080';
     }
     
-    const firstTag = tags[0].toLowerCase();
-    return tagColors[firstTag] || '#96CEB4';
+    // For single tag, return solid color
+    if (tags.length === 1) {
+      const tag = tags[0].toLowerCase();
+      return tagColors[tag] || '#96CEB4';
+    }
+    
+    // For multiple tags, create a gradient
+    const colors = tags.slice(0, 4).map(tag => tagColors[tag.toLowerCase()] || '#96CEB4');
+    return createGradientId(colors);
+  }
+  
+  function createGradientId(colors) {
+    // Convert HSL colors to simple hex-like IDs by hashing
+    const colorHash = colors.map(c => {
+      if (c.startsWith('hsl')) {
+        // Extract hue value from hsl string and convert to simple hash
+        const hueMatch = c.match(/hsl\((\d+(?:\.\d+)?)/);
+        const hue = hueMatch ? Math.round(parseFloat(hueMatch[1])) : 0;
+        return hue.toString(16).padStart(3, '0');
+      }
+      return c.replace('#', '');
+    }).join('');
+    
+    const patternId = `pie${colorHash}`;
+    return `url(#${patternId})`;
+  }
+  
+  function createMultiTagNode(g, nodeData, radius) {
+    const colors = nodeData.tags.slice(0, 4).map(tag => tagColors[tag.toLowerCase()] || '#96CEB4');
+    
+    const nodeGroup = g.append('g')
+      .attr('class', 'multi-tag-node')
+      .datum(nodeData);
+    
+    colors.forEach((color, index) => {
+      const startAngle = (index * 360) / colors.length - 90; // Start from top
+      const endAngle = ((index + 1) * 360) / colors.length - 90;
+      
+      const startAngleRad = (startAngle * Math.PI) / 180;
+      const endAngleRad = (endAngle * Math.PI) / 180;
+      
+      const x1 = radius * Math.cos(startAngleRad);
+      const y1 = radius * Math.sin(startAngleRad);
+      const x2 = radius * Math.cos(endAngleRad);
+      const y2 = radius * Math.sin(endAngleRad);
+      
+      const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+      
+      const pathData = [
+        `M 0 0`,
+        `L ${x1} ${y1}`,
+        `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+        'Z'
+      ].join(' ');
+      
+      nodeGroup.append('path')
+        .attr('d', pathData)
+        .attr('fill', color)
+        .attr('stroke', '#fff')
+        .attr('stroke-width', index === 0 ? 1.5 : 0); // Only stroke the first slice to avoid overlapping strokes
+    });
+    
+    return nodeGroup;
+  }
+  
+  function createGradients(svg, nodes) {
+    const defs = svg.select('defs');
+    const gradientMap = new Map();
+    
+    nodes.forEach(node => {
+      if (node.tags && node.tags.length > 1) {
+        const colors = node.tags.slice(0, 4).map(tag => tagColors[tag.toLowerCase()] || '#96CEB4');
+        
+        // Use the same ID generation logic as createGradientId
+        const colorHash = colors.map(c => {
+          if (c.startsWith('hsl')) {
+            const hueMatch = c.match(/hsl\((\d+(?:\.\d+)?)/);
+            const hue = hueMatch ? Math.round(parseFloat(hueMatch[1])) : 0;
+            return hue.toString(16).padStart(3, '0');
+          }
+          return c.replace('#', '');
+        }).join('');
+        
+        const patternId = `pie${colorHash}`;
+        
+        if (!gradientMap.has(patternId)) {
+          gradientMap.set(patternId, colors);
+          createPieSlicePattern(svg, colors, patternId);
+        }
+      }
+    });
   }
   
   async function loadMarkdownFiles(filePaths) {
@@ -696,7 +1079,10 @@ window.MathJax = {
     
     nodes.forEach(node => {
       node.link_count = nodeLinkCount[node.id] || 0;
-      node.color = getColorForTags(node.tags);
+      // Don't set color here for multi-tag nodes, we'll handle it in the graph creation
+      if (!node.tags || node.tags.length <= 1) {
+        node.color = getColorForTags(node.tags);
+      }
     });
     
     return { nodes, edges };
@@ -714,7 +1100,10 @@ window.MathJax = {
     
     const g = svg.append("g");
     
-    svg.append("defs").append("marker")
+    const defs = svg.append("defs");
+    
+    // Create arrowhead marker
+    defs.append("marker")
       .attr("id", "arrowhead")
       .attr("viewBox", "0 -5 10 10")
       .attr("refX", 25)
@@ -725,6 +1114,8 @@ window.MathJax = {
       .append("path")
       .attr("d", "M0,-5L10,0L0,5")
       .attr("class", "arrowhead");
+    
+    // No need to create patterns anymore - multi-tag nodes are created directly
     
     const zoom = d3.zoom()
       .scaleExtent([0.1, 4])
@@ -752,14 +1143,16 @@ window.MathJax = {
       .attr("class", "link")
       .attr("marker-start", "url(#arrowhead)");
     
-    const node = g.append("g")
-      .attr("class", "nodes")
-      .selectAll("circle")
-      .data(nodes)
+    // Create container for all nodes
+    const nodeContainer = g.append("g").attr("class", "nodes");
+    
+    // Create single-tag nodes as circles
+    const singleTagNodes = nodeContainer.selectAll(".single-tag-node")
+      .data(nodes.filter(d => !d.tags || d.tags.length <= 1))
       .enter().append("circle")
-      .attr("class", "node")
+      .attr("class", "node single-tag-node")
       .attr("r", d => 20 + Math.sqrt(d.link_count || 0) * 2)
-      .attr("fill", d => d.color)
+      .attr("fill", d => d.color || getColorForTags(d.tags))
       .attr("stroke", "#fff")
       .attr("stroke-width", 1.5)
       .on("click", function(d) {
@@ -769,6 +1162,26 @@ window.MathJax = {
         .on("start", dragstarted)
         .on("drag", dragged)
         .on("end", dragended));
+    
+    // Create multi-tag nodes as pie slices
+    const multiTagNodeData = nodes.filter(d => d.tags && d.tags.length > 1);
+    multiTagNodeData.forEach(nodeData => {
+      const radius = 20 + Math.sqrt(nodeData.link_count || 0) * 2;
+      const multiTagNode = createMultiTagNode(nodeContainer, nodeData, radius);
+      
+      multiTagNode
+        .attr("class", "node multi-tag-node")
+        .on("click", function(d) {
+          showMarkdownModal(d);
+        })
+        .call(d3.drag()
+          .on("start", dragstarted)
+          .on("drag", dragged)
+          .on("end", dragended));
+    });
+    
+    // Combine both types for simulation
+    const node = nodeContainer.selectAll(".node");
     
     const text = g.append("g")
       .attr("class", "texts")
@@ -800,9 +1213,14 @@ window.MathJax = {
             .attr("y2", d.target.y);
         });
       
-      node
+      // Update single-tag nodes (circles)
+      nodeContainer.selectAll(".single-tag-node")
         .attr("cx", d => d.x)
         .attr("cy", d => d.y);
+      
+      // Update multi-tag nodes (groups)
+      nodeContainer.selectAll(".multi-tag-node")
+        .attr("transform", d => `translate(${d.x},${d.y})`);
       
       text
         .attr("x", d => d.x + 15)
