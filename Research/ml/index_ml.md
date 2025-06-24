@@ -128,6 +128,7 @@
 2018kitaev_transformer-constituency-parsing.md
 2018li_prototypeautoencoder.md
 2018liu_transformer-wikipedia.md
+2018oord_vq-vae.md
 2018peters_elmo.md
 2018radford_gpt.md
 2018redmon_yolov3.md
@@ -149,13 +150,14 @@
 2021donnelly_deformable-protopnet.md
 2021nauta_prototree.md
 2021radford_clip.md
+2021ramesh_dalle.md
 2021wang_tesnet.md
 2022alayrac_flamingo.md
 2022chowdhery_palm.md
 2022hoffmann_chinchilla.md
-2022hoffmann_compute-optimal-llms.md
 2022li_yolov6.md
 2022ouyang_llm-human-feedback.md
+2022ramesh_dalle2.md
 2022wang_yolov7.md
 2023almazrouei_falcon.md
 2023diao_pqindex.md
