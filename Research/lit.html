@@ -83,6 +83,67 @@
       max-width: 250px;
     }
     
+    .search-box {
+      position: absolute;
+      top: 20px;
+      right: 230px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 10px;
+      min-width: 200px;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    
+    .search-input:focus {
+      border-color: #007bff;
+    }
+    
+    .search-results {
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 8px;
+      border: 1px solid #eee;
+      border-radius: 4px;
+      background: white;
+      display: none;
+    }
+    
+    .search-result-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #f5f5f5;
+      font-size: 12px;
+    }
+    
+    .search-result-item:hover {
+      background: #f8f9fa;
+    }
+    
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
+    
+    .search-result-title {
+      font-weight: bold;
+      color: #333;
+    }
+    
+    .search-result-tags {
+      color: #666;
+      font-size: 11px;
+      margin-top: 2px;
+    }
+    
     .legend-header {
       padding: 10px;
       cursor: pointer;
@@ -350,6 +411,12 @@
         </div>
       </div>
       
+      <!-- Search Box -->
+      <div class="search-box" id="search-box" style="display: none;">
+        <input type="text" class="search-input" id="search-input" placeholder="Search nodes...">
+        <div class="search-results" id="search-results"></div>
+      </div>
+      
       <!-- Legend Dropdown -->
       <div class="legend-dropdown" id="legend" style="display: none;">
         <div class="legend-header" id="legend-header">
@@ -548,8 +615,145 @@ window.MathJax = {
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
       closeMarkdownModal();
+      hideSearchResults();
     }
   });
+  
+  // Search functionality
+  let searchHighlightedNode = null;
+  let graphZoom = null; // Store reference to zoom behavior
+  
+  function searchNodes(query) {
+    if (!query.trim()) return [];
+    const lowerQuery = query.toLowerCase();
+    return nodes.filter(node => 
+      node.label.toLowerCase().includes(lowerQuery) ||
+      (node.tags && node.tags.some(tag => tag.toLowerCase().includes(lowerQuery)))
+    ).sort((a, b) => {
+      // Sort by exact match first, then by label length
+      const aLabelMatch = a.label.toLowerCase().includes(lowerQuery);
+      const bLabelMatch = b.label.toLowerCase().includes(lowerQuery);
+      if (aLabelMatch && !bLabelMatch) return -1;
+      if (!aLabelMatch && bLabelMatch) return 1;
+      return a.label.length - b.label.length;
+    });
+  }
+  
+  function showSearchResults(results) {
+    const resultsDiv = document.getElementById('search-results');
+    resultsDiv.innerHTML = '';
+    
+    if (results.length === 0) {
+      resultsDiv.style.display = 'none';
+      return;
+    }
+    
+    results.slice(0, 10).forEach(node => {
+      const item = document.createElement('div');
+      item.className = 'search-result-item';
+      item.innerHTML = `
+        <div class="search-result-title">${node.label}</div>
+        <div class="search-result-tags">${node.tags ? node.tags.join(', ') : 'No tags'}</div>
+      `;
+      item.addEventListener('click', () => {
+        centerOnNode(node);
+        hideSearchResults();
+        document.getElementById('search-input').value = node.label;
+      });
+      resultsDiv.appendChild(item);
+    });
+    
+    resultsDiv.style.display = 'block';
+  }
+  
+  function hideSearchResults() {
+    document.getElementById('search-results').style.display = 'none';
+  }
+  
+  function centerOnNode(node) {
+    if (!simulation || !node || !graphZoom) return;
+    
+    // Clear previous highlight
+    if (searchHighlightedNode) {
+      d3.selectAll('.node').filter(d => d === searchHighlightedNode)
+        .style('stroke', d => d.tags && d.tags.length > 1 ? null : '#fff')
+        .style('stroke-width', d => d.tags && d.tags.length > 1 ? null : '1.5px');
+    }
+    
+    // Highlight the new node
+    searchHighlightedNode = node;
+    d3.selectAll('.node').filter(d => d === node)
+      .style('stroke', '#ff6b35')
+      .style('stroke-width', '4px');
+    
+    // Get the SVG dimensions
+    const svg = d3.select('#graph svg');
+    const width = +svg.attr('width');
+    const height = +svg.attr('height');
+    
+    // Calculate the target transform to center the node
+    const targetScale = 2.0; // Zoom level
+    const targetX = width / 2 - targetScale * node.x;
+    const targetY = height / 2 - targetScale * node.y;
+    
+    // Apply smooth animated transition using the stored zoom behavior
+    svg.transition()
+       .duration(1000)
+       .ease(d3.easeQuadInOut)
+       .call(graphZoom.transform, d3.zoomIdentity.translate(targetX, targetY).scale(targetScale));
+  }
+  
+  // Set up search input event listeners after DOM is loaded
+  function setupSearchEventListeners() {
+    const searchInput = document.getElementById('search-input');
+    const searchResults = document.getElementById('search-results');
+    
+    if (!searchInput || !searchResults) {
+      // Retry after a short delay if elements aren't ready
+      setTimeout(setupSearchEventListeners, 100);
+      return;
+    }
+    
+    searchInput.addEventListener('input', function(e) {
+      const query = e.target.value;
+      if (query.length > 0) {
+        const results = searchNodes(query);
+        showSearchResults(results);
+      } else {
+        hideSearchResults();
+        // Clear highlight when search is cleared
+        if (searchHighlightedNode) {
+          d3.selectAll('.node').filter(d => d === searchHighlightedNode)
+            .style('stroke', d => d.tags && d.tags.length > 1 ? null : '#fff')
+            .style('stroke-width', d => d.tags && d.tags.length > 1 ? null : '1.5px');
+          searchHighlightedNode = null;
+        }
+      }
+    });
+    
+    searchInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        const query = e.target.value;
+        if (query.length > 0) {
+          const results = searchNodes(query);
+          if (results.length > 0) {
+            centerOnNode(results[0]);
+            hideSearchResults();
+          }
+        }
+      } else if (e.key === 'Escape') {
+        hideSearchResults();
+        e.target.blur();
+      }
+    });
+    
+    // Hide search results when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.search-box')) {
+        hideSearchResults();
+      }
+    });
+  }
   
   // Function to count annotated papers (non-gray colored nodes)
   function countAnnotatedPapers(nodes) {
@@ -754,6 +958,7 @@ window.MathJax = {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('info').style.display = 'block';
         document.getElementById('legend').style.display = 'block';
+        document.getElementById('search-box').style.display = 'block';
         
         // Count annotated papers and display as "X papers read out of Y"
         const annotatedCount = countAnnotatedPapers(nodes);
@@ -1117,11 +1322,11 @@ window.MathJax = {
     
     // No need to create patterns anymore - multi-tag nodes are created directly
     
-    const zoom = d3.zoom()
+    graphZoom = d3.zoom()
       .scaleExtent([0.1, 4])
       .on("zoom", zoomed);
     
-    svg.call(zoom);
+    svg.call(graphZoom);
     
     function zoomed() {
       g.attr("transform", d3.event.transform);
@@ -1243,6 +1448,9 @@ window.MathJax = {
       d.fx = null;
       d.fy = null;
     }
+    
+    // Setup search functionality
+    setupSearchEventListeners();
   }
   
   window.addEventListener('resize', function() {
