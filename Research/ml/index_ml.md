@@ -1,11 +1,20 @@
+1951robbins_stochastic-approx-method.md
+1952kiefer_stochastic-estimation-regression.md
 1958rosenblatt_perceptron.md
+1959davidson_quasi-newton.md
+1963fletcher_dfp-optimization.md
+1964polyak_polyak-momentum.md
 1967cover_knn.md
+1970broyden_bfgs.md
+1980nocedal_quasi-newton-limited-memory.md
+1983nesterov_nesterov-momentum.md
 1984breiman_cart-tree.md
 1985rumelhart_rnn.md
 1986quinlan_id3-tree.md
 1986rumelhard_backprop.md
 1986sejnowski_boltzmann-machine.md
 1986sejnowski_rbm.md
+1989liu_lbfgs.md
 1990shapire_weak-learnability.md
 1990werbos_backprop-thru-time.md
 1991breiman_bagging.md
@@ -13,6 +22,7 @@
 1996tibshirani_lasso.md
 1997freund_adaboost.md
 1997hochreiter_lstm.md
+1997zhu_lbfgs-b.md
 1998lecun_lenet.md
 1999shapire_improved-boosting.md
 2001breiman_random-forest.md
@@ -45,6 +55,7 @@
 2010xavier_xavier-init.md
 2010zeiler_deconvnets.md
 2010zinkevich_parallel-sgd.md
+2011duchi_adagrad.md
 2011glorot_relu.md
 2011larochelle_nade.md
 2011rifai_contractive-ae.md
@@ -53,6 +64,7 @@
 2011zeiler_adaptive_deconvnets.md
 2012alain_ae-estimating-score.md
 2012hinton_prevent-coadapting.md
+2012hinton_rmsprop.md
 2012krizhevsky_alexnet.md
 2012schuster_jap-kor-voice-search.md
 2013bengio_generalized-dae-generative.md
@@ -136,6 +148,7 @@
 2019berthelot_remixmatch.md
 2019chen_protopnet.md
 2019child_sparse-transformer.md
+2019loshchilov_decoupled-weight-decay.md
 2019lu_cglow.md
 2019radford_gpt2.md
 2019zhou_omniscale-net.md
