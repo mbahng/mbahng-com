@@ -1,5 +1,5 @@
 [[2016wu_google-nmt.pdf]]
-#translation
+#language
 [[2015luong_addressing-rare-word-prob-nmt]], [[2012schuster_jap-kor-voice-search]]
 
 # Contribution 

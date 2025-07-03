@@ -1,4 +1,3 @@
 [[2011duchi_adagrad.pdf]]
-
-[[1952kiefer_stochastic-estimation-regression]]
-
+#optimization
+[[1952kiefer_finite-diff-sgd]]

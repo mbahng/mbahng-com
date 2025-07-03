@@ -1,5 +1,5 @@
 [[2013srivastava_dropout.pdf]]
-#training
+#regularization
 [[2012hinton_prevent-coadapting]]
 
 # Contributions 

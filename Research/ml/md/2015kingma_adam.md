@@ -1,4 +1,4 @@
 [[2015kingma_adam.pdf]]
-
-[[2012hinton_rmsprop]]
+#optimization
+[[2012zeiler_adadelta]], [[1964polyak_polyak-momentum]]
 
