@@ -4,4 +4,4 @@
 
 # Contribution 
    
-   Proves PCA is a low-rank approximation. 
+   Proves PCA is a low-rank approximation and shows that this problem reduces to having good eigensolvers. 

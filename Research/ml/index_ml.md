@@ -7,6 +7,7 @@
 1951robbins_sgd.md
 1952kiefer_finite-diff-sgd.md
 1952torgerson_multidim-scaling.md
+1956bauer_simultaneous-iteration-method.md
 1958rosenblatt_perceptron.md
 1959davidson_quasi-newton.md
 1963fletcher_dfp-optimization.md
@@ -50,6 +51,7 @@
 2003belkin_laplacian-eigenmaps.md
 2003bengio_neural-prob-language-model.md
 2003daubechies_ista.md
+2003jolliffe_pca-lasso.md
 2003zou_elastic-net.md
 2004felzenszwalb-graph-image-seg.md
 2004lowe_sift.md
@@ -60,17 +62,21 @@
 2006hinton_deep-belief-net.md
 2006hyvarinen_sm-extension.md
 2006li_oneshot.md
+2006zou_sparse-pca.md
 2007bengio_deep-autoencoders-greedy-training.md
 2007ranzato_sparse-ae.md
 2008hyvarinen_score-matching-priors.md
 2008maaten_tsne.md
 2008ranzato_sparse-learning-dbn.md
+2008shen_sparse-pca-regularized-low-rank.md
 2008vincent_denoising-ae.md
+2009amini_high-dim-sparse-pca.md
 2009beck_fista.md
 2009bengio_ae-vs-cd.md
 2009deng_imagenet.md
 2009felzenszwalb_object-detection-deformable.md
 2009krizhevsky_cifar.md
+2009witten_penalized-matrix-decomposition.md
 2010boyd_admm.md
 2010kingma_score-matching-images.md
 2010mikolov_rnn-language.md
@@ -94,6 +100,7 @@
 2012schuster_jap-kor-voice-search.md
 2012zeiler_adadelta.md
 2013bengio_generalized-dae-generative.md
+2013berthet_comp-lower-bounds-sparse-pca.md
 2013girshik_rcnn.md
 2013kalchbrenner_rcnn-discourse.md
 2013kalchbrenner_rnn-translation.md
@@ -176,6 +183,7 @@
 2018redmon_yolov3.md
 2019berthelot_mixmatch.md
 2019berthelot_remixmatch.md
+2019brennan_optimal-sparse-pca.md
 2019chen_protopnet.md
 2019child_sparse-transformer.md
 2019loshchilov_decoupled-weight-decay.md
