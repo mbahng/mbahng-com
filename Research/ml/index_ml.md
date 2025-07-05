@@ -1,3 +1,8 @@
+1901pearson_pca.md
+1904spearman_factor-models.md
+1933hotelling_pca.md
+1936eckart_pca-with-svd.md
+1950lanczos_iterative-eigenvalue-solver.md
 1951robbins_sgd.md
 1952kiefer_finite-diff-sgd.md
 1958rosenblatt_perceptron.md
@@ -11,6 +16,7 @@
 1976rockafellar_lagrangian-proximal-point-algo-convex.md
 1976rockafellar_proximal-point-algo.md
 1980nocedal_quasi-newton-limited-memory.md
+1982oja_neuron-model-pca.md
 1983nesterov_nesterov-momentum.md
 1984breiman_cart-tree.md
 1985rumelhart_rnn.md
@@ -18,10 +24,12 @@
 1986rumelhard_backprop.md
 1986sejnowski_boltzmann-machine.md
 1986sejnowski_rbm.md
+1986sirovich_eigenfaces.md
 1989liu_lbfgs.md
 1990shapire_weak-learnability.md
 1990werbos_backprop-thru-time.md
 1991breiman_bagging.md
+1991turk_eigenfaces.md
 1992eckstein_douglas-rachford-proximal.md
 1993efron_bootstrap.md
 1996tibshirani_lasso.md
@@ -30,6 +38,7 @@
 1997zhu_lbfgs-b.md
 1998lecun_lenet.md
 1999shapire_improved-boosting.md
+1999tipping_probabilistic-pca.md
 2001breiman_random-forest.md
 2001horchreiter_gradient-flow-rnns.md
 2002donoho_denoising-soft-thresholding.md
