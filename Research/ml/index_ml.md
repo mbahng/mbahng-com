@@ -39,10 +39,13 @@
 1998lecun_lenet.md
 1999shapire_improved-boosting.md
 1999tipping_probabilistic-pca.md
+2000roweis_local-linear-embedding.md
+2000tenenbaum_isomap.md
 2001breiman_random-forest.md
 2001horchreiter_gradient-flow-rnns.md
 2002donoho_denoising-soft-thresholding.md
 2002hinton_contrastive-divergence.md
+2003belkin_laplacian-eigenmaps.md
 2003bengio_neural-prob-language-model.md
 2003daubechies_ista.md
 2003zou_elastic-net.md
@@ -50,6 +53,7 @@
 2004lowe_sift.md
 2005dalal_hog.md
 2005hyvarinen_score-matching.md
+2006coifman_diffusion-maps.md
 2006feifei_caltech101.md
 2006hinton_deep-belief-net.md
 2006hyvarinen_sm-extension.md
@@ -57,6 +61,7 @@
 2007bengio_deep-autoencoders-greedy-training.md
 2007ranzato_sparse-ae.md
 2008hyvarinen_score-matching-priors.md
+2008maaten_tsne.md
 2008ranzato_sparse-learning-dbn.md
 2008vincent_denoising-ae.md
 2009beck_fista.md
@@ -162,6 +167,7 @@
 2018kitaev_transformer-constituency-parsing.md
 2018li_prototypeautoencoder.md
 2018liu_transformer-wikipedia.md
+2018mcinnes_umap.md
 2018oord_vq-vae.md
 2018peters_elmo.md
 2018radford_gpt.md
