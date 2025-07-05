@@ -2,9 +2,11 @@
 1904spearman_factor-models.md
 1933hotelling_pca.md
 1936eckart_pca-with-svd.md
+1938young_points-mutual-dist.md
 1950lanczos_iterative-eigenvalue-solver.md
 1951robbins_sgd.md
 1952kiefer_finite-diff-sgd.md
+1952torgerson_multidim-scaling.md
 1958rosenblatt_perceptron.md
 1959davidson_quasi-newton.md
 1963fletcher_dfp-optimization.md
