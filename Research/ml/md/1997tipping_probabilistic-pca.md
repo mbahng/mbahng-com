@@ -1,6 +1,6 @@
-[[1999tipping_probabilistic-pca.pdf]]
+[[1997tipping_probabilistic-pca.pdf]]
 #dimensionality-reduction
-[[1933hotelling_pca]]
+[[1987bartholomew_factor-analysis-latent-variable]], [[1936eckart_pca-with-svd]]
 
 # Contribution 
 
