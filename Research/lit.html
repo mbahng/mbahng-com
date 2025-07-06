@@ -1322,12 +1322,35 @@ window.MathJax = {
     }
     
     simulation = d3.forceSimulation(nodes)
-      .force("link", d3.forceLink(links).id(d => d.id).distance(500))
-      .force("charge", d3.forceManyBody().strength(-1000))
+      .force("link", d3.forceLink(links).id(d => d.id).distance(d => {
+        // Dynamic distance based on connectivity of both nodes
+        const sourceConnections = d.source.link_count || 0;
+        const targetConnections = d.target.link_count || 0;
+        const maxConnections = Math.max(sourceConnections, targetConnections);
+        
+        // Base distance + extra distance for highly connected nodes
+        const baseDistance = 500;
+        const extraDistance = Math.min(maxConnections * 100, 800); // Cap at 800 extra
+        
+        return baseDistance + extraDistance;
+      }))
+      .force("charge", d3.forceManyBody().strength(d => {
+        // Stronger repulsion for highly connected nodes
+        const connections = d.link_count || 0;
+        return -1000 - (connections * 100);
+      }))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .alphaDecay(0.02)
+      .force("collision", d3.forceCollide().radius(d => {
+        // Collision radius based on node size + padding
+        const nodeRadius = 40 + Math.sqrt(d.link_count || 0) * 4;
+        return nodeRadius + 20; // Add 20px padding
+      }))
+      .alphaDecay(0.05)
       .alphaMin(0.001)
       .on("tick", ticked);
+    
+    // Run simulation longer to reach stable state before displaying
+    for (let i = 0; i < 300; ++i) simulation.tick();
     
     const link = g.append("g")
       .attr("class", "links")
@@ -1335,7 +1358,36 @@ window.MathJax = {
       .data(links)
       .enter().append("line")
       .attr("class", "link")
-      .attr("stroke", "#000");
+      .attr("stroke", "#000")
+      .attr("stroke-opacity", 0.6)
+      .on("mouseover", function(d) {
+        // Highlight this edge
+        d3.select(this).attr("stroke-opacity", 0.8).attr("stroke-width", 3);
+        
+        // Highlight connected arrowhead
+        arrowheads.filter(arrow => arrow === d)
+          .attr("opacity", 0.8);
+        
+        // Highlight connected nodes
+        nodeContainer.selectAll(".node")
+          .filter(node => node === d.source || node === d.target)
+          .style("stroke", "#ff6b35")
+          .style("stroke-width", "4px");
+      })
+      .on("mouseout", function(d) {
+        // Reset edge
+        d3.select(this).attr("stroke-opacity", 0.6).attr("stroke-width", 1);
+        
+        // Reset arrowhead
+        arrowheads.filter(arrow => arrow === d)
+          .attr("opacity", 0.6);
+        
+        // Reset nodes
+        nodeContainer.selectAll(".node")
+          .filter(node => node === d.source || node === d.target)
+          .style("stroke", d => d.tags && d.tags.length > 1 ? null : "#fff")
+          .style("stroke-width", d => d.tags && d.tags.length > 1 ? null : "1.5px");
+      });
     
     // Create arrowheads as separate elements positioned in the middle
     const arrowheads = g.append("g")
@@ -1345,6 +1397,7 @@ window.MathJax = {
       .enter().append("polygon")
       .attr("class", "arrowhead")
       .attr("fill", "#000")
+      .attr("opacity", 0.6)
       .attr("points", "0,-12 24,0 0,12");
     
     // Create container for all nodes
