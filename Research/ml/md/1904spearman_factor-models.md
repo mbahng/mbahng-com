@@ -1,5 +1,5 @@
 [[1904spearman_factor-models.pdf]]
-#dimensionality-reduction
+#factor-models
 
 # Contribution
    

@@ -1,6 +1,6 @@
 [[1950lanczos_iterative-eigenvalue-solver.pdf]]
 #dimensionality-reduction
-[[1936eckart_pca-with-svd]]
+[[1929vonmises_power-iteration]]
 
 # Contribution 
 
