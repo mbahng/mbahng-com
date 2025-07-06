@@ -35,6 +35,7 @@
 1986sejnowski_rbm.md
 1986sirovich_eigenfaces.md
 1987bartholomew_factor-analysis-latent-variable.md
+1989hastie_principal-curves.md
 1989hinton_connectionist-learning.md
 1989liu_lbfgs.md
 1990shapire_weak-learnability.md
@@ -55,6 +56,7 @@
 1997zhu_lbfgs-b.md
 1998bishop_bayesian-pca.md
 1998lecun_lenet.md
+1998scholkopf_kernel-pca.md
 1999shapire_improved-boosting.md
 1999tipping_mixtures-of-ppca.md
 2000forni_generalized-dynamic-fm.md
