@@ -1,2 +1,2 @@
 [[1938young_points-mutual-dist.pdf]]
-#dimensionality-reduction
+#dimensionality-reduction #nonlinear-dim-red

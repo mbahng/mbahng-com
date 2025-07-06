@@ -1,5 +1,5 @@
 [[1956bauer_simultaneous-iteration-method.pdf]]
-#dimensionality-reduction
+#dimensionality-reduction #matrix-theory
 [[1950lanczos_iterative-eigenvalue-solver]]
 
 # Contribution 

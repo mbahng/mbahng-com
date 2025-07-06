@@ -1,5 +1,5 @@
 [[1982oja_neuron-model-pca.pdf]]
-#dimensionality-reduction
+#dimensionality-reduction #matrix-theory
 [[1956bauer_simultaneous-iteration-method]]
 
 # Contribution 

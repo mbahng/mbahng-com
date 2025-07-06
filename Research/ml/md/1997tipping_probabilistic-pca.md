@@ -1,5 +1,5 @@
 [[1997tipping_probabilistic-pca.pdf]]
-#dimensionality-reduction
+#dimensionality-reduction #probabilistic-pca
 [[1987bartholomew_factor-analysis-latent-variable]], [[1936eckart_pca-with-svd]]
 
 # Contribution 
