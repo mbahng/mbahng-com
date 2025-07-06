@@ -42,7 +42,7 @@
     .node { cursor: pointer; }
     .link { stroke: #999; stroke-opacity: 0.6; }
     text { font-family: Arial, sans-serif; font-size: 12px; pointer-events: none; fill: #000; }
-    .arrowhead { fill: #999; }
+    .arrowhead { fill: #000; }
     
     .loading {
       position: absolute;
@@ -1307,18 +1307,7 @@ window.MathJax = {
     
     const defs = svg.append("defs");
     
-    // Create arrowhead marker
-    defs.append("marker")
-      .attr("id", "arrowhead")
-      .attr("viewBox", "0 -5 10 10")
-      .attr("refX", 25)
-      .attr("refY", 0)
-      .attr("markerWidth", 15)
-      .attr("markerHeight", 15)
-      .attr("orient", "auto-start-reverse")
-      .append("path")
-      .attr("d", "M0,-5L10,0L0,5")
-      .attr("class", "arrowhead");
+    // Remove old marker definition since we're using direct polygons
     
     // No need to create patterns anymore - multi-tag nodes are created directly
     
@@ -1346,7 +1335,17 @@ window.MathJax = {
       .data(links)
       .enter().append("line")
       .attr("class", "link")
-      .attr("marker-start", "url(#arrowhead)");
+      .attr("stroke", "#000");
+    
+    // Create arrowheads as separate elements positioned in the middle
+    const arrowheads = g.append("g")
+      .attr("class", "arrowheads")
+      .selectAll("polygon")
+      .data(links)
+      .enter().append("polygon")
+      .attr("class", "arrowhead")
+      .attr("fill", "#000")
+      .attr("points", "0,-12 24,0 0,12");
     
     // Create container for all nodes
     const nodeContainer = g.append("g").attr("class", "nodes");
@@ -1356,7 +1355,7 @@ window.MathJax = {
       .data(nodes.filter(d => !d.tags || d.tags.length <= 1))
       .enter().append("circle")
       .attr("class", "node single-tag-node")
-      .attr("r", d => 20 + Math.sqrt(d.link_count || 0) * 2)
+      .attr("r", d => 40 + Math.sqrt(d.link_count || 0) * 4)
       .attr("fill", d => d.color || getColorForTags(d.tags))
       .attr("stroke", "#fff")
       .attr("stroke-width", 1.5)
@@ -1371,7 +1370,7 @@ window.MathJax = {
     // Create multi-tag nodes as pie slices
     const multiTagNodeData = nodes.filter(d => d.tags && d.tags.length > 1);
     multiTagNodeData.forEach(nodeData => {
-      const radius = 20 + Math.sqrt(nodeData.link_count || 0) * 2;
+      const radius = 40 + Math.sqrt(nodeData.link_count || 0) * 4;
       const multiTagNode = createMultiTagNode(nodeContainer, nodeData, radius);
       
       multiTagNode
@@ -1406,16 +1405,37 @@ window.MathJax = {
           const dy = d.target.y - d.source.y;
           const dr = Math.sqrt(dx * dx + dy * dy);
           
-          const sourceRadius = 20 + Math.sqrt(d.source.link_count || 0) * 2;
+          const sourceRadius = 40 + Math.sqrt(d.source.link_count || 0) * 4;
+          const targetRadius = 40 + Math.sqrt(d.target.link_count || 0) * 4;
           
           const offsetX = (dx / dr) * sourceRadius;
           const offsetY = (dy / dr) * sourceRadius;
+          const targetOffsetX = (dx / dr) * targetRadius;
+          const targetOffsetY = (dy / dr) * targetRadius;
           
           d3.select(this)
             .attr("x1", d.source.x + offsetX)
             .attr("y1", d.source.y + offsetY)
-            .attr("x2", d.target.x)
-            .attr("y2", d.target.y);
+            .attr("x2", d.target.x - targetOffsetX)
+            .attr("y2", d.target.y - targetOffsetY);
+        });
+      
+      // Position arrowheads in the middle of edges
+      arrowheads
+        .each(function(d) {
+          const dx = d.target.x - d.source.x;
+          const dy = d.target.y - d.source.y;
+          const dr = Math.sqrt(dx * dx + dy * dy);
+          
+          // Calculate middle point
+          const midX = d.source.x + dx / 2;
+          const midY = d.source.y + dy / 2;
+          
+          // Calculate rotation angle (add 180 degrees to point in correct direction)
+          const angle = Math.atan2(dy, dx) * 180 / Math.PI + 180;
+          
+          d3.select(this)
+            .attr("transform", `translate(${midX},${midY}) rotate(${angle})`);
         });
       
       // Update single-tag nodes (circles)
