@@ -1,5 +1,4 @@
 [[2017jang_gumbel.pdf]]
-#deep-learning
-
+#deep-learning #activation
 [[2016hendrycks_gelu]]
 

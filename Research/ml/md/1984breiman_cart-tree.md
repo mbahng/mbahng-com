@@ -1,5 +1,5 @@
 [[1984breiman_cart-tree.pdf]]
-#traditional-ml #discriminative
+#tree #discriminative
 
 
 

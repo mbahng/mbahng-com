@@ -1,6 +1,6 @@
 [[2013girshik_rcnn.pdf]]
 #deep-learning #computer-vision #discriminative
-#architecture
+
 [[2013uijlings_selective-search]], [[2013sermanet_overfeat]]
 
 # Contributions 

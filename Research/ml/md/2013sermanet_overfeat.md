@@ -1,6 +1,6 @@
 [[2013sermanet_overfeat.pdf]] 
 #deep-learning #computer-vision #discriminative
-#architecture
+
 [[2012krizhevsky_alexnet.md]]
 
 # Contribution

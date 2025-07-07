@@ -1,3 +1,7 @@
 [[1958rosenblatt_perceptron.pdf]]
-#architecture
+#deep-learning
 [[1952kiefer_finite-diff-sgd]]
+
+# Contribution 
+
+   Birth of neural networks, originally introduced with sigmoid activations. Also introduced MNIST dataset. 

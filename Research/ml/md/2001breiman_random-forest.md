@@ -1,5 +1,5 @@
 [[2001breiman_random-forest.pdf]]
-#traditional-ml #discriminative
+#ensemble #tree #discriminative
 
 [[1991breiman_bagging]]
 

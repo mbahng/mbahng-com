@@ -1,5 +1,5 @@
 [[1999shapire_improved-boosting.pdf]]
-#traditional-ml #discriminative
+#ensemble #discriminative
 
 [[1997freund_adaboost]]
 

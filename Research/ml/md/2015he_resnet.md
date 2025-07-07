@@ -1,6 +1,6 @@
 [[2015he_resnet.pdf]]
 #deep-learning #computer-vision #discriminative
-#architecture
+
 [[2014simonyan_vgg]]
 
 # Contributions 

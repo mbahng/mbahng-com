@@ -1,5 +1,4 @@
 [[2016hendrycks_gelu.pdf]]
-#deep-learning
-
+#deep-learning #activation
 [[2011glorot_relu]]
 
