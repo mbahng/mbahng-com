@@ -1,4 +1,5 @@
 [[1998lecun_lenet.pdf]]
+#deep-learning #computer-vision #discriminative
 #architecture 
 [[1958rosenblatt_perceptron]]
 

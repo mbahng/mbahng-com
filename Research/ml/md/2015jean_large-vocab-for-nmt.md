@@ -1,5 +1,6 @@
 [[2015jean_large-vocab-for-nmt.pdf]]
-#language
+#deep-learning #natural-language-processing #generative
+#natural-language-processing
 [[2015bahdanau_neural-machine-translation]]
 
 # Contribution

@@ -1,5 +1,6 @@
 [[2013kalchbrenner_rcnn-discourse.pdf]]
-#language 
+#deep-learning
+#natural-language-processing 
 [[2010mikolov_rnn-language]]
 
 # Contribution 

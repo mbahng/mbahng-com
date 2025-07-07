@@ -1,4 +1,5 @@
 [[2016huang_densenet.pdf]]
+#deep-learning #computer-vision #discriminative
 #architecture
 [[2015he_resnet]] 
 

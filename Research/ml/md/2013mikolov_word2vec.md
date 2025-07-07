@@ -1,4 +1,5 @@
 [[2013mikolov_word2vec.pdf]]
-#language
+#deep-learning #natural-language-processing #discriminative
+#natural-language-processing
 [[2003bengio_neural-prob-language-model]]
 

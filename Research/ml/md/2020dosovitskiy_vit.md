@@ -1,5 +1,5 @@
 [[2020dosovitskiy_vit.pdf]]
-#transformer #cv
+#transformer #computer-vision
 [[2017vaswani_attention-transformer]], [[2020kolesnikov_big-transfer]]
 
 # Contribution 

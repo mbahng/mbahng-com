@@ -1,4 +1,5 @@
 [[2012krizhevsky_alexnet.pdf]]
+#deep-learning
 #architecture
 [[1998lecun_lenet]]
 

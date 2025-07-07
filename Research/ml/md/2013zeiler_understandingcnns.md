@@ -1,4 +1,5 @@
 [[2013zeiler_understandingcnns.pdf]]
+#deep-learning
 
 [[2010zeiler_deconvnets]],  [[2011zeiler_adaptive_deconvnets]]
 

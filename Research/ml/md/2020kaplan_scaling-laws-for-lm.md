@@ -1,5 +1,6 @@
 [[2020kaplan_scaling-laws-for-lm.pdf]]
-#language
+#deep-learning
+#natural-language-processing
 [[2019radford_gpt2]]
 
 # Contributions 

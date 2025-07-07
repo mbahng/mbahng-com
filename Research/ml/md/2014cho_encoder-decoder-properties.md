@@ -1,5 +1,5 @@
 [[2014cho_encoder-decoder-properties.pdf]]
-#language
+#natural-language-processing
 [[2014cho_rnn-encoder-decoder-smt]]
 
 # Contributions 

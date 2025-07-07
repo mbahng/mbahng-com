@@ -1,4 +1,5 @@
 [[2014simonyan_vgg.pdf]]
+#deep-learning #computer-vision #discriminative
 #architecture
 [[2012krizhevsky_alexnet]], [[2013sermanet_overfeat]]
 

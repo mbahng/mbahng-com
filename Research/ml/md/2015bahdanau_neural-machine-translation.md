@@ -1,5 +1,5 @@
 [[2015bahdanau_neural-machine-translation.pdf]]
-#language, attention
+#natural-language-processing, attention
 [[2014cho_encoder-decoder-properties]], [[2014sutskever_seq2seq]]
 
 # Contribution
