@@ -833,41 +833,42 @@ window.MathJax = {
   function updateGraphVisibility() {
     if (!simulation) return;
     
-    // Update node visibility
+    // Filter visible nodes and links
+    const visibleNodes = nodes.filter(getNodeVisibility);
+    const visibleLinks = links.filter(link => 
+      getNodeVisibility(link.source) && getNodeVisibility(link.target)
+    );
+    
+    // Update simulation with only visible nodes and links
+    simulation.nodes(visibleNodes);
+    simulation.force("link").links(visibleLinks);
+    
+    // Update node visibility (completely hide/show elements)
     d3.selectAll('.node')
-      .style('opacity', d => {
-        if (!d.tags || d.tags.length === 0) {
-          return tagVisibility['no-tags'] ? 1 : 0.02;
-        }
-        // For multi-tag nodes, show if ANY of its tags are visible
-        const hasVisibleTag = d.tags.some(tag => tagVisibility[tag.toLowerCase()]);
-        return hasVisibleTag ? 1 : 0.02;
-      })
-      .style('pointer-events', d => {
-        if (!d.tags || d.tags.length === 0) {
-          return tagVisibility['no-tags'] ? 'auto' : 'none';
-        }
-        const hasVisibleTag = d.tags.some(tag => tagVisibility[tag.toLowerCase()]);
-        return hasVisibleTag ? 'auto' : 'none';
-      });
+      .style('display', d => getNodeVisibility(d) ? 'block' : 'none');
     
     // Update text visibility
     d3.selectAll('.texts text')
-      .style('opacity', d => {
-        if (!d.tags || d.tags.length === 0) {
-          return tagVisibility['no-tags'] ? 1 : 0.02;
-        }
-        const hasVisibleTag = d.tags.some(tag => tagVisibility[tag.toLowerCase()]);
-        return hasVisibleTag ? 1 : 0.02;
-      });
+      .style('display', d => getNodeVisibility(d) ? 'block' : 'none');
     
     // Update link visibility
     d3.selectAll('.link')
-      .style('opacity', d => {
+      .style('display', d => {
         const sourceVisible = getNodeVisibility(d.source);
         const targetVisible = getNodeVisibility(d.target);
-        return (sourceVisible && targetVisible) ? 0.6 : 0.02;
+        return (sourceVisible && targetVisible) ? 'block' : 'none';
       });
+    
+    // Update arrowhead visibility
+    d3.selectAll('.arrowhead')
+      .style('display', d => {
+        const sourceVisible = getNodeVisibility(d.source);
+        const targetVisible = getNodeVisibility(d.target);
+        return (sourceVisible && targetVisible) ? 'block' : 'none';
+      });
+    
+    // Restart simulation with new data
+    simulation.alpha(0.3).restart();
   }
   
   // Helper function to check if a node should be visible
