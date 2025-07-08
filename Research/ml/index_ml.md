@@ -28,6 +28,7 @@
 1970broyden_bfgs.md
 1976rockafellar_lagrangian-proximal-point-algo-convex.md
 1976rockafellar_proximal-point-algo.md
+1977geweke_dynamic-fm.md
 1977huber_robust-statistical-procedures.md
 1977sargent_dynamic-factor-models.md
 1978owsley_adaptive-orthogonalization.md
