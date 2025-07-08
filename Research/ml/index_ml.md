@@ -84,9 +84,12 @@
 2001forni_general-dfm-representation-theory.md
 2001horchreiter_gradient-flow-rnns.md
 2001johnstone_distribution-largest-eigenvalue.md
+2002bai_num-factors-approx-fm.md
 2002donoho_denoising-soft-thresholding.md
 2002hinton_contrastive-divergence.md
+2002stock_macro-forecast-index.md
 2002stock_pca-forecasting.md
+2003bai_inference-theory-fm-high-dim.md
 2003belkin_laplacian-eigenmaps.md
 2003bengio_neural-prob-language-model.md
 2003daubechies_ista.md
@@ -100,6 +103,7 @@
 2005hyvarinen_score-matching.md
 2005muller_sparse-fpca.md
 2005ramsay_functional-data-analysis.md
+2006bai_conf-index-forecasts-factor.md
 2006coifman_diffusion-maps.md
 2006feifei_caltech101.md
 2006ferraty_nonparametric-func-data-analysis.md
@@ -145,6 +149,7 @@
 2011welling_sgld.md
 2011zeiler_adaptive_deconvnets.md
 2012alain_ae-estimating-score.md
+2012bai_stat-analysis-fm-high-dim.md
 2012hinton_prevent-coadapting.md
 2012hinton_rmsprop.md
 2012krizhevsky_alexnet.md
@@ -213,6 +218,7 @@
 2015xu_image-caption-attention.md
 2015zhou_cam.md
 2016ba_layer-norm.md
+2016bai_mle-inference-approxc-fm-high-dim.md
 2016bertinetto_feedforward-oneshot.md
 2016chen_xgboost.md
 2016dinh_realnvp.md
