@@ -45,7 +45,6 @@
 1983chamberlain_factors-arbitrage.md
 1983nesterov_nesterov-momentum.md
 1984breiman_cart-tree.md
-1985ku_dynamic-pca-time-lag.md
 1985rumelhart_rnn.md
 1986connor_approx-static-fm.md
 1986quinlan_id3-tree.md
@@ -68,6 +67,7 @@
 1993hinton_autoencoder.md
 1994bell_infomax.md
 1994comon_ica.md
+1995ku_dynamic-pca-time-lag.md
 1996silverman_smooth-fpca-with-norm.md
 1996tibshirani_lasso.md
 1997freund_adaboost.md
