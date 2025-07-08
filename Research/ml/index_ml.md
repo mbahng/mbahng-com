@@ -1,9 +1,12 @@
 1901pearson_pca.md
 1904spearman_factor-models.md
 1929vonmises_power-iteration.md
+1931thurstone_multi-factor-analysis.md
 1933hotelling_pca.md
+1935thurstone_vectors-of-mind.md
 1936eckart_pca-with-svd.md
 1938young_points-mutual-dist.md
+1941harman_modern-factor-analysis.md
 1950lanczos_iterative-eigenvalue-solver.md
 1951robbins_sgd.md
 1952kiefer_finite-diff-sgd.md
@@ -20,6 +23,7 @@
 1967cover_knn.md
 1967marcenko_distribution-eigenvalues.md
 1969hestenes_multiplier-gradient-methods.md
+1969joreskog_mle-factor-analysis.md
 1970broyden_bfgs.md
 1976rockafellar_lagrangian-proximal-point-algo-convex.md
 1976rockafellar_proximal-point-algo.md
@@ -190,7 +194,6 @@
 2015krauthgamer_semidefinite-relaxation.md
 2015lake_concept-learning.md
 2015long_fcnn.md
-2015luong-attention-nmt.md
 2015luong_addressing-rare-word-prob-nmt.md
 2015luong_attention-nmt.md
 2015radford_dcgan.md

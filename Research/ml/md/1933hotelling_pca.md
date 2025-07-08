@@ -1,6 +1,6 @@
 [[1933hotelling_pca.pdf]]
 #dimensionality-reduction
-[[1904spearman_factor-models]], [[1901pearson_pca]]
+[[1901pearson_pca]]
 
 # Contribution
 Considered the limitations of underdetermined systems in factor analysis and fixed it by independently introducing PCA as an iterative method to maximize variance. Showed that this coincides with axes of ellipsoid and showed how to compute the principal axes via eigen-decomposition of the covariance or correlation matrix. Also provided the first iterative algorithm for computing principal components and developed statistical tests for determining the number of significant components.

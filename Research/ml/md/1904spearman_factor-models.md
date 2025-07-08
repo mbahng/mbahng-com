@@ -3,7 +3,7 @@
 
 # Contribution
    
-   First instance of factor models. 
+   First instance of factor models. In modeling the correlation between mental aptitude and sensory tasks, Spearman postulated that one's performance depended on some *general/common factor* (e.g. IQ) plus some specific factors. 
 
 # Background 
 
@@ -14,7 +14,6 @@
    The meat of this paper is in chapter 4. 
 
    Finally, he talks about how some of these findings might conflict with previous works. 
-
 
 # Experiments 
 
