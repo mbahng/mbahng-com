@@ -1,4 +1,4 @@
 [[2002stock_pca-forecasting.pdf]]
 #dimensionality-reduction #dynamic-pca
-[[2000forni_generalized-dynamic-fm]]
+[[1983chamberlain_factor-structure-large-assets]], [[2000forni_generalized-dynamic-fm]]
 
