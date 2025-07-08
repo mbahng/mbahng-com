@@ -5,6 +5,7 @@
 1933hotelling_pca.md
 1935thurstone_vectors-of-mind.md
 1936eckart_pca-with-svd.md
+1937bartlett_statistical-computation-mental-factors.md
 1938young_points-mutual-dist.md
 1941harman_modern-factor-analysis.md
 1950lanczos_iterative-eigenvalue-solver.md
@@ -34,9 +35,12 @@
 1981huber_robust-statistics.md
 1981ruymgaart_robust-pca.md
 1982oja_neuron-model-pca.md
+1983chamberlain_factor-structure-large-assets.md
+1983chamberlain_factors-arbitrage.md
 1983nesterov_nesterov-momentum.md
 1984breiman_cart-tree.md
 1985rumelhart_rnn.md
+1986connor_approx-static-fm.md
 1986quinlan_id3-tree.md
 1986rumelhard_backprop.md
 1986sejnowski_boltzmann-machine.md

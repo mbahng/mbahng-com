@@ -1,6 +1,6 @@
 [[1941harman_modern-factor-analysis.pdf]]
 #factor-models
-[[1935thurstone_vectors-of-mind]]
+[[1937bartlett_statistical-computation-mental-factors]]
 
 # Contribution 
 
