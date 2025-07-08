@@ -67,6 +67,7 @@
 1997freund_adaboost.md
 1997hochreiter_lstm.md
 1997hyvarinen_fast-ica.md
+1997macho_dynamic-fm-economic-time-series.md
 1997tipping_probabilistic-pca.md
 1997zhu_lbfgs-b.md
 1998bishop_bayesian-pca.md
