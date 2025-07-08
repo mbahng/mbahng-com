@@ -9,3 +9,5 @@
 # Method 
 
    A factor model can be trivially solved if the number of factors $p$ is sufficiently large, but if not, then we must do a hypothesis test. 
+
+   However, convergence is slow and may not always optimize. Therefore, better methods are suggested. 
