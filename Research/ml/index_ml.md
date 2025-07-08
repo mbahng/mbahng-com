@@ -45,6 +45,7 @@
 1983chamberlain_factors-arbitrage.md
 1983nesterov_nesterov-momentum.md
 1984breiman_cart-tree.md
+1985ku_dynamic-pca-time-lag.md
 1985rumelhart_rnn.md
 1986connor_approx-static-fm.md
 1986quinlan_id3-tree.md
@@ -175,6 +176,8 @@
 2013li_num-functional-pcs.md
 2013ma_sparse-pca-iterative-thresholding.md
 2013mikolov_word2vec.md
+2013rato_dpca-decorrelation.md
+2013rato_dpca-lag-structure.md
 2013sermanet_overfeat.md
 2013srivastava_dropout.md
 2013tsutskever_initialization-momentum-dl.md
@@ -212,6 +215,7 @@
 2015hormann_dynamic-fpca.md
 2015ioffe_batch-norm.md
 2015jean_large-vocab-for-nmt.md
+2015ketelaere_survey-pca-hig-dim-time-dependent.md
 2015kingma_adam.md
 2015krauthgamer_semidefinite-relaxation.md
 2015lake_concept-learning.md
@@ -224,6 +228,7 @@
 2015rezende_normalizing-flow.md
 2015ronneberger_unet.md
 2015sukhbaatar_end-to-end-memory-nets.md
+2015vanhatalo_autocorrelation-impact-pca.md
 2015xu_image-caption-attention.md
 2015zhou_cam.md
 2016ba_layer-norm.md
@@ -247,6 +252,7 @@
 2017jang_gumbel.md
 2017kalchbrenner_bytenet.md
 2017lauly_docnade.md
+2017vanhatalo_dpca-max-num-lags.md
 2017vaswani_attention-transformer.md
 2017zhu_cyclegan.md
 2018devlin_bert.md
