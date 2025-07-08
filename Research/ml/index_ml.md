@@ -22,14 +22,17 @@
 1963anderson_statistical-fm-time-series.md
 1963fletcher_dfp-optimization.md
 1964polyak_polyak-momentum.md
+1964sharpe_capm.md
 1965moreau_proximal-operators.md
 1967cover_knn.md
 1967marcenko_distribution-eigenvalues.md
 1969hestenes_multiplier-gradient-methods.md
 1969joreskog_mle-factor-analysis.md
 1970broyden_bfgs.md
+1973black_black-scholes.md
 1976rockafellar_lagrangian-proximal-point-algo-convex.md
 1976rockafellar_proximal-point-algo.md
+1976ross_capm-arbitrage.md
 1977geweke_dynamic-fm.md
 1977huber_robust-statistical-procedures.md
 1977sargent_dynamic-factor-models.md
@@ -100,6 +103,7 @@
 2003jolliffe_pca-lasso.md
 2003torre_robust-pca-framework.md
 2003zou_elastic-net.md
+2004fama_capm-theory-evidence.md
 2004felzenszwalb-graph-image-seg.md
 2004lowe_sift.md
 2005baik_phase-transition-largest-eigenval.md
@@ -281,6 +285,7 @@
 2021ramesh_dalle.md
 2021wang_tesnet.md
 2022alayrac_flamingo.md
+2022choi_bachelier-guide.md
 2022chowdhery_palm.md
 2022hoffmann_chinchilla.md
 2022hu_dynamic-pca-high-dim.md
