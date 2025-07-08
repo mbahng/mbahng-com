@@ -14,10 +14,12 @@
 1952torgerson_multidim-scaling.md
 1956anderson_inference-factor-analysis.md
 1956bauer_simultaneous-iteration-method.md
+1958anderson_intro-multi-stats-analysis.md
 1958rao_naive-functional-pca.md
 1958rosenblatt_perceptron.md
 1959davidson_quasi-newton.md
 1962lawley_factor-analysis-stats.md
+1963anderson_statistical-fm-time-series.md
 1963fletcher_dfp-optimization.md
 1964polyak_polyak-momentum.md
 1965moreau_proximal-operators.md
