@@ -81,6 +81,7 @@
 2000roweis_local-linear-embedding.md
 2000tenenbaum_isomap.md
 2001breiman_random-forest.md
+2001forni_general-dfm-representation-theory.md
 2001horchreiter_gradient-flow-rnns.md
 2001johnstone_distribution-largest-eigenvalue.md
 2002donoho_denoising-soft-thresholding.md
@@ -108,6 +109,7 @@
 2006li_oneshot.md
 2006zou_sparse-pca.md
 2007bengio_deep-autoencoders-greedy-training.md
+2007hallin_num-factors-general-dfm.md
 2007ranzato_sparse-ae.md
 2008hyvarinen_score-matching-priors.md
 2008maaten_tsne.md
@@ -136,6 +138,7 @@
 2011candes_robust-pca.md
 2011duchi_adagrad.md
 2011glorot_relu.md
+2011hallin-dynamic-factors-blocks.md
 2011larochelle_nade.md
 2011rifai_contractive-ae.md
 2011vincent_denoising-score-matching.md
@@ -150,6 +153,7 @@
 2013bengio_generalized-dae-generative.md
 2013berthet_comp-lower-bounds-sparse-pca.md
 2013girshik_rcnn.md
+2013hallin-fm-high-dim-time-series.md
 2013kalchbrenner_rcnn-discourse.md
 2013kalchbrenner_rnn-translation.md
 2013kingma_vae.md
