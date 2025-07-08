@@ -117,6 +117,7 @@
 2007bengio_deep-autoencoders-greedy-training.md
 2007hallin_num-factors-general-dfm.md
 2007ranzato_sparse-ae.md
+2008anderson_generalized-linear-dfm.md
 2008hyvarinen_score-matching-priors.md
 2008maaten_tsne.md
 2008ranzato_sparse-learning-dbn.md
@@ -235,6 +236,7 @@
 2016sennrich_nmt-rare-words-subword-units.md
 2016wu_google-nmt.md
 2017dai_deformable-convnets.md
+2017forni_dfm-infinite-dim-asymptotic-analysis.md
 2017horn_inaturalist.md
 2017jang_gumbel.md
 2017kalchbrenner_bytenet.md
