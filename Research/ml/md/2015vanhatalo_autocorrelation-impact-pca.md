@@ -1,5 +1,5 @@
 [[2015vanhatalo_autocorrelation-impact-pca.pdf]]
-#dimensionality-reduction #dynamic-pca
+#dimensionality-reduction #pca #pca-dynamic
 [[1936eckart_pca-with-svd]]
 
 # Contribution 

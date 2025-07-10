@@ -839,9 +839,44 @@ window.MathJax = {
       getNodeVisibility(link.source) && getNodeVisibility(link.target)
     );
     
+    // Calculate dynamic force adjustments based on visible node count
+    const visibleNodeCount = visibleNodes.length;
+    const totalNodeCount = nodes.length;
+    const visibilityRatio = visibleNodeCount / totalNodeCount;
+    
+    // Adjust repulsive force - less nodes need less repulsion
+    const baseRepulsion = -1000;
+    const adjustedRepulsion = baseRepulsion * Math.max(0.3, visibilityRatio);
+    
+    // Adjust link distance - fewer nodes can be closer together
+    const baseLinkDistance = 500;
+    const adjustedLinkDistance = baseLinkDistance * Math.max(0.5, visibilityRatio);
+    
     // Update simulation with only visible nodes and links
     simulation.nodes(visibleNodes);
     simulation.force("link").links(visibleLinks);
+    
+    // Update forces based on visible node count
+    simulation.force("charge", d3.forceManyBody().strength(d => {
+      const connections = d.link_count || 0;
+      return adjustedRepulsion - (connections * 100 * visibilityRatio);
+    }));
+    
+    simulation.force("link").distance(d => {
+      const sourceConnections = d.source.link_count || 0;
+      const targetConnections = d.target.link_count || 0;
+      const maxConnections = Math.max(sourceConnections, targetConnections);
+      
+      const extraDistance = Math.min(maxConnections * 100, 800) * visibilityRatio;
+      return adjustedLinkDistance + extraDistance;
+    });
+    
+    // Update collision force for better spacing with fewer nodes
+    simulation.force("collision", d3.forceCollide().radius(d => {
+      const nodeRadius = 20 + Math.sqrt(d.link_count || 0) * 2;
+      const paddingAdjustment = Math.max(10, 30 * (1 - visibilityRatio));
+      return nodeRadius + paddingAdjustment;
+    }));
     
     // Update node visibility (completely hide/show elements)
     d3.selectAll('.node')
@@ -867,8 +902,8 @@ window.MathJax = {
         return (sourceVisible && targetVisible) ? 'block' : 'none';
       });
     
-    // Restart simulation with new data
-    simulation.alpha(0.3).restart();
+    // Restart simulation with adjusted forces
+    simulation.alpha(0.5).restart();
   }
   
   // Helper function to check if a node should be visible
@@ -1488,6 +1523,25 @@ window.MathJax = {
         const nodeRadius = 20 + Math.sqrt(d.link_count || 0) * 2;
         return nodeRadius + 10; // Add 10px padding
       }))
+      .force("y", d3.forceY().y(d => {
+        // Extract year from node ID (format: YYYY)
+        const yearMatch = d.id.match(/(\d{4})/);
+        const year = yearMatch ? parseInt(yearMatch[1]) : 2000;
+        
+        // Get connection count (papers with more connections are likely more recent/derived)
+        const connections = d.link_count || 0;
+        
+        // Calculate target Y position
+        // Earlier years (source papers) go to top, later years to bottom
+        // Papers with fewer connections also tend towards top
+        const yearFactor = (year - 1950) / (2024 - 1950); // Normalize to 0-1
+        
+        // Combined factor: year has more weight (0.7) than connections (0.3)
+        const combinedFactor = yearFactor
+        
+        // Map to Y position using full height with padding
+        return height * 0.05 + combinedFactor * height * 7;
+      }).strength(0.1))
       .alphaDecay(0.05)
       .alphaMin(0.001)
       .on("tick", ticked);

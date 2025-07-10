@@ -1,4 +1,4 @@
 [[2009witten_penalized-matrix-decomposition.pdf]]
-#dimensionality-reduction #sparse-pca
+#dimensionality-reduction #pca #pca-sparse
 [[2008shen_sparse-pca-regularized-low-rank]]
 

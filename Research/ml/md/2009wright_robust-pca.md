@@ -1,4 +1,4 @@
 [[2009wright_robust-pca.pdf]]
-#dimensionality-reduction #robust-pca
+#dimensionality-reduction #pca #pca-robust
 [[2003torre_robust-pca-framework]]
 

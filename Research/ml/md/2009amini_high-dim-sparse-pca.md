@@ -1,4 +1,4 @@
 [[2009amini_high-dim-sparse-pca.pdf]]
-#dimensionality-reduction #sparse-pca
+#dimensionality-reduction #pca #pca-sparse
 [[2006zou_sparse-pca]]
 
