@@ -21,6 +21,7 @@
 1962lawley_factor-analysis-stats.md
 1963anderson_statistical-fm-time-series.md
 1963fletcher_dfp-optimization.md
+1964karhunen_karhunen-loeve-transform.md
 1964polyak_polyak-momentum.md
 1964sharpe_capm.md
 1965moreau_proximal-operators.md
@@ -29,6 +30,8 @@
 1969hestenes_multiplier-gradient-methods.md
 1969joreskog_mle-factor-analysis.md
 1970broyden_bfgs.md
+1972jolliffe_discarding-variables-pca-real-data.md
+1972jolliffe_pca-discarding-variables-artificial-data.md
 1973black_black-scholes.md
 1976rockafellar_lagrangian-proximal-point-algo-convex.md
 1976rockafellar_proximal-point-algo.md
@@ -40,11 +43,13 @@
 1980nocedal_quasi-newton-limited-memory.md
 1981huber_robust-statistics.md
 1981ruymgaart_robust-pca.md
+1982desarbo_hausmann-pca-constrained.md
 1982oja_neuron-model-pca.md
 1983chamberlain_factor-structure-large-assets.md
 1983chamberlain_factors-arbitrage.md
 1983nesterov_nesterov-momentum.md
 1984breiman_cart-tree.md
+1984mccabe_principal-variables.md
 1985rumelhart_rnn.md
 1986connor_approx-static-fm.md
 1986quinlan_id3-tree.md
@@ -88,6 +93,7 @@
 2000minka_auto-choice-dim-pca.md
 2000roweis_local-linear-embedding.md
 2000tenenbaum_isomap.md
+2000vines_simple-pcs.md
 2001breiman_random-forest.md
 2001forni_general-dfm-representation-theory.md
 2001horchreiter_gradient-flow-rnns.md

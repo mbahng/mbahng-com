@@ -1,5 +1,5 @@
 [[1936eckart_pca-with-svd.pdf]]
-#dimensionality-reduction
+#dimensionality-reduction #pca
 [[1933hotelling_pca]]
 
 # Contribution 

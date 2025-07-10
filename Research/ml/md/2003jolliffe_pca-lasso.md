@@ -1,5 +1,9 @@
 [[2003jolliffe_pca-lasso.pdf]]
-#dimensionality-reduction
-[[1936eckart_pca-with-svd]], [[1996tibshirani_lasso]]
+#dimensionality-reduction #pca #pca-sparse
+[[1996tibshirani_lasso]], [[2000vines_simple-pcs]]
+
+# Contribution 
+
+   Uses PCA with LASSO for variable selection. 
 
 

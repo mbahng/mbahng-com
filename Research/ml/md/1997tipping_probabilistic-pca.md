@@ -4,4 +4,4 @@
 
 # Contribution 
 
-   Cast PCA in a statistical (latent-variable) framework, showing that under a Gaussian latent-factor model the principal components coincide with the maximum-likelihood estimate.
+   Cast PCA in a statistical (latent-variable) framework, showing that under a Gaussian latent-factor model the principal components coincide with the maximum-likelihood estimate. Really just factor analysis, but the difference is that the noise matrix is on the outputs, and not the factors. 

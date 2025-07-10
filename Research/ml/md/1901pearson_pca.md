@@ -1,5 +1,5 @@
 [[1901pearson_pca.pdf]]
-#dimensionality-reduction
+#dimensionality-reduction #pca
 
 # Contribution
    
