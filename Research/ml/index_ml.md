@@ -35,7 +35,9 @@
 1970broyden_bfgs.md
 1972jolliffe_discarding-variables-pca-real-data.md
 1972jolliffe_pca-discarding-variables-artificial-data.md
+1972wilson_asymptotic-prop-knn.md
 1973black_black-scholes.md
+1976dudani_distance-weighted-knn.md
 1976rockafellar_lagrangian-proximal-point-algo-convex.md
 1976rockafellar_proximal-point-algo.md
 1976ross_capm-arbitrage.md
@@ -58,6 +60,7 @@
 1984breiman_cart-tree.md
 1984flury_common-pca-k-groups.md
 1984mccabe_principal-variables.md
+1985keller_fuzzy-knn.md
 1985rumelhart_rnn.md
 1986besse_pca-sampled-functions.md
 1986connor_approx-static-fm.md
