@@ -212,12 +212,12 @@
       stroke: #ff4500 !important;
       stroke-width: 8px !important;
       filter: drop-shadow(0 0 15px rgba(255, 69, 0, 1.0)) drop-shadow(0 0 30px rgba(255, 69, 0, 0.8));
-      transition: all 0.3s ease;
+      transition: opacity 0.3s ease, filter 0.3s ease;
     }
     
     .node-dimmed {
       opacity: 0.15 !important;
-      transition: all 0.3s ease;
+      transition: opacity 0.3s ease;
     }
     
     .legend-left {
@@ -1099,6 +1099,25 @@ window.MathJax = {
     d3.selectAll('.legend-tag-name').classed('highlighted', false);
   }
   
+  // Function to reapply highlighting (useful after simulation updates)
+  function reapplyHighlighting() {
+    if (!highlightedTag) return;
+    
+    d3.selectAll('.node').each(function(d) {
+      const hasTag = highlightedTag === 'No tags' ? 
+        (!d.tags || d.tags.length === 0) : 
+        (d.tags && d.tags.some(nodeTag => {
+          return nodeTag === highlightedTag || nodeTag.toLowerCase() === highlightedTag.toLowerCase();
+        }));
+      
+      if (hasTag) {
+        d3.select(this).classed('node-highlighted', true).classed('node-dimmed', false);
+      } else {
+        d3.select(this).classed('node-highlighted', false).classed('node-dimmed', true);
+      }
+    });
+  }
+  
   async function init() {
     try {
       // Get current directory and update page
@@ -1813,6 +1832,8 @@ window.MathJax = {
       if (!d3.event.active) simulation.alphaTarget(0);
       d.fx = null;
       d.fy = null;
+      // Reapply highlighting after drag ends
+      setTimeout(reapplyHighlighting, 100);
     }
     
     // Setup search functionality
