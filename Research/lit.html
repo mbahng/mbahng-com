@@ -193,6 +193,33 @@
       justify-content: space-between;
     }
     
+    .legend-tag-name {
+      cursor: pointer;
+      transition: color 0.2s, text-decoration 0.2s;
+    }
+    
+    .legend-tag-name:hover {
+      color: #007bff;
+      text-decoration: underline;
+    }
+    
+    .legend-tag-name.highlighted {
+      color: #007bff;
+      font-weight: bold;
+    }
+    
+    .node-highlighted {
+      stroke: #ff4500 !important;
+      stroke-width: 8px !important;
+      filter: drop-shadow(0 0 15px rgba(255, 69, 0, 1.0)) drop-shadow(0 0 30px rgba(255, 69, 0, 0.8));
+      transition: all 0.3s ease;
+    }
+    
+    .node-dimmed {
+      opacity: 0.15 !important;
+      transition: all 0.3s ease;
+    }
+    
     .legend-left {
       display: flex;
       align-items: center;
@@ -545,6 +572,7 @@ window.MathJax = {
   let notesData = {};
   let tagColors = {};
   let tagVisibility = {}; // Track which tags are visible
+  let highlightedTag = null; // Track currently highlighted tag
   let currentDirectory = 'ml'; // Default directory
   
   // Get directory from URL parameter
@@ -810,6 +838,11 @@ window.MathJax = {
       if (!e.target.closest('.search-box')) {
         hideSearchResults();
       }
+      
+      // Clear tag highlighting when clicking outside legend
+      if (!e.target.closest('.legend-dropdown') && !e.target.classList.contains('legend-tag-name')) {
+        clearTagHighlight();
+      }
     });
   }
   
@@ -965,7 +998,7 @@ window.MathJax = {
     noTagItem.innerHTML = `
       <div class="legend-left">
         <div class="legend-color" style="background-color: #808080;"></div>
-        <span>No tags</span>
+        <span class="legend-tag-name" data-tag="No tags">No tags</span>
       </div>
       <div class="legend-toggle active" data-tag="no-tags"></div>
     `;
@@ -978,7 +1011,7 @@ window.MathJax = {
       item.innerHTML = `
         <div class="legend-left">
           <div class="legend-color" style="background-color: ${tagColors[tag]};"></div>
-          <span>${tag}</span>
+          <span class="legend-tag-name" data-tag="${tag}">${tag}</span>
         </div>
         <div class="legend-toggle active" data-tag="${tag}"></div>
       `;
@@ -991,6 +1024,14 @@ window.MathJax = {
         const tag = this.getAttribute('data-tag');
         this.classList.toggle('active');
         toggleTagVisibility(tag);
+      });
+    });
+    
+    // Add click event listeners to tag names for highlighting
+    document.querySelectorAll('.legend-tag-name').forEach(tagName => {
+      tagName.addEventListener('click', function() {
+        const tag = this.getAttribute('data-tag');
+        highlightNodesWithTag(tag);
       });
     });
     
@@ -1013,6 +1054,49 @@ window.MathJax = {
       content.style.display = 'none';
       arrow.classList.remove('open');
     }
+  }
+  
+  // Function to highlight nodes with a specific tag
+  function highlightNodesWithTag(tag) {
+    if (highlightedTag === tag) {
+      // If the same tag is clicked again, clear the highlight
+      clearTagHighlight();
+      return;
+    }
+    
+    // Clear previous highlights completely first
+    clearTagHighlight();
+    
+    // Set the new highlighted tag
+    highlightedTag = tag;
+    
+    // Highlight the clicked tag in the legend
+    d3.selectAll('.legend-tag-name').filter(function() {
+      return this.textContent === tag;
+    }).classed('highlighted', true);
+    
+    // Highlight nodes with the selected tag
+    d3.selectAll('.node').each(function(d) {
+      const hasTag = tag === 'No tags' ? 
+        (!d.tags || d.tags.length === 0) : 
+        (d.tags && d.tags.some(nodeTag => {
+          // Try both exact match and case-insensitive match
+          return nodeTag === tag || nodeTag.toLowerCase() === tag.toLowerCase();
+        }));
+      
+      if (hasTag) {
+        d3.select(this).classed('node-highlighted', true);
+      } else {
+        d3.select(this).classed('node-dimmed', true);
+      }
+    });
+  }
+  
+  // Function to clear tag highlighting
+  function clearTagHighlight() {
+    highlightedTag = null;
+    d3.selectAll('.node').classed('node-highlighted', false).classed('node-dimmed', false);
+    d3.selectAll('.legend-tag-name').classed('highlighted', false);
   }
   
   async function init() {
