@@ -190,13 +190,11 @@
 
   Note that there is a lot of overlap between the \texttt{GRES} and \texttt{AVAIL\_FEATURES} columns, but they are fundamentally different. While \texttt{GRES} defines what hardware exists, while \texttt{AVAIL\_FEATURES} offers convenient tags for job submission, which will be elaborated later. 
 
-\subsubsection{Running Jobs with srun}
+\subsubsection{Interactive Jobs with srun}
 
-  To submit or run jobs, the \texttt{srun} command is your friend. are two way you can run jobs. In \textbf{batch mode}, 
+  There are two ways to submit or run jobs. In the beginning, you might prototype a lot and want to have continuous access to your code on a compute node as you debug. At this point, it is best to use an \textbf{interactive} shell. 
 
-  To see which jobs you have, use \texttt{squeue --me}. To cancel all jobs, use \texttt{scancel --me}. 
-
-  In interactive mode, you are changing your host in your current terminal session from your login node to the compute node. You can connect to the first available compute node by running \texttt{srun} with the \texttt{-i} flag (for interactive) and \texttt{pty} (for pseudo-terminal) set to whatever shell you want. 
+  In interactive mode, you are changing your host in your current terminal session from your login node to the compute node, allowing you to iterate and debug easily. You can connect to the first available compute node by running \texttt{srun} with the \texttt{-i} flag (for interactive) and \texttt{pty} (for pseudo-terminal) set to whatever shell you want. 
 
   \begin{lstlisting}
     >>> hostname 
@@ -208,21 +206,119 @@
     linux54
   \end{lstlisting}
 
-  This is the minimalistic way, but you would like more control over the session you want to connect. Here is more detail on additional tags. 
-  \begin{enumerate}
-    \item \texttt{--partition=compsci-gpu}. Look for nodes in the \texttt{compsci-gpu} partition. 
-    \item \texttt{--gres=gpu:a5000:1}. Look for nodes that have \texttt{gpu:a5000} in the \texttt{GRES} column. This is a direct resource request. 
-    \item \texttt{--constraint=a6000}. Look for nodes that have \texttt{a6000} in the \texttt{AVAL\_FEATURES} column. This is a feature-based node selection. 
-    \item \texttt{--time=1:00:00}. Run it for 1 hour.  
-    \item \texttt{-vvv} for verbosity. 
-  \end{enumerate} 
+  This is the minimalistic way, but you would like more control over the session you want to connect. 
 
-  Here is an example. 
+  \begin{definition}[Node Specification Options]
+    Here is more detail on tags related to specifying which node you want. 
+    \begin{enumerate}
+      \item \texttt{--partition=compsci-gpu}. Look for nodes in the \texttt{compsci-gpu} partition. 
+      \item \texttt{--gres=gpu:a5000:1}. Look for nodes that have \texttt{gpu:a5000} in the \texttt{GRES} column. This is a direct resource request. 
+      \item \texttt{--constraint=a6000}. Look for nodes that have \texttt{a6000} in the \texttt{AVAL\_FEATURES} column. This is a feature-based node selection. 
+      \item \texttt{-vvv} for verbosity. 
+    \end{enumerate} 
+  \end{definition} 
+
+
+  \begin{definition}[Constraint Options]
+    Another natural property to have is the ability to limit resources beyond the physical capabilities of each node. 
+    \begin{enumerate}
+      \item \texttt{--time=1:00:00}. Run it for 1 hour.  
+      \item \texttt{--mem=16G} 
+      \item \texttt{--cpus-per-task=4}
+    \end{enumerate}
+  \end{definition}
+
+  Here is an example. Even better, you can use tmux so that your progress is not lost when you lose connection. 
   \begin{lstlisting}
     srun --nodes=1 --ntasks-per-node=1 --partition=compsci-gpu --time=1:00:00 --gres=gpu:a5000 --pty zsh -i -vvv
   \end{lstlisting}
 
-  
+\subsubsection{Batch Jobs with sbatch}
+
+  Once you are done, you probably want to run large-scale tests. This requires you to submit some script with different arguments on not just one node, but multiple runs (perhaps over multiple combinations of hyperparameters) over different nodes. This is best done through \textbf{batch runs}, called through the \texttt{sbatch} command. 
+
+  We will first perform the simplest sbatch script, and I heavily recommend to run this as a preliminary troubleshooting step in order to make sure everything is working properly before you even try to run your script in a batch job.
+
+  \begin{theorem}[Batch Job to Print Hostname]
+    We will connect to a compute node and simply print out the hostname to verify that we have successfully connected. This command that you run when you connect to a node can be inputted into the \texttt{--wrap} argument. The standard out and error is by default logged in \texttt{slurm-jobid.out} in the directory where you submitted the sbatch script in. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{lstlisting}
+        >>> ls
+        >>> hostname                
+        compsci-login-03
+        >>> sbatch --wrap="hostname"
+        Submitted batch job 9601364
+        >>> ls
+        slurm-9601364.out
+        >>> cat slurm-9601364.out 
+        linux54 
+      \end{lstlisting}
+      \caption{I start in the login node \texttt{compsci-login-03}. Then I call \texttt{hostname} which returns \texttt{linux54}.}
+    \end{figure} 
+  \end{theorem}
+
+  Batch jobs give us more flexibility in some ways and less in others. For example, we don't need to be connected to the session if we submit a batch script.\footnote{Though we can do this with interactive runs on tmux.} Running dozens of batch jobs may be hard to keep track of, so it is recommended to make a custom name for each one. Additionally, in interactive shells, we can see standard output and error in real time. We do not have such an interface in batch runs, so we must direct it to some other file. Usually, it is a file called \texttt{jobname-jobid.out} and \texttt{jobname-jobid.err}. These are additional arguments that are a good idea to set when running batch jobs. 
+
+  \begin{definition}[Naming and Logging Options]
+    All of the tags representing 
+    \begin{enumerate}
+      \item \texttt{--job-name}. The job name, which can be seen under the \texttt{NAME} column when calling \texttt{squeue}. 
+      \item \texttt{--output}. Where you should log standard output. 
+      \item \texttt{--error}. Where you should log standard error. 
+    \end{enumerate}
+  \end{definition}
+
+  Great, so we have introduced our first way to run a batch job: through the \texttt{--wrap} argument. 
+
+  \begin{theorem}[Run Batch Jobs with Wrap]
+    Here is a complete script. The \texttt{\%x} refers to the name and \texttt{\%j} refers to the job id. 
+    \begin{lstlisting}
+      sbatch \
+          --job-name="whatever" \
+          --output="logs/%x-%j.out" \
+          --error="logs/%x-%j.err" \
+          --mem=16G \
+          --cpus-per-task=4 \
+          --gres=gpu:1 \
+          --time=4:00:00 \
+          --wrap="
+              cd /usr/project/xtmp/mb625/runs
+              python run.py 
+          "
+    \end{lstlisting}
+  \end{theorem}
+
+  While you can put all of your commands to run on the compute node into the \texttt{--wrap} argument, this might be messy and inconvenient. A more efficient thing to do is to run it as a bash script.  
+
+  \begin{theorem}[Run Batch Jobs as a Bash Script]
+    You create a normal bash script, but you input the sbatch arguments at the top as such. After that, you can write your script. 
+    \begin{lstlisting}
+      >>> cat run.sh  
+      #!/usr/bin/env bash
+      #SBATCH --mem=40gb
+      #SBATCH --time=48:00:00
+      #SBATCH --partition=compsci-gpu
+      eval "\$(conda shell.bash hook)"
+      conda activate intnn
+      python main.py 
+      >>> sbatch run.sh
+    \end{lstlisting}
+  \end{theorem}
+
+  \begin{theorem}[Tips and Workflow for Batch Scripts]
+    I want to end with some convenient tips for debugging on batch runs. Unlike interactive runs, where you can just see where you are and debug code in real time, you have less visibility for batch runs. You should not assume that the conda environment will automatically be set up, nor that you will start in a specific directory. So before you have your scripts to run, you should probably just run a dummy script that ensures that everything up to the pre-script echo statement runs. 
+    \begin{enumerate}
+      \item Ensure that you are using the proper shell, with environment variables properly set (especially \texttt{PATH}). 
+      \item Source and activate your conda environment. 
+      \item cd to the desired directory. 
+      \item Echo that you are about to start, along with relevant logs. 
+      \item Run your script. 
+      \item Echo that you have just finished, along with relevant logs. 
+    \end{enumerate}
+  \end{theorem}
+ 
 \subsubsection{Checking Queue with squeue}
 
   To check the status of submitted, running, or canceled jobs, \texttt{squeue} is your friend. Just running squeue will list out all jobs from all users (?).  
