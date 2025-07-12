@@ -63,94 +63,226 @@
 
   We are done. Run \texttt{:checkhealth} on neovim in your remote server and confirm that lemonade is detected. 
 
-\subsection{Process Management with Slurm}
+\subsection{High Performance Computing with Slurm}
 
-  A cluster has different partitions, and each partition has different nodes. In each node, there is a specific number of CPUs and GPUs available. 
+  You will most likely be remotely connecting to a server to access a compute cluster. This is a giant server consisting of hundreds or thousands of processing units, called a \textbf{cluster}. A cluster has different \textbf{partitions}, and within each partition contains \textbf{nodes}. In each node, there is a specific number of CPUs and GPUs available. There is a natural queuing system that connects users to nodes, through an open-source workload manager called \textbf{slurm}. 
 
-  \begin{enumerate}
-    \item \textbf{idle} - Node is completely free and available for new jobs.
-    \item \textbf{alloc} - Node is fully allocated/occupied by running jobs.
-    \item \textbf{mix} - Node is partially allocated (some CPUs/GPUs free, some busy). You can potentially get resources on these nodes.
-    \item \textbf{mix-} - Mixed state with some issue (the minus indicates a problem). Node has available resources but may have hardware issues.
-    \item \textbf{drain} - Node is being drained (no new jobs accepted, finishing current jobs). Jobs can finish but no new jobs will start.
-    \item \textbf{drng} - Node is currently draining (actively finishing jobs before maintenance).
-    \item \textbf{down*} - Node is offline/broken (asterisk indicates it's not responding).
-    \item \textbf{drain*} - Node is drained with issues (asterisk indicates problems).
-    \item \textbf{plnd} - Node is in planned maintenance.
-  \end{enumerate}
+  As soon as you ssh into the cluster, you will most likely be in a \textbf{login node}.
+  \begin{lstlisting}
+    >>> hostname         
+    compsci-login-03 
+  \end{lstlisting} 
 
-  \begin{definition}[\texttt{sinfo}]
-    To view information about slurm nodes and partitions, use \texttt{sinfo}.
-    \begin{enumerate}
-      \item \texttt{sinfo} lists all partitions. 
+  While it does have CPUs, you generally don't want to use this for computation. It usually contains a few CPUs. 
 
-        \begin{lstlisting}
-          >>> sinfo
-          PARTITION    AVAIL  TIMELIMIT  NODES  STATE NODELIST
-          compsci         up 90-00:00:0      1 drain* linux23
-          compsci         up 90-00:00:0      4    mix linux[31,35-37]
-          compsci         up 90-00:00:0     21  alloc linux[1-7,9-10,21-22,24-30,32-34]
-          compsci         up 90-00:00:0     13   idle linux[11-20,38-40]
-          compsci-gpu*    up 90-00:00:0      3   mix- compsci-cluster-fitz-[06,08,20]
-          compsci-gpu*    up 90-00:00:0      1  down* gpu-compute7
-          compsci-gpu*    up 90-00:00:0      7   drng compsci-cluster-fitz-[04,19,29],gpu-compute4,linux[52-54]
-          compsci-gpu*    up 90-00:00:0     40  drain compsci-cluster-fitz-[01-03,09-18,21-28,30-34],gpu-compute5,linux[45-51,55-60]
-          compsci-gpu*    up 90-00:00:0      4    mix compsci-cluster-fitz-[05,07],gpu-compute6,linux44
-          compsci-gpu*    up 90-00:00:0      3  alloc linux[41-43]
-          grisman         up 60-00:00:0      1   plnd grisman-37
-          grisman         up 60-00:00:0      2    mix fennario-[02,04]
-          grisman         up 60-00:00:0      5  alloc grisman-40,jerry[1,3,6-7]
-          grisman         up 60-00:00:0      7   idle fennario-[01,03,05-06],jerry[2,4-5]
-          wiseman         up 60-00:00:0      1    mix wiseman-01
-          nlplab          up 60-00:00:0      1    mix nlplab-01
-          nlplab-core     up 90-00:00:0      1    mix nlplab-core-01
-          bhuwan          up 90-00:00:0      1    mix bhuwan-01
-          rudin           up 90-00:00:0      1   mix- rudin-01
-          skynet          up 90-00:00:0      1   idle skynet-02
-          wills           up 90-00:00:0      1   idle olympus 
-        \end{lstlisting}
-      \item \texttt{sinfo -N} views it in node-centric format. 
+  \begin{figure}[H]
+    \centering 
+    \begin{lstlisting}
+      >>> lscpu 
+      Architecture:             x86_64
+        CPU op-mode(s):         32-bit, 64-bit
+        Address sizes:          42 bits physical, 48 bits virtual
+        Byte Order:             Little Endian
+      CPU(s):                   6
+        On-line CPU(s) list:    0-5
+      Vendor ID:                GenuineIntel
+        Model name:             Intel(R) Xeon(R) Gold 6248R CPU @ 3.00GHz    
+        ...
+    \end{lstlisting}
+    \caption{There are only 6 CPUs on this list. } 
+  \end{figure}
 
-        \begin{lstlisting}
-          >>> sinfo -N     
-          NODELIST                 NODES    PARTITION STATE 
-          bhuwan-01                    1       bhuwan mix   
-          compsci-cluster-fitz-01      1 compsci-gpu* drain 
-          compsci-cluster-fitz-02      1 compsci-gpu* drain 
-          compsci-cluster-fitz-03      1 compsci-gpu* drain 
-          compsci-cluster-fitz-04      1 compsci-gpu* drng  
-          compsci-cluster-fitz-05      1 compsci-gpu* mix   
-          compsci-cluster-fitz-06      1 compsci-gpu* mix-  
-          compsci-cluster-fitz-07      1 compsci-gpu* mix   
-          compsci-cluster-fitz-08      1 compsci-gpu* mix-  
-          compsci-cluster-fitz-09      1 compsci-gpu* drain 
-          compsci-cluster-fitz-10      1 compsci-gpu* drain 
-          compsci-cluster-fitz-11      1 compsci-gpu* drain 
-          compsci-cluster-fitz-12      1 compsci-gpu* drain 
-          compsci-cluster-fitz-13      1 compsci-gpu* drain 
-          compsci-cluster-fitz-14      1 compsci-gpu* drain
-          ...
-        \end{lstlisting}
-    \end{enumerate}
-  \end{definition}
+  You want to switch to a \textbf{compute node} for heavy computational tasks. 
 
-  To go even deeper, we can check the GPUs available in each node. \textbf{GRES} (Generic Resources) specifies the actual GPU hardware installed on each node, using the format \texttt{gpu:type:count}, such as \texttt{gpu:a6000:4} for four A6000 GPUs. \textbf{AVAIL\_FEATURES} provides simple text labels like \texttt{a6000} that can be used as job constraints to target specific node types. While GRES defines what hardware exists, AVAIL\_FEATURES offers convenient tags for job submission using 
-  \begin{enumerate}
-    \item \texttt{--gres=gpu:a6000:1} for direct resource requests, or
-    \item \texttt{--constraint=a6000} for feature-based node selection.
-  \end{enumerate}
+\subsubsection{Exploring Specs and Status with sinfo} 
+
+  Before you even connect to a compute node, you want to see which nodes are available. In here, the \textbf{sinfo} command is your friend.\footnote{The man pages is a 5 min read and explains everything in this subsection.} Just running it in your login node allows you to list the partitions on the cluster and see their availability. Note that given some partition, e.g. \texttt{compsci}, it consists of the nodes \texttt{linux[1-40]}. 
 
   \begin{lstlisting}
-    >>> sinfo -N -o "%.25N %.6t %.4c %.4X %.8m %.20G %.15f"
-    NODELIST  STATE CPUS SOCK   MEMORY                 GRES  AVAIL_FEATURES
-    bhuwan-01    mix   64    2  1010955   gpu:a6000:8(S:0-1)          (null)
-    compsci-cluster-fitz-01  drain   48    2   768414   gpu:a5000:4(S:0-1)           a5000
-    compsci-cluster-fitz-02  drain   48    2   768414   gpu:a5000:4(S:0-1)           a5000
-    compsci-cluster-fitz-03  drain   48    2   768414   gpu:a5000:4(S:0-1)           a5000
-    compsci-cluster-fitz-04   drng   48    2   768414   gpu:a5000:4(S:0-1)           a5000
-    compsci-cluster-fitz-05    mix   48    2   768414   gpu:a6000:4(S:0-1)           a6000 
+    >>> sinfo
+    PARTITION    AVAIL  TIMELIMIT  NODES  STATE NODELIST
+    compsci         up 90-00:00:0      1 drain* linux23
+    compsci         up 90-00:00:0      4    mix linux[31,35-37]
+    compsci         up 90-00:00:0     21  alloc linux[1-7,9-10,21-22,24-30,32-34]
+    compsci         up 90-00:00:0     13   idle linux[11-20,38-40]
+    compsci-gpu*    up 90-00:00:0      3   mix- compsci-cluster-fitz-[06,08,20]
+    compsci-gpu*    up 90-00:00:0      1  down* gpu-compute7
+    compsci-gpu*    up 90-00:00:0      7   drng compsci-cluster-fitz-[04,19,29],...
+    compsci-gpu*    up 90-00:00:0     40  drain compsci-cluster-fitz-[01-03,09-18,...],...
+    compsci-gpu*    up 90-00:00:0      4    mix compsci-cluster-fitz-[05,07],...
+    compsci-gpu*    up 90-00:00:0      3  alloc linux[41-43]
+    grisman         up 60-00:00:0      1   plnd grisman-37
+    grisman         up 60-00:00:0      2    mix fennario-[02,04]
+    grisman         up 60-00:00:0      5  alloc grisman-40,jerry[1,3,6-7]
+    grisman         up 60-00:00:0      7   idle fennario-[01,03,05-06],jerry[2,4-5]
+    wiseman         up 60-00:00:0      1    mix wiseman-01
+    nlplab          up 60-00:00:0      1    mix nlplab-01
+    nlplab-core     up 90-00:00:0      1    mix nlplab-core-01
+    bhuwan          up 90-00:00:0      1    mix bhuwan-01
+    rudin           up 90-00:00:0      1   mix- rudin-01
+    skynet          up 90-00:00:0      1   idle skynet-02
+    wills           up 90-00:00:0      1   idle olympus 
+  \end{lstlisting}
+  
+  One of them is in drain state, 4 are in mix, 21 in alloc, and 13 idle. To clarify what each of these statuses mean, lets properly define them. 
+
+  \begin{definition}[Compute Node Status Codes]
+    \begin{enumerate}
+      \item \textbf{idle} - Node is completely free and available for new jobs.
+      \item \textbf{alloc} - Node is fully allocated/occupied by running jobs.
+      \item \textbf{mix} - Node is partially allocated (some CPUs/GPUs free, some busy). You can potentially get resources on these nodes.
+      \item \textbf{mix-} - Mixed state with some issue (the minus indicates a problem). Node has available resources but may have hardware issues.
+      \item \textbf{drain} - Node is being drained (no new jobs accepted, finishing current jobs). Jobs can finish but no new jobs will start.
+      \item \textbf{drng} - Node is currently draining (actively finishing jobs before maintenance).
+      \item \textbf{down*} - Node is offline/broken (asterisk indicates it's not responding).
+      \item \textbf{drain*} - Node is drained with issues (asterisk indicates problems).
+      \item \textbf{plnd} - Node is in planned maintenance.
+    \end{enumerate}
+  \end{definition} 
+
+  Sometimes, you may want to focus on the nodes rather than the partitions, since the nodes are what you will be connecting to. Therefore, you can list the nodes first and detail their specs. The \texttt{-N} flag makes it node-centric. 
+
+  \begin{lstlisting}
+    >>>sinfo -N              
+    NODELIST                 NODES    PARTITION STATE 
+    bhuwan-01                    1       bhuwan mix   
+    compsci-cluster-fitz-01      1 compsci-gpu* mix   
+    compsci-cluster-fitz-02      1 compsci-gpu* idle  
+    compsci-cluster-fitz-03      1 compsci-gpu* idle  
+    compsci-cluster-fitz-04      1 compsci-gpu* mix   
+    compsci-cluster-fitz-05      1 compsci-gpu* mix   
+    compsci-cluster-fitz-06      1 compsci-gpu* mix   
   \end{lstlisting}
 
+  However, it only shows the node name, partition, and state. If we want to look at more detailed specs, we can put the \texttt{long} tag, which shows more detail on CPUs and the memory. 
+
+  \begin{lstlisting}
+    >>> sinfo -N --long
+    NODELIST                    PARTITION       STATE CPUS    S:C:T MEMORY      WEIGHT AVAIL_FE
+    bhuwan-01                      bhuwan       mixed 64     2:32:1   101095        1    (null)
+    compsci-cluster-fitz-01  compsci-gpu*       mixed 48     2:12:2   768414        49    a5000
+    compsci-cluster-fitz-02  compsci-gpu*        idle 48     2:12:2   768414        49    a5000
+    compsci-cluster-fitz-03  compsci-gpu*        idle 48     2:12:2   768414        49    a5000
+    compsci-cluster-fitz-04  compsci-gpu*       mixed 48     2:12:2   768414        49    a5000
+    compsci-cluster-fitz-05  compsci-gpu*       mixed 48     2:12:2   768414        99    a6000
+    compsci-cluster-fitz-06  compsci-gpu*       mixed 48     2:12:2   768414        99    a6000
+  \end{lstlisting} 
+
+  Let's clarify what the additional columns mean. 
+  \begin{enumerate}
+    \item The \texttt{CPUS} refer to the number of CPUs on the node. This number should be equal to the product of the \texttt{S:C:T}. 
+    \item The \texttt{S:C:T} refers to the Socket:Core:Thread configuration. The socket is the number of physical CPU packages (chips) installed on the motherboard. Each socket contains one complete processor. The core is the number of physical processing cores per socket. Each core can execute instructions independently. The thread is number of hardware threads per core, enabled by technologies like Intel's Hyperthreading or AMD's SMT (Simultaneous Multithreading)
+    \item The \texttt{MEMORY} is the available RAM in MB. 
+    \item The \texttt{WEIGHT} means priority weight for job scheduling. 
+    \item \texttt{AVAIL\_FEATURES} provides simple text labels like \texttt{a6000} that can be used as job constraints to target specific node types. 
+  \end{enumerate}
+
+  We can see CPU information, but for most cases we would like to focus on the GPU specs. This is usually stored in the \texttt{GRES} (generic resources) column, which specifies the actual GPU hardware installed in each node. It is in the format \texttt{gpu:type:count} (e.g. \texttt{gpu:a6000:4} for four A6000 GPUs). Unfortunately, it is not contained in the long tag. To inspect this, we will need to specify the format using the \texttt{-o} tag. 
+
+  \begin{lstlisting}
+    sinfo -N -o "%.25N %.6t %.4c %.4X %.8m %.20G %.15f"
+                   NODELIST  STATE CPUS SOCK   MEMORY                 GRES  AVAIL_FEATURES
+                  bhuwan-01    mix   64    2  1010955   gpu:a6000:8(S:0-1)          (null)
+    compsci-cluster-fitz-01    mix   48    2   768414   gpu:a5000:4(S:0-1)           a5000
+    compsci-cluster-fitz-02   idle   48    2   768414   gpu:a5000:4(S:0-1)           a5000
+    compsci-cluster-fitz-03   idle   48    2   768414   gpu:a5000:4(S:0-1)           a5000 
+  \end{lstlisting}
+
+  Note that there is a lot of overlap between the \texttt{GRES} and \texttt{AVAIL\_FEATURES} columns, but they are fundamentally different. While \texttt{GRES} defines what hardware exists, while \texttt{AVAIL\_FEATURES} offers convenient tags for job submission, which will be elaborated later. 
+
+\subsubsection{Running Jobs with srun}
+
+  To submit or run jobs, the \texttt{srun} command is your friend. are two way you can run jobs. In \textbf{batch mode}, 
 
   To see which jobs you have, use \texttt{squeue --me}. To cancel all jobs, use \texttt{scancel --me}. 
+
+  In interactive mode, you are changing your host in your current terminal session from your login node to the compute node. You can connect to the first available compute node by running \texttt{srun} with the \texttt{-i} flag (for interactive) and \texttt{pty} (for pseudo-terminal) set to whatever shell you want. 
+
+  \begin{lstlisting}
+    >>> hostname 
+    compsci-login-03
+    >>> srun --pty zsh -i 
+    srun: job 9601353 queued and waiting for resources
+    srun: job 9601353 has been allocated resources
+    >>> bin hostname
+    linux54
+  \end{lstlisting}
+
+  This is the minimalistic way, but you would like more control over the session you want to connect. Here is more detail on additional tags. 
+  \begin{enumerate}
+    \item \texttt{--partition=compsci-gpu}. Look for nodes in the \texttt{compsci-gpu} partition. 
+    \item \texttt{--gres=gpu:a5000:1}. Look for nodes that have \texttt{gpu:a5000} in the \texttt{GRES} column. This is a direct resource request. 
+    \item \texttt{--constraint=a6000}. Look for nodes that have \texttt{a6000} in the \texttt{AVAL\_FEATURES} column. This is a feature-based node selection. 
+    \item \texttt{--time=1:00:00}. Run it for 1 hour.  
+    \item \texttt{-vvv} for verbosity. 
+  \end{enumerate} 
+
+  Here is an example. 
+  \begin{lstlisting}
+    srun --nodes=1 --ntasks-per-node=1 --partition=compsci-gpu --time=1:00:00 --gres=gpu:a5000 --pty zsh -i -vvv
+  \end{lstlisting}
+
   
+\subsubsection{Checking Queue with squeue}
+
+  To check the status of submitted, running, or canceled jobs, \texttt{squeue} is your friend. Just running squeue will list out all jobs from all users (?).  
+
+  \begin{lstlisting}
+    >>> squeue           
+         JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+       9597293    bhuwan gpu-bash     rx55  R 1-00:12:41      1 bhuwan-01
+       9597071   compsci fmri_pre    zy151  R   13:33:36      1 linux25
+       9601348   compsci    alpha     tqt3  R      29:53      1 linux24
+       9597328   compsci sys/dash    yw628  R   22:20:41      1 linux31
+       9597434 compsci-g cheshire    xz424 PD       0:00      1 (Resources)
+       9597436 compsci-g   iSB619    xz424 PD       0:00      1 (Priority)
+       9597673 compsci-g cheshire    xz424 PD       0:00      1 (Priority)
+       9591596 compsci-g      zsh    rt195  R 3-00:10:50      1 linux54
+       9600314 compsci-g run_all_    sf349  R    3:03:14      1 linux52
+     9590035_0 compsci-g sw-1q57j   cjb131  R 3-16:55:33      1 compsci-cluster-fitz-19
+    9597248_47 compsci-g sn_label    dt161  R   12:45:35      1 compsci-cluster-fitz-20
+    9597248_48 compsci-g sn_label    dt161  R   12:45:35      1 compsci-cluster-fitz-20
+    9597248_49 compsci-g sn_label    dt161  R   12:45:35      1 compsci-cluster-fitz-20 
+  \end{lstlisting} 
+
+  Rather than looking at all queued jobs, you probably want to focus on a specific user. You can either filter the current runs from yourself, 
+
+  \begin{lstlisting}
+    >>> squeue --me      
+       JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+    9601352 compsci-g      zsh    mb625  R       7:18      1 linux54 
+  \end{lstlisting}
+
+  or from a specific user. 
+
+  \begin{lstlisting}
+    >>> squeue -u cjb131
+         JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+     9590035_0 compsci-g sw-1q57j   cjb131  R 3-16:59:45      1 compsci-cluster-fitz-19 
+  \end{lstlisting} 
+
+  Less frequently, you might want to focus on a specific job ID. You can input this through the \texttt{-j} (job) tag. 
+
+  \begin{lstlisting}
+    >>> squeue -j 9597376
+       JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+     9597376     rudin vscode-s    dt161  R    9:02:39      1 rudin-01 
+  \end{lstlisting}
+  
+\subsubsection{Canceling Jobs with scancel}
+
+  To cancel a current job, \texttt{scancel} is your friend. To cancel a specific jobs, you just write it down. 
+
+  \begin{lstlisting}
+    >>> scancel 9601352   
+    srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+    slurmstepd: error: *** STEP 9601352.0 ON linux54 CANCELLED AT 2025-07-12T15:19:14 ***   
+  \end{lstlisting}
+
+  To cancel all of your own jobs, run 
+  \begin{lstlisting}
+    >>> scancel --me          # one way
+    >>> scancel -u $whoami    # another way
+  \end{lstlisting} 
+
+\subsubsection{Multi-GPU or Multi-Node Runs}
