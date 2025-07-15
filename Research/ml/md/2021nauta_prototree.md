@@ -14,9 +14,9 @@ Cites: [[2019chen_protopnet]]
    3. With $p_n$, we compute the minimum distance between $p_n$ and all patches in $z$, and this distance determines to what extent the prototype $P$ is present anywhere in the image. This score influences the routing f the sample either right or left (but in a soft way so that it routes through both probabilistically). The probability of routing $z$ to right edge is defined 
 
    $$
-        p_{e(n, n.right)} (\tilde{z}) \coloneqq \exp(- \| z^\ast - p_n \| ), \qquad \tilde{z}^\ast \coloneqq \arg \min_{\tilde{z} \in patches(z)} \| \tilde{z} - p_n \|
+        p_{e(n, n.right)} (\tilde{z}) = \exp(- \| z^\ast - p_n \| ), \qquad \tilde{z}^\ast = \arg \min_{\tilde{z} \in patches(z)} \| \tilde{z} - p_n \|
    $$   
-   with of course $p_{e(n, n.left)} (\tilde{z}) \coloneqq 1 - p_{e(n, n.right)} (\tilde{z})$ 
+   with of course $p_{e(n, n.left)} (\tilde{z}) = 1 - p_{e(n, n.right)} (\tilde{z})$ 
 
    4. The path to leaf node $\ell \in \mathcal{L}$ is denoted as $P_\ell$ and the total probability of classification is simply the product of probabilities of edges in path $P_\ell$ 
    $$
