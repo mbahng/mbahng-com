@@ -1,5 +1,5 @@
 [[2018li_prototypeautoencoder.pdf]]
-#interpretable
+#interpretable #prototype
 [[2013zeiler_understandingcnns]]
 
 # Background. 

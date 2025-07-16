@@ -1,5 +1,5 @@
 [[2021nauta_prototree.pdf]]
-#interpretable
+#interpretable #prototype
 Cites: [[2019chen_protopnet]]
 ## Contribution. 
 

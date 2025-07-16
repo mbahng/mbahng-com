@@ -1,5 +1,5 @@
 [[2021wang_tesnet.pdf]]
-#interpretable 
+#interpretable #prototype
 [[2019chen_protopnet]]
 
 # Background
