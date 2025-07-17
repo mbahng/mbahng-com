@@ -13,10 +13,12 @@
 1812laplace_analytical-theory-of-probability.md
 1815gergonne_least-squares-interpolation.md
 1823gauss_least-errors.md
-1823gauss_theory-of-least-errors.md
 1837poisson_poisson-distribution.md
+1897yule_theory-of-correlation.md
 1901pearson_pca.md
+1903pearson_ancestral-regression.md
 1904spearman_factor-models.md
+1922fisher_regression.md
 1925fisher.md
 1925fisher_significance-tests.md
 1929vonmises_power-iteration.md

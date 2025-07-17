@@ -1,6 +1,6 @@
-[[1925fisher.pdf]]
+[[1925fisher_significance-tests.pdf]]
 #hypothesis-test
-[[1710arbuthnot_human-sex-ratio]]
+[[1710arbuthnot_human-sex-ratio]], [[1922fisher_regression]]
 
 # Contribution 
 
