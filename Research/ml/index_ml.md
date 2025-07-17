@@ -1,5 +1,8 @@
 1663cardano_games-of-chance.md
+1687newton_principia.md
 1710arbuthnot_human-sex-ratio.md
+1711demoivre_on-measurement-of-chance.md
+1713bernoulli_bernoulli-binomial-dist.md
 1718demoivre_doctrine-of-chances.md
 1756demoivre_doctrine-of-chances.md
 1763bayes_bayes-rule.md
@@ -9,7 +12,9 @@
 1809gauss_theory-of-heavenly-bodies.md
 1812laplace_analytical-theory-of-probability.md
 1815gergonne_least-squares-interpolation.md
+1823gauss_least-errors.md
 1823gauss_theory-of-least-errors.md
+1837poisson_poisson-distribution.md
 1901pearson_pca.md
 1904spearman_factor-models.md
 1925fisher.md

@@ -1,3 +1,4 @@
 [[1718demoivre_doctrine-of-chances.pdf]]
 #probability
-[[1663cardano_games-of-chance]]
+[[1711demoivre_on-measurement-of-chance]], [[1713bernoulli_bernoulli-binomial-dist]]
+
