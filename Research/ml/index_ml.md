@@ -11,7 +11,7 @@
 1805legendre_least-squares-comets.md
 1809gauss_theory-of-heavenly-bodies.md
 1812laplace_analytical-theory-of-probability.md
-1815gergonne_least-squares-interpolation.md
+1815gergonne_polynomial-least-squares.md
 1823gauss_least-errors.md
 1837poisson_poisson-distribution.md
 1897yule_theory-of-correlation.md
@@ -19,7 +19,6 @@
 1903pearson_ancestral-regression.md
 1904spearman_factor-models.md
 1922fisher_regression.md
-1925fisher.md
 1925fisher_significance-tests.md
 1929vonmises_power-iteration.md
 1931thurstone_multi-factor-analysis.md
@@ -31,6 +30,7 @@
 1938wishart_growth-rate-bacon.md
 1938young_points-mutual-dist.md
 1941harman_modern-factor-analysis.md
+1946schoenberg_splines.md
 1950lanczos_iterative-eigenvalue-solver.md
 1951robbins_sgd.md
 1952kiefer_finite-diff-sgd.md
@@ -50,8 +50,10 @@
 1964polyak_polyak-momentum.md
 1964rao_pca-applied.md
 1964sharpe_capm.md
+1964watson_kernel-regression.md
 1965moreau_proximal-operators.md
 1967cover_knn.md
+1967hocking_best-subset-regression.md
 1967marcenko_distribution-eigenvalues.md
 1969hestenes_multiplier-gradient-methods.md
 1969joreskog_mle-factor-analysis.md
@@ -70,6 +72,7 @@
 1978owsley_adaptive-orthogonalization.md
 1979krzanowski_group-comparison-pca.md
 1980nocedal_quasi-newton-limited-memory.md
+1980stone_convergence-rates-nonparametric-estimators.md
 1981huber_robust-statistics.md
 1981ruymgaart_robust-pca.md
 1981stigler_gauss-invention-least-squares.md
@@ -106,11 +109,13 @@
 1991rice_nonparametric-estimation-curves.md
 1991turk_eigenfaces.md
 1992eckstein_douglas-rachford-proximal.md
+1992fan_local-polynomial-regression.md
 1993efron_bootstrap.md
 1993hinton_autoencoder.md
 1994bell_infomax.md
 1994comon_ica.md
 1994wold_exp-weight-moving-pca.md
+1995breiman_better-subset-regression.md
 1995ku_dynamic-pca-time-lag.md
 1996silverman_smooth-fpca-with-norm.md
 1996tibshirani_lasso.md
