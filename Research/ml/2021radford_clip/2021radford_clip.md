@@ -1,6 +1,5 @@
 [[2021radford_clip.pdf]]
 #deep-learning #computer-vision #natural-language-processing
-
 [[2020dosovitskiy_vit]]
 
 # Contribution 
@@ -9,5 +8,9 @@
 
 # Background 
 
-   In NLP, pretraining on unlabeled text had really boosted zero-shot transfer learning capabilities. However, in vision it is still common to pretrain models on *crowd-labeled* datasets. 
+   In NLP, pretraining on unlabeled text had really boosted zero-shot transfer learning capabilities. However, in vision it is still common to pretrain models on *crowd-labeled* datasets.  
+
+# Model 
+
+   ![image](clip_model.png)
 
