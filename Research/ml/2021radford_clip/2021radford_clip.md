@@ -12,5 +12,7 @@
 
 # Model 
 
+   The picture below is quite a good diagram. 
+
    ![image](clip_model.png)
 
