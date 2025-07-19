@@ -5,37 +5,18 @@
   <style>
     body { 
       margin: 0; 
-      padding: 20px; 
+      padding: 0; 
       background-color: #f5f5f5; 
       font-family: Arial, sans-serif;
-    }
-    
-    .content-container {
-      max-width: 2000px;
-      margin: 0 auto;
-    }
-    
-    .text-section {
-      background: white;
-      padding: 20px;
-      margin-bottom: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    
-    .text-section h1 {
-      margin-top: 0;
-      color: #333;
-      border-bottom: 2px solid #eee;
-      padding-bottom: 10px;
+      height: 100vh;
+      overflow: hidden;
     }
     
     .graph-container {
       position: relative;
-      height: 800px;
+      height: 100vh;
+      width: 100vw;
       background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       overflow: hidden;
     }
     
@@ -463,16 +444,7 @@
   </style>
 </head>
 <body>
-  <div class="content-container">
-    <!-- Text Section -->
-    <div class="text-section">
-      <h1>Literature Graph Visualization</h1>
-      <p>This interactive graph shows the connections between research papers in the literature collection. Each node represents a paper, and edges show relationships between papers based on citations and references found in the markdown files.</p>
-      <p><strong>Instructions:</strong> Click and drag nodes to explore the graph structure. Use your mouse wheel to zoom in and out. Click on any node to view the full content of that paper.</p>
-      <p>The graph is automatically generated from the index file and displays papers colored by their primary tags.</p>
-    </div>
-    
-    <!-- Graph Container -->
+  <!-- Graph Container -->
     <div class="graph-container">
       <div class="loading" id="loading">
         <div id="loading-message">Scanning Directory...</div>
@@ -519,7 +491,6 @@
       
       <div id="graph"></div>
     </div>
-  </div>
   
   <!-- Markdown viewer modal -->
   <div class="markdown-modal" id="markdownModal">
@@ -658,17 +629,36 @@ window.MathJax = {
       return `![${altText}](${fixedPath})`;
     });
   }
-  // Modal functions
-  function showMarkdownModal(nodeData) {
+  // Modal functions with lazy loading
+  async function showMarkdownModal(nodeData) {
     const modal = document.getElementById('markdownModal');
     const title = document.getElementById('markdownTitle');
     const body = document.getElementById('markdownBody');
     
     title.textContent = nodeData.label;
+    body.innerHTML = '<p>Loading content...</p>';
+    modal.style.display = 'block';
     
-    const originalContent = notesData[nodeData.id];
-    if (originalContent && originalContent.content) {
-      let contentWithFixedPaths = fixImagePaths(originalContent.content, nodeData.id);
+    const noteData = notesData[nodeData.id];
+    if (!noteData) {
+      body.innerHTML = '<p>Content not available</p>';
+      return;
+    }
+    
+    // Load full content if not already loaded
+    if (!noteData.loaded) {
+      try {
+        const content = await loadFullMarkdownContent(noteData.filePath);
+        noteData.content = content;
+        noteData.loaded = true;
+      } catch (error) {
+        body.innerHTML = '<p>Error loading content</p>';
+        return;
+      }
+    }
+    
+    if (noteData.content) {
+      let contentWithFixedPaths = fixImagePaths(noteData.content, nodeData.id);
       contentWithFixedPaths = convertPdfLinks(contentWithFixedPaths);
       
       const { content: protectedContent, mathBlocks } = protectMathExpressions(contentWithFixedPaths);
@@ -685,8 +675,6 @@ window.MathJax = {
     } else {
       body.innerHTML = '<p>Content not available</p>';
     }
-    
-    modal.style.display = 'block';
   }
   
   function closeMarkdownModal() {
@@ -1136,8 +1124,8 @@ window.MathJax = {
         throw new Error('No markdown files found in index');
       }
       
-      updateLoading(`Found ${markdownFiles.length} files, loading...`);
-      const { notes, links: fileLinks } = await loadMarkdownFiles(markdownFiles);
+      updateLoading(`Found ${markdownFiles.length} files, loading metadata...`);
+      const { notes, links: fileLinks } = await loadMarkdownMetadata(markdownFiles);
       
       notesData = notes;
       
@@ -1296,10 +1284,10 @@ window.MathJax = {
       tooltipTags.innerHTML = '<span class="tooltip-tag">No tags</span>';
     }
     
-    // Set contribution
+    // Set contribution (only if content is already loaded)
     tooltipContribution.innerHTML = '';
     const noteContent = notesData[nodeData.id];
-    if (noteContent && noteContent.content) {
+    if (noteContent && noteContent.loaded && noteContent.content) {
       const contribution = extractContributionFromContent(noteContent.content);
       if (contribution) {
         const contributionTitle = document.createElement('div');
@@ -1311,6 +1299,8 @@ window.MathJax = {
         contributionText.textContent = contribution.substring(0, 200) + (contribution.length > 200 ? '...' : '');
         tooltipContribution.appendChild(contributionText);
       }
+    } else if (noteContent && !noteContent.loaded) {
+      tooltipContribution.innerHTML = '<div style="font-style: italic;">Click to load content</div>';
     }
     
     // Position tooltip
@@ -1455,63 +1445,88 @@ window.MathJax = {
     });
   }
   
-  async function loadMarkdownFiles(filePaths) {
+  // Fast metadata loading - only loads first few lines for tags and basic links
+  async function loadMarkdownMetadata(filePaths) {
     const notes = {};
     const links = {};
     let loaded = 0;
     
-    for (const filePath of filePaths) {
-      try {
-        const response = await fetch(filePath);
-        if (!response.ok) {
-          console.warn(`Could not load ${filePath}: ${response.status}`);
-          continue;
-        }
-        
-        const content = await response.text();
-        const fileName = filePath.toLowerCase();
-        
-        const tags = extractTagsFromContent(content);
-        
-        notes[fileName] = {
-          content: content,
-          html: marked.parse(content),
-          tags: tags
-        };
-        
-        links[fileName] = [];
-        
-        const linkPatterns = [
-          /\[\[(.*?)\]\]/g,
-          /\[([^\]]+)\]\(([^)]+)\)/g,
-          /!\[\[(.*?)\]\]/g
-        ];
-        
-        for (const pattern of linkPatterns) {
-          let match;
-          while ((match = pattern.exec(content)) !== null) {
-            let link = match[1];
-            link = link.split('|')[0];
-            link = link.split('#')[0];
-            link = link.trim().toLowerCase();
-            if (link) {
-              links[fileName].push(link);
+    // Load files in parallel batches of 10
+    const batchSize = 10;
+    for (let i = 0; i < filePaths.length; i += batchSize) {
+      const batch = filePaths.slice(i, i + batchSize);
+      
+      await Promise.all(batch.map(async (filePath) => {
+        try {
+          const response = await fetch(filePath);
+          if (!response.ok) {
+            console.warn(`Could not load ${filePath}: ${response.status}`);
+            return;
+          }
+          
+          const content = await response.text();
+          const fileName = filePath.toLowerCase();
+          
+          // Extract only first 500 characters for tags and basic links
+          const preview = content.substring(0, 500);
+          const tags = extractTagsFromContent(preview);
+          
+          notes[fileName] = {
+            content: null, // Will be loaded lazily when needed
+            html: null,
+            tags: tags,
+            filePath: filePath,
+            loaded: false
+          };
+          
+          // Extract basic links from preview
+          links[fileName] = [];
+          const linkPatterns = [
+            /\[\[(.*?)\]\]/g,
+            /\[([^\]]+)\]\(([^)]+)\)/g,
+            /!\[\[(.*?)\]\]/g
+          ];
+          
+          for (const pattern of linkPatterns) {
+            let match;
+            while ((match = pattern.exec(preview)) !== null) {
+              let link = match[1];
+              link = link.split('|')[0];
+              link = link.split('#')[0];
+              link = link.trim().toLowerCase();
+              if (link) {
+                links[fileName].push(link);
+              }
             }
           }
+          
+        } catch (error) {
+          console.warn(`Error loading ${filePath}:`, error);
         }
-        
-        loaded++;
-        if (loaded % 5 === 0 || loaded === filePaths.length) {
-          updateLoading(`Loaded ${loaded}/${filePaths.length} files...`);
-          await new Promise(resolve => setTimeout(resolve, 10));
-        }
-        
-      } catch (error) {
-        console.warn(`Error loading ${filePath}:`, error);
-      }
+      }));
+      
+      loaded += batch.length;
+      updateLoading(`Loaded metadata ${loaded}/${filePaths.length} files...`);
+      await new Promise(resolve => setTimeout(resolve, 1));
     }
     
     return { notes, links };
+  }
+
+  // Full file loading function for when content is actually needed
+  async function loadFullMarkdownContent(filePath) {
+    try {
+      const response = await fetch(filePath);
+      if (!response.ok) {
+        throw new Error(`Failed to load: ${response.status}`);
+      }
+      
+      const content = await response.text();
+      return content;
+    } catch (error) {
+      console.warn(`Error loading full content for ${filePath}:`, error);
+      return '';
+    }
   }
   
   function generateGraphData(notes, links) {
@@ -1580,9 +1595,8 @@ window.MathJax = {
   }
   
   function createGraph() {
-    const container = document.querySelector('.graph-container');
-    const width = container.clientWidth;
-    const height = container.clientHeight;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
     
     const svg = d3.select("#graph")
       .append("svg")
@@ -1654,8 +1668,8 @@ window.MathJax = {
       .alphaMin(0.001)
       .on("tick", ticked);
     
-    // Run simulation longer to reach stable state before displaying
-    for (let i = 0; i < 300; ++i) simulation.tick();
+    // Run simulation shorter for faster initial display
+    for (let i = 0; i < 50; ++i) simulation.tick();
     
     const link = g.append("g")
       .attr("class", "links")
