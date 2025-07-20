@@ -7,25 +7,29 @@
     \usepackage[english]{babel}
     \usepackage{amsmath} 
     \usepackage{amssymb}
+    \usepackage{natbib}
 
     % extra math symbols and utilities
     \usepackage{mathtools}        % for extra stuff like \coloneqq
     \usepackage{mathrsfs}         % for extra stuff like \mathsrc{}
     \usepackage{centernot}        % for the centernot arrow 
     \usepackage{bm}               % for better boldsymbol/mathbf 
+    \usepackage{bbm}              % for indicator functions
     \usepackage{enumitem}         % better control over enumerate, itemize
     \usepackage{hyperref}         % for hypertext linking
     \usepackage{xr-hyper}
-    \usepackage{fancyvrb}          % for better verbatim environments
+    \usepackage{fancyvrb}         % for better verbatim environments
     \usepackage{newverbs}         % for texttt{}
     \usepackage{xcolor}           % for colored text 
     \usepackage{listings}         % to include code
     \usepackage{lstautogobble}    % helper package for code
     \usepackage{parcolumns}       % for side by side columns for two column code
-    
+    \usepackage{algorithm}
+    \usepackage{algpseudocode}
 
     % page layout
     \usepackage{fancyhdr}         % for headers and footers 
+    \usepackage{uniquecounter} 
     \usepackage{lastpage}         % to include last page number in footer 
     \usepackage{parskip}          % for no indentation and space between paragraphs    
     \usepackage[T1]{fontenc}      % to include \textbackslash
@@ -43,11 +47,8 @@
     \usepackage{tikz}
     \usepackage{tikz-cd}
     \usepackage{circuitikz}
-    \usetikzlibrary{arrows}
-    \usetikzlibrary{positioning}
-    \usetikzlibrary{calc}
+    \usetikzlibrary{positioning, shapes, arrows, fit, calc}
     \usepackage{graphicx}
-    \usepackage{algorithmic}
     \usepackage{caption} 
     \usepackage{subcaption}
     \captionsetup{font=small}
@@ -63,9 +64,11 @@
     \DeclareMathOperator{\Tr}{Tr}
     \DeclareMathOperator{\Sym}{Sym}
     \DeclareMathOperator{\Span}{span}
+    \DeclareMathOperator{\elbo}{ELBO}
     \DeclareMathOperator{\std}{std}
     \DeclareMathOperator{\Cov}{Cov}
     \DeclareMathOperator{\Var}{Var}
+    \DeclareMathOperator{\proj}{proj}
     \DeclareMathOperator{\Corr}{Corr}
     \DeclareMathOperator{\pos}{pos}
     \DeclareMathOperator*{\argmin}{\arg\!\min}
@@ -73,7 +76,7 @@
     \newcommand{\ket}[1]{\ensuremath{\left|#1\right\rangle}}
     \newcommand{\bra}[1]{\ensuremath{\left\langle#1\right|}}
     \newcommand{\braket}[2]{\langle #1 | #2 \rangle}
-    \newcommand{\qed}{\hfill$\blacksquare$}     % I like QED squares to be black
+    \newcommand{\qed}{\hfill$\blacksquare$}     % I like QED squares to be black 
 
   % Custom Environments
     \newtcolorbox[auto counter, number within=section]{question}[1][]
@@ -173,7 +176,7 @@
       breakable, 
       title = \textbf{Algorithm \thetcbcounter ~(#1)}
     } 
-
+    
     \definecolor{dkgreen}{rgb}{0,0.6,0}
     \definecolor{gray}{rgb}{0.5,0.5,0.5}
     \definecolor{mauve}{rgb}{0.58,0,0.82}
@@ -185,7 +188,7 @@
     \lstset{
       autogobble,
       frame=ltbr,
-      language=Python,
+      language=Python,                           % the language of the code
       aboveskip=3mm,
       belowskip=3mm,
       showstringspaces=false,
@@ -209,15 +212,12 @@
 
   % Page style
     \pagestyle{fancy}
-    \fancyhead[L]{Ensembles}
+    \fancyhead[L]{Machine Learning}
     \fancyhead[C]{Muchang Bahng}
-    \fancyhead[R]{Spring 2025} 
+    \fancyhead[R]{Spring 2024} 
     \fancyfoot[C]{\thepage / \pageref{LastPage}}
     \renewcommand{\footrulewidth}{0.4pt}          % the footer line should be 0.4pt wide
     \renewcommand{\thispagestyle}[1]{}  % needed to include headers in title page
-
-  % external documents 
-  %  \externaldocument[place-]{../Machine_Learning/paper}[../Machine_Learning/paper.pdf] 
 
 \begin{document}
 
@@ -228,6 +228,353 @@
 \maketitle
 \tableofcontents
 \pagebreak
+
+  The bias variance noise decomposition gives us a very nice way of explaining overfittting. That is, the bias (expectation of the squared difference between the true $\mathbb{E}[Y \mid X]$ and the expected trained hypothesis function $h_{\boldsymbol{\theta}; \mathcal{D}}$) reduces, but the variance in this overfitted model increases. Therefore, if we had a slightly different dataset $\mathcal{D}$ sampled from $(X \times Y)^N$, then we might have a very different trained hypothesis since it's so sensitive to the data. 
+
+  A way to treat this is through \textbf{ensemble learning}, where we train \textit{multiple} models over slightly different datasets, and then average their predictions to get a better model. What do we mean by a better model? Well, we know that a too complex model has low bias but large variance, and a too simple model has high bias but low variance. 
+
+  \begin{enumerate}
+    \item \textit{Bagging} refers to taking a complex model and decreasing its variance. Even though each model is trained over a smaller dataset, resulting it being more noisy, the average of all these slightly more noisy models will hopefully bring down the variance more than what we have added.\footnote{This is why random forests have underlying trees that are somewhat as large as possible.} 
+    \item \textit{Boosting} refers to taking a simple model and decreasing its bias. Each simple model, usually a weak learner, has relatively small search space, but by taking the aggregate of them, we can hopefully increase it whilst bounding the variance in some way. Usually, the dataset is reweighted such that the weak learner in the next iteration will correct the previous weak learner. 
+  \end{enumerate}
+
+\section{Bagging}
+
+  Let's start off with the simpler of the two. 
+
+  \begin{definition}[Bootstrap Aggregating]
+    Given a dataset $\mathcal{D}$ of $N$ samples and a model $\mathcal{M}$, \textbf{bagging} is an ensemble method done with two steps: 
+    \begin{enumerate}
+      \item \textit{Bootstrap}. Sample $\Tilde{N}$ data points with replacement from $\mathcal{D}$ to get a dataset $\mathcal{D}_1$, and do this $M$ times to get 
+      \[\mathcal{D}_1, \mathcal{D}_2, \ldots, \mathcal{D}_M \subset \mathcal{D}\]
+      \item \textit{Aggregate}. For each sub dataset $\mathcal{D}_m$, train our model to get the optimal hypothesis $h_{\mathcal{D}_m}^\ast$. We should have $M$ different hypothesis functions, each trained on each sub dataset. 
+      \[h_{\mathcal{D}_1}^\ast, h_{\mathcal{D}_2}^\ast, \ldots, h_{\mathcal{D}_M}^\ast\]
+    \end{enumerate}
+    To predict the output on a new value $\hat{\mathbf{x}}$, we can evaluate all the $h_{\mathcal{D}_m}^\ast (\hat{\mathbf{x}})$ .
+  \end{definition}
+
+  Note that the bootstrapping step could be expanded to different types of subsampling. 
+
+  \begin{definition}[Pasting]
+    If random subsets (without replacement) are sampled from the original dataset $\mathcal{D}$, then this method is known as \textbf{pasting}. 
+  \end{definition}
+
+  \begin{definition}[Random Subspaces]
+    When random subsets of the data are drawn as random subsets of the features, then this is known as \textbf{random subspaces}. 
+  \end{definition}
+
+  \begin{definition}[Random Patches]
+    When random subsets of both the data and the features are chosen, then this is known as \textbf{random patches}. 
+  \end{definition}
+
+  Since the whole point of this algorithm is to reduce variance, bagging does not really overfit. 
+
+  \subsection{Random Forests}
+
+    \begin{definition}[Random Forests]
+      A \textbf{random forest} is a (random patch) bagging algorithm where the component models are decision trees.  
+    \end{definition}
+
+\section{Boosting} 
+
+    Now we delve more into the applied and computational aspects of machine learning. It's had a lot of empirical success and is more interesting from a theoretical perspective. It starts off with the \textit{weak learning assumption}, which we introduce in the context of classification with the misclassification loss function. It is actually a specific case of PAC learners. 
+
+    \begin{definition}[Probability Approximately Correct Learner]
+      A \textbf{PAC learning} is an algorithm that learns a function class $\mathcal{H}$ with parameter $\delta > 0$ if there exists an $\epsilon > 0$ and the algorithm can find a $f \in \mathcal{H}$ with probability at least $1 - \delta$ s.t.
+      \begin{equation}
+        R(f) \leq \epsilon 
+      \end{equation}
+      i.e. 
+      \begin{equation}
+        \mathbb{P}[ R(f) \leq \epsilon] \geq 1 - \delta
+      \end{equation}
+    \end{definition}
+
+    This is quite a strong requirement, since it says that with probability at least $1 - \delta$ you must find an model $f$ that is correct with a probability of $1 - \epsilon$, i.e. $\epsilon$-good.
+
+    \begin{definition}[Weak Learner]
+      A \textbf{weak learner} is an algorithm that learns a function class $\mathcal{H}$ with parameter $\delta > 0$ if there exists an $\gamma > 0$ and the algorithm can find a $f \in \mathcal{H}$ s.t. 
+      \begin{equation}
+        \mathbb{P}[ R(f) < 1/2 - \gamma] \geq 1 - \delta
+      \end{equation}
+      for some $\delta > 0$, where $\gamma$ is considered our edge. Another way to write it is that with probability of at least $1 - \delta$, we can find a function $f$ s.t. 
+      \begin{equation}
+        \mathbb{P}_{x, y \sim \mathcal{X} \times \mathcal{Y}} [f(x) \neq y] < 1/2 - \gamma 
+      \end{equation}
+      This essentially means that given some $\gamma$ that measures how good our target predictor is compared to random guessing, the probability that we can find such a predictor with this edge is $1 - \delta$. Furthermore, this case must hold true for all distributions $P \sim \mathcal{X} \times \mathcal{Y}$. 
+    \end{definition}
+
+    Therefore, a weak learner just means some algorithm that learns a model that is a bit better than random. For example, learning decision stumps may be a weak learner. Colloquially, a weak learner can be thought of as an algorithm that cannot get your training error to $0$ and a strong learner can. The question is then, can we make a strong learner out of a bunch of weak learners? The general idea is that we want to iteratively find a bunch of weak learners and slowly add them up to get a strong learner. 
+    \begin{equation}
+      f = \sum_{i=1}^n f_i
+    \end{equation}
+    where $f$ is strong, $f_i$ weak. 
+
+  \subsection{Adaptive Boosting (AdaBoost)} 
+
+    Let's start with Adaboost for binary classification. 
+
+    \begin{definition}[Adaboost for Binary Classification]
+      Given data $\{(x_i, y_i)\} \in \mathcal{X} \times \mathcal{Y}$, with $\mathcal{Y} = \{-1, +1\}$, we implement the following greedy algorithm. 
+      \begin{enumerate}
+        \item You first set an $n$-vector weighting your samples, where the weight of the $i$th sample is $W_t (i)$. 
+          \begin{equation}
+            W_1 = \big( \frac{1}{n}, \ldots, \frac{1}{n} \big)
+          \end{equation}
+
+        \item For $t = 1, \ldots, T$, we do the following. 
+          \begin{enumerate}
+            \item You run your weak learning algorithm, which will return your hypothesis $h_t$ with probability $1 - \delta$ which is slightly better than random. We define its empirical error over the distribution $W_t$ to be 
+              \begin{equation}
+                \epsilon_t = R_{W_t} (h_t) = \mathbb{P}_{x_i \sim W_t} [ h_t (x_i) \neq y_i] = \sum_{i=1}^n W_t (i) \cdot \mathbbm{1}_{h_t (x_i) \neq y_i}
+              \end{equation}
+              This may be done differently by actually sampling $n$ samples from this distribution and then computing proportion of misclassifications. 
+
+            \item This new weak learner provides some information on the new weighted distribution. We would like to weight this weak learner $h_t$ with some scale $\alpha_t$ to determine how important its vote is in the ensemble. We define this weighting to be 
+              \begin{equation}
+                \alpha_t = \frac{1}{2} \ln \bigg( \frac{1 - \epsilon_t}{\epsilon_t} \bigg)
+              \end{equation}
+            Note the following important properties. If $0 < \epsilon_t < 0.5$, then this does indeed mean that $h_t$ is slightly better than random, so it would have a positive weighting. If $\epsilon_t = 0.5$, then it is random so no weighting. Finally, if $0.5 < \epsilon < 1.0$, then it is an extremely poor classifier and we are better off looking at the opposite of its prediction, meaning that $\alpha_t$ will be negative.
+            This is also seen with the facts that as $\epsilon_t \rightarrow 0, 1$, then $\alpha_t \rightarrow +\infty, -\infty$.\footnote{In practice, $\epsilon$ cannot be $0$ or $1$ due to numerical reasons, so a small constant is added to prevent this from happening.} 
+
+            \item Then we set 
+              \begin{equation}
+                W_{t + 1} (i) \propto W_t (i) \, \exp\{ - \alpha_t y_i h_t (x_i) \} = \begin{cases} 
+                  e^{-\alpha_t} & \text{ if } h_t(x_i) = y_i\\  
+                  e^{+\alpha_t} & \text{ if } h_t (x_i) \neq y_i
+                \end{cases}
+              \end{equation}
+              meaning that the new weights go up for incorrect labels and down for correct labels. We show proportional to since it is not normalized, but we can normalize it with the constant $Z_t$. 
+          \end{enumerate}
+
+        \item Your final strong classifier is then 
+          \begin{equation}
+            f(x) = \mathrm{sign} \bigg( \sum_{t=1}^T \alpha_t h_t(x) \bigg)
+          \end{equation}
+          which indeed is a sequential sum of these classifiers. 
+      \end{enumerate}
+    \end{definition}
+
+    In this way, by weighting the incorrect labels higher, I am telling successive weak learner to give me a new weak hypothesis that tells me something new. This makes it so that the actual sequence of learned weak models are important, since the next $h_{t+1}$ tries to fix the errors that the $h_t$ makes. 
+
+    \begin{algo}[AdaBoost Algorithm]
+      The full algorithm for brevity is shown below. 
+      \begin{algorithm}[H]
+        \label{alg:adaboost}
+        \begin{algorithmic}[1]
+          \Require Training data $\{(x_i, y_i)\}_{i=1}^n$ where $x_i \in \mathcal{X}$, $y_i \in \{-1, +1\}$
+          \Require Number of iterations $T$
+          \Require Weak learning algorithm $\mathcal{A}$
+
+          \State Initialize weights $W_1(i) = \frac{1}{n}$ for $i = 1,\ldots,n$
+
+          \For{$t = 1$ to $T$}
+            \State Train weak learner $h_t = \mathcal{A}(\{(x_i, y_i)\}, W_t)$
+            
+            \State Calculate weighted error:
+            \State $\epsilon_t = \sum_{i=1}^n W_t(i) \cdot \mathbbm{1}_{h_t(x_i) \neq y_i}$
+            
+            \If{$\epsilon_t \geq \frac{1}{2}$}
+                \State break
+            \EndIf
+            
+            \State Calculate importance weight:
+            \State $\alpha_t = \frac{1}{2} \ln(\frac{1-\epsilon_t}{\epsilon_t})$
+            
+            \State Update sample weights:
+            \For{$i = 1$ to $n$}
+                \State $W_{t+1}(i) = W_t(i) \cdot \exp(-\alpha_t y_i h_t(x_i))$
+            \EndFor
+            
+            \State Normalize weights:
+            \State $Z_t = \sum_{i=1}^n W_{t+1}(i)$
+            \State $W_{t+1}(i) = \frac{W_{t+1}(i)}{Z_t}$ for all $i$
+          \EndFor
+
+          \State \Return Final classifier $f(x) = \text{sign}\left(\sum_{t=1}^T \alpha_t h_t(x)\right)$
+        \end{algorithmic}
+      \end{algorithm}
+    \end{algo}
+
+    We now actually show that this is a strong learner by showing that the training error goes to $0$. 
+
+    \begin{theorem}[Exponential Decay of Training Error in AdaBoost]
+      Support that $\gamma \leq (1/2) - \epsilon_t$ for all $t$. Then our empirical risk decays exponentially with $T$. 
+      \begin{equation}
+        \hat{R} (h) \leq e^{-2 \gamma^2 T}
+      \end{equation}
+      and hence, the training error goes to $0$ quickly. 
+    \end{theorem}
+    \begin{proof}
+      Can be shown with the lemma. 
+      \begin{equation}
+        Z_t = 2 \sqrt{\epsilon_t (1 - \epsilon_t)}
+      \end{equation}
+    \end{proof}
+
+    Sure, the training error goes to $0$, but what we really care about is the generalization error. It turns out that we can prove things about this, but omitted for now. 
+
+    \begin{example}[AdaBoost with Stumps]
+      We can define our weak learning algorithm to be a decision stump with only 1 split. Doing adaboost gives something similar to a random forest (but not quite since its a bagging algorithm) with great generalization error. 
+    \end{example}
+
+    Surprisingly, Adaboost has a tendency not to overfit, i.e. the variance does not explode. There is a lot of theory that tries to explain why this is the case, such as margin theory. 
+
+    There are a lot of different ways to analyze AdaBoost. For many years, researchers did not think of it as having any connection to gradient descent or loss functions, but it actually does. AdaBoost can be viewed as optimizing the \textbf{exponential loss} 
+    \begin{equation}
+      L(\mathbf{x}, y) = e^{-y f(\mathbf{x})} 
+    \end{equation}
+    so that the full empirical objective function is 
+    \begin{equation}
+      L = \sum_i \exp \bigg( -\frac{1}{2} y_i \, \sum_{t=1}^T \alpha_t f_t (\mathbf{x}_i)\bigg)
+    \end{equation}
+    which must be optimize w.r.t. the weights $\alpha_t$ and the parameters of each weak classifier $f_t$. This stepwise optimization is greedy and sequential, where we add one weak classifier at a time, choosing its parameters and $\alpha_t$ to be optimal w.r.t. $L$ and then never change it again. It turns out that if we actually do keep things constant and solve the optimal parameters, it must be the case that $\alpha_t = \ln \frac{1 - \epsilon_t}{\epsilon_t}$, which is why it is in the algorithm.\footnote{Derivation \href{https://www.cs.toronto.edu/~mbrubake/teaching/C11/Handouts/AdaBoost.pdf}{here}} Furthermore, the exponential loss is an upper-bound on the misclassification loss, so if an exponential loss of $0$ is achieved, then all training points are correctly classified. 
+
+  \subsection{Gradient Boosting}
+
+    Gradient boosting can deal with both regression and classification problems, and so we will present it in full generality. 
+
+    \begin{definition}[Gradient Boosting]
+      Let us have data $\{(x_i, y_i)\} \in \mathcal{X} \times \mathcal{Y}$ and a differentiable loss function 
+      \begin{equation}
+        L(\mathbf{y}, \hat{\mathbf{y}}) = \sum_{i=1}^n L(y_i, \hat{y}_i)
+      \end{equation}
+      with also a \textit{constant} stepsize $\eta$. 
+
+      \begin{enumerate}
+        \item We first initialize the model with a constant value that minimizes the loss. So we have a single leaf as in our decision tree ensemble. 
+          \begin{equation}
+            F_0 = \argmin_\gamma \sum_{i=1}^n L(y_i, \gamma)
+          \end{equation}
+          If we're doing regression with the MSE loss, then $\gamma = \bar{y}$, the average. This is our first predictor, which predicts $F_0 (x) = \gamma$ for all $x$, and so $F_0$ is really just the constant $n$-vector $(\bar{y}, \ldots, \bar{y})$. If we're doing binary classification, we can focus on the logits and initialize $\gamma$ as the log-odds $\log(\frac{C_+}{C_{-}})$
+
+        \item For $t = 1, \ldots, T$, we do the following. 
+          \begin{enumerate}
+            \item We have the predicted values $F_{t-1}(x_i)$ for each sample $x_i$. We compute the negative gradient of the loss function w.r.t. the predicted value.
+              \begin{equation}
+                \mathbf{r}_t = - \frac{\partial L(\mathbf{y}, \hat{\mathbf{y}})}{\partial \hat{\mathbf{y}}} \bigg|_{\hat{y} = F_{t-1} (\mathbf{x})} = - \bigg( \frac{\partial L(y_1, \hat{y}_1)}{\partial \hat{y}_1} \bigg|_{\hat{y}_1 = F_{t-1} (x_1)}, \ldots, \frac{\partial L(y_n, \hat{y}_n)}{\partial y_n} \bigg|_{\hat{y}_n = F_{t-1}(x_n)} \bigg)
+              \end{equation}
+              Note that the vector above is a $n$-vector, and when we use the MSE loss, then the gradient just simplifies to the residual.  
+
+            \item We use our weak learning algorithm to train a weak model $f_t$ on the residual values $\mathbf{r}_t$. 
+
+            \item We update  
+              \begin{equation}
+                F_t = F_{t-1} + \eta \cdot f_t
+              \end{equation}
+          \end{enumerate}
+        \item In the end, we have 
+          \begin{equation}
+            F_t = F_0 + \eta f_1 + \eta f_2 + \ldots + \eta f_T
+          \end{equation}
+          consisting of a bunch of weak learners to make a strong learner. 
+      \end{enumerate}
+    \end{definition}
+
+    In a way, we can think of this as an optimization problem in $\mathbb{R}^n$ (not $\mathbb{R}^d$!). We can think of $\hat{\mathbf{y}}$ representing the actual function $f$, and we're really doing gradient descent on the ``function space'' $\mathbb{R}^n$ by updating $F_t$. 
+
+    \begin{algo}[Gradient Boosting]
+      Here is the full algorithm for brevity. 
+      \begin{algorithm}[H]
+        \label{alg:gradboost}
+        \begin{algorithmic}[1]
+          \Require Training data $\{(x_i, y_i)\}_{i=1}^n$ where $x_i \in \mathcal{X}$, $y_i \in \mathcal{Y}$
+          \Require Differentiable loss function $L(y, \hat{y})$
+          \Require Number of iterations $T$
+          \Require Learning rate $\eta$
+          \Require Weak learning algorithm $\mathcal{A}$
+
+          \State // Initialize model with optimal constant value
+          \State $F_0 = \argmin_\gamma \sum_{i=1}^n L(y_i, \gamma)$
+          \State // For regression (MSE): $F_0 = \frac{1}{n}\sum_{i=1}^n y_i$
+          \State // For binary classification: $F_0 = \log(\frac{C_+}{C_-})$
+
+          \For{$t = 1$ to $T$}
+              \State // Compute negative gradient vector
+              \For{$i = 1$ to $n$}
+                  \State $r_{t,i} = -\frac{\partial L(y_i, \hat{y}_i)}{\partial \hat{y}_i}\big|_{\hat{y}_i = F_{t-1}(x_i)}$
+              \EndFor
+              
+              \State // Train weak learner on pseudo-residuals
+              \State $f_t = \mathcal{A}(\{(x_i, r_{t,i})\}_{i=1}^n)$
+              
+              \State // Update model with scaled weak learner
+              \For{$i = 1$ to $n$}
+                  \State $F_t(x_i) = F_{t-1}(x_i) + \eta \cdot f_t(x_i)$
+              \EndFor
+          \EndFor
+
+          \State \Return Final model $F_T(x) = F_0(x) + \eta \sum_{t=1}^T f_t(x)$
+
+          \State // Special cases for common loss functions:
+          \State // For MSE: $r_{t,i} = y_i - F_{t-1}(x_i)$ (actual residual)
+          \State // For LogLoss: $r_{t,i} = y_i - \sigma(F_{t-1}(x_i))$ where $\sigma$ is sigmoid
+        \end{algorithmic}
+      \end{algorithm}
+    \end{algo}
+
+    \begin{example}[Regression Trees]
+      If we have regression trees as our weak learners (pratically the max depth is 8 to 32 rather than stumps) with the L2 loss function.  
+      \begin{enumerate}
+        \item The initial model will just constantly predict the average of the $y_i$'s. 
+        \item The $r_t$ are just the pseudoresiduals
+          \begin{equation}
+            r_t = -\big( y_1 - f_{t-1} (x_1), \ldots, y_n - f_{t-1} (x_n) \big)
+          \end{equation}
+        \item In case where there are multiple samples running to the same leaf node, the predicted values of the terminal nodes are the average of the $y$'s of those samples. 
+      \end{enumerate}
+    \end{example}
+
+    \begin{example}[Gradient Boosting Classification] 
+      If we have classification trees as our weak learners, then 
+      \begin{enumerate}
+        \item The initial model will just constantly predict the log odds $\log(C_{+} / C_{-})$, where $C_{\pm}$ is the number of ones and zeros in the whole dataset. For multiclass there is probably a softmax variant of this. 
+        \item In case where there are multiple samples running to the same leaf node, the predicted values of the terminal nodes are decided by majority. 
+      \end{enumerate}
+    \end{example}
+
+    The general ideas are pretty much the same between AdaBoost and gradient boost. We iteratively build a strong learner from weak learners. A few differences, however, 
+    \begin{enumerate}
+      \item AdaBoost dynamically weighs the importance of each weak model, while gradient boost weak learners are equally weighted by $\eta$. 
+      \item AdaBoost actively focuses on the samples where the previous weak learner got wrong, but gradient boost reduces the whole loss in general. 
+      \item Gradient boost usually uses trees larger than stumps. 
+    \end{enumerate}
+
+  \subsection{XGBoost} 
+
+    The final mainstream boosting algorithm is XGBoost. In regression, XGBoost fits to the residuals just like gradient boosting, but it uses unique regression trees. It is designed for large, complex datasets. 
+
+    \begin{definition}[XGBoost for Regression] 
+      Let us have the same data $\{(x_i, y_i)\} \in \mathcal{X} \times \mathcal{Y}$ and the MSE loss 
+      \begin{equation}
+        L(\mathbf{y}, \hat{\mathbf{y}}) = \frac{1}{2} \sum_{i=1}^n (y_i - \hat{y}_i)^2
+      \end{equation}
+      with a constant stepsize $\varepsilon$ (by default $3$). 
+
+      \begin{enumerate}
+        \item We first initialize the model with a constant value that minimizes the loss, which is just the average. So we have a single leaf as in our decision tree ensemble. 
+          \begin{equation}
+            F_0 = \bar{y}
+          \end{equation}
+
+        \item For $t = 1, \ldots, T$, we do the following. 
+          \begin{enumerate}
+            \item We have the predicted values $F_{t-1}(x_i)$ for each sample. We first compute the residuals, denoted $\mathbf{r}_0$. To build our next tree, we start off with a single node ``containing'' this set of residuals representing each data point. 
+
+            \item We want to grow the decision tree, and we do this by splitting on the maximum gain in \textit{similarity score}, defined for a collection of residuals $\mathbf{r}$ to be 
+            \begin{equation}
+              s(\mathbf{r}) = \frac{\sum r_i}{\mathrm{dim}(\mathbf{r}) + \lambda}
+            \end{equation}
+            This score determines how well the set is clustered, and we would like well clustered residuals to be close together.$\lambda$ is a regularization parameter used to decrease the score's sensitivity when splitting. Therefore, we first compute the score for the root node, and let us define the score of a tree as the sum of the scores of all its leaves. We want to split greedily on this metric. We can keep on splitting until it reaches a certain number of levels (6), and then we can prune it based on whether the increase in score surpasses a threshold, called the \textit{gain}. Note that as $\lambda$ increases, it is easier to prune the tree. 
+
+            \item With our trained tree $f_t$, we add it to our cluster to iteratively build our final predictor. 
+              \begin{equation}
+                F_t = F_{t-1} + \varepsilon \cdot f_t
+              \end{equation}
+
+          \end{enumerate}
+      \end{enumerate}
+    \end{definition}
 
 
 
