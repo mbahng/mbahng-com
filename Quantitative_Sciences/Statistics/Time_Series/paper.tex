@@ -7,6 +7,7 @@
     \usepackage[english]{babel}
     \usepackage{amsmath} 
     \usepackage{amssymb}
+    % \usepackage{amsthm}
 
     % extra math symbols and utilities
     \usepackage{mathtools}        % for extra stuff like \coloneqq
@@ -15,7 +16,6 @@
     \usepackage{bm}               % for better boldsymbol/mathbf 
     \usepackage{enumitem}         % better control over enumerate, itemize
     \usepackage{hyperref}         % for hypertext linking
-    \usepackage{xr-hyper}
     \usepackage{fancyvrb}          % for better verbatim environments
     \usepackage{newverbs}         % for texttt{}
     \usepackage{xcolor}           % for colored text 
@@ -47,7 +47,6 @@
     \usetikzlibrary{positioning}
     \usetikzlibrary{calc}
     \usepackage{graphicx}
-    \usepackage{algorithmic}
     \usepackage{caption} 
     \usepackage{subcaption}
     \captionsetup{font=small}
@@ -62,6 +61,7 @@
   % New and replaced operators
     \DeclareMathOperator{\Tr}{Tr}
     \DeclareMathOperator{\Sym}{Sym}
+    \DeclareMathOperator{\ARMA}{ARMA}
     \DeclareMathOperator{\Span}{span}
     \DeclareMathOperator{\std}{std}
     \DeclareMathOperator{\Cov}{Cov}
@@ -165,27 +165,40 @@
       breakable, 
       title = \textbf{Code \thetcbcounter ~(#1)}
     } 
-    \newtcolorbox[auto counter, number within=section]{algo}[1][]
-    {
-      colframe = green!25,
-      colback  = green!10,
-      coltitle = green!20!black,  
-      breakable, 
-      title = \textbf{Algorithm \thetcbcounter ~(#1)}
-    } 
+
+    \BeforeBeginEnvironment{example}{\savenotes}
+    \AfterEndEnvironment{example}{\spewnotes}
+    \BeforeBeginEnvironment{lemma}{\savenotes}
+    \AfterEndEnvironment{lemma}{\spewnotes}
+    \BeforeBeginEnvironment{theorem}{\savenotes}
+    \AfterEndEnvironment{theorem}{\spewnotes}
+    \BeforeBeginEnvironment{corollary}{\savenotes}
+    \AfterEndEnvironment{corollary}{\spewnotes}
+    \BeforeBeginEnvironment{proposition}{\savenotes}
+    \AfterEndEnvironment{proposition}{\spewnotes}
+    \BeforeBeginEnvironment{definition}{\savenotes}
+    \AfterEndEnvironment{definition}{\spewnotes}
+    \BeforeBeginEnvironment{exercise}{\savenotes}
+    \AfterEndEnvironment{exercise}{\spewnotes}
+    \BeforeBeginEnvironment{proof}{\savenotes}
+    \AfterEndEnvironment{proof}{\spewnotes}
+    \BeforeBeginEnvironment{solution}{\savenotes}
+    \AfterEndEnvironment{solution}{\spewnotes}
+    \BeforeBeginEnvironment{question}{\savenotes}
+    \AfterEndEnvironment{question}{\spewnotes}
+    \BeforeBeginEnvironment{code}{\savenotes}
+    \AfterEndEnvironment{code}{\spewnotes}
 
     \definecolor{dkgreen}{rgb}{0,0.6,0}
     \definecolor{gray}{rgb}{0.5,0.5,0.5}
     \definecolor{mauve}{rgb}{0.58,0,0.82}
-    \definecolor{darkblue}{rgb}{0,0,139}
     \definecolor{lightgray}{gray}{0.93}
-    \renewcommand{\algorithmiccomment}[1]{\hfill$\triangleright$\textcolor{blue}{#1}}
 
     % default options for listings (for code)
     \lstset{
       autogobble,
       frame=ltbr,
-      language=Python,
+      language=C,                           % the language of the code
       aboveskip=3mm,
       belowskip=3mm,
       showstringspaces=false,
@@ -209,15 +222,12 @@
 
   % Page style
     \pagestyle{fancy}
-    \fancyhead[L]{Time Series}
+    \fancyhead[L]{Frequentist Statistics}
     \fancyhead[C]{Muchang Bahng}
-    \fancyhead[R]{Spring 2025} 
+    \fancyhead[R]{December 2022} 
     \fancyfoot[C]{\thepage / \pageref{LastPage}}
     \renewcommand{\footrulewidth}{0.4pt}          % the footer line should be 0.4pt wide
     \renewcommand{\thispagestyle}[1]{}  % needed to include headers in title page
-
-  % external documents 
-  %  \externaldocument[place-]{../Machine_Learning/paper}[../Machine_Learning/paper.pdf] 
 
 \begin{document}
 
@@ -229,6 +239,517 @@
 \tableofcontents
 \pagebreak
 
+\section{Time Series Analysis}
+
+    If we try sticking to linear algebra, we hope to model time series of the form 
+    \begin{equation}
+      X_t = f(t) + w_t
+    \end{equation}
+    so that we can decompose to a deterministic process followed by some white noise. There are several ways to approach this, including kernel smoothing, moving average smoothing, or cubic spline smoothing. However, this falls short when you look the residuals. They will follow some pattern that must be removed due to autocorrelation. 
+
+    In linear regression, one of the fundamental assumptions was  independence of errors. Ideally, we would also like independence of features, but this is usually not true (in fact, in extreme cases, multicollinearity can screw us up). The relaxation of these assumptions helps us transition from linear regression to time series analysis. Let's go over some basic things with new terms. 
+
+    \begin{definition}[Time Series]
+      A stochastic process 
+      \begin{equation}
+        \{X_1, \ldots, X_t, \ldots \}
+      \end{equation}
+      of random variables indexed by time $t$ is a \textbf{time series}. The stochastic behavior of $\{X_t\}$ is determined by specifying the PDF/PMF 
+      \begin{equation}
+        p(x_{t_1}, \ldots, x_{t_m}) 
+      \end{equation}
+      for all finite collections of time indices 
+      \begin{equation}
+        \{(t_1, \ldots, t_m), m < \infty \}
+      \end{equation}
+      i.e. all finite-dimensional distributions of $X_t$. 
+    \end{definition}
+
+    \begin{definition}[White Noise]
+      \textbf{White noise} $w_t$ is a random variable indexed by time $t$ satisfying 
+      \begin{enumerate}
+        \item $\mathbb{E}[w_t] = 0$
+        \item $\Var[w_t] = \sigma^2$
+        \item $\Cov[w_t, w_s] = 0$ for $s \neq t$. That is, they are uncorrelated but not necessarily independent. 
+      \end{enumerate}
+      Note that this third condition can be strengthened to independence or uncorrelated Gaussians, which automatically imply independence. 
+    \end{definition}
+
+  \subsection{Properties of Processes}
+
+    Now let's define some properties. We will start with the time series analogue of covariance and correlation. 
+
+    \begin{definition}[Autocovariance]
+      The \textbf{autocovariance} between two time steps $t, s$ of process $\{X_t\}$ is defined 
+      \begin{equation}
+        K_X (s, t) = \Cov(X_t, X_s)
+      \end{equation}
+    \end{definition}
+
+    \begin{definition}[Autocorrelation]
+      The \textbf{autocorrelation} is 
+      \begin{equation}
+        \rho_X (s, t) = \frac{K_X (s, t)}{\sqrt{K_X (s, s) \, K_X (t, t)}}
+      \end{equation}
+    \end{definition}
+
+    \begin{definition}[Cross Covariance]
+      Given two stochastic processes $\{X_t\}, \{Y_t\}$, the \textbf{cross covariance} is 
+      \begin{equation}
+        K_{XY} (t, s) = \Cov(X_t, Y_s)
+      \end{equation}
+      and the \textbf{cross correlation} is 
+      \begin{equation}
+        \rho_{XY} (t, s) = \frac{K_{XY}(t, s)}{K_X (t, s) \, K_Y(s, s)}
+      \end{equation}
+
+      It is used to model the correlations between two related products with a certain time lag perhaps.  
+    \end{definition}
+
+    \begin{definition}[Stationarity]
+      There are two types of stationarity. 
+      \begin{enumerate}
+        \item A \textbf{weakly stationary} or \textbf{covariance stationary} process means that its mean and autocovariance are invariant to time shifts. That is, for all $r$, 
+          \begin{align}
+            \mathbb{E}[X_t] & = \mathbb{E}[X_{t+r}] = \mu \\
+            \Var[X_t] & = \Var[X_{t+r}] = \sigma_X^2 \\
+            K_X (t, s) & = K_X (t + r, s + r) \\
+          \end{align}
+
+        \item A \textbf{strongly stationary} process means that any joint distribution function of a finite set of time steps is invariant to time shifts. That is, for any $r > 0$ and  finite collection of time points $t_1, \ldots, t_k$, 
+          \begin{equation}
+            F(X_{t_1}, \ldots, X_{t_k}) = F(X_{t_1 + r}, \ldots, X_{t_k + r})
+          \end{equation}
+          where $F$ is the joint pdf and equality means almost everywhere equality. 
+      \end{enumerate}
+      Clearly, weakly stationary implies strongly stationary, and the difference is that weakly stationary has invariance in the first two moments while strongly stationary holds for all moments. 
+    \end{definition}
+
+    \begin{theorem}
+      It immediately follows that for a stationary process $X_t$, the autocovariance function can be defined 
+      \begin{equation}
+        K_X (s, t) = K_X(s - t, 0) = K_X (\tau)
+      \end{equation}
+      for some difference between the time points, called the lag. From this, we can see that $\Var[X_t] = K_X (0)$, so the autocorrelation can be defined as 
+      \begin{equation}
+        \rho_X(\tau) = \frac{K_X (\tau)}{K_X (0)}
+      \end{equation}
+    \end{theorem}
+
+    Stationary time series are very desirable, since if we do parameter estimation, we don't want to estimate parameters that are always changing. For example, in stationary processes, we know that the mean never changes, so we have a bunch of sample points to choose from, and if every wasn't stationary, then every $X_t$ would have its own mean and we won't be able to estimate it. Similarly, we also know that for some fixed $\tau$, the autocorrelation does not change, so we can estimate $K_X (\tau)$ with a bunch of fixed intervals of length $\tau$. Therefore, if we want to test for stationary of a fixed time process, we want to conduct a test where we want to find whether the autocovariance is relatively invariant. This gives us a bit of intuition. 
+
+    \begin{theorem}
+      Note the following properties. 
+      \begin{enumerate}
+        \item $K_X (\tau) = K_X (- \tau)$ 
+        \item By Cauchy-Schwartz, $K_X (0)^2 = \Var[X_t] \Var[X_{t+r}] \geq \Cov(X_t, X_{t+r}) = K_X (r)^2$, so $|K_X (\tau)| \leq K_X (0)$. 
+      \end{enumerate}
+    \end{theorem}
+
+    Therefore, we would like to decompose a general time series to a stationary component and a nonstationary simple component, and do some statistics on the stationary one. 
+
+    \begin{definition}[Joint Stationarity]
+      Two processes $X_t, Y_t$, are said to be jointly stationary if both are individually stationary and also if the cross covariance function is also stationary. That is, for all $r$, 
+      \begin{equation}
+        K_{XY} (t, s) = K_{XY}(t + r, s + r)
+      \end{equation}
+    \end{definition}
+
+    \begin{definition}[Backshift Operator]
+      The backshift operator $B$ acts on time series by 
+      \begin{equation}
+        B X_t = X_{t-1}
+      \end{equation}
+      It can be iterated to get $B^k X_t = X_{t-k}$ and can also be inverted to get a forward shift $B^{-k} X_t  = X_{t+k}$. We can just think of this as (not necessarily linear?) operators between the function space of $X$-measurable functions. 
+    \end{definition}
+
+    \subsubsection{Estimation}
+
+      We should now try to estimate some parameters of a weakly stationary process. 
+
+      \begin{theorem}[Sampling Distribution of Mean]
+        We can already estimate the mean. We should get the mean of the mean and the variance of the mean. 
+        \begin{enumerate}
+          \item The mean is trivial, since by linearity of expectation we can get 
+            \begin{equation}
+              \hat{\mu} = \bar{X} = \frac{1}{T} \sum_{t=1}^T X_t
+            \end{equation}
+
+          \item The variance is a bit more involved since there are covariance terms, so 
+            \begin{align}
+              \Var[\bar{X}] & = \Var \bigg( \frac{1}{T} \sum_{t=1}^T X_t \bigg) \\
+                            & = \frac{1}{T^2} \sum_{t=1}^T \sum_{s=1}^T \Cov(X_t, X_s) \\
+                            & = \frac{1}{T^2} \sum_{t=1}^T \sum_{s=1}^T K_X (|t - s|) \\
+                            & = \frac{1}{T} K_X (0) + \frac{2}{T} \sum_{z=1}^{T-1} \Big(1 - \frac{z}{T} \Big) K_X (z)
+            \end{align} 
+            In the unrealistic situation where the $X_t$'s are uncorrelated, we have $K_X (0) = \sigma^2$ and $K_X (z) = 0$ for all $z > 0$, leaving us with $\sigma^2 / T$. 
+        \end{enumerate}
+      \end{theorem}
+
+      \begin{theorem}[Sampling Distribution of Autocovariance]
+        To estimate the autocovariance of a weakly stationary process, we can define the sample autocovariance function to be
+        \begin{equation}
+          \hat{K}_X (h) = \frac{1}{T} \sum_{t=1}^{T-h} (X_{t+h} - \bar{X}) (X_t - \bar{X})
+        \end{equation}
+        Note that we divide by $T$ rather than $T - h$ so that this covariance is positive semidefinite. Note that as $h$ gets bigger, the number of terms in the sum decreases giving less accurate estimation. Similarly, the sample autocorrelation function is 
+        \begin{equation}
+          \hat{\rho} (h) = \frac{\hat{K}_X (h)}{\hat{K}_X (0)}
+        \end{equation}
+      \end{theorem}
+
+      The sample cross covariance and cross correlation are 
+      \begin{equation}
+        \hat{K}_{XY} (h) = \frac{1}{T} \sum_{t=1}^{T-h} (X_{t+h} - \bar{X}) (Y_{t} - \bar{Y}) \text{ and } \hat{\rho}_{XY} (h) = \frac{\hat{K}_{XY}(h)}{\sqrt{\hat{K}_X (0) \, \hat{K}_Y (0)}}
+      \end{equation}
+
+      Note that even though we can just plug these formulas and get the sample estimators for any time series, these don't mean anything if they are not stationary. 
+
+    \subsubsection{Detecting White Noise}
+
+      Ultimately, the main goal of time series analysis is to transform the data into a white noise process. We want to first identify trends and patterns in the process, remove them, and hopefully get white noise. To actually detect if we have white noise, one way to do this is to look at the estimated autocorrelation function across $h$. Note that for white noise, we have a spike at $h = 0$ to be $1$ (since it is just the correlation of a variable with itself), and then it drops to $0$ immediately (since by definition, $w_s, w_t$ are uncorrelated). We would like to see this behavior within a certain confidence interval. 
+
+  \subsection{Autoregressive (AR) Processes}
+
+    The assumptions are: 
+    \begin{enumerate}
+      \item the data must be stationary (though it is not always stationary as it may contain a unit root)
+      \item the relationship between the variables and their lagged values must be linear (nonlinear gives large language models like LSTMs)
+      \item the error term should be white noise
+    \end{enumerate}
+
+    \begin{definition}[Autoregressive Process]
+      An \textbf{AR(p)} process encodes causality\footnote{on how a random variable $Y$ is \textit{caused} by another RV $X$.} into the white noise process. It is a stochastic process with mean $0$ and of the form 
+      \begin{equation}
+        X_t = w_t + \sum_{i=1}^p \phi_i X_{t - i}
+      \end{equation}
+      where $p$ is the hyperparameter of steps to look back, $w_t$ is white noise with variance $\sigma^2$, and $\phi_i$ are constants $\neq 0$. Using the backshift operator $B$, we can write the AR(p) process as 
+      \begin{equation}
+        \Phi(B) X_t = w_t
+      \end{equation}
+      where 
+      \begin{equation}
+        \Phi(B) = \bigg( 1 - \sum_{i=1}^p \phi_i B^i \bigg)
+      \end{equation}
+    \end{definition}
+
+    In fact, we have already seen this process many times. 
+    
+    \begin{example}[AR(p) Processes]
+      Consider the following. 
+      \begin{enumerate}
+        \item AR(O) is simply a white noise process 
+          \begin{equation}
+            X_t = w_t
+          \end{equation}
+        \item AR(1) with $\theta = 1$ gives us the formula 
+          \begin{equation}
+            X_t = X_{t-1} + w_t
+          \end{equation}
+          which is a random walk. It is also a Markov process and a martingale. 
+        \item AR(1) of the form 
+          \begin{equation}
+            X_t = a + X_{t-1} + w_t
+          \end{equation}
+          is a random walk with drift. 
+        \item AR(2) can be of form 
+          \begin{equation}
+            X_t = X_{t-1} - 0.2 X_{t-2} + w_t
+          \end{equation}
+        \item AR(3) can be of form 
+          \begin{equation}
+            X_t = X_{t-1} - 0.2 X_{t-2} + 0.13 X_{t-3} + w_t
+          \end{equation}
+      \end{enumerate}
+      Occasionally, it may be hard to determine the difference between the difference of AR(p) processes. 
+    \end{example}
+
+    \begin{example}[AR(1) Processes]
+      Let's focus on the AR(1) process. Later on in linear processes, we see that the AR(1) process has a causal representation as a linear process. 
+      \begin{equation}
+        X_t = \phi_1 X_{t-1} + w_t = \sum_{i=0}^\infty \phi_1^i w_{t-i}
+      \end{equation}
+      This is stationary under certain conditions. 
+      \begin{enumerate}
+        \item If $\phi < 1$, then the series is stationary. 
+        \item If $\phi = 1$, this is a random walk which is not stationary. 
+        \item If $\phi > 1$, then this process grows exponentially fast. 
+      \end{enumerate}
+    \end{example}
+
+    Now to determine weak stationarity, let's go back to the equation. Talk about unit root test. 
+
+    \begin{definition}[Augmented Dicky-Fuller Test]
+      The Augmented Dickey-Fuller (ADF) test is a statistical test used to determine whether a time series is stationary or not. Here's a step-by-step explanation of how the ADF test is typically implemented:
+
+      \begin{enumerate}
+        \item \textbf{Model Specification}. The ADF test is based on an autoregressive model. The general form is:
+        
+        \begin{equation}
+        \Delta Y_t = \alpha + \beta t + \gamma Y_{t-1} + \delta_1 \Delta Y_{t-1} + \cdots + \delta_{p-1} \Delta Y_{t-p+1} + \varepsilon_t
+        \end{equation}
+        
+        Where:
+        \begin{itemize}
+            \item $\Delta Y_t$ is the first difference of the series at time $t$
+            \item $\alpha$ is the constant term
+            \item $\beta t$ is the time trend term
+            \item $\gamma$ and $\delta$ are coefficients
+            \item $\varepsilon_t$ is the error term
+            \item $p$ is the lag order
+        \end{itemize}
+
+        \item \textbf{Determine the lag order ($p$):}
+        \begin{itemize}
+            \item This can be done using information criteria like AIC or BIC
+            \item Or by starting with a maximum lag and testing down
+        \end{itemize}
+
+        \item \textbf{Estimate the model:}
+
+        \begin{equation}
+        \Delta X_t = \alpha + \beta t + \gamma X_{t-1} + \sum_{i=1}^{p-1} \delta_i \Delta X_{t-i} + \varepsilon_t
+        \end{equation}
+
+        Where $\Delta X_t = X_t - X_{t-1}$ is the first difference of the series. To apply OLS, we rewrite this in matrix form:
+
+        \begin{equation}
+        Y = X\beta + \varepsilon
+        \end{equation}
+
+        Where:
+        \begin{itemize}
+            \item $Y$ is an $(n-p) \times 1$ vector of $\Delta X_t$ values
+            \item $X$ is an $(n-p) \times (p+2)$ matrix of explanatory variables
+            \item $\beta$ is a $(p+2) \times 1$ vector of coefficients $(\alpha, \beta, \gamma, \delta_1, \ldots, \delta_{p-1})$
+            \item $\varepsilon$ is an $(n-p) \times 1$ vector of error terms
+            \item $n$ is the number of observations
+            \item $p$ is the lag order
+        \end{itemize}
+
+        The OLS estimator for $\beta$ is given by:
+
+        \begin{equation}
+        \hat{\beta} = (X'X)^{-1}X'Y
+        \end{equation}
+
+        This estimator minimizes the sum of squared residuals:
+
+        \begin{equation}
+        \sum_{t=p+1}^n \varepsilon_t^2 = (Y - X\beta)'(Y - X\beta)
+        \end{equation}
+        \begin{itemize}
+            \item Use Ordinary Least Squares (OLS) to estimate the coefficients of the model
+        \end{itemize}
+
+        \item \textbf{Calculate the test statistic:}
+        \begin{itemize}
+            \item The test statistic is the t-statistic for $\gamma$:
+            \begin{equation}
+            t = \frac{\hat{\gamma} - 0}{SE(\hat{\gamma})}
+            \end{equation}
+            Where $\hat{\gamma}$ is the estimated coefficient and $SE(\hat{\gamma})$ is its standard error
+        \end{itemize}
+
+        \item \textbf{Determine the critical values:}
+        \begin{itemize}
+            \item These depend on the sample size and the model specification (whether it includes a constant and/or trend)
+            \item They're typically obtained from statistical tables or through simulation
+        \end{itemize}
+
+        \item \textbf{Compare the test statistic to the critical values:}
+        \begin{itemize}
+            \item If the test statistic is less than (more negative than) the critical value, reject the null hypothesis
+            \item The null hypothesis is that the series has a unit root (is non-stationary)
+        \end{itemize}
+
+        \item \textbf{Interpret the results:}
+        \begin{itemize}
+            \item If we reject the null, we conclude the series is stationary
+            \item If we fail to reject the null, we cannot conclude the series is stationary
+        \end{itemize}
+      \end{enumerate} 
+    \end{definition}
+
+    Once this is settled, our job is now to estimate the parameters. We can use MLE. 
+    
+  \subsection{Moving Average (MA) Processes}
+
+    The key assumptions are: 
+    \begin{enumerate}
+      \item The random shocks are white noise, mutually independent and coming from the same distribution with mean $0$ and constant variance. 
+    \end{enumerate}
+
+    \begin{definition}[Moving Average Process]
+      The \textbf{MA(q)} process is a smoother type of noise than the white noise process. It is expressed by the formula 
+      \begin{equation}
+        X_t = \sum_{j=1}^q \phi_j w_{t-j} + w_t
+      \end{equation}
+      for $\phi_j \in \mathbb{R}$. Compared to the AR formula, the MA formula averages over the noise terms $w_t$. It focuses on the ripples of the process; if there is a shock to the process $w_{t-1}$, then that shock is still felt at time $t$ by the term $\phi_1 t_{t-1}$. 
+
+      Alternatively, the MA model can be written as an overall average of both the past and future white noise. 
+      \begin{equation}
+        X_t = \sum_{j=-q/2}^{q/2} \phi_j w_{t +j}
+      \end{equation}
+    \end{definition}
+
+    \begin{theorem}
+      A nice property of MA(q) is that autocovariance vanishes beyond a certain point. More specifically, it decays \textit{linearly} and vanishes after $q$ steps behind. 
+    \end{theorem}
+
+  \subsection{Linear Processes}
+
+    Many time series fall under the category of linear processes. 
+
+    \begin{definition}[Linear Processes]
+      A \textbf{linear process} is defined as 
+      \begin{equation}
+        X_t = \mu + \sum_{j=-\infty}^{+\infty} \theta_j w_{t-j}
+      \end{equation}
+      which means that every $X_t$ is a linear combination of the terms in the white noise process with some mean $\mu$ added on. To ensure that this series doesn't blow up, we add the constraint that 
+      \begin{equation}
+        \sum_{j} \theta_j^2 < \infty
+      \end{equation}
+      However, since we are more interested in causal inference, to use the past to predict the future, we use the form 
+      \begin{equation}
+        X_t = \mu + \sum_{j=0}^{\infty} \theta_j w_{t-j}
+      \end{equation}
+    \end{definition}
+
+    In fact, some AR processes are linear processes. 
+
+    \begin{example}[AR(1) as a Linear Process]
+      Note that AR(1) has a causal representation as a linear process. We can use the formula $X_t = \theta X_{t-1} + w_t$ and recursively define 
+      \begin{equation}
+        X_t = \theta(\theta X_{t-2} + w_{t-1}) + w_t = \ldots = \sum_{j=0}^\infty \theta^j w_{t-j}
+      \end{equation}
+      Going back to analysis, infinite series are just limits. 
+      \begin{equation}
+        \lim_{N \rightarrow \infty} \sum_{j=0}^N \theta^j w_{t-j} 
+      \end{equation}
+      So this sum may not converge. Letting $S_N (\theta)$ be defined as above, we can compute that 
+      \begin{equation}
+        \mathbb{E}[ S_N (\theta)] = 0 \text{ and } \Var[S_N] = \sigma^2 \sum_{j=0}^N \theta^{2j} = \sigma^2 \bigg( \frac{1 - \theta^{2N + 2}}{1 - \theta^2}\bigg)
+      \end{equation}
+      Thus, if $|\theta| < 1$, then $\Var[S_N (\theta)] \rightarrow \sigma^2 / (1 - \theta^2)$, and if $w_t$ is Gaussian noise, then 
+      \begin{equation}
+        S_N (\theta) \xrightarrow{d} \mathcal{N} \big( 0, \sigma^2 / (1 - \theta^2) \big)
+      \end{equation}
+      If $|\theta| = 1$, the series does not converge and is not stationary, and if $|\theta| > 1$, then the random talk will grow exponentially fast. 
+    \end{example}
+
+  \subsection{ARMA}
+
+    We can combine both the AR and MA processes to make a more sophisticated model. 
+
+    \begin{definition}[ARMA]
+      The time series $X_t$ is an $\ARMA(p, q)$ process if $X_t$ has $0$-mean and if we can write it as 
+      \begin{equation}
+        X_t = w_t + \sum_{i=1}^p \phi_i X_{t-i} + \sum_{j=1}^q \theta_j w_{t-j}
+      \end{equation}
+      where $w_t$ is white noise with variance $\sigma^2$ and $\boldsymbol{\phi}, \boldsymbol{\theta}$ do not have any zero elements. Using the backshift operator, we can write it as 
+      \begin{equation}
+        \Phi(B) X_t = \Theta(B) w_t
+      \end{equation}
+      where 
+      \begin{equation}
+        \Phi(B) = \bigg( 1 + \sum_{i=1}^p \phi_i B^i \bigg) \text{ and } \Theta(B) = \bigg( 1 + \sum_{j=1}^q \theta_j B^j \bigg)
+      \end{equation}
+    \end{definition}
+
+  \subsection{ARIMA}
+
+  \subsection{Other}
+
+    \begin{theorem}[Wold Representation Theorem]
+      Any $0$-mean covariance stationary time series $\{X_t\}$ can be decomposed into two time series 
+      \begin{equation}
+        X_t = V_t + S_t
+      \end{equation}
+      where 
+      \begin{enumerate}
+        \item $V_t$ is a linear combination of past variables of $V_t$ with constant coefficients. 
+        \item $S_t = \sum_{i=0}^\infty \psi_i \eta_{t-i}$ is an infinite moving average process of error terms, where 
+          \begin{enumerate}
+            \item $\psi_0 = 1$, $\sum_{i=0}^\infty \psi_i^2 < \infty$. 
+            \item $\{\eta_t\}$ is linearly unpredictable white noise, i.e. 
+              \begin{align}
+                \mathbb{E}[\eta_t] & = 0 \\
+                \mathbb{E}[\eta_t^2] & = \sigma^2 \\
+                \mathbb{E}[\eta_t \eta_s] & = 0 \text{ for } s \neq t 
+              \end{align}
+              and $\eta_t$ is uncorrelated with $\{V_t\}$.  
+              \begin{equation}
+                \mathbb{E}[\eta_t V_s] = 0 \text{ for all } t, s
+              \end{equation}
+          \end{enumerate}
+      \end{enumerate}
+    \end{theorem}
+
+    \begin{example}[Construction on Dataset]
+      Say that we have data $\{X_t\}_{t=1}^T$ that we want to model and we have evidence that it is covariance stationary. We can do the following. 
+      \begin{enumerate}
+        \item Initialize a parameter $p$, the number of parameters in the linearly deterministic term of the Wold decomposition of $\{X_t\}$. 
+        \item By assumption we would like to estimate the linear projection of $X_t$ on $(X_{t-1}, X_{t-2}, \ldots, X_{t-p})$. 
+      \end{enumerate}
+      Therefore, let us index the $n$ subseries of length $p+1$ by $y$ and we can write the OLS equation 
+      \begin{equation}
+        \mathbf{y} = \begin{bmatrix} y_1 \\ \vdots \\ y_n \end{bmatrix}, \;\;\; \mathbf{Z} = \begin{bmatrix} 
+          1 & y_0 & y_{-1} & \ldots & y_{-(p-1)} \\
+          1 & y_1 & y_{0} & \ldots & y_{-(p-2)} \\
+          \vdots & \vdots & \vdots & \ddots & \vdots \\ 
+          1 & y_{n-1} & y_{n-2} & \ldots & y_{n-p}
+        \end{bmatrix}
+      \end{equation}
+      and we apply OLS to the problem $\mathbf{y} = \mathbf{Z} \boldsymbol{\beta}$ to give 
+      \begin{align}
+        \hat{\mathbf{y}} & = \mathbf{Z} (\mathbf{Z}^T \mathbf{Z})^{-1} \mathbf{Z} \mathbf{y} \\
+                         & = \hat{P}(Y_t \mid Y_{t-1}, \ldots, Y_{t-p}) \\
+                         & = \hat{\mathbf{y}}^{(p)}
+      \end{align}
+      We can compute the projection residuals 
+      \begin{equation}
+        \boldsymbol{\epsilon}^{(p)} = \mathbf{y} - \hat{\mathbf{y}}^{(p)}
+      \end{equation}
+      and apply time series analysis to the sequence $\boldsymbol{\epsilon}^{(p)} = \{ \epsilon^{(p)}_t \}$ to specify a moving average model. 
+      \begin{equation}
+        \epsilon^{(p)}_t = \sum_{i=0}^\infty \psi_i \eta_{t-i}
+      \end{equation}
+      yielding $\{\hat{\psi}_j\}$ and $\{\hat{\eta}_t \}$ estimates of parameters and innovations. We then check these estimates and see if they are consistent with the model assumptions. If not, we can add additional legs or modify $p$. 
+    \end{example}
+
+    Theoretically, as we increase $p$, the projection of $Y_t$ over the past $p$th history should approach the true linear projection $Y_t$ over the whole history. 
+    \begin{equation}
+      \lim_{p \rightarrow \infty} \hat{\mathbf{p}}^{(p)} = \hat{\mathbf{y}}
+    \end{equation}
+    But if $p$ is too large compared to $n$, you run out of freedom to estimate your models. You generally want to have more data than the number of parameters. 
+
+    \begin{definition}[Lag Operator]
+      The \textbf{lag operator} $L^k$ simply maps 
+      \begin{equation}
+        L^k (X_t)= X_{t-k}
+      \end{equation}
+      Inverses also exist, so $L^{-k} (X_t) = X_{t+k}$. 
+    \end{definition}
+
+    Therefore, the Wold representation for a covariance stationary time series $\{X_t\}$ can be expressed as 
+    \begin{align}
+      X_t & = \sum_{i=0}^\infty \psi_i \eta_{t-i} + V_t \\
+          & = \sum_{i=0}^\infty \psi_i L^i (\eta_{t}) + V_t \\
+          & = \psi(L) \eta_t + V_t 
+    \end{align}
+    where $\psi(L) = \sum_{i=0}^\infty \psi_i L^i$. 
+
+  \subsection{Components of time series}
+
+  \subsection{Stationarity and tests for stationarity (including ADF test)}
+
+  \subsection{Autoregressive (AR) models}
+
+  \subsection{Moving average (MA) models}
+
+  \subsection{ARIMA models}
+
+  \subsection{Forecasting techniques}
 
 
 \bibliography{./bibfile}
