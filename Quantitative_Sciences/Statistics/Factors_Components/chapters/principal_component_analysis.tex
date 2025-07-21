@@ -1,38 +1,98 @@
-\section{Principal Component Analysis} 
-  
+\section{Principal Component Analysis}  
+
+  Say that we have a random vector $x = (x_1, \ldots, x_d)$. These $d$ covariates will naturally be correlated, and we want to ask whether some more fundamental set of independent variables exist \cite{1933hotelling} such that we can express
+  \begin{equation}
+    x = f(v_1, \ldots, v_k)
+  \end{equation} 
+  Naturally, we think of $f$ as a linear function. 
+
   We can think of PCA doing two things. First, it is a dimensionality-reduction algorithm where it takes samples $x \in \mathbb{R}^d$ and projects them into some smaller subspace $\mathcal{L}$ of dimension $k$. Second, it identifies an orthonormal basis of $\mathcal{L}$ that act as uncorrelated low-dimensional features. Because the projection map is linear and we are working in a lower-dimensional subspace, these new basis vectors are linear combinations of the original basis, which may reduce redundancy. Furthermore, by approximately modeling the original $x$ as a linear combination of these features, we are able to get a more parsimonious representation. 
 
-  To begin, let $X$ be the 
+  In PCA literature, it is more common to work with row vectors $x \in \mathbb{R}^{1 \times d}$, so linear mappings are realized through right matrix multiplication $x A$. Furthermore, we will assume that the data are $0$-mean. 
 
-  To begin with some motivation, let a linear map $A: \mathbb{R}^D \rightarrow \mathbb{R}^D$ be full rank, which maps some set of $n$ data points to the space of features. Then it is injective, and therefore for all data $x \in \mathbb{R}^D$ there exists a feature vector $z \in \mathbb{R}^D$ such that $z = Ax$. Generally, real-world data does not span the full space of $D$ dimensions.\footnote{The \textit{manifold hypothesis} that real-world data in high-dimensions actually lies on a lower-dimensional manifold. } In fact, if we further assume that the data lies in a linear subspace, we want to compress it into a lower-dimensional vector such that the covariates in this lower dimensional space are also orthogonal, i.e. uncorrelated. We tackle both problems in 2 steps. 
-  \begin{enumerate}
-    \item To compress this representation, we can take a data point $x \in \mathbb{R}^D$ and \textit{approximate} it as a point $\hat{x} \in L_k$ for some $k$-dimensional subspace $L_k \subset \mathbb{R}^d$ (say that this is done with some function $P: \mathbb{R}^D \rightarrow L_k \subset \mathbb{R}^D$). 
-    \item After this projection, we then want to extract the $k$ features such that they are \textit{orthogonal} (i.e. no correlation). This is done with a simple change of basis, which we denote $T: L_k \rightarrow \mathbb{R}^k$, giving us $\hat{z} = T \hat{x} = T (P(x))$. We can invert this map $T^{-1} : \mathbb{R}^k \rightarrow L_k$ to go from the orthogonalized compressed version $\hat{z}$ to the approximate full version $\hat{x}$.
-  \end{enumerate}
+\subsection{L2 Residual Minimization Approach} 
 
-\subsection{Principal Subspace as an L2 Distance Minimizer}
+  To give some motivation, we try to find a best fit line in $\mathbb{R}^d$. A line $\ell$ can be parameterized by a unit vector $u$, and so given some sample $x$, its projection onto $\ell$ is $\proj_{\ell} (x) = \langle x, u\rangle u$. Therefore, the residual is 
+  \begin{align}
+    \| x - \langle x, u \rangle u \|^2 & = \|x\|^2 - 2 \langle x, \langle x, u \rangle u \rangle + \| \langle x, u \rangle u \|^2 \\ 
+                                       & = \|x\|^2 - 2 \langle x, u \rangle^2 + \langle x, u \rangle^2 \|u\|^2 \\ 
+                                       & = \|x\|^2 - \langle x, u \rangle^2
+  \end{align}
+  since $\|u\|^2 = 1$. 
 
-  We are done! But which subspace do we choose? Let's formalize what the optimal subspace should be. 
+  Now given a random variable $x$, our risk is
+  \begin{equation}
+    R(u) = \mathbb{E}_x \big[ \| x - (x \cdot u) u \| \big] = \mathbb{E}_x \big[ \|x\|^2 \big] - \mathbb{E}_x \big[ \langle x, u \rangle^2 \big]
+  \end{equation} 
 
-  \begin{definition}[Principal Subspace]
-    Let $x \sim X \in \mathbb{R}^d$, with its normalized $\tilde{x} = x - \mathbb{E}[x]$, and $\mathcal{L}_k$ denote all $k$-dimensional linear subspaces of $\mathbb{R}^n$. The \textbf{$k$th principal subspace} is defined as 
+  In practice, we want to minimize our empirical risk. Assume that we have sampled data $x^{(1)}, \ldots, x^{(n)} \sim x$. Then, 
+  \begin{align} 
+    \argmin_{u \in \mathbb{R}^{d}, \|u\| = 1} \hat{R}(u) 
+    & =  \argmin_{u \in \mathbb{R}^{d}, \|u\| = 1} \frac{1}{n} \bigg( \sum_{i = 1}^n \|x^{(i)} \|^2 - \sum_{i=1}^n \langle x^{(i)}, u \rangle^2 \bigg) \\ 
+    & = \argmax_{u \in \mathbb{R}^{d}, \|u\| = 1} \frac{1}{n} \sum_{i=1}^n \langle x^{(i)}, u \rangle^2 
+  \end{align} 
+
+  We have our loss function! Now what if we wanted to look for best fitting subspaces in general? Let's first rigorously define such a space. 
+
+  \begin{definition}[Principal Subspace] 
+    Let $x$ be a $0$-mean random variable in $\mathbb{R}^d$ and let $\mathcal{L}^k$ denote all $k$-dimensional linear subspaces of $\mathbb{R}^d$. The \textbf{$k$th principal subspace} is defined as 
     \begin{equation}
-      \ell_k = \argmin_{\ell \in \mathcal{L}_k} \mathbb{E}_{\Tilde{x}} \big( \min_{y \in \ell} ||\Tilde{x} - y||^2 \big)
+      \ell_k = \argmin_{\ell \in \mathcal{L}_k} \mathbb{E}_{\Tilde{x}} \big[ \| x - \proj_\ell x\|_2 \big]
     \end{equation}
   \end{definition}
 
-  To parse this, let's fix a subspace $\ell$. Then, the normalized data $\Tilde{x}$ is a random vector and the minimum distance of $\Tilde{x}$ onto the subspace $\ell$ is the inner min term. Taking the expectation of that gives us the expected distance of the data onto the subspace. The principal subspace is the subspace that minimizes this expected distance. The dimension reduced version of $x$ is then $P_k (x) = \mu + \mathrm{proj}_{\ell_k} x$. 
+  This isn't a big step from what we had before. We just want to construct a subspace $\ell$ that minimizes the expected $L^2$ distance between $x$ and $\ell$. Now how do we do such a thing? The most natural extension would be to identify an orthonormal basis $u_1, \ldots, u_k$, and since 
+  \begin{equation}
+    \proj_\ell x = \sum_{i=1}^k \proj_{u_i} x
+  \end{equation} 
+  our loss can be simplified to 
+  \begin{align}
+    R(\ell) = R(u_1, \ldots, u_k) 
+    & = \mathbb{E} \bigg[ \| x - \proj_\ell x \|^2 \bigg] \\ 
+    & = \mathbb{E} \bigg[ \|x\|^2 - 2 \langle x, \sum_{i=1}^k \proj_{u_i} x \rangle + \| \sum_{i=1}^k \proj_{u_i} x \|^2 \bigg] \\ 
+    & = \mathbb{E} \bigg[ \|x\|^2 - 2 \sum_{i=1}^k \langle x, \proj_{u_i} x \rangle + \sum_{i=1}^k \| \proj_{u_i} x \|^2 \bigg] \\
+    & = \mathbb{E} \bigg[ \|x\|^2 - 2 \sum_{i=1}^k \langle x, u_i \rangle^2 + \sum_{i=1}^k \langle x, u_i \rangle^2 \|u_i\|^2 \bigg] \\ 
+    & = \mathbb{E} \bigg[ \|x\|^2 - \sum_{i=1}^k \langle x, u_i \rangle^2 \bigg] 
+  \end{align} 
+  and in the empirical case, we can get rid of the fixed $x$ and find 
+  \begin{equation}
+    \argmax_{u_i \in \mathbb{R}^d} \frac{1}{n} \sum_{j=1}^n \sum_{i=1}^k \langle x^{(j)}, u_i \rangle, \text{ subject to } \|u_i\|^2 = 1, \langle u_i, u_j \rangle = 0 \text{ for } i \neq j
+  \end{equation} 
+  By stacking the $u_i$'s left-to-right in matrix $U \in \mathbb{R}^{d \times k}$, we can get a cleaner form of the loss function. 
 
-  We can see that by definition the properties of the principal subspace allows us to construct the best approximation of the points in a lower-dimensional subspace. This seems like a hard optimization problem, but it turns out that the theorem gives a simple solution. Note that we need to do 3 things: 
-  \begin{enumerate}
-    \item Find such a subspace $\mathcal{L}_k \subset \mathbb{R}^D$. 
-    \item Find the projection $P_k: \mathbb{R}^D \rightarrow \mathcal{L}_k \subset \mathbb{R}^D$. Note that by definition of the principal subspace $P_k$ should be an \textit{orthogonal} projection. 
-    \item Find the bijection $T_k: \mathcal{L}_k \rightarrow \mathbb{R}^k$. 
-  \end{enumerate}
+  \begin{theorem}[Constrained Empirical Risk of PCA]
+    The empirical risk, or loss function, of PCA is
+    \begin{equation}
+      \argmax_{U \in \mathbb{R}^{d \times k}, U^T U = I_k} \frac{1}{n} \sum_{j=1}^n \sum_{i=1}^k \langle x^{(j)}, u_i \rangle
+    \end{equation} 
+    or equivalently, 
+    \begin{equation}
+      \argmax_{U \in \mathbb{R}^{d \times k}, U^T U = I_k} 
+      \frac{1}{n} \| X - X U U^T\|^2
+    \end{equation}
+  \end{theorem} 
 
-\subsection{Principal Components as a Greedy Variance Maximization Approach}
+\subsection{Variance Maximization Approach}
 
-  \begin{figure}
+  But we can turn this into a variance maximization problem. Note that $\Var_x [\langle x, u \rangle] = \mathbb{E}[ \langle x, u \rangle^2 ] - \mathbb{E}[ \langle x, u \rangle]^2$, and so we can rewrite our true risk as 
+  \begin{align}
+    \argmin_{u \in \mathbb{R}^d, \|u\|=1} R(u) = \argmin_{u \in \mathbb{R}^d, \|u\|=1} \mathbb{E}_x \big[ \|x\|^2 \big] - \Var_x [\langle x, u \rangle] - \mathbb{E}[ \langle x, u \rangle]^2
+  \end{align} 
+  where the last term vanishes since $x$ is $0$-mean, and hence by linearity of expectation $\mathbb{E}_x [\langle x, u \rangle] = \langle \mathbb{E}[x], u \rangle = \langle 0, u \rangle = 0$. In parallel the empirical risk reduces to simply the sample variance. 
+  \begin{equation}
+    \argmax_{u \in \mathbb{R}^{d}, \|u\| = 1} \hat{\Var}[ \langle x, u \rangle] = \argmax_{u \in \mathbb{R}^{d}, \|u\| = 1} \frac{1}{n} \bigg( \sum_{i=1}^n \langle x^{(i)}, u \rangle^2 \bigg)
+  \end{equation} 
+
+  Therefore, we can think of the $L^2$ minimization problem as equivalent to a variance maximization approach.  
+
+  \begin{lemma}[Variance Maximization Approach]
+    Minimizing the $L^2$ distance of a random variable $x$ to a line $\ell$ in $\mathbb{R}^d$ is equivalent to maximizing the scalar variance in the projected space. 
+    \begin{equation}
+      \argmin_{u \in \mathbb{R}^d, \|u\| = 1} \mathbb{E} [ \| x - \proj_u (x) \|_2 ] = \argmax_{u \in \mathbb{R}^d, \|u\| = 1} \Var_x [\langle x, u \rangle ]
+    \end{equation}
+  \end{lemma}
+
+  \begin{figure}[H]
     \centering
     \begin{tikzpicture}
       \begin{axis}[
@@ -66,29 +126,88 @@
     \caption{Projecting the dataset onto the blue line seems to retain more variance than projecting onto the red line.}
   \end{figure}
 
+  Let's in fact try to directly maximize the variance. If we vertically stack our $n$ data points into a matrix $X \in \mathbb{R}^{n \times d}$, then the projections are simply $X u$. Again, since this is $0$-mean, the variance is 
+  \begin{align}
+    \hat{\Var}(Xu) 
+    & = \frac{1}{n} (Xu)^T (Xu) \\ 
+    & = \frac{1}{n} u^T X^T X u \\
+    & = u^T \frac{X^T X}{n} u \\ 
+    & = u^T \hat{\Sigma} u
+  \end{align}
+  where $\hat{\Sigma}$ is the empirical covariance matrix of $X$. We want to find 
+  \begin{equation}
+    \max_{u} u^T \hat{\Sigma} u \text{ subject to } \|u\|^2 = 1
+  \end{equation} 
+  This is a classic Lagrange multiplier problem. We construct the Lagrangian and compute its partial derivatives to set equal to $0$. 
+  \begin{align}
+    \mathcal{L}(u, \lambda) & = u^T \hat{\Sigma} u - \lambda (\|u\|^2 - 1) \\  
+    \frac{\partial \mathcal{L}}{\partial u} & = 2 \hat{\Sigma} u - 2 \lambda u = 0 \\ 
+    \frac{\partial \mathcal{L}}{\partial \lambda} & = u^T u - 1 = 0
+  \end{align} 
+  which gives us 
+  \begin{equation}
+    \hat{\Sigma} u = \lambda u, \qquad u^T u = 1
+  \end{equation} 
+  This tells us that $u$ is a unit eigenvector, and the maximizing vector will be the one corresponding to the largest eigenvalue. Essentially, we have reduced this to an eigenvalue problem. 
+  
+  \begin{theorem}[Principal Component as Eigenvector]
+    The first principal subspace of data matrix $X \in \mathbb{R}^{n \times d}$ is spanned by the eigenvector corresponding to the largest eigenvalue of the sample covariance matrix $\hat{\Sigma} = \frac{1}{n} X^T X$. 
+  \end{theorem}
+
+  Now for higher dimensional subspaces, we take the same approach. Going through the same derivation gives the expected risk in terms of the variance 
+  \begin{align}
+    R(u_1, \ldots, u_k) 
+    & = \mathbb{E}[\|x\|^2] - \sum_{i=1}^k \mathbb{E}[ \langle x, u_i \rangle^2 ] \\ 
+    & = \mathbb{E}[\|x\|^2] - \sum_{i=1}^k \Var[\langle x, u_i \rangle ] - \mathbb{E}[ \langle x, u_i \rangle ]^2 
+  \end{align}
+  and by fixing the $x$'s, we get our equivalent empirical risk. 
+
+  \begin{theorem}[Empirical Risk of PCA as Variance-Maximizer]
+    The empirical risk tells us to find an orthonormal basis that maximizes the sum of the variance of projections. 
+    \begin{equation}
+      \argmax_{u_i \in \mathbb{R}^d} \sum_{i=1}^k \hat{\Var}[ \langle x, u_i \rangle ] \text{ subject to } \|u_i\|^2 = 1, \langle u_i, u_j \rangle = 1 \text{ for } i \neq j
+    \end{equation}
+  \end{theorem}
+
 \subsection{Solving PCs with Singular Value Decomposition}
 
-  It turns out that we can solve all three problems with the singular value decomposition. 
+  The variance-maximization loss is very insightful, and we may naively think of just taking the unit eigenvectors corresponding to the top $k$ largest eigenvalues. Surprisingly, this greedy approach turns out to be correct. 
+
+  \begin{theorem}[2nd Principal Component is 1st Principal Component of Residuals]
+    
+  \end{theorem}
 
   \begin{theorem}[Construction of the kth Principle Subspace] 
-    Given covariates $x^{(1)}, \ldots, x^{(n)} \in \mathbb{R}^{d}$, let $X \in \mathbb{R}^{n \times d}$ be our random matrix representing our data, and its normalized form to $\Tilde{X} = X - \mu$. We take the SVD of it. 
+    Let $X \in \mathbb{R}^{n \times d}$ be a $0$-mean data matrix. Given the SVD with the singular values listed in decreasing order\footnote{We can make it decreasing by permuting the rows/columns of the unitary matrices $U, V$.}
     \begin{equation}
-      \Tilde{X} = U \Sigma V^T
+      X = U \Sigma V^T, \qquad U \in \mathbb{R}^{n \times n}, \Sigma \in \mathbb{R}^{n \times d}, V \in \mathbb{R}^{d \times d}
     \end{equation}
-    where $U \in U(n) \subset \mathbb{R}^{n \times n}, V \in U(d) \subset \mathbb{R}^{d \times d}$ are orthogonal and $\Sigma \in \mathbb{R}^{n \times d}$ is diagonal that represents the singular values of $X$ in decreasing order\footnote{We can make it decreasing by permuting the rows/columns of the unitary matrices $U, V$.}. The columns of $V$ (rows of $V^T$) denoted $v_1, \ldots, v_d$ are called the \textbf{principal axes} and the columns of $U\Sigma$ are called the \textbf{principal components}. 
-    \begin{enumerate}
-      \item Then $\ell_k = \mathrm{span}\{v_1, \ldots, v_k\} \subset \mathbb{R}^d$, i.e. is the subspace spanned by the columns of $V$. By shifting it by $\mu$, $\mu + \ell_k$ is the best affine subspace approximation of the $x_i$'s. 
+  \end{theorem}
 
+  \begin{definition}[Terminology]
+    The terminology 
+    \begin{enumerate}
+      \item The columns $v_1, \ldots, v_d$ of $V$ are called the \textbf{principal component axes}. $\ell_k = \mathrm{span}\{v_1, \ldots, v_k\} \subset \mathbb{R}^d$, i.e. the subspace spanned by the columns of $V$. They are the right singular vectors or the eigenvectors of the covariance matrix living in $\mathbb{R}^d$. 
+      \item The columns of $U \Sigma$ are called the \textbf{principal component scores}. 
+    \end{enumerate}
+
+    Now let's take the first $k$ principal component axes $v_1, \ldots, v_k$ and denote the truncated matrix as $V_k$. Then, 
+    \begin{enumerate}
+      \item $X V_k \in \mathbb{R}^{n \times k}$ is the projection of the dataset into $\mathbb{R}^k$ spanned by the principal components. 
+    \end{enumerate}
+
+
+    \begin{enumerate}
       \item The projection $P$ is defined 
       \begin{equation}
         \hat{x} = P_k (x) = \mu + \sum_{j=1}^k \langle x - \mu, v_j \rangle \, v_j = \sum_{j=1}^k \proj_{v_j} (x - \mu) = \mu + \proj_{\ell_k} (x - \mu)
       \end{equation}
       where we can rewrite it as the projection operator since the $v_j$'s are orthonormal. 
 
-    \item The change of basis $T$ is defined with the mapping $\hat{x} \in \mathcal{L}_k \mapsto \sigma_j v_j \in \mathcal{L}_k$. Note that the $v_j$'s form an orthogonal basis of $\mathcal{L}_k$. 
+      \item The change of basis $T$ is defined with the mapping $\hat{x} \in \mathcal{L}_k \mapsto \sigma_j v_j \in \mathcal{L}_k$. Note that the $v_j$'s form an orthogonal basis of $\mathcal{L}_k$. 
     \end{enumerate} 
     Now let $V_k \in \mathbb{R}^{d \times k}$ represent the first $k$ columns of $V$ (aka first $k$ principal axes), $U_k \in \mathbb{R}^{n \times k}$ represent the first $k$ columns of $U$, and $\Sigma_k \in \mathbb{R}^{k \times k}$ represent the upper-left $k \times k$ matrix of $\Sigma$.\footnote{Note that $V^T$, which was originally surjective, is now just injective.} The product $U_k \Sigma_k$ represents the matrix containing the first $k$ principal components. The matrix $\Tilde{X}_k = U_k \Sigma_k V^T$, which is the low-rank approximation of $\Tilde{X}$, is called the \textbf{denoised matrix} of $\Tilde{X}$. 
-  \end{theorem}
+  \end{definition}
   \begin{proof}
     For notational convenience let $X = \Tilde{X}$. We see that 
     \begin{equation}
@@ -205,4 +324,21 @@
       ||\hat{v}_j - v_j|| \leq \frac{2^{3/2} ||\hat{\Sigma} - \Sigma||}{\lambda_j - \lambda_{j+1}}
     \end{equation}
   \end{theorem}
+
+\subsection{Iterative Methods}
+
+\subsection{Old}
+
+  To begin with some motivation, let a linear map $A: \mathbb{R}^D \rightarrow \mathbb{R}^D$ be full rank, which maps some set of $n$ data points to the space of features. Then it is injective, and therefore for all data $x \in \mathbb{R}^D$ there exists a feature vector $z \in \mathbb{R}^D$ such that $z = Ax$. Generally, real-world data does not span the full space of $D$ dimensions.\footnote{The \textit{manifold hypothesis} that real-world data in high-dimensions actually lies on a lower-dimensional manifold. } In fact, if we further assume that the data lies in a linear subspace, we want to compress it into a lower-dimensional vector such that the covariates in this lower dimensional space are also orthogonal, i.e. uncorrelated. We tackle both problems in 2 steps. 
+  \begin{enumerate}
+    \item To compress this representation, we can take a data point $x \in \mathbb{R}^D$ and \textit{approximate} it as a point $\hat{x} \in L_k$ for some $k$-dimensional subspace $L_k \subset \mathbb{R}^d$ (say that this is done with some function $P: \mathbb{R}^D \rightarrow L_k \subset \mathbb{R}^D$). 
+    \item After this projection, we then want to extract the $k$ features such that they are \textit{orthogonal} (i.e. no correlation). This is done with a simple change of basis, which we denote $T: L_k \rightarrow \mathbb{R}^k$, giving us $\hat{z} = T \hat{x} = T (P(x))$. We can invert this map $T^{-1} : \mathbb{R}^k \rightarrow L_k$ to go from the orthogonalized compressed version $\hat{z}$ to the approximate full version $\hat{x}$.
+  \end{enumerate}
+
+  We can see that by definition the properties of the principal subspace allows us to construct the best approximation of the points in a lower-dimensional subspace. This seems like a hard optimization problem, but it turns out that the theorem gives a simple solution. Note that we need to do 3 things: 
+  \begin{enumerate}
+    \item Find such a subspace $\mathcal{L}_k \subset \mathbb{R}^D$. 
+    \item Find the projection $P_k: \mathbb{R}^D \rightarrow \mathcal{L}_k \subset \mathbb{R}^D$. Note that by definition of the principal subspace $P_k$ should be an \textit{orthogonal} projection. 
+    \item Find the bijection $T_k: \mathcal{L}_k \rightarrow \mathbb{R}^k$. 
+  \end{enumerate}
 
