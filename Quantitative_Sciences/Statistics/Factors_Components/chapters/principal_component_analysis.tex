@@ -97,7 +97,7 @@
     \end{enumerate}
   \end{definition}
 
-Therefore, $X V_k \in \mathbb{R}^{n \times k}$ is the projection of the dataset into the component space. If we want to get the denoised samples in the sample space $\mathbb{R}^d$, we project it back out $X V_k V_k^T$. 
+  Therefore, $X V_k \in \mathbb{R}^{n \times k}$ is the projection of the dataset into the component space. If we want to get the denoised samples in the sample space $\mathbb{R}^d$, we project it back out $X V_k V_k^T$. 
 
 \subsection{Variance Maximization Approach}
 
@@ -280,6 +280,71 @@ Therefore, $X V_k \in \mathbb{R}^{n \times k}$ is the projection of the dataset 
     \end{enumerate} 
     A demonstration is done \href{code/pca.html}{here}.
   \end{algo}
+
+  \begin{example}[Walkthrough]
+    Say that we have some dataset of 100 points in $\mathbb{R}^3$. The data matrix is shown on the right, but in reality I just generated a toy dataset. 
+
+    \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        def scatter(n=1000): 
+          X_2d = np.random.multivariate_normal(
+            np.zeros(2), np.eye(2), n) 
+          A = np.array([[1, 1, 1], [-2, 2, 1]])
+          X_3d = X_2d @ A + np.random.multivariate_normal(
+            np.zeros(3), np.eye(3), n)
+          return X_3d
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        [[ 8.864e-01  3.975e-01  7.009e-01]
+         [-2.065e+00  3.258e+00  1.874e+00]
+         [ 3.970e-01 -5.400e-01 -3.054e-01]
+         [ 3.239e+00 -1.999e+00 -1.034e+00]
+         ...
+         [-1.295e-01  9.683e-01  2.861e-01]
+         [-7.097e-01 -4.060e-01 -1.058e+00]
+         [ 2.284e+00 -2.505e+00 -1.522e+00]]
+      \end{lstlisting}
+    \end{minipage}
+
+    We can take the SVD, which will give us
+
+    \begin{lstlisting}
+      In [7]: U, S, Vt = np.linalg.svd(X)
+
+      In [8]: print(U)
+      [[ 4.804e-04  7.852e-02  4.071e-02 ...  5.320e-03  5.034e-02 -9.305e-02]
+       [ 1.420e-01  3.992e-02 -1.229e-02 ... -5.512e-02  4.460e-02  7.192e-02]
+       [-2.456e-02 -3.657e-03 -4.578e-04 ... -1.005e-01 -1.512e-01 -7.300e-02]
+       ...
+       [ 2.909e-02  2.754e-02 -1.075e-01 ...  9.871e-01 -1.325e-02 -3.559e-03]
+       [-8.714e-03 -8.159e-02 -1.436e-01 ... -1.297e-02  9.733e-01 -1.055e-02]
+       [-1.241e-01  2.077e-03 -6.028e-02 ... -3.435e-03 -8.286e-03  9.819e-01]]
+
+      In [9]: print(S)
+      [29.90178039 15.17454164  3.01267412]
+
+      In [10]: print(Vt.T)
+      [[-0.59855644  0.77282378 -0.21088764]
+       [ 0.70716875  0.38606989 -0.59233639]
+       [ 0.37635428  0.50367991  0.77760144]] 
+    \end{lstlisting} 
+
+    The \texttt{Vt.T} represents $V$, with its columns being our principal axes, and we wish to plot them along with our data points. We would like to scale them by their variance captured. 
+    \begin{enumerate}
+      \item Take the singular values $(\sigma_1, \sigma_2, \sigma_3) = (29.9, 15.2, 3.0)$. 
+      \item Square them to get the eigenvalues $(\lambda_1, \lambda_2, \lambda_3) = (894, 230, 9)$. 
+      \item Normalize them to get the percent variance captured. $(0.789, 0.203, 0.008)$, and use this as a scale for each eigenvector. 
+    \end{enumerate}
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/pca_3d.png}
+      \caption{We can see that the data approximately lies on a 2-dimensional subspace of $\mathbb{R}^3$.} 
+    \end{figure}
+  \end{example}
 
   \begin{example}[Eigenfaces]
     In 1991, Turk and Pentland presented an eigenface method of face recognition by taking the low-rank approximation of a dataset of face images \cite{1991turk}. 
