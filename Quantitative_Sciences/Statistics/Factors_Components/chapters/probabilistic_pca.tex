@@ -1,5 +1,34 @@
 \section{Probabilistic PCA}
 
+  \begin{definition}[Generative Latent Variable Model]
+    A \textbf{latent variable model} is a model of a distribution $p^\ast (x)$ over a space $\mathcal{X}$ using implicitly parameterized probability distributions $p_\theta$ constructed as such: 
+    \begin{enumerate}
+      \item We define a simple random variable $Z$ over $\mathcal{Z}$ with its distribution $p(z)$, called the \textbf{prior}.\footnote{Almost always a uniform or normal distribution suffices. If not, we can constrain it to be factorable (i.e. is the product of its marginal distributions: $p(z) = \prod_i p(z_i)$) so that it is easy to sample from. Occasionally, the stronger assumption of the $z_i$'s being iid is made. } 
+      \item We define a family of functions $\{f_\theta\}$ defined over $z$ and parameterized by $\theta$. 
+      \item We define a way to convert any $f_\theta(z)$ into a distribution $p(x \mid z)$, called the \textbf{likelihood} or \textbf{generative component}. There are generally two ways to do this: 
+      \begin{enumerate}
+        \item Let the random variable $X \mid Z = z$ be an explicitly parameterized distribution, and have $f_\theta (z)$ be the parameters of $X \mid Z = z$. Therefore, we take the output of $f_\theta (z)$ and plug in these values as the parameters of $X \mid Z = z$.\footnote{For example, let $f_\theta (z) = (f_1 (z), f_2(z))$. Then we define the corresponding distribution $X \mid Z = z \sim \mathcal{N}(f_1 (z), e^{f_2 (z)} )$.}
+        \item Have $f_\theta$ be a transformation of random variables, i.e. $X = f(Z)$. This may result in a conditional pdf that is not explicitly parameterizable.
+      \end{enumerate}
+    \end{enumerate}
+    This defines the family of joint distributions $p_\theta$ over $(\mathcal{Z}, \mathcal{X})$. It is easy to sample $(x, z) \sim p_\theta$: sample $z \sim p$, then compute $f_\theta (z)$, use this to define $p_\theta (x \mid z)$, and finally sample from the likelihood. Therefore, the joint is also of a simple nature. 
+
+    While we assume simple, explicitly parameterized forms for the prior and the likelihood, we do not assume anything about 
+    \begin{enumerate}
+      \item the \textbf{marginal} $p_\theta (x)$. Usually this is an extremely complicated distribution, which is equivalent to 
+      \begin{equation} 
+        p_X (x) = \int_{z \in \mathbb{R}^k} p (x \mid z) \, p_Z (z) \,dz = \mathbb{E}_Z [p(X \mid Z)] 
+      \end{equation} 
+      from marginalizing but is computationally impossible to integrate. 
+
+      \item the \textbf{posterior} $p_\theta (z \mid x)$ that describes the hidden features given some data point. This is also known as the \textbf{inference component}. By Bayes rule, we have 
+      \begin{equation}
+        p_\theta (z \mid x) = \frac{p_\theta (x \mid z) \, p(z)}{p_\theta (z \mid x)} \iff p_\theta (z \mid x) \propto p_\theta (x \mid z) \, p(z)
+      \end{equation}
+      which we might be able to sample from using MCMC. 
+    \end{enumerate}
+  \end{definition} 
+
   We want to take PCA and extend it to be a \textit{generative model}, which allows you to sample data. In regular PCA, we saw that for some $z \in \mathbb{R}^k$ in the latent space, $\hat{x} = \mu + V_k \Sigma_k z$. Therefore, if we just change $z$ from a point to a probability distribution (e.g. Gaussian), we can take a random variable $z \sim \mathcal{N}(0, I)$ from $\mathbb{R}^k$, and then transform it to get a random variable $x = \mu + U_k \Sigma_k z$, which will give a density. 
   \begin{equation}
     x \sim \mathcal{N} \big( \mu, (V_k \Sigma_k)(V_k \Sigma_k)^T \big) = \mathcal{N} \big( \mu, V_k \Sigma_k U_k^T U_k \Sigma_k V_k^T \big) = \mathcal{N} \big( \mu, X_k^T X_k)

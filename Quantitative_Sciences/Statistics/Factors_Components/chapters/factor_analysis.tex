@@ -1,53 +1,58 @@
-\section{Factor Analysis}
+\section{Factor Analysis} 
 
-  Note that in PCA, we have taken some data $x$ in high-dimension $D$ and reduced it to a lower-dimensional orthogonal representation in $\mathbb{R}^k$. In other words, the corresponding $z$ represents $x$ in another space, which we call a \textbf{latent space}. A model that represents data from the original space $\mathcal{X}$ to a latent space $\mathcal{Z}$ is called a \textit{latent variable model}. We will extend on this. 
+  As we have constantly seen, there are specific themes that run between models. In PCA, we have taken some data $x$ in high-dimension $d$ and reduced it to a lower-dimensional orthogonal representation in $\mathbb{R}^k$. In other words, for some sample $x \in \mathbb{R}^{1 \times d}$, the projection onto its component space $x V_k \in \mathbb{R}^{1 \times k}$ is a more parsimonious representation with respect to some other basis vectors. The $v_1, \ldots, v_k$ are new features that are linear combinations of the old vectors. Are they interpretable? In some cases yes and in most cases no, which is why we also call them \textit{latent variables} that live in a \textit{latent space}. 
 
-  Say that we have some covariates $x^{(i)} \sim X$ and we want to find its true distribution $p^\ast$. In density estimation so far, what we have done is define a family of distributions $\{p_\theta\}$ and optimize the loss by maximizing the MLE or something else. 
+  Another type of model that encodes covariates in a latent space are factor models, which was developed by Spearman in 1904 \cite{1904spearman}. The general idea was that we have some $d$-dimensional random vector $x$, and we would like to encode it in a $k$-dimensional random vector $f$, called the \textit{factors}. Since we are trying to compress the data, generally $k < d$. The first thing that comes to mind is to try and compare how the variables $x_i$ and $f_j$ correlate to each other, and this is exactly what Spearman did. 
+
+  Before we get into factor models, let's step back and talk more about latent variable models. Colloquially, we would like to find the distribution of some data, whether it'd be $(x, y)$ supervised tasks or $x$ for unsupervised. For the unsupervised case, say that we have some covariates $x$ and we want to find its true distribution $p^\ast$. In density estimation so far, what we have done is define a family of distributions $\{p_\theta\}$ and optimize the loss by maximizing the MLE or something else. 
   \begin{equation}
     \min_\theta L(p_\theta, p^\ast) = \max_\theta \prod_{i} p_\theta(x^{(i)})
   \end{equation}
-  In order to do this we work with explicitly parameterized distribution families (e.g. Gaussian, Gamma, multinomial, etc.), but this is too simple to model complex things in real like (e.g. the distribution of faces). Therefore, we consider \textit{implicitly parameterized} probability distributions by ``adding'' a latent distribution $Z$, creating the joint distribution $(X, Z)$. This may look more complicated, but it captures a much richer family of distributions. 
+  In order to do this we work with explicitly parameterized distribution families (e.g. Gaussian, Gamma, multinomial, etc.), but this is too simple to model complex things in real like (e.g. the distribution of faces).
 
-  \begin{definition}[Generative Latent Variable Model]
-    A \textbf{latent variable model} is a model of a distribution $p^\ast (x)$ over a space $\mathcal{X}$ using implicitly parameterized probability distributions $p_\theta$ constructed as such: 
-    \begin{enumerate}
-      \item We define a simple random variable $Z$ over $\mathcal{Z}$ with its distribution $p(z)$, called the \textbf{prior}.\footnote{Almost always a uniform or normal distribution suffices. If not, we can constrain it to be factorable (i.e. is the product of its marginal distributions: $p(z) = \prod_i p(z_i)$) so that it is easy to sample from. Occasionally, the stronger assumption of the $z_i$'s being iid is made. } 
-      \item We define a family of functions $\{f_\theta\}$ defined over $z$ and parameterized by $\theta$. 
-      \item We define a way to convert any $f_\theta(z)$ into a distribution $p(x \mid z)$, called the \textbf{likelihood} or \textbf{generative component}. There are generally two ways to do this: 
-      \begin{enumerate}
-        \item Let the random variable $X \mid Z = z$ be an explicitly parameterized distribution, and have $f_\theta (z)$ be the parameters of $X \mid Z = z$. Therefore, we take the output of $f_\theta (z)$ and plug in these values as the parameters of $X \mid Z = z$.\footnote{For example, let $f_\theta (z) = (f_1 (z), f_2(z))$. Then we define the corresponding distribution $X \mid Z = z \sim \mathcal{N}(f_1 (z), e^{f_2 (z)} )$.}
-        \item Have $f_\theta$ be a transformation of random variables, i.e. $X = f(Z)$. This may result in a conditional pdf that is not explicitly parameterizable.
-      \end{enumerate}
-    \end{enumerate}
-    This defines the family of joint distributions $p_\theta$ over $(\mathcal{Z}, \mathcal{X})$. It is easy to sample $(x, z) \sim p_\theta$: sample $z \sim p$, then compute $f_\theta (z)$, use this to define $p_\theta (x \mid z)$, and finally sample from the likelihood. Therefore, the joint is also of a simple nature. 
+  Therefore, we consider \textit{implicitly parameterized} probability distributions by ``adding'' a latent distribution $z$, creating the joint distribution $(x, z)$. This may look more complicated, but it captures a much richer family of distributions. For example, we might try modeling $x$ as a function of $z$, and try to learn some function $x = f(z)$. If we have an accurate function $f$, we can do many things. 
+  \begin{enumerate}
+    \item Given an $x$, we might find the closest point on the image of $f$, perhaps some manifold, as low-rank approximation of $x$. This dimensionality reduction is essentially what PCA does with projections.\footnote{We will in fact extend PCA to probabilistic PCA soon to make it generative.} 
+    \item If we can sample from $z$, then we can forward it through $f$ and can sample from $x$, making this is a generative model. 
+  \end{enumerate}
 
-    While we assume simple, explicitly parameterized forms for the prior and the likelihood, we do not assume anything about 
-    \begin{enumerate}
-      \item the \textbf{marginal} $p_\theta (x)$. Usually this is an extremely complicated distribution, which is equivalent to 
-      \begin{equation} 
-        p_X (x) = \int_{z \in \mathbb{R}^k} p (x \mid z) \, p_Z (z) \,dz = \mathbb{E}_Z [p(X \mid Z)] 
-      \end{equation} 
-      from marginalizing but is computationally impossible to integrate. 
-
-      \item the \textbf{posterior} $p_\theta (z \mid x)$ that describes the hidden features given some data point. This is also known as the \textbf{inference component}. By Bayes rule, we have 
-      \begin{equation}
-        p_\theta (z \mid x) = \frac{p_\theta (x \mid z) \, p(z)}{p_\theta (z \mid x)} \iff p_\theta (z \mid x) \propto p_\theta (x \mid z) \, p(z)
-      \end{equation}
-      which we might be able to sample from using MCMC. 
-    \end{enumerate}
-  \end{definition} 
-
-  Like we do with everything else in math, we take a look at the simplest example: when the class $\{f_\theta\}$ are linear functions that represent \textit{transformations}\footnote{Not have its output parameterize $X \mid Z = z$.} $X = f(Z)$ of the random variable $Z$. This is known as \textbf{linear latent variable modeling}. 
+  Like we do with everything else in math, we take a look at the simplest case when the class of functions are linear. This is known as \textit{linear latent variable modeling}. 
   \begin{equation}
     X = \mu + W Z + \epsilon
   \end{equation}
-  where the noise $\epsilon$ is typically Gaussian and diagonal (but not necessarily the same component-wise variances). Finally, we can use techniques like MLE to estimate $W, \mu$, and the parameters of $\epsilon$. The entire reason we want to do this is that we are hoping that we can construct a complex distribution $X$ from a simple distribution $Z$ with $d >> k$, connected by some well-studied function $X = f(Z)$. In the linear case, $W \in \mathbb{R}^{d \times k}$, and the latent variables $z$ give a more compact, parsimonious  explanation of dependencies between the components of the observations $x$. 
+  where the noise $\epsilon$ is typically Gaussian and diagonal (but not necessarily the same component-wise variances). 
 
+  Remember that given data matrix $X \in \mathbb{R}^{n \times d}$, we can take the SVD of it $X = U \Sigma V^T$ where the columns of $V$ represent the principal axes. Since $V$ is orthogonal, $V^T V = V V^T = I_d$, and so $X = X V V^T$. This may seem pretty trivial, but in PCA, we did data compression by removing the last columns of $V$ to get $X \approx X V_k V_k^T$. In a sense we can think of $XV_k \in \mathbb{R}^{n \times k}$ as the projection into the component space and then $(X V_k) V_k^T \in \mathbb{R}^{n \times d}$ as the embedding back into the original space. 
+
+  In terms of random variables, we have $x$ having a distribution over $\mathbb{R}^{d}$. Then, $V V^T x$ is our projected random variable that minimizes the expected $L^2$ distance between $x$ and $V V^T x$. 
+  
   \begin{definition}[Factor Analysis] 
-    \textbf{Factor analysis} is a specific case of a linear latent variable model where 
+    Let $x$ be a random variable in $\mathbb{R}^d$. We would like to model it as 
     \begin{equation}
-      X = \mu + WZ + \epsilon, \text{ where } z \in \mathcal{N}(0, I), \epsilon \sim \mathcal{N} \big(0, \mathrm{diag}(\sigma_1^2, \ldots, \sigma_k^2) \big)
+      x - \mu = \Lambda \eta + \epsilon
     \end{equation}
+    where $\mu = \mathbb{E}[x]$ simply normalizes the distribution, $\eta \in \mathbb{R}^k$ are the \textbf{factors} that act as latent variables, $\Lambda \in \mathbb{R}^{d \times k}$ is the \textbf{loading matrix} that maps the factors to the samples, and $\epsilon$ is an error term.\footnote{$\eta$ is analogous to $V^T x \in \mathbb{R}^k$. $\Lambda$ is analogous to the embedding $V^T: \mathbb{R}^k \to \mathbb{R}^d$.} We have the following assumptions. 
+    \begin{enumerate}
+      \item $\mathbb{E}[\eta] = 0$. 
+      \item $\Var[\eta] = I_k$ so that the factors are uncorrelated. 
+      \item $\Lambda$ and $\epsilon$ are independent. 
+      \item Sometimes, $\epsilon$ is assumed to be an isotropic Gaussian. 
+    \end{enumerate}
+  \end{definition} 
+
+  For simplicity, we will omit the mean term, and it is also common notation to use $L$ and $f$ as the loading matrix and factors. 
+
+  If we were working with the data matrix $X \in \mathbb{R}^{n \times d}$, then we would be using right matrix multiplication, and so our model will look like 
+  \begin{equation}
+    X = \eta \Lambda + \epsilon
+  \end{equation}
+  where $\eta \in \mathbb{R}^{n \times k}$, $\Lambda \in \mathbb{R}^{k \times d}, \epsilon \in \mathbb{R}^{n \times d}$. 
+
+  \begin{theorem}[Likelihood]
+    
+  \end{theorem}
+
+  \begin{lemma} 
     It should be clear to us that $X$ should be Gaussian\footnote{Since linear transformations of Gaussians are Gaussian} and that $\mathbb{E}[X] = \mu$, with 
     \begin{align} 
         \mathrm{Var}[X] & = \mathbb{E}[ (X - \mu)(X - \mu)^T ] \\
@@ -57,5 +62,9 @@
                         & = W W^T + \mathrm{diag}(\sigma_1^2, \ldots, \sigma_d^2) 
     \end{align} 
     The $W, \mu$, and $\sigma_i$'s can be estimated using MLE methods. 
-  \end{definition} 
+  \end{lemma}
+
+\subsection{Degrees of Freedom}
+
+  
 
