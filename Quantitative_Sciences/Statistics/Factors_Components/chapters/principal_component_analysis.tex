@@ -12,15 +12,13 @@
 
 \subsection{L2 Residual Minimization Approach} 
 
-  To give some motivation, we try to find a best fit line in $\mathbb{R}^d$. A line $\ell$ can be parameterized by a unit vector $v$, and so given some sample $x$, its projection onto $\ell$ is $\proj_{\ell} (x) = \langle x, v\rangle v$. Therefore, the residual is 
+  To give some motivation, we try to find a best fit line in $\mathbb{R}^d$. A line $\ell$ can be parameterized by a unit vector $v$ (note that it can be $-pm v$!), and so given some sample $x$, its projection onto $\ell$ is $\proj_{\ell} (x) = \langle x, v\rangle v$. Therefore, the residual is 
   \begin{align}
     \| x - \langle x, v \rangle v \|^2 & = \|x\|^2 - 2 \langle x, \langle x, v \rangle v \rangle + \| \langle x, v \rangle v \|^2 \\ 
                                        & = \|x\|^2 - 2 \langle x, v \rangle^2 + \langle x, v \rangle^2 \|v\|^2 \\ 
                                        & = \|x\|^2 - \langle x, v \rangle^2
   \end{align}
-  since $\|v\|^2 = 1$ \cite{2019shalizi}. 
-
-  Now given a random variable $x$, our risk is
+  since $\|v\|^2 = 1$ \cite{2019shalizi}. Now given a $0$-mean random variable $x$ (why we only consider $0$-mean RVs will be clear later), our risk is
   \begin{equation}
     R(v) = \mathbb{E}_x \big[ \| x - (x \cdot v) v \| \big] = \mathbb{E}_x \big[ \|x\|^2 \big] - \mathbb{E}_x \big[ \langle x, v \rangle^2 \big]
   \end{equation} 
@@ -52,9 +50,59 @@
     & = \mathbb{E} \bigg[ \|x\|^2 - 2 \langle x, \sum_{i=1}^k \proj_{v_i} x \rangle + \| \sum_{i=1}^k \proj_{v_i} x \|^2 \bigg] \\ 
     & = \mathbb{E} \bigg[ \|x\|^2 - 2 \sum_{i=1}^k \langle x, \proj_{v_i} x \rangle + \sum_{i=1}^k \| \proj_{v_i} x \|^2 \bigg] \\
     & = \mathbb{E} \bigg[ \|x\|^2 - 2 \sum_{i=1}^k \langle x, v_i \rangle^2 + \sum_{i=1}^k \langle x, v_i \rangle^2 \|v_i\|^2 \bigg] \\ 
-    & = \mathbb{E} \bigg[ \|x\|^2 - \sum_{i=1}^k \langle x, v_i \rangle^2 \bigg] 
+    & = \mathbb{E} \bigg[ \|x\|^2 - \sum_{i=1}^k \langle x, v_i \rangle^2 \bigg] \label{loss}
   \end{align} 
-  and in the empirical case, we can get rid of the fixed $x$ and find 
+
+  Now if $x$ was not $0$-mean, our intuition would tell us that the principal subspace should pass through its mean, or centroid. In fact \cite{1901pearson} showed this for a $1$-dimensional subspace. 
+
+  \begin{lemma}[Principal Subspace Must Intersect Mean]
+    Assume that $\mathbb{E}[x] \neq 0$, and by abuse of notation let us denote $\ell + p \in \mathbb{R}^d$ as the affine subspace $\ell$ that goes through $p$ orthogonally from the origin. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[scale=1.5]
+        % Axes
+        \draw[->, thick, gray!70] (-1.2, 0) -- (1.5, 0) node[right] {\small $x_1$};
+        \draw[->, thick, gray!70] (0, -0.6) -- (0, 1.5) node[above] {\small $x_2$};
+
+        % Vector p
+        \draw[->, thick, blue] (0,0) -- (0.5, 0.5) node[above right] {\small $p$};
+
+        % Affine subspace l + p (orthogonal to p)
+        \draw[thick] (-0.5,1.5) -- (1.5,-0.5);
+        \node[] at (1.4,-0.5) [right] {\small $\ell + p$};
+      \end{tikzpicture}
+      \caption{By orthogonal intersection, we mean that for any $w \in \ell$, $\langle w, p \rangle = 0$} 
+    \end{figure}
+
+    Then, we claim that the value of $p$ that minimizes the risk is the average projection distance to the subspace. 
+    \begin{equation}
+      p = \mathbb{E}[x - \proj_\ell (x)]
+    \end{equation}
+  \end{lemma}
+  \begin{proof}
+    The projection distance of $x$ onto $\ell + p$ is the same as the projection distance from $x-p$ onto $\ell$. Therefore, noting that $v_i$'s are orthogonal, we can derive
+    \begin{align}
+      R(\ell, p) & = \mathbb{E}_x \big[ \| (x - p) - \proj_\ell (x) \|^2 \big] \\
+                 & = \mathbb{E}_x \bigg[ \bigg\| (x - p) - \sum_{i=1}^k \proj_{v_i} (x) \bigg\|^2 \bigg] \\ 
+                 & = \mathbb{E}_x \bigg[ \|x - p\|^2 + \bigg\| \sum_{i=1}^k \proj_{v_i} (x) \bigg\|^2 - 2 \Big\langle x - p, \sum_{i=1}^k \proj_{v_i} (x) \Big\rangle \bigg] \\ 
+                 & = \mathbb{E}_x \bigg[ \|x - p\|^2 - \sum_{i=1}^k \langle x, v_i \rangle^2 + 2 \sum_{i=1}^k \langle x, v_i \rangle \langle p, v_i \rangle \bigg] 
+    \end{align}
+    To find the minimum, we take the total derivative and set it equal to $0$. We are taking the derivative w.r.t. $p$ of an integral w.r.t. $x$, so we can push the derivative into the integral and solve. 
+    \begin{align}
+      0 = \frac{\partial R(\ell, p)}{\partial p} 
+        &= \mathbb{E}_x \left[ \frac{\partial}{\partial p} \left\{ \|x - p\|^2 - \sum_{i=1}^k \langle x, v_i \rangle^2 + 2 \sum_{i=1}^k \langle x, v_i \rangle \langle p, v_i \rangle \right\} \right] \\
+        &= \mathbb{E}_x \left[ 2(p - x) + 2 \sum_{i=1}^k \langle x, v_i \rangle \frac{\partial}{\partial p} \langle p, v_i \rangle \right]  \\ 
+        &= \mathbb{E}_x \left[ 2(p - x) + 2 \sum_{i=1}^k \langle x, v_i \rangle v_i \right]  \\ 
+        &= \mathbb{E}_x \left[ 2(p - x) + 2 \proj_{\ell} (x) \right]
+    \end{align}
+    and by solving for $p$, we get 
+    \begin{equation}
+      p = \mathbb{E}_{x} [x - \proj_\ell (x)]
+    \end{equation}
+  \end{proof}
+
+  Therefore, we can just normalize the data to $0$ and simply use \ref{loss} without having to account for the affine translation $p$. In the empirical case, we can get rid of the fixed $x$ and find 
   \begin{equation}
     \argmax_{v_i \in \mathbb{R}^d} \frac{1}{n} \sum_{j=1}^n \sum_{i=1}^k \langle x^{(j)}, v_i \rangle^2, \quad \text{ subject to } \|v_i\|^2 = 1, \langle v_i, v_j \rangle = 0 \text{ for } i \neq j
   \end{equation} 
