@@ -18,20 +18,206 @@
 
   Like we do with everything else in math, we take a look at the simplest case when the class of functions are linear. This is known as \textit{linear latent variable modeling}. 
   \begin{equation}
-    X = \mu + W Z + \epsilon
+    x = \mu + \Lambda z + \epsilon
   \end{equation}
   where the noise $\epsilon$ is typically Gaussian and diagonal (but not necessarily the same component-wise variances). 
 
-  Remember that given data matrix $X \in \mathbb{R}^{n \times d}$, we can take the SVD of it $X = U \Sigma V^T$ where the columns of $V$ represent the principal axes. Since $V$ is orthogonal, $V^T V = V V^T = I_d$, and so $X = X V V^T$. This may seem pretty trivial, but in PCA, we did data compression by removing the last columns of $V$ to get $X \approx X V_k V_k^T$. In a sense we can think of $XV_k \in \mathbb{R}^{n \times k}$ as the projection into the component space and then $(X V_k) V_k^T \in \mathbb{R}^{n \times d}$ as the embedding back into the original space. 
+\subsection{Probabilistic PCA}
 
-  In terms of random variables, we have $x$ having a distribution over $\mathbb{R}^{d}$. Then, $V V^T x$ is our projected random variable that minimizes the expected $L^2$ distance between $x$ and $V V^T x$. 
-  
+  The main goal of PCA was to do dimensionality reduction by creating a botttleneck in the number of dimensions $k$. Our goal was to approximate the original random variable $x$ by first projecting onto a lower-dimensional space $z = V_k^T x$, and then embedding it through a linear injection. 
+  \begin{equation}
+    x \approx V_k V_k^T x = V_k z 
+  \end{equation} 
+  What if we don't restrict the dimensions at all, and just let $k = d$? Then we have the exact equation. 
+  \begin{equation}
+    x = V V^T x = V z
+  \end{equation}
+  This is trivial since $V$---as an orthogonal matrix---satisfies $V V^T = V^T V = I_d$. Essentially, this is just a rotation of the axes. We have the maximal restriction when $k = 1$, and as we increase  $k$ to $d$, our reconstruction loss will decrease. But almost always, if our data does not sit exactly on a subspace, we cannot get an exact reconstruction of our data with $k < d$. There are two goals of probabilistic PCA (PPCA), and each of them are solved by introducing a probabilistic term in the model. \cite{1999tipping} 
+  \begin{enumerate}
+    \item \textit{Generative}. We would like our model to be generative. In regular PCA, we saw that for some $z \in \mathbb{R}^k$ in the latent component space, our reconstructed sample is $\hat{x} = \Sigma V_k z$. Therefore, if we just change $z$ from a point to a distribution (e.g. Gaussian), we can sample $z \sim \mathcal{N}(0, I_k)$, and then transform it to get a random variable $x = \mu + \Sigma V_k z$, which will give a density. 
+    \begin{equation}
+      x \sim \mathcal{N} \big( \mu, (V_k \Sigma)(V_k \Sigma)^T \big) = \mathcal{N} \big( \mu, V_k \Sigma U^T U \Sigma V^T \big) = \mathcal{N} \big( \mu, X_k^T X_k)
+    \end{equation} 
+    However, this is a distribution. 
+
+    \item \textit{Exact Reconstruction}. However, $X_k \in \mathbb{R}^{n \times d}$ with $d << n$, and so $X_k^T X_k \in \mathbb{R}^{d \times d}$ is not full rank, and so the distribution is restricted to strictly the $k$-dimensional subspace $L_k \subset \mathbb{R}^D$. We want a model that has the both of best worlds: it has a bottleneck so that $k < d$, but at the same time it can do an exact reconstruction of the data. This can be solved by introducing a probabilistic error term $\epsilon$ that accounts for the variability of the data around the principal subspace. So let's add an isotropic Gaussian $\epsilon \sim \mathcal{N}(0, \sigma^2 I)$\footnote{Why isotropic? No real reason. In factor models, we generalize this to arbitrary covariance matrices, and so PPCA is a specific case of factor analysis.}, which gives us 
+    \begin{equation}
+      x = \Sigma V_k z + \epsilon \implies X \sim \mathcal{N}(\mu, X_k^T X_k + \sigma^2 I)
+    \end{equation} 
+  \end{enumerate} 
+
+  Note again that we are adding \textit{two} probabilistic terms, each of which serves a specific purpose. Great, and finally, let's clean up some notation and polish it up. 
+  \begin{enumerate}
+    \item First, let's just call $W = \Sigma V_k \in \mathbb{R}^{d \times k}$, keeping the $k$ implicit, and treat it as the parameter to estimate. 
+    \item Second, let's remove the assumption that $x$ is $0$-mean and add back the mean term $\mu$. 
+  \end{enumerate} 
+
+  This gives us our model. 
+
+  \begin{definition}[Probabilistic PCA] 
+    The \textbf{probabilistic PCA} model is a latent factor model that summarizes the data generating distribution $x$ as  
+    \begin{equation}
+      x = \mu + W z + \epsilon, \qquad z \sim N(0, I), \epsilon \sim N(0, \sigma^2 I) 
+    \end{equation} 
+    with parameters $\theta = \{\mu, W, \sigma\}$. 
+  \end{definition} 
+
+  An immediate consequence is that the closed form of the distrbution of $x$ under this model can be solved. Calculating the pdf of $x$ requires us to marginalize out the $z$, but since marginals of Gaussians are Gaussians, this is quite easy. 
+
+  \begin{lemma}[Likelihood of PPCA] 
+    We claim that given $\theta = \{\mu, W, \sigma\}$, we have 
+    \begin{equation}
+      x \sim \mathcal{N}(\mu, W W^T + \sigma^2 I) 
+    \end{equation} 
+  \end{lemma}
+  \begin{proof}
+    By assuming it is Gaussian, you can just directly compute the expectation and covariance, but I will do the full density derivation. We start with the conditional and prior distributions from the probabilistic PCA model:
+    \begin{align}
+      p(x | z, W) &\propto \exp\left(-\frac{(x - W^T z)^T(x - W^T z)}{2\sigma^2}\right), \\
+      p(z) &\propto \exp\left(-\frac{z^T z}{2}\right).
+    \end{align}
+
+    The joint distribution is given by:
+    \begin{align}
+      p(x, z | W) &= p(x | z, W)p(z) \quad \text{(since } z \perp W\text{)} \\
+      &\propto \exp\left(-\frac{(x - W^T z)^T(x - W^T z)}{2\sigma^2} - \frac{z^T z}{2}\right).
+    \end{align}
+
+    Expanding the quadratic term $(x - W^T z)^T(x - W^T z)$:
+    \begin{align}
+      (x - W^T z)^T(x - W^T z) &= x^T x - x^T W^T z - z^T W x + z^T W W^T z \\
+      &= x^T x - 2x^T W^T z + z^T W W^T z,
+    \end{align}
+    where we used the fact that $x^T W^T z = z^T W x$ (scalar quantities).
+
+    Substituting back into the joint distribution:
+    \begin{align}
+      p(x, z | W) &\propto \exp\left(-\frac{x^T x - 2x^T W^T z + z^T W W^T z}{2\sigma^2} - \frac{z^T z}{2}\right) \\
+      &= \exp\left(-\frac{x^T x - 2x^T W^T z + z^T W W^T z}{2\sigma^2} - \frac{z^T z}{2}\right).
+    \end{align}
+
+    Factoring out $-\frac{1}{2}$ and collecting terms:
+    \begin{align}
+      p(x, z | W) &\propto \exp\left(-\frac{1}{2}\left(x^T\left(\frac{1}{\sigma^2}I\right)x + 2x^T\left(-\frac{1}{\sigma^2}W^T\right)z + z^T\left(\frac{1}{\sigma^2}WW^T + I\right)z\right)\right).
+    \end{align}
+
+    We can rewrite this in quadratic form. Let $v = \begin{bmatrix} x \\ z \end{bmatrix}$. Then:
+    \begin{align}
+      p(x, z | W) &\propto \exp\left(-\frac{1}{2}\begin{bmatrix} x^T & z^T \end{bmatrix} \begin{bmatrix} \frac{1}{\sigma^2}I & -\frac{1}{\sigma^2}W^T \\ -\frac{1}{\sigma^2}W & \frac{1}{\sigma^2}WW^T + I \end{bmatrix} \begin{bmatrix} x \\ z \end{bmatrix}\right).
+    \end{align}
+
+    This has the form of a multivariate Gaussian distribution:
+    \begin{equation}
+      p(v | W) \propto \exp\left(-\frac{1}{2}(v - \mu)^T\Sigma^{-1}(v - \mu)\right),
+    \end{equation}
+
+    with $v = \begin{bmatrix} x \\ z \end{bmatrix}$, $\mu = 0$, and precision matrix:
+    \begin{equation}
+      \Sigma^{-1} = \begin{bmatrix} \frac{1}{\sigma^2}I & -\frac{1}{\sigma^2}W^T \\ -\frac{1}{\sigma^2}W & \frac{1}{\sigma^2}WW^T + I \end{bmatrix}.
+    \end{equation}
+
+    Remember that if we write a multivariate Gaussian in partitioned form,
+    \begin{equation}
+      \begin{bmatrix} x \\ z \end{bmatrix} \sim \mathcal{N}\left(\begin{bmatrix} \mu_x \\ \mu_z \end{bmatrix}, \begin{bmatrix} \Sigma_{xx} & \Sigma_{xz} \\ \Sigma_{zx} & \Sigma_{zz} \end{bmatrix}\right),
+    \end{equation}
+
+    then the marginal distribution $p(x)$ (integrating over $z$) is given by
+    \begin{equation}
+      x \sim \mathcal{N}(\mu_x, \Sigma_{xx}).
+    \end{equation}
+
+    For probabilistic PCA we assume $\mu_x = 0$, but we partitioned $\Sigma^{-1}$ instead of $\Sigma$. To get $\Sigma$ we can use a partitioned matrix inversion formula:
+    \begin{equation}
+      \Sigma = \begin{bmatrix} \frac{1}{\sigma^2}I & -\frac{1}{\sigma^2}W^T \\ -\frac{1}{\sigma^2}W & \frac{1}{\sigma^2}WW^T + I \end{bmatrix}^{-1} = \begin{bmatrix} W^TW + \sigma^2 I & W^T \\ W & I \end{bmatrix},
+    \end{equation}
+
+    which gives that the solution to integrating over $z$ is
+    \begin{equation}
+      x | W \sim \mathcal{N}(0, W^T W + \sigma^2 I).
+    \end{equation}
+  \end{proof}
+
+  By taking the log-likelihood, the loss of a single sample is 
+  \begin{equation}
+    L(x \mid W, \mu, \sigma) = \frac{1}{2} (x - \mu)^T (W^T W + \sigma^2 I)^{-1} (x - \mu)
+  \end{equation} 
+  and the expected loss is 
+  \begin{equation}
+    \mathbb{E}_x [ L(x \mid W, \mu, \sigma)] = \int L(x \mid W, \mu, \sigma) \, p(x) \,dx
+  \end{equation}
+  Likewise, the empirical loss for a dataset of $n$ elements $\{x^{(i)}\}_{i=1}^n$ is 
+  \begin{equation}
+    \frac{1}{2} \sum_{i=1}^n (x^{(i)} - \mu)^T (W^T W + \sigma^2 I)^{-1} (x^{(i)} - \mu)
+  \end{equation}
+
+  Optimizing this model is actually quite easy. 
+
+
+  \begin{theorem}[MLE of PPCA Model]
+    Given $x^{(i)} \sim X$ iid, the MLEs for $W, \mu, \sigma$ are 
+    \begin{align}
+      \mu^\ast & = \frac{1}{n} \sum_{i=1}^n x^{(i)} \\
+      \sigma^{2 \ast} & = \frac{1}{d-k} \sum_{j=k+1}^d \lambda_j \\
+      W^\ast & = R (\Sigma - \sigma^{2 \ast} I_d )^{1/2} V_k
+    \end{align}
+    where $\lambda_j$ are the eigenvalues of $X^T X$ in decreasing order, $V_k$ is the truncated orthogonal matrix consisting of the first $k$ columns of $V$ for SVD $X = U \Sigma V^T$, and $R$ is any unitary matrix.\footnote{Note that $W^{\ast}$ is not unique. Say that $W^\ast$ is an MLE, then, for any unitary $R \in \mathbb{R}^{d \times d}$, we have $W^{\ast T} W^\ast = (R W^\ast)^T (R W^\ast)$.} 
+  \end{theorem}
+  \begin{proof}
+    We could also just differentiate the expected risk directly, but for no particular reason I will differentiate the empirical risk. 
+    \begin{enumerate}
+      \item For $\mu^\ast$, we use the matrix derivative $\frac{\partial}{\partial x} x^T A x = 2 A x$ and get 
+      \begin{align}
+        0 & = \frac{1}{2} \sum_{i=1}^n \frac{\partial}{\partial \mu} \left\{ (x^{(i)} - \mu)^T (W^T W + \sigma^2 I) (x^{(i)} - \mu) \right\} \\ 
+          & = \frac{1}{2} \sum_{i=1}^n 2 (W^T W + \sigma^2 I) (x^{(i)} - \mu) \\ 
+          & = (W^T W + \sigma^2 I) \left( \sum_{i=1}^n x^{(i)} - \mu \right)
+      \end{align} 
+      and since $W^T W + \sigma^2 I$ is positive definite, its inverse is positive definite and so it can only be $0$ when it is mapping the $0$ vector. So $\mu = \sum_{i=1}^n x^{(i)}$. 
+
+      \item For $\sigma$, we first take a look at $C = \mathrm{Var}[X] = W W^T + \sigma^2 I$. It is the sum of positive semidefinite matrices that are also symmetric, so by the spectral theorem it is diagonalizable and has full rank $d$. But $W W^T$ is rank $k$, so $d - k$ of the eigenvalues of $W W^T$ is $0$, indicating that the same $d-k$ smallest eigenvalues of $C$ is $\sigma^2$. Therefore, we can take the smallest $d-k$ eigenvalues of our MLE estimator of $C$, which is $S$, and average them to get our MLE for $\sigma$. 
+      \begin{equation}
+        \hat{\sigma}^{2\ast} = \frac{1}{d-k} \sum_{j=k+1}^d \lambda_j
+      \end{equation}
+      \item TBD: Justify this again. For $W$, we can set $\mu^\ast$ first and then compute 
+      \begin{equation}
+        \widehat{\mathrm{Var}}(\mu^{\ast}) = S = \frac{1}{n} \sum_{i=1}^n (x^{(i)} - \mu^{\ast}) (x^{(i)} - \mu^{\ast})^T
+      \end{equation}
+      We can approximate $W W^T = C - \sigma^2 I \approx S - \hat{\sigma}^{2\ast} I$, and by further taking the eigendecomposition $C = U \Sigma U^T \implies W W^T = U (\Sigma - \sigma^2 I) U^T$ and cutting off the last $d-k$ smallest eigenvalues and their corresponding eigenvectors, we can get 
+      \begin{equation}
+        W^{\ast} = R (\Sigma - \sigma^{2 \ast} I_d )^{1/2} V_k
+      \end{equation}
+      where the $R$ just accounts for any unitary matrix. 
+    \end{enumerate}
+  \end{proof}
+
+  The final fact is intuitive. We have introduced the error term $\epsilon$ that allows us to extend beyond the principal subspace. If we let $\epsilon$ vanish, the density model defined by PPCA becomes very sharp around these $d$ dimensions spanned by the columns of $W$. At $0$, we are reduced to regular PCA. 
+
+  \begin{theorem}[PPCA as $\sigma \to 0$] 
+    As $\sigma \rightarrow 0$, the MLE estimates of $W$ is equivalent to that of PCA. That is, when $W \in \mathbb{R}^{d \times k}$, 
+    \begin{equation}
+      W^\ast = \Sigma V_k
+    \end{equation} 
+    where $X = U \Sigma V^T$, and $V_k$ is the matrix formed by the first $k$ columns of $V$. That is, the conditional expected value of $z$ given $X$ becomes an orthogonal projection of $X - \mu$ onto the subspace spanned by the columns of $W$. 
+  \end{theorem}
+  \begin{proof}
+    At $0$, our MLE of $W$ is simplified and we have 
+    \begin{equation}
+      x = W^\ast z + \mu^\ast + \epsilon = \Sigma V_k z + \mu^\ast
+    \end{equation}
+    which essentially reduces to regular PCA. 
+  \end{proof}
+
+  Intuitively, we can see that we are estimating the Gaussian, which corresponds to the mean squared distance from each $x^{(i)}$ to $\ell_k$. 
+
+\subsection{Linear Factor Models} 
+
+  A linear factor model is pretty much the same thing as PPCA. In fact, I don't even know why these two models are distinguished. The only two differences is notation and that linear factor models loosen the restriction that the covariance matrix of $\epsilon$ must be isotopic. 
+
   \begin{definition}[Factor Analysis] 
     Let $x$ be a random variable in $\mathbb{R}^d$. We would like to model it as 
     \begin{equation}
       x - \mu = \Lambda \eta + \epsilon
     \end{equation}
-    where $\mu = \mathbb{E}[x]$ simply normalizes the distribution, $\eta \in \mathbb{R}^k$ are the \textbf{factors} that act as latent variables, $\Lambda \in \mathbb{R}^{d \times k}$ is the \textbf{loading matrix} that maps the factors to the samples, and $\epsilon$ is an error term.\footnote{$\eta$ is analogous to $V^T x \in \mathbb{R}^k$. $\Lambda$ is analogous to the embedding $V^T: \mathbb{R}^k \to \mathbb{R}^d$.} We have the following assumptions. 
+    where $\mu = \mathbb{E}[x]$ simply normalizes the distribution, $\eta \in \mathbb{R}^k$ are the \textbf{factors} that act as latent variables, $\Lambda \in \mathbb{R}^{d \times k}$ is the \textbf{loading matrix} that maps the factors to the samples, and $\epsilon$ is an error term.\footnote{$\eta$ is analogous to $V^T x \in \mathbb{R}^k$. $\Lambda$ is analogous to the embedding $V^T: \mathbb{R}^k \to \mathbb{R}^d$. It is also common notation to use $L$ and $f$ as the loading matrix and factors. } We have the following assumptions. 
     \begin{enumerate}
       \item $\mathbb{E}[\eta] = 0$. 
       \item $\Var[\eta] = I_k$ so that the factors are uncorrelated. 
@@ -40,7 +226,7 @@
     \end{enumerate}
   \end{definition} 
 
-  For simplicity, we will omit the mean term, and it is also common notation to use $L$ and $f$ as the loading matrix and factors. 
+  Remember that given data matrix $X \in \mathbb{R}^{n \times d}$, we can take the SVD of it $X = U \Sigma V^T$ where the columns of $V$ represent the principal axes. Since $V$ is orthogonal, $V^T V = V V^T = I_d$, and so $X = X V V^T$. This may seem pretty trivial, but in PCA, we did data compression by removing the last columns of $V$ to get $X \approx X V_k V_k^T$. In a sense we can think of $XV_k \in \mathbb{R}^{n \times k}$ as the projection into the component space and then $(X V_k) V_k^T \in \mathbb{R}^{n \times d}$ as the embedding back into the original space. 
 
   If we were working with the data matrix $X \in \mathbb{R}^{n \times d}$, then we would be using right matrix multiplication, and so our model will look like 
   \begin{equation}
@@ -48,21 +234,32 @@
   \end{equation}
   where $\eta \in \mathbb{R}^{n \times k}$, $\Lambda \in \mathbb{R}^{k \times d}, \epsilon \in \mathbb{R}^{n \times d}$. 
 
-  \begin{theorem}[Likelihood]
-    
-  \end{theorem}
-
-  \begin{lemma} 
-    It should be clear to us that $X$ should be Gaussian\footnote{Since linear transformations of Gaussians are Gaussian} and that $\mathbb{E}[X] = \mu$, with 
-    \begin{align} 
+  \begin{lemma}[Likelihood of Linear Factor Models]
+    The likelihood of the linear factor model is 
+    \begin{equation}
+      p(x \mid \Lambda, \mu, \Sigma_\epsilon) 
+    \end{equation}
+  \end{lemma}
+  \begin{proof}
+    It should be clear to us that $X$ should be Gaussian since linear transformations of Gaussians are Gaussian. Therefore it suffices to compute its mean and variance. 
+    \begin{enumerate}
+      \item The mean can be computed exactly the same way for PPCA, which gives $\mathbb{E}[X] = \mu$. 
+      \item The variance can be computed as 
+      \begin{align} 
         \mathrm{Var}[X] & = \mathbb{E}[ (X - \mu)(X - \mu)^T ] \\
                         & = \mathbb{E}[ (W Z + \epsilon) (Z^T W^T + \epsilon^T)] \\
                         & = \mathbb{E}[W z z^T W^T] + \mathbb{E}[ \epsilon \epsilon^T] \\
                         & = W \mathbb{E}[ z z^T] W^T + \mathbb{E}[ \epsilon \epsilon^T] \\
                         & = W W^T + \mathrm{diag}(\sigma_1^2, \ldots, \sigma_d^2) 
-    \end{align} 
-    The $W, \mu$, and $\sigma_i$'s can be estimated using MLE methods. 
-  \end{lemma}
+      \end{align} 
+    \end{enumerate}
+  \end{proof}
+
+  The $W, \mu$, and $\sigma_i$'s can be estimated using MLE methods. 
+
+  \begin{theorem}[MLE of Factor Model]
+    
+  \end{theorem}
 
 \subsection{Degrees of Freedom}
 
