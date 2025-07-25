@@ -1,5 +1,5 @@
 [[2005dalal_hog.pdf]]
-#computer-vision #discriminative
+#computer-vision
 
 [[2004lowe_sift]]
 

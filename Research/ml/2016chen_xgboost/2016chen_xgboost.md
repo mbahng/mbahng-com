@@ -1,5 +1,5 @@
 [[2016chen_xgboost.pdf]]
-#ensemble #tree #discriminative
+#ensemble #tree
 
 [[1999shapire_improved-boosting]]
 

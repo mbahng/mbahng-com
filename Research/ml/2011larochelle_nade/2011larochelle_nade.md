@@ -1,5 +1,5 @@
 [[2011larochelle_nade.pdf]]
-#deep-learning #generative
+#deep-learning
 
 [[2002hinton_contrastive-divergence]]
 

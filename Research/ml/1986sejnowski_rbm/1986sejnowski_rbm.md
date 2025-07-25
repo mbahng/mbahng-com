@@ -1,4 +1,4 @@
 [[1986sejnowski_rbm.pdf]]
-#deep-learning #generative
+#deep-learning
 
 [[1986sejnowski_boltzmann-machine]]

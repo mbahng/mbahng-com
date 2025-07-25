@@ -1,6 +1,5 @@
 [[2010mikolov_rnn-language.pdf]]
-#deep-learning #natural-language-processing #discriminative
-#natural-language-processing
+#deep-learning #natural-language-processing
 [[1985rumelhart_rnn]], [[2003bengion_neural-prob-language-model]] 
 
 # Contributions 

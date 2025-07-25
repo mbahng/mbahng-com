@@ -1,4 +1,4 @@
 [[2015rezende_normalizing-flow.pdf]]
-#deep-learning #generative
+#deep-learning
 
 [[2013kingma_vae]]

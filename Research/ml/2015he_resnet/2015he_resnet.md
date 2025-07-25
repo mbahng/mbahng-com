@@ -1,5 +1,5 @@
 [[2015he_resnet.pdf]]
-#deep-learning #computer-vision #discriminative
+#deep-learning #computer-vision
 
 [[2014simonyan_vgg]]
 

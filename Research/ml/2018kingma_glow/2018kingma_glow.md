@@ -1,4 +1,4 @@
 [[2018kingma_glow.pdf]]
-#deep-learning #generative
+#deep-learning
 
 [[2015rezende_normalizing-flow]]

@@ -1,5 +1,5 @@
 [[1999shapire_improved-boosting.pdf]]
-#ensemble #discriminative
+#ensemble
 
 [[1997freund_adaboost]]
 

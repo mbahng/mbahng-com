@@ -1,6 +1,5 @@
 [[2014cho_rnn-encoder-decoder-smt.pdf]]
-#deep-learning #natural-language-processing #generative
-#natural-language-processing 
+#deep-learning #natural-language-processing 
 [[2013kalchbrenner_rnn-translation]]  
 
 # Contribution 

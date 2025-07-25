@@ -1,5 +1,5 @@
 [[1986sejnowski_boltzmann-machine.pdf]]
-#deep-learning #generative
+#deep-learning
 
 [[1958rosenblatt_perceptron]]
 

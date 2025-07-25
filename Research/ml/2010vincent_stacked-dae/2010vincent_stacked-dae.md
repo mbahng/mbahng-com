@@ -1,5 +1,5 @@
 [[2010vincent_stacked-dae.pdf]]
-#deep-learning #generative
+#deep-learning
 
 [[2008vincent_denoising-ae]]
 
