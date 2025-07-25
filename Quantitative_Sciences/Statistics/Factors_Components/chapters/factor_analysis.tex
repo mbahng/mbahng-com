@@ -24,7 +24,7 @@
 
 \subsection{Probabilistic PCA}
 
-  The main goal of PCA was to do dimensionality reduction by creating a botttleneck in the number of dimensions $k$. Our goal was to approximate the original random variable $x$ by first projecting onto a lower-dimensional space $z = V_k^T x$, and then embedding it through a linear injection. 
+  We're talking about probabilistic PCA (PPCA), but why is this under factor analysis? I think that the jump from PCA to PPCA is greater than from PPCA to factor analysis, so I will introduce it here as a stepping stone. The main goal of PCA was to do dimensionality reduction by creating a botttleneck in the number of dimensions $k$. Our goal was to approximate the original random variable $x$ by first projecting onto a lower-dimensional space $z = V_k^T x$, and then embedding it through a linear injection. 
   \begin{equation}
     x \approx V_k V_k^T x = V_k z 
   \end{equation} 
@@ -32,23 +32,22 @@
   \begin{equation}
     x = V V^T x = V z
   \end{equation}
-  This is trivial since $V$---as an orthogonal matrix---satisfies $V V^T = V^T V = I_d$. Essentially, this is just a rotation of the axes. We have the maximal restriction when $k = 1$, and as we increase  $k$ to $d$, our reconstruction loss will decrease. But almost always, if our data does not sit exactly on a subspace, we cannot get an exact reconstruction of our data with $k < d$. There are two goals of probabilistic PCA (PPCA), and each of them are solved by introducing a probabilistic term in the model. \cite{1999tipping} 
+  This is trivial since $V$---as an orthogonal matrix---satisfies $V V^T = V^T V = I_d$. Essentially, this is just a rotation of the axes. We have the maximal restriction when $k = 1$, and as we increase  $k$ to $d$, our reconstruction loss will decrease. But almost always, if our data does not sit exactly on a subspace, we cannot get an exact reconstruction of our data with $k < d$. This is the motivation behind probabilistic PCA (PPCA), and there are essentially two goals that we want to solve. \cite{1999tipping} 
   \begin{enumerate}
-    \item \textit{Generative}. We would like our model to be generative. In regular PCA, we saw that for some $z \in \mathbb{R}^k$ in the latent component space, our reconstructed sample is $\hat{x} = \Sigma V_k z$. Therefore, if we just change $z$ from a point to a distribution (e.g. Gaussian), we can sample $z \sim \mathcal{N}(0, I_k)$, and then transform it to get a random variable $x = \mu + \Sigma V_k z$, which will give a density. 
+    \item \textit{Generative}. We would like our model to be generative. In regular PCA, we saw that for some $z \in \mathbb{R}^k$ in the latent component space, our reconstructed sample is $\hat{x} = S V_k z$. Therefore, if we just change $z$ from a point to a distribution (e.g. Gaussian), we can sample $z \sim \mathcal{N}(0, I_k)$, and then transform it to get a random variable $x = \mu + S V_k z$, which will give a density. 
     \begin{equation}
-      x \sim \mathcal{N} \big( \mu, (V_k \Sigma)(V_k \Sigma)^T \big) = \mathcal{N} \big( \mu, V_k \Sigma U^T U \Sigma V^T \big) = \mathcal{N} \big( \mu, X_k^T X_k)
+      x \sim \mathcal{N} \big( \mu, (V_k S)(V_k S)^T \big) = \mathcal{N} \big( \mu, V_k S U^T U S V^T \big) = \mathcal{N} \big( \mu, X_k^T X_k)
     \end{equation} 
-    However, this is a distribution. 
 
     \item \textit{Exact Reconstruction}. However, $X_k \in \mathbb{R}^{n \times d}$ with $d << n$, and so $X_k^T X_k \in \mathbb{R}^{d \times d}$ is not full rank, and so the distribution is restricted to strictly the $k$-dimensional subspace $L_k \subset \mathbb{R}^D$. We want a model that has the both of best worlds: it has a bottleneck so that $k < d$, but at the same time it can do an exact reconstruction of the data. This can be solved by introducing a probabilistic error term $\epsilon$ that accounts for the variability of the data around the principal subspace. So let's add an isotropic Gaussian $\epsilon \sim \mathcal{N}(0, \sigma^2 I)$\footnote{Why isotropic? No real reason. In factor models, we generalize this to arbitrary covariance matrices, and so PPCA is a specific case of factor analysis.}, which gives us 
     \begin{equation}
-      x = \Sigma V_k z + \epsilon \implies X \sim \mathcal{N}(\mu, X_k^T X_k + \sigma^2 I)
+      x = S V_k z + \epsilon \implies X \sim \mathcal{N}(\mu, X_k^T X_k + \sigma^2 I)
     \end{equation} 
   \end{enumerate} 
 
   Note again that we are adding \textit{two} probabilistic terms, each of which serves a specific purpose. Great, and finally, let's clean up some notation and polish it up. 
   \begin{enumerate}
-    \item First, let's just call $W = \Sigma V_k \in \mathbb{R}^{d \times k}$, keeping the $k$ implicit, and treat it as the parameter to estimate. 
+    \item First, let's just call $W = S V_k \in \mathbb{R}^{d \times k}$, keeping the $k$ implicit, and treat it as the parameter to estimate. 
     \item Second, let's remove the assumption that $x$ is $0$-mean and add back the mean term $\mu$. 
   \end{enumerate} 
 
@@ -57,9 +56,13 @@
   \begin{definition}[Probabilistic PCA] 
     The \textbf{probabilistic PCA} model is a latent factor model that summarizes the data generating distribution $x$ as  
     \begin{equation}
-      x = \mu + W z + \epsilon, \qquad z \sim N(0, I), \epsilon \sim N(0, \sigma^2 I) 
+      x = \mu + W z + \epsilon, \qquad z \sim N(0, I_k), \epsilon \sim N(0, \sigma^2 I_d) 
     \end{equation} 
-    with parameters $\theta = \{\mu, W, \sigma\}$. 
+    with parameters $\theta = \{\mu, W, \sigma\}$. Let's go over the assumptions. 
+    \begin{enumerate}
+      \item $z$ is an isotropic Gaussian, which mirrors the fact that the principal components must be orthogonal (uncorrelated RVs). We can normalize it to be unit variance since the scaling can be done with $W$. This allows for a better representation where the components are uncorrelated, and---better yet---we can now sample from $z$. 
+      \item $\epsilon$ is an isotropic Gaussian. This is just to ensure that we capture variability beyond the subspace. However, the isotropic part doesn't really seem to be justified... This assumption will be relaxed in factor models.  
+    \end{enumerate}
   \end{definition} 
 
   An immediate consequence is that the closed form of the distrbution of $x$ under this model can be solved. Calculating the pdf of $x$ requires us to marginalize out the $z$, but since marginals of Gaussians are Gaussians, this is quite easy. 
@@ -158,9 +161,9 @@
     \begin{align}
       \mu^\ast & = \frac{1}{n} \sum_{i=1}^n x^{(i)} \\
       \sigma^{2 \ast} & = \frac{1}{d-k} \sum_{j=k+1}^d \lambda_j \\
-      W^\ast & = R (\Sigma - \sigma^{2 \ast} I_d )^{1/2} V_k
+      W^\ast & = R (\hat{\Sigma} - \sigma^{2 \ast} I_d )^{1/2} V_k
     \end{align}
-    where $\lambda_j$ are the eigenvalues of $X^T X$ in decreasing order, $V_k$ is the truncated orthogonal matrix consisting of the first $k$ columns of $V$ for SVD $X = U \Sigma V^T$, and $R$ is any unitary matrix.\footnote{Note that $W^{\ast}$ is not unique. Say that $W^\ast$ is an MLE, then, for any unitary $R \in \mathbb{R}^{d \times d}$, we have $W^{\ast T} W^\ast = (R W^\ast)^T (R W^\ast)$.} 
+    where $\lambda_j$ are the eigenvalues of $X^T X$ in decreasing order, $V_k$ is the truncated orthogonal matrix consisting of the first $k$ columns of $V$ for SVD $X = U S V^T$, and $R$ is any unitary matrix.\footnote{Note that $W^{\ast}$ is not unique. Say that $W^\ast$ is an MLE, then, for any unitary $R \in \mathbb{R}^{d \times d}$, we have $W^{\ast T} W^\ast = (R W^\ast)^T (R W^\ast)$.} 
   \end{theorem}
   \begin{proof}
     We could also just differentiate the expected risk directly, but for no particular reason I will differentiate the empirical risk. 
@@ -173,15 +176,15 @@
       \end{align} 
       and since $W^T W + \sigma^2 I$ is positive definite, its inverse is positive definite and so it can only be $0$ when it is mapping the $0$ vector. So $\mu = \sum_{i=1}^n x^{(i)}$. 
 
-      \item For $\sigma$, we first take a look at $C = \mathrm{Var}[X] = W W^T + \sigma^2 I$. It is the sum of positive semidefinite matrices that are also symmetric, so by the spectral theorem it is diagonalizable and has full rank $d$. But $W W^T$ is rank $k$, so $d - k$ of the eigenvalues of $W W^T$ is $0$, indicating that the same $d-k$ smallest eigenvalues of $C$ is $\sigma^2$. Therefore, we can take the smallest $d-k$ eigenvalues of our MLE estimator of $C$, which is $S$, and average them to get our MLE for $\sigma$. 
+      \item For $\sigma$, we first take a look at $C = \mathrm{Var}[X] = W W^T + \sigma^2 I$. It is the sum of positive semidefinite matrices that are also symmetric, so by the spectral theorem it is diagonalizable and has full rank $d$. But $W W^T$ is rank $k$, so $d - k$ of the eigenvalues of $W W^T$ is $0$, indicating that the same $d-k$ smallest eigenvalues of $C$ is $\sigma^2$. Therefore, we can take the smallest $d-k$ eigenvalues of our MLE estimator of $C$ and average them to get our MLE for $\sigma$. 
       \begin{equation}
         \hat{\sigma}^{2\ast} = \frac{1}{d-k} \sum_{j=k+1}^d \lambda_j
       \end{equation}
       \item TBD: Justify this again. For $W$, we can set $\mu^\ast$ first and then compute 
       \begin{equation}
-        \widehat{\mathrm{Var}}(\mu^{\ast}) = S = \frac{1}{n} \sum_{i=1}^n (x^{(i)} - \mu^{\ast}) (x^{(i)} - \mu^{\ast})^T
+        \widehat{\mathrm{Var}}(\mu^{\ast}) = \hat{\Sigma} = \frac{1}{n} \sum_{i=1}^n (x^{(i)} - \mu^{\ast}) (x^{(i)} - \mu^{\ast})^T
       \end{equation}
-      We can approximate $W W^T = C - \sigma^2 I \approx S - \hat{\sigma}^{2\ast} I$, and by further taking the eigendecomposition $C = U \Sigma U^T \implies W W^T = U (\Sigma - \sigma^2 I) U^T$ and cutting off the last $d-k$ smallest eigenvalues and their corresponding eigenvectors, we can get 
+      We can approximate $W W^T = C - \sigma^2 I \approx \hat{\Sigma} - \hat{\sigma}^{2\ast} I$, and by further taking the eigendecomposition $C = U \Sigma U^T \implies W W^T = U (\Sigma - \sigma^2 I) U^T$ and cutting off the last $d-k$ smallest eigenvalues and their corresponding eigenvectors, we can get 
       \begin{equation}
         W^{\ast} = R (\Sigma - \sigma^{2 \ast} I_d )^{1/2} V_k
       \end{equation}
@@ -189,7 +192,9 @@
     \end{enumerate}
   \end{proof}
 
-  The final fact is intuitive. We have introduced the error term $\epsilon$ that allows us to extend beyond the principal subspace. If we let $\epsilon$ vanish, the density model defined by PPCA becomes very sharp around these $d$ dimensions spanned by the columns of $W$. At $0$, we are reduced to regular PCA. 
+  It turns out that the MLE of $W$ for PPCA, denoted $W_{\mathrm{PPCA}}^\ast = (\Sigma - \sigma^{\ast 2} I_d)^{1/2} V_k$ has columns in the same direction but with a smaller length than $W_{\mathrm{PCA}} = S V_k = \Sigma^{1/2} V_k$ for standard PCA. For this reason, you should think of PPCA as ``almost'' PCA. 
+
+  Our next result is intuitive. We have introduced the error term $\epsilon$ that allows us to extend beyond the principal subspace. If we let $\epsilon$ vanish, the density model defined by PPCA becomes very sharp around these $d$ dimensions spanned by the columns of $W$. At $0$, we are reduced to regular PCA. 
 
   \begin{theorem}[PPCA as $\sigma \to 0$] 
     As $\sigma \rightarrow 0$, the MLE estimates of $W$ is equivalent to that of PCA. That is, when $W \in \mathbb{R}^{d \times k}$, 
@@ -213,31 +218,34 @@
   A linear factor model is pretty much the same thing as PPCA. In fact, I don't even know why these two models are distinguished. The only two differences is notation and that linear factor models loosen the restriction that the covariance matrix of $\epsilon$ must be isotopic. 
 
   \begin{definition}[Factor Analysis] 
-    Let $x$ be a random variable in $\mathbb{R}^d$. We would like to model it as 
+    A \textbf{linear factor model} is a latent factor model that models the data generating distribution $x$ over $\mathbb{R}^d$ as 
     \begin{equation}
-      x - \mu = \Lambda \eta + \epsilon
+      x = \mu + \Lambda \eta + \epsilon, \eta \sim N(0, I_k), \epsilon \sim N(0, \Psi)
     \end{equation}
-    where $\mu = \mathbb{E}[x]$ simply normalizes the distribution, $\eta \in \mathbb{R}^k$ are the \textbf{factors} that act as latent variables, $\Lambda \in \mathbb{R}^{d \times k}$ is the \textbf{loading matrix} that maps the factors to the samples, and $\epsilon$ is an error term.\footnote{$\eta$ is analogous to $V^T x \in \mathbb{R}^k$. $\Lambda$ is analogous to the embedding $V^T: \mathbb{R}^k \to \mathbb{R}^d$. It is also common notation to use $L$ and $f$ as the loading matrix and factors. } We have the following assumptions. 
+    for some diagonal matrix $\Psi$. The parameters are $\theta = \{\Lambda, \mu, \Psi\}$.\footnote{It is also common notation to use $L$ and $f$ as the loading matrix and factors.} Let's go over the assumptions. 
     \begin{enumerate}
-      \item $\mathbb{E}[\eta] = 0$. 
-      \item $\Var[\eta] = I_k$ so that the factors are uncorrelated. 
-      \item $\Lambda$ and $\epsilon$ are independent. 
-      \item Sometimes, $\epsilon$ is assumed to be an isotropic Gaussian. 
+      \item $\mu = \mathbb{E}[x]$ simply normalizes the distribution. 
+      \item $\eta \in \mathbb{R}^k$ are the \textbf{factors} that act as latent variables. It is $0$-mean (since the translation is captured in $\mu$) and isotropic, which parallels the uncorrelated assumptions of PCA and PPCA. 
+      \item $\Lambda \in \mathbb{R}^{d \times k}$ is the \textbf{loading matrix} that maps the factors to the samples. 
+      \item $\epsilon$ is an error term, assumed to be isotropic, and the component variables must be uncorrelated. 
+      \item The noise $\epsilon$ is uncorrelated with $\eta$. 
     \end{enumerate}
   \end{definition} 
 
-  Remember that given data matrix $X \in \mathbb{R}^{n \times d}$, we can take the SVD of it $X = U \Sigma V^T$ where the columns of $V$ represent the principal axes. Since $V$ is orthogonal, $V^T V = V V^T = I_d$, and so $X = X V V^T$. This may seem pretty trivial, but in PCA, we did data compression by removing the last columns of $V$ to get $X \approx X V_k V_k^T$. In a sense we can think of $XV_k \in \mathbb{R}^{n \times k}$ as the projection into the component space and then $(X V_k) V_k^T \in \mathbb{R}^{n \times d}$ as the embedding back into the original space. 
+  The biggest glaring change is really just the terminology. Rather than components, we say \textit{factors}, and rather than projections, we say \textit{loadings}. Finally, we say observable component $x_i$ \textit{loads on} factor $z_j$ if $\Lambda_{ji} \neq 0$, i.e. if $z_j$ affects the value of $x_i$. 
 
-  If we were working with the data matrix $X \in \mathbb{R}^{n \times d}$, then we would be using right matrix multiplication, and so our model will look like 
+  However, factor models just have more degrees of freedom. In practice, they also perform very similarly. 
+
+  To get more comfortable with the notation, let's write out the formula given a data matrix. If we were working with the data matrix $X \in \mathbb{R}^{n \times d}$, then we would be using right matrix multiplication, and so our model will look like 
   \begin{equation}
-    X = \eta \Lambda + \epsilon
+    X - \mu = \eta \Lambda + \epsilon
   \end{equation}
   where $\eta \in \mathbb{R}^{n \times k}$, $\Lambda \in \mathbb{R}^{k \times d}, \epsilon \in \mathbb{R}^{n \times d}$. 
 
   \begin{lemma}[Likelihood of Linear Factor Models]
     The likelihood of the linear factor model is 
     \begin{equation}
-      p(x \mid \Lambda, \mu, \Sigma_\epsilon) 
+      x \sim \mathcal{N}(\mu, W W^T + \Psi)
     \end{equation}
   \end{lemma}
   \begin{proof}
@@ -250,20 +258,103 @@
                         & = \mathbb{E}[ (W Z + \epsilon) (Z^T W^T + \epsilon^T)] \\
                         & = \mathbb{E}[W z z^T W^T] + \mathbb{E}[ \epsilon \epsilon^T] \\
                         & = W \mathbb{E}[ z z^T] W^T + \mathbb{E}[ \epsilon \epsilon^T] \\
-                        & = W W^T + \mathrm{diag}(\sigma_1^2, \ldots, \sigma_d^2) 
+                        & = W W^T + \Psi
       \end{align} 
     \end{enumerate}
   \end{proof}
 
-  The $W, \mu$, and $\sigma_i$'s can be estimated using MLE methods. 
+  The $W, \mu$, and $\sigma_i$'s can be estimated using MLE methods. The solutions are very similar to that of PCA, with non-uniqueness of $W$ up to rotational factor. 
 
   \begin{theorem}[MLE of Factor Model]
-    
+    Given $x^{(i)} \sim X$ iid, the MLEs for $W, \mu, \Psi$ are 
+    \begin{align}
+      \mu^\ast & = \frac{1}{n} \sum_{i=1}^n x^{(i)} \\
+      \Psi^\ast & = \\
+      W^\ast & = R (\Sigma - \sigma^{2 \ast} I_d )^{1/2} V_k
+    \end{align}
+    where $\lambda_j$ are the eigenvalues of $X^T X$ in decreasing order, $V_k$ is the truncated orthogonal matrix consisting of the first $k$ columns of $V$ for SVD $X = U \Sigma V^T$, and $R$ is any unitary matrix.\footnote{Note that $W^{\ast}$ is not unique. Say that $W^\ast$ is an MLE, then, for any unitary $R \in \mathbb{R}^{d \times d}$, we have $W^{\ast T} W^\ast = (R W^\ast)^T (R W^\ast)$.} 
   \end{theorem}
 
-\subsection{Degrees of Freedom}
-
+\subsection{Numerical Solvers for Linear Factor Models}
   
-\subsection{Differences from Linear Regression and PCA} 
+  There is not an analytical solution of factor models. So there is no Eckart-Young theorem that gives a nice decomposition approach to solve factor models. Therefore, we must resort to numerical techniques. 
 
-  
+\subsubsection{Iterated Principal Factors}
+
+  \begin{algo}[Iterated Principal Factors]
+    
+  \end{algo}
+
+\subsection{PCA vs PPCA vs Factor Models} 
+
+  We have stressed that FA is the same as PPCA, but let's get serious and talk about the differences. In a sense, we could have reformulated PCA as a probabilistic model by assuming that the error terms were normally distributed with variance \textit{orthogonal} to the principal subspace. This would have given the exact same expected risk and thus the models would be equivalent. On the other hand, probabilistic PCA assumes an isotropic Gaussian and factor models assume uncorrelated Gaussian. 
+
+  \begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.6\textwidth}
+      \centering
+      \begin{tikzpicture}[scale=1.5]
+        % Left: Green diagonal line through cross
+        \draw[thick] (-0.8, 0) -- (0.8, 0);  % horizontal
+        \draw[thick] (0, -0.8) -- (0, 0.8);  % vertical
+        \draw[thick, green!70!black, line width=2pt] (-0.6, -0.6) -- (0.6, 0.6);  % diagonal
+        
+        % Right: Plus sign and yellow diagonal
+        \node at (1.5, 0) {$+$};
+        \draw[thick] (2.2, 0) -- (3.8, 0);   % horizontal
+        \draw[thick] (3, -0.8) -- (3, 0.8);  % vertical
+        \draw[thick, orange!80!yellow, line width=2pt] (2.4, 0.6) -- (3.6, -0.6);  % diagonal
+      \end{tikzpicture}
+      \caption{Probabilistic interpretation of regular PCA.}
+    \end{subfigure}
+    
+    \begin{subfigure}[b]{0.6\textwidth}
+      \centering
+      \begin{tikzpicture}[scale=1.5]
+        % Left: Green diagonal line through cross (same as top)
+        \draw[thick] (-0.8, 0) -- (0.8, 0);  % horizontal
+        \draw[thick] (0, -0.8) -- (0, 0.8);  % vertical
+        \draw[thick, green!70!black, line width=2pt] (-0.6, -0.6) -- (0.6, 0.6);  % diagonal
+        
+        % Right: Plus sign and yellow circle
+        \node at (1.5, 0) {$+$};
+        \draw[thick] (2.2, 0) -- (3.8, 0);   % horizontal
+        \draw[thick] (3, -0.8) -- (3, 0.8);  % vertical
+        \draw[thick, orange!80!yellow, line width=2pt] (3, 0) circle (0.5);  % circle
+      \end{tikzpicture}
+      \caption{Regular interpretation of probabilistic PCA.}
+    \end{subfigure}
+    
+    \begin{subfigure}[b]{0.6\textwidth}
+      \centering
+      \begin{tikzpicture}[scale=1.5]
+        % Left: Green diagonal line through cross (same as second)
+        \draw[thick] (-0.8, 0) -- (0.8, 0);  % horizontal
+        \draw[thick] (0, -0.8) -- (0, 0.8);  % vertical
+        \draw[thick, green!70!black, line width=2pt] (-0.6, -0.6) -- (0.6, 0.6);  % diagonal
+        
+        % Right: Plus sign and yellow circle
+        \node at (1.5, 0) {$+$};
+        \draw[thick] (2.2, 0) -- (3.8, 0);   % horizontal
+        \draw[thick] (3, -0.8) -- (3, 0.8);  % vertical
+        \draw[thick, orange!80!yellow, line width=2pt] (3, 0) ellipse (0.7 and 0.4);  % ellipsoid
+      \end{tikzpicture}
+      \caption{Factor analysis.}
+    \end{subfigure}
+    \caption{The green (left) represents the latent feature, and the orange on the right represents the errors. Figure credits to \textit{ttnphns} from \href{https://stats.stackexchange.com/questions/1576/what-are-the-differences-between-factor-analysis-and-principal-component-analysi}{here}.}
+  \end{figure}
+
+  It turns out that this simple change of not having constant variance in the Gaussian error term $\epsilon$ has some implications. 
+
+  \begin{example}[Scaling Features does not Affect FA]
+    Remember that in PCA, we must normalize each component of the data to unit variance since PCA tries to maximize variance of projections. However, FA does not chase large-noise features that are uncorrelated with other features. 
+  \end{example}
+
+  \begin{example}[FA is Affected by Rotation of Data]
+    FA is affected by rotation of the data. 
+  \end{example}
+
+  \begin{theorem}[Factor Models Converge to PPCA in High Dimensions]
+    As $d \to +\infty$, factor models are the same model as PPCA. 
+  \end{theorem}
+

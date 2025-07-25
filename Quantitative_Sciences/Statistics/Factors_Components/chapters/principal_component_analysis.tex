@@ -322,14 +322,59 @@
 
 \subsection{Decomposition Solvers}
 
-  \begin{theorem}[Construction of the kth Principle Subspace] 
-    Let $X \in \mathbb{R}^{n \times d}$ be a $0$-mean data matrix. Given the SVD with the singular values listed in decreasing order\footnote{We can make it decreasing by permuting the rows/columns of the unitary matrices $U, V$.}
+  So far, the equivalence of the L2 minimization approach and variance maximization approach had been firmly established by 1933 in \cite{1933hotelling}. However, the person who formalized the connection in using low-rank approximations in PCA was Eckart and Young in 1936 \cite{1936eckart}.\footnote{In fact, a stronger version was proved before, but they rediscovered it.}
+  
+  \begin{theorem}[Eckart-Young Theorem]
+    The solution to 
     \begin{equation}
-      X = U \Sigma V^T, \qquad U \in \mathbb{R}^{n \times n}, \Sigma \in \mathbb{R}^{n \times d}, V \in \mathbb{R}^{d \times d}
-    \end{equation}
+      \min_{A_k \in \mathbb{R}^{m \times n}} \| A - A_k \|_F, \qquad \text{ subject to } \mathrm{rank}(A_k) \leq k
+    \end{equation} 
+    is given by the matrix $A_k = U S V_k^T$, where $A = U S V^T$ is the singular value decomposition of $A$, and $V_k$ is the truncated matrix formed from the first $k$ columns of $V$. Note that $\| \cdot \|_F$ is the Frobenius norm. 
   \end{theorem}
+  \begin{proof}
+    Let $A \in \mathbb{R}^{m \times n}$ be a real (possibly rectangular) matrix with $m \leq n$. Suppose that
+    \begin{equation}
+      A = U\Sigma V^T
+    \end{equation}
+    is the singular value decomposition of $A$.
 
-  Since $\frac{1}{n} X^T X = \frac{1}{n} V \Sigma U^T U \sigma V^T = \frac{1}{n} V \Sigma^2 V^T$, the columns of $V$ are the principal axes. Recall from linear algebra that $\Lambda = \Sigma^2$. 
+    We claim that the best rank $k$ approximation to $A$ in the Frobenius norm, denoted by $\| \cdot \|_F$, is given by
+    \begin{equation}
+      A_k = \sum_{i=1}^k \sigma_i u_i v_i^T
+    \end{equation}
+    where $u_i$ and $v_i$ denote the $i$th column of $U$ and $V$, respectively.
+
+    First, note that we have
+    \begin{equation}
+      \|A - A_k\|_F^2 = \left\|\sum_{i=k+1}^n \sigma_i u_i v_i^T\right\|_F^2 = \sum_{i=k+1}^n \sigma_i^2
+    \end{equation}
+
+    Therefore, we need to show that if $B_k = XY^T$ where $X$ and $Y$ have $k$ columns then
+    \begin{equation}
+      \|A - A_k\|_F^2 = \sum_{i=k+1}^n \sigma_i^2 \leq \|A - B_k\|_F^2.
+    \end{equation}
+
+    By the triangle inequality with the spectral norm, if $A = A' + A''$ then $\sigma_1(A) \leq \sigma_1(A') + \sigma_1(A'')$. Suppose $A_k'$ and $A_k''$ respectively denote the rank $k$ approximation to $A'$ and $A''$ by SVD method described above. Then, for any $i, j \geq 1$
+    \begin{align}
+      \sigma_i(A') + \sigma_j(A'') &= \sigma_1(A' - A'_{i-1}) + \sigma_1(A'' - A''_{j-1}) \\
+      &\geq \sigma_1(A - A'_{i-1} - A''_{j-1}) \\
+      &\geq \sigma_1(A - A_{i+j-2}) \quad \text{(since $\text{rank}(A'_{i-1} + A''_{j-1}) \leq i + j - 2$)} \\
+      &= \sigma_{i+j-1}(A).
+    \end{align}
+
+    Since $\sigma_{k+1}(B_k) = 0$, when $A' = A - B_k$ and $A'' = B_k$ we conclude that for $i \geq 1, j = k + 1$
+    \begin{equation}
+      \sigma_i(A - B_k) \geq \sigma_{k+i}(A).
+    \end{equation}
+
+    Therefore,
+    \begin{equation}
+      \|A - B_k\|_F^2 = \sum_{i=1}^n \sigma_i(A - B_k)^2 \geq \sum_{i=k+1}^n \sigma_i(A)^2 = \|A - A_k\|_F^2,
+    \end{equation}
+    as required.
+  \end{proof}
+
+  Now this gives the theoretical justificiation to use SVD. Since $\frac{1}{n} X^T X = \frac{1}{n} V S U^T U \sigma V^T = \frac{1}{n} V S^2 V^T$, the columns of $V$ are the principal axes. Recall from linear algebra that $\Lambda = S^2$. 
 
   \begin{algo}[PCA with SVD] 
     Given a dataset $X \in \mathbb{R}^{n \times d}$, let us denote the rows as $x_i$, and say that we are looking for a subspace of dimension $k$. 
@@ -341,11 +386,11 @@
 
       \item Standardize the data $\Tilde{X} = X - \mu$, i.e. $\Tilde{x}_i = x_i - \mu$.  
 
-      \item Compute the SVD $\Tilde{X} = U \Sigma V^T$.
+      \item Compute the SVD $\Tilde{X} = U S V^T$.
 
-      \item Compute the submatrices $V_k \in \mathbb{R}^{k \times k}$ and $\Sigma_k \in \mathbb{R}^{D \times k}$. 
+      \item Compute the submatrices $V_k \in \mathbb{R}^{k \times k}$ and $S_k \in \mathbb{R}^{D \times k}$. 
 
-      \item Define the projection operator $P_k (x) = \mu + \sum_{j=1}^k \langle x - \mu, v_j \rangle \, v_j$, the change of basis operator $T$, and the embedding operator $T^{-1} (z) = \mu + V_k \Sigma_k z$. 
+      \item Define the projection operator $P_k (x) = \mu + \sum_{j=1}^k \langle x - \mu, v_j \rangle \, v_j$, the change of basis operator $T$, and the embedding operator $T^{-1} (z) = \mu + V_k S_k z$. 
     \end{enumerate} 
     A demonstration is done \href{code/pca.html}{here}.
   \end{algo}
@@ -425,6 +470,15 @@
       \label{fig:eigenfaces}
     \end{figure}
   \end{example}
+
+  The first $k$ principal components provide not only the best rank $k$ approximation to $X$, but also the covariance matrix $\hat{\Sigma}$. 
+
+  \begin{theorem}[PCA is an Unbiased Estimator of Sample Variance]
+    The truncated covariance matrix $\Sigma^k = V_k S^2 V_k^T$ is an unbiased estimator of $X^T X$. 
+  \end{theorem}
+  \begin{proof}
+    Indeed, $\hat{\Sigma} = X^T X = V S^2 V^T$, and the last equation is the SVD decomposition of $\hat{\Sigma}$. So again using Eckart-Young theorem, the best rank $k$ approximation to $\hat{\Sigma}$ is given by $\Sigma^k = V_k S^2 V_k^T$ (now truncated both in rows and columns). 
+  \end{proof}
 
 \subsection{Iterative Solvers} 
 
