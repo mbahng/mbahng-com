@@ -7,45 +7,49 @@ def update_index(directory):
     """Update the index file for a given directory."""
     dir_path = Path(directory)
     index_file = dir_path / f"index_{directory}.md"
-    md_dir_path = dir_path / "md"
-    pdf_dir_path = dir_path / "pdf"
     
     print(f"Updating {index_file}...")
     
-    # Check if md directory exists
-    if not md_dir_path.exists():
-        print(f"Warning: Directory {md_dir_path} does not exist, skipping...")
+    # Check if directory exists
+    if not dir_path.exists():
+        print(f"Warning: Directory {dir_path} does not exist, skipping...")
         return
     
-    # Check for PDFs without corresponding MD files and create them
-    if pdf_dir_path.exists():
-        # Get all PDF files
-        pdf_files = {f.stem for f in pdf_dir_path.iterdir() if f.is_file() and f.suffix == '.pdf'}
-        
-        # Get all MD files (without extension)
-        md_files_stems = {f.stem for f in md_dir_path.iterdir() if f.is_file() and f.suffix == '.md'}
-        
-        # Find PDFs without corresponding MD files
-        missing_md_files = pdf_files - md_files_stems
-        
-        # Create MD files for PDFs that don't have them
-        for pdf_stem in missing_md_files:
-            md_file_path = md_dir_path / f"{pdf_stem}.md"
-            pdf_filename = f"{pdf_stem}.pdf"
-            with open(md_file_path, 'w') as f:
-                f.write(f"[[{pdf_filename}]]\n")  # Add PDF link on first line
-            print(f"  Created MD file with PDF link: {md_file_path}")
+    # Check for PDFs in the root directory and organize them
+    pdf_files = [f for f in dir_path.iterdir() if f.is_file() and f.suffix == '.pdf']
     
-    # Find all .md files in the md directory
+    for pdf_file in pdf_files:
+        pdf_stem = pdf_file.stem
+        paper_dir = dir_path / pdf_stem
+        
+        # Create subdirectory if it doesn't exist
+        if not paper_dir.exists():
+            paper_dir.mkdir()
+        
+        # Move PDF to subdirectory
+        new_pdf_path = paper_dir / pdf_file.name
+        if not new_pdf_path.exists():
+            pdf_file.rename(new_pdf_path)
+        
+        # Create MD file in subdirectory
+        md_file_path = paper_dir / f"{pdf_stem}.md"
+        if not md_file_path.exists():
+            with open(md_file_path, 'w') as f:
+                f.write(f"[[{pdf_file.name}]]\n")
+        
+        print(f"  Processed: {pdf_stem}")
+    
+    # Find all .md files in subdirectories
     md_files = ['dataset.md']
-    for file_path in md_dir_path.iterdir():
-        if file_path.is_file() and file_path.suffix == '.md':
-            # Skip the index file itself
-            if file_path.name != f"index_{directory}.md":
-                md_files.append(file_path.name)
+    for item in dir_path.iterdir():
+        if item.is_dir():
+            # Look for .md files in subdirectories
+            for md_file in item.iterdir():
+                if md_file.is_file() and md_file.suffix == '.md':
+                    md_files.append(md_file.name)
     
     # Sort alphabetically
-    md_files.sort()
+    md_files = sorted(set(md_files))  # Remove duplicates and sort
     
     # Write to index file (create new or overwrite existing)
     with open(index_file, 'w') as f:

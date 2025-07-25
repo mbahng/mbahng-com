@@ -63,6 +63,7 @@
 1972wilson_asymptotic-prop-knn.md
 1973black_black-scholes.md
 1976dudani_distance-weighted-knn.md
+1976hyafil_tree-optim-np-complete.md
 1976rockafellar_lagrangian-proximal-point-algo-convex.md
 1976rockafellar_proximal-point-algo.md
 1976ross_capm-arbitrage.md
@@ -112,6 +113,7 @@
 1992fan_local-polynomial-regression.md
 1993efron_bootstrap.md
 1993hinton_autoencoder.md
+1993quinlan_c4.5.md
 1994bell_infomax.md
 1994comon_ica.md
 1994wold_exp-weight-moving-pca.md
@@ -344,6 +346,7 @@
 2020holtzman_greedy-sparse-pca.md
 2020kaplan_scaling-laws-for-lm.md
 2020kolesnikov_big-transfer.md
+2020lin_godst.md
 2020rymarczyk_protopshare.md
 2020tam_fiedler.md
 2021donnelly_deformable-protopnet.md
@@ -378,5 +381,5 @@
 2025deepseek_deepseek-r1.md
 2025deepseek_deepseek-v3.md
 2025google_gemini.md
-dataset.md
+2025mctavish_predictive-equivalence.md
 dataset.md
