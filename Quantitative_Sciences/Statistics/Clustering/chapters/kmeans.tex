@@ -1,37 +1,227 @@
 \section{K Means Clustering} 
 
-  We will start off with conceptually the simplest form of clustering, although not the earliest developed. K-means was published at 1967 in \cite{1967macqueen}, but has been discovered in the 1950s. 
+  We will start off with conceptually the simplest form of clustering, although not the earliest developed. K-means was published at 1967 in \cite{1967macqueen}, but has been discovered in the 1950s. The general idea is that given an integer $K$, we want to find $K$ \textit{centroids} that provide a good approximation of where the clusters are in the data. We can quantify what a good approximation is by taking the distance from a sample to its closest cluster centroid.
 
-  \begin{enumerate}
-    \item Determine the number of clusters that we want to find and set it as $k$ (this can be a disadvantage if we do not know how many clusters we are looking for beforehand).
+  \begin{definition}[K Means Clustering]
+    A \textbf{K-means clustering} model is an parameteric unsupervised model with parameters $\{\mu_1, \ldots, \mu_K\}$ representing clusters that each sample belongs to. The cluster that sample $x$ belongs to is 
+    \begin{equation}
+      \mathrm{cluster}(x) = \argmin_{\mu_k} d(x, \mu_k)
+    \end{equation}
+    Usually, we let $d$ be the $L^2$ metric in Euclidean space. 
+  \end{definition}
 
-    \item We initialize the \textbf{cluster centroids} $\boldsymbol{\mu}_1, \boldsymbol{\mu}_2, \ldots, \boldsymbol{\mu}_k \in \mathbb{R}^d$ randomly or by some other method.
+  \begin{theorem}[Risk]
+    The expected risk of $K$-means is 
+    \begin{equation}
+      R(\mu_1, \ldots, \mu_K) = \mathbb{E}_x \left[ \min_{k \in [K]} \| x - \mu_k \|^2 \right] = \int \min_{k \in [K]} \| x - \mu_k \|^2 \,dx
+    \end{equation} 
+    and our empirical risk for a dataset $\mathcal{D} = \{x^{(i)}\}_{i=1}^n$ is therefore 
+    \begin{equation}
+      \hat{R}(\mu_1, \ldots, \mu_K) = \frac{1}{n} \sum_{i=1}^n \min_{k \in [K]} \| x^{(i)} - \mu_k \|^2
+    \end{equation} 
+    This is also called the \textit{distortion function} in some literature. 
+  \end{theorem} 
 
-    \item The next part takes the centroids and moves them to the center of each cluster accordingly. The following two steps are repeated until convergence (and convergence is guaranteed):
-      \begin{enumerate}
-        \item We assign each training sample $\mathbf{x}^{(i)}$ to the closest cluster centroid $\boldsymbol{\mu}_j$. That is, for every $i = 1, \ldots, n$, set
-          \begin{equation}
-            c^{(i)} \equiv \text{arg}\; \min_j || \mathbf{x}^{(i)} - \boldsymbol{\mu}_j ||^2
-          \end{equation}
-        where this $\text{argmin}$ function returns the input to a function that yields the minimum (in this case, the number $j$ that yields the minimum value of $|| \mathbf{x}^{(i)} - \boldsymbol{\mu}_j ||^2$ for each $i$).
+  Great, we have an almost-everywhere differentiable function, which can be solved with gradient methods like SGD or coordinate descent. The problem is that this is not necessarily convex. 
 
-        \item We move each training cluster centroid $\boldsymbol{\mu}_j$ to the mean of the points assigned to it. That is, for each $j = 1, \ldots, k$, set 
-          \begin{equation}
-            \boldsymbol{\mu}_j \equiv \frac{\sum_{i=1}^n 1\{c^{(i)} = j\}\, \mathbf{x}^{(i)}}{\sum_{i=1}^n 1 \{c^{(i)} = j\}}
-          \end{equation}
-      \end{enumerate}
-  \end{enumerate}
+  \begin{theorem}[Convergence of Coordinate Descent]
+    
+  \end{theorem}
+  
+  Now that convergence is guaranteed, constructing the algorithm is straightforward. 
 
-  \begin{figure}[H]
-    \centering 
-    \includegraphics[scale=0.25]{img/k_means_clustering.jpg}
-    \caption{The steps can be visualized for a set of unlabeled data (green points) in $\mathbb{R}^2$ clustered into $k=2$ groups (red and blue). The crosses represent the cluster centroids.} 
-    \label{fig:k_means_clustering}
-  \end{figure}
+  \begin{algo}[Coordinate Descent to Optimize K Means Clustering]
+    The algorithm intuitively initializes the centroids randomly, and then moves them to the center of each cluster through the two stage process: 
+    \begin{enumerate}
+      \item Assigning each training sample $x^{(i)}$ to the closest cluster centroid $\mu_k$. 
+      \item Move each training cluster centroid $\mu_k$ to the mean of the points assigned to it. 
+    \end{enumerate}
+    \begin{algorithm}[H]
+    \caption{K-Means Clustering}
+    \label{alg:kmeans}
+    \begin{algorithmic}[1]
+      \Procedure{KMeans}{$\mathbf{X}, K$}
+          
+      \Require{Dataset $\mathbf{X} = \{x^{(1)}, x^{(2)}, \ldots, x^{(n)}\}$ where $x^{(i)} \in \mathbb{R}^d$, number of clusters $K$}
+      \Ensure{Cluster centroids $\mu_1, \mu_2, \ldots, \mu_K$ and cluster assignments $c^{(1)}, c^{(2)}, \ldots, c^{(n)}$}
+      
+      % Initialization
+      \State Initialize cluster centroids $\mu_1, \mu_2, \ldots, \mu_K \in \mathbb{R}^d$ randomly
+      
+      % Main loop
+      \Repeat
+        % Assignment step
+        \For{$i \gets 1$ to $n$}
+          \State $c^{(i)} \gets \arg\min_j ||x^{(i)} - \mu_j||^2$
+        \EndFor
+        
+        % Update step
+        \For{$j \gets 1$ to $K$}
+          \State $\mu_j \gets \frac{\sum_{i=1}^n \mathbf{1}\{c^{(i)} = k\} x^{(i)}}{\sum_{i=1}^n \mathbf{1}\{c^{(i)} = k\}}$
+        \EndFor
+      \Until{convergence}
+      
+      \State \Return $\mu_1, \mu_2, \ldots, \mu_K, c^{(1)}, c^{(2)}, \ldots, c^{(n)}$
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo} 
 
-  We can interpret this algorithm in another equivalent way. $k$-means is precisely coordinate descent on the cost function called the \textbf{distortion function}: 
-  \begin{equation}
-    L(\boldsymbol{\mu}_1, \ldots, \boldsymbol{\mu}_k) \equiv \sum_{i=1}^n \min_k ||\mathbf{x}^{(i)} - \boldsymbol{\mu}_k ||^2
-  \end{equation}
-  but since $L$ is not necessarily convex, it might be susceptible to local extrema.
+  \begin{example}[K-Means Walkthrough]
+    Let us walk through how the centroids evolve visually on a toy dataset. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[scale=0.9]
+          \pgfmathsetseed{42}
+          \foreach \i in {1,...,30} { 
+            \pgfmathsetmacro{\x}{-2 + 2*rnd }
+            \pgfmathsetmacro{\y}{-1 + 2*rnd}
+            \fill[black] (\x,\y) circle (1.5pt);
+          }
+
+          \foreach \i in {1,...,30} {
+            \pgfmathsetmacro{\x}{2 + 2*rnd}
+            \pgfmathsetmacro{\y}{1 + 2*rnd}
+            \fill[black] (\x,\y) circle (1.5pt);
+          }
+
+          % Left centroid
+          \node[red, font=\Large] at (-1,3) {$\times$};
+          \node[red, below=2pt] at (-1,3) {$\mu_1$};
+
+          % Right centroid
+          \node[blue, font=\Large] at (2.5,0) {$\times$};
+          \node[blue, below=2pt] at (2.5,0) {$\mu_2$};
+        \end{tikzpicture}
+        \caption{We initialize the centroids $\mu_1, \mu_2$ randomly.}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[scale=0.9]
+          \pgfmathsetseed{42}
+          \foreach \i in {1,...,30} { 
+            \pgfmathsetmacro{\x}{-2 + 2*rnd }
+            \pgfmathsetmacro{\y}{-1 + 2*rnd}
+            % Calculate if point is above or below the purple line y = 0.833x + 0.467
+            \pgfmathsetmacro{\liney}{0.833*\x + 0.467}
+            \pgfmathsetmacro{\isabove}{\y > \liney ? 1 : 0}
+            \ifnum\isabove=1
+              \fill[red] (\x,\y) circle (1.5pt);
+            \else
+              \fill[blue] (\x,\y) circle (1.5pt);
+            \fi
+          }
+          \foreach \i in {1,...,30} {
+            \pgfmathsetmacro{\x}{2 + 2*rnd}
+            \pgfmathsetmacro{\y}{1 + 2*rnd}
+            % Calculate if point is above or below the purple line y = 0.833x + 0.467
+            \pgfmathsetmacro{\liney}{0.833*\x + 0.467}
+            \pgfmathsetmacro{\isabove}{\y > \liney ? 1 : 0}
+            \ifnum\isabove=1
+              \fill[red] (\x,\y) circle (1.5pt);
+            \else
+              \fill[blue] (\x,\y) circle (1.5pt);
+            \fi
+          }
+          % Left centroid
+          \node[red, font=\Large] at (0,3) {$\times$};
+          \node[red, below=2pt] at (0,3) {$\mu_1$};
+          \draw[red, thick] (0,3) circle (2.2cm);  % Red circle around μ₁
+          
+          % Right centroid
+          \node[blue, font=\Large] at (2.5,0) {$\times$};
+          \node[blue, below=2pt] at (2.5,0) {$\mu_2$};
+          \draw[blue, thick] (2.5,0) circle (2.2cm);  % Blue circle around μ₂ 
+          \draw[purple, thick] (-2, -1.2) -- (4, 3.8);
+          \draw[red, thick, ->] (-0.2, 2.8) -- (-0.8, 1.2);
+          \draw[blue, thick, ->] (2.7, 0.2) -- (2.8, 1);
+        \end{tikzpicture}
+        \caption{We classify all points that are in clusters $1$ and $2$. }
+      \end{subfigure}
+
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[scale=0.9]
+          \pgfmathsetseed{42}
+          \foreach \i in {1,...,30} { 
+            \pgfmathsetmacro{\x}{-2 + 2*rnd }
+            \pgfmathsetmacro{\y}{-1 + 2*rnd}
+              \fill[red] (\x,\y) circle (1.5pt);
+          }
+          \foreach \i in {1,...,30} {
+            \pgfmathsetmacro{\x}{2 + 2*rnd}
+            \pgfmathsetmacro{\y}{1 + 2*rnd} 
+            \fill[blue] (\x,\y) circle (1.5pt);
+          }
+          % Left centroid (moved to arrow head)
+          \node[red, font=\Large] at (-0.8,1.2) {$\times$};
+          \node[red, below=2pt] at (-0.8,1.2) {$\mu_1$};
+          \draw[red, thick] (-0.8,1.2) circle (2.1cm);  % Red circle around μ₁
+          
+          % Right centroid (moved to arrow head)
+          \node[blue, font=\Large] at (2.8,1) {$\times$};
+          \node[blue, below=2pt] at (2.8,1) {$\mu_2$};
+          \draw[blue, thick] (2.8,1) circle (2.1cm);  % Blue circle around μ₂ 
+          
+          % New decision boundary line (perpendicular bisector of the line connecting the centroids)
+          \draw[purple, thick] (1.1, 3.5) -- (0.9, -1.5);
+          \draw[red, thick, ->] (-0.8, 1.2) -- (-1.2, -0);
+          \draw[blue, thick, ->] (2.8, 1) -- (3.2, 2);
+        \end{tikzpicture}
+        \caption{We update the centroids and classify again.}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[scale=0.9]
+          \pgfmathsetseed{42}
+          \foreach \i in {1,...,30} { 
+            \pgfmathsetmacro{\x}{-2 + 2*rnd }
+            \pgfmathsetmacro{\y}{-1 + 2*rnd}
+              \fill[red] (\x,\y) circle (1.5pt);
+          }
+          \foreach \i in {1,...,30} {
+            \pgfmathsetmacro{\x}{2 + 2*rnd}
+            \pgfmathsetmacro{\y}{1 + 2*rnd} 
+            \fill[blue] (\x,\y) circle (1.5pt);
+          }
+          % Left centroid (moved to arrow head)
+          \node[red, font=\Large] at (-1.2, -0) {$\times$};
+          \node[red, below=2pt] at (-1.2, -0) {$\mu_1$};
+          \draw[red, thick] (-1.2, -0) circle (1.5cm);  % Red circle around μ₁
+          
+          % Right centroid (moved to arrow head)
+          \node[blue, font=\Large] at (3.2, 2) {$\times$};
+          \node[blue, below=2pt] at (3.2, 2) {$\mu_2$};
+          \draw[blue, thick] (3.2, 2) circle (1.5cm);  % Blue circle around μ₂ 
+          
+          % New decision boundary line (perpendicular bisector of the line connecting the centroids)
+          \draw[purple, thick] (-0.4, 4) -- (2.4, -2);
+        \end{tikzpicture}
+        \caption{We have convergence.}
+      \end{subfigure}
+      \caption{A walkthrough for $K$-means clustering for $K = 2$ in $\mathbb{R}^2$.}
+      \label{fig:kmeans}
+    \end{figure}
+  \end{example}
+
+\subsection{Choosing Number of Clusters K}
+
+  Note that the performance of K means really depends on a good choice of $K$. Think about what would have happened if we set $K = 5$ in the walkthrough above. Let's study the impact of changing $K$ a bit more. 
+
+  \begin{theorem}[Expected Risk Decreases as K Increases]
+    If $K < K^\prime$, then 
+    \begin{equation}
+      R(\mu_1, \ldots, \mu_K) \leq R(\mu_1, \ldots, \mu_{K^\prime})
+    \end{equation}
+  \end{theorem}
+  \begin{proof}
+    
+  \end{proof}
+
+
 
