@@ -3,10 +3,28 @@
 import os
 from pathlib import Path
 
+def count_papers_in_directory(directory):
+    """Count the number of papers (PDF files) in a directory."""
+    dir_path = Path(directory)
+    
+    if not dir_path.exists():
+        return 0
+    
+    # Count PDF files in subdirectories
+    pdf_count = 0
+    for item in dir_path.iterdir():
+        if item.is_dir():
+            for file in item.iterdir():
+                if file.is_file() and file.suffix == '.pdf':
+                    pdf_count += 1
+    
+    return pdf_count
+
 def update_index(directory):
     """Update the index file for a given directory."""
     dir_path = Path(directory)
     index_file = dir_path / f"index_{directory}.md"
+    count_file = dir_path / "count.txt"
     
     print(f"Updating {index_file}...")
     
@@ -56,20 +74,39 @@ def update_index(directory):
         for filename in md_files:
             f.write(f"{filename}\n")
     
+    # Count papers and write to count file
+    paper_count = count_papers_in_directory(directory)
+    with open(count_file, 'w') as f:
+        f.write(str(paper_count))
+    
     print(f"✓ Updated {index_file}")
+    print(f"✓ Created {count_file} with count: {paper_count}")
 
 def main():
-    """Main function to update all index files."""
+    """Main function to update all index files and generate counts."""
     directories = ["statistics", "quantum_computing", "blockchain", "virtual_augmented_reality"]
     
-    print("Starting index file updates...")
-    print("=" * 32)
+    print("Starting index file updates and count generation...")
+    print("=" * 50)
+    
+    total_papers = 0
     
     for directory in directories:
         update_index(directory)
+        # Add to total count
+        count_file = Path(directory) / "count.txt"
+        if count_file.exists():
+            with open(count_file, 'r') as f:
+                total_papers += int(f.read().strip())
         print()
     
-    print("All index files updated successfully!")
+    # Write total count to main Research directory
+    main_count_file = Path("count.txt")
+    with open(main_count_file, 'w') as f:
+        f.write(str(total_papers))
+    
+    print(f"✓ Created main count.txt with total: {total_papers}")
+    print("All index files and counts updated successfully!")
 
 if __name__ == "__main__":
     main()
