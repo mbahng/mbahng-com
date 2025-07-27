@@ -1,19 +1,27 @@
-Unlike unsupervised learning, which comes in many different shapes and forms (anomaly detection, feature extraction, density estimation, dimensionality reduction, etc.), supervised learning comes in a much cleaner format. In supervised learning, we consider an input space $\mathcal{X}$ and an output space $\mathcal{Y}$. We assume that there exists some unknown measure $\mathbb{P}$ over $\mathcal{X} \times \mathcal{Y}$, making this some probability space. We then assume that some data $\mathcal{D} = \{(x^{(i)}, y^{(i)})\}$ is generated sampled \textit{independently and identically (iid)} from $\mathbb{P}$. Now this assumption is quite strong and is almost always not the case, as different data can be correlated, but we will relax this assumption later. Let's formally construct this from the bottom up. 
+In machine learning, we model our entire method as follows. We start off with a general probability space $(\Omega, \mathcal{F}, \mathbb{P})$. This is our model of the world and everything that we are interested in. There is a measurable function that extracts a set of \textit{variables} from $\Omega$. In unsupervised learning, we simply have $X: \Omega \to \mathcal{X}$, which induces a probability measure on $\mathcal{X}$---say $\mathbb{P}_X$. In supervised learning, this function is the joint random variable $X \times Y: \Omega \to \mathcal{X} \times \mathcal{Y}$. We call the $X$ the \textit{covariates}/\textit{explanatory variable} and $Y$ is called the \textit{response}, \textit{labels}, or \textit{predictor variable}. This also induces a probability measure $\mathbb{P}_{X \times Y}$. At this point, we only care about the variables, and we can forget about $\Omega$. Our job is to estimate the \textit{true data generating distribution} $\mathbb{P}$---$\mathbb{P}_{X}$ or $\mathbb{P}_{X \times Y}$. 
 
-\begin{enumerate}
-  \item We start off with a general probability space $(\Omega, \mathcal{F}, \mathbb{P})$. This is our model of the world and everything that we are interested in. 
+We want to do some statistical inference to estimate $\mathbb{P}_{X \times Y}$. It all boils down to trying to find some function $f$--called a \textit{model}---that does this well, but what this function represents can be very flexible. In density estimation, $M$ can be a family of Gaussians. In regression and classification, it can be a parameteric function $f: \mathcal{X} \to \mathcal{Y}$ that estimates $y$ given $x$. For kernel regression, $\mathcal{M}$ can be a RKHS. To find a function, we must optimize over some set, and so we start off with a \textit{class} of functions $\mathcal{F}$. 
 
-  \item A measurable function $X: \Omega \rightarrow \mathcal{X}$ extracts a set of features, which we call the \textbf{covariates} and induces a probability measure on $\mathcal{X}$, say $\mathbb{P}_X$. 
+For each $f \in \mathcal{F}$, we need some sort of measure of how good our model is. This is where we can define a loss function with respect to a specific sample. 
 
-  \item Another measurable function $Y: \Omega \rightarrow \mathcal{Y}$ extracts another set of features called the \textbf{labels} and induces another probability measure on $\mathcal{Y}$, the \textbf{label set}, say $\mathbb{P}_Y$. 
+\begin{definition}[Loss]
+  The \textbf{loss} function between our model $f$ and a sampled point from our true data generating distribution $\mathbb{P}$ is 
+  \begin{enumerate}
+    \item for supervised learning, 
+    \begin{equation}
+      L: \mathcal{F} \times (\mathcal{X} \times \mathcal{Y}) \to \mathbb{R}, \qquad L(f(x), y)
+    \end{equation} 
+    \item for unsupervised learning, 
+    \begin{equation}
+      L: \mathcal{F} \times \mathcal{X}, \qquad L(f(x)) \to \mathbb{R}
+    \end{equation}
+  \end{enumerate}
+  It is basically a measure of how ``well'' our model fits the data. 
+\end{definition} 
 
-  \item At this point the function $X \times Y$ is all we are interested in, and we throw away $\Omega$ since we only care about the distribution over $\mathcal{X} \times \mathcal{Y}$. 
+So how do we choose our loss? For parameteric models, we can often compute the \textit{likelihood} of a sample $x$ or $(x, y)$ with respect to a model $f \in \mathcal{F}$, and then do some slight modifications (e.g. taking the negative logarithm) to turn it into a proper loss function. In nonparameteric estimation, we use \textit{minimax theory}. The problem of how to choose such a loss is the main topic of study in \textit{statistical decision theory}. 
 
-  \item We model the generation of data from $\Omega$ by sampling $N$ samples from $\mathbb{P}_{X \times Y}$, which we assume to be iid (this assumption will be relaxed later). This gives us the \textbf{dataset} 
-    \[\mathcal{D} = \{(\mathbf{x}^{(i)}, \mathbf{y}^{(i)}) \}_{i=1}^N\]
-\end{enumerate}
-
-Now our goal is to construct a function $f: \mathcal{X} \rightarrow \mathcal{Y}$ that predicts $Y$ from $X$, but we want to define some measure of how good our function is. We can use a loss function $L$ to talk about this. 
+Now let's assume that we have chosen a loss,. Then, we can take the expected loss over the true data generating distribution, giving us our risk. 
 
 \begin{definition}[Risk]
   The \textbf{risk}, or \textbf{expected risk}, of function $f$ is defined as 
@@ -22,7 +30,7 @@ Now our goal is to construct a function $f: \mathcal{X} \rightarrow \mathcal{Y}$
   \end{equation}
 \end{definition}
 
-Clearly, we don't know what this risk is since we don't know the true measure $\mathbb{P}$, so we try to approximate it with the \textit{empirical risk}. 
+However, we have integrated over the true data generating distribution, which we do not even know! We must try to approximate this risk. Fortunately, we have a dataset $\mathcal{D} = \{(x^{(i)}, y^{(i)})\}$. We assume that $\mathcal{D}$ is generated by sampling \textit{independently and identically (iid)} from $\mathbb{P}$.\footnote{Now this assumption is quite strong and is almost always not the case, as different data can be correlated, but we will relax this assumption later.} This gives us our \textit{empirical risk}. 
 
 \begin{definition}[Empirical Risk]
   The \textbf{empirical risk} of function $f$ is defined as 
@@ -36,7 +44,11 @@ Now it would be great if minimizing the empirical risk---which is all we have---
   \item First is that this is an \textit{approximation}. We must justify whether the empirical risk is actually a good approximation of the true risk. There are many theorems---some simple and others convoluted---that provides results on this. 
   \item Second, this approximation occurs with \textit{high probability}. This can be dealt with using concentration of measure. 
 \end{enumerate}
-This regime is known as \textit{probably approximately correct (PAC) learning}, and with asymptotic analysis, we can prove this with some assumptions. 
+This regime is known as \textit{probably approximately correct (PAC) learning}, and this is essentially what statistical learning theory does. We try to find some inequality like 
+\begin{equation}
+  \mathbb{P}( | \sup_{f \in \mathcal{F}} |R(f) - \hat{R}(f)| > \epsilon ) \leq \delta
+\end{equation}
+where $\delta$ is ideally decreasing exponentially with respect to $\epsilon$, plus some other parameters like the size of our dataset $n$ or the dimension $d$. This basically says that the probability of the empirical risk of our model $f$ deviating from the true risk is low, and so minimizing the empirical risk is indeed a good thing to do. 
 
 \begin{definition}[Generalize]
   A function $f$ is said to \textbf{generalize} if 
@@ -44,6 +56,4 @@ This regime is known as \textit{probably approximately correct (PAC) learning}, 
     \lim_{n \rightarrow +\infty} \hat{R}_n (f) = R(f)
   \end{equation}
 \end{definition}
-
-A final point is to consider how one even chooses the correct loss function $L$. This can be analyzed with \textit{statistical decision theory}. 
 
