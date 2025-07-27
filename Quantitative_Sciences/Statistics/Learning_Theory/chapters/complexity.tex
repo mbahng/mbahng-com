@@ -137,7 +137,7 @@
     \begin{equation}
       s_n (\mathcal{F}) = s(\mathcal{F}, n) = \sup_{z_1, \ldots, z_n} |\mathcal{F}_{z_1, \ldots, z_n}|
     \end{equation}
-    In other words, given the points $z_j$, how many different labels (out of the $2^n$ possible ones) can we put on the $z_j$ so that there exists a function $f \in \mathcal{F}$ that can perfectly classify the $z_j$'s? 
+    In other words, given the points $z_j$, how many different labels (out of the $2^n$ possible ones) can we put on the $z_j$ so that there exists a function $f \in \mathcal{F}$ that can perfectly classify the $z_j$'s? For every set of points you'll get a different integer. Now take the supremum. 
   \end{definition}
 
   The highest number that this can be is $2^n$, since this is the number of possible binary vectors of length $n$. 
@@ -172,12 +172,28 @@
   \begin{proof}
     Given the projection $\mathcal{F}_{z_1, \ldots, z_n}$, we can use the law of iterated expectations on the Rademacher complexity. 
     \begin{align}
-      \mathrm{Rad}_n (\mathcal{F}) & = \mathbb{E} \bigg[ \sup_{f \in \mathcal{F}} \bigg| \frac{1}{n} \sum_{i=1}^n \sigma_i f(Z_i) \bigg| \bigg] \\
+      \mathrm{Rad}_n (\mathcal{F}) & = \mathbb{E}_{Z, \sigma} \bigg[ \sup_{f \in \mathcal{F}} \bigg| \frac{1}{n} \sum_{i=1}^n \sigma_i f(Z_i) \bigg| \bigg] \\
                                    & = \mathbb{E}_{Z} \bigg[ \mathbb{E}_{\sigma} \bigg[ \sup_{f \in \mathcal{F}} \bigg| \frac{1}{n} \sum_{i=1}^n \sigma_i f(Z_i) \bigg| \; \mid \; Z_1, \ldots Z_n \bigg] \bigg] 
     \end{align}
-    Note that in the inner expectation, since $f(Z_i)$ is now fixed, then are bounding a linear combination of a bunch of $\sigma_i$'s, which are subgaussian. Using the bound above, we can reduce it to 
+    Note that in the inner expectation, since $f(Z_i)$ is now fixed, then are bounding a linear combination of a bunch of $\sigma_i$'s. Note that since $f$ is binary, 
     \begin{equation}
-      \mathbb{E}_{Z} \bigg[ \sqrt{\frac{2 \log |F_{z_1, \ldots, z_n}|}{n}}\bigg] \leq \sqrt{\frac{2 \log s_n (\mathcal{F})}{n}} \leq \sqrt{\frac{2 d \log n}{n}} 
+      0 \leq f(Z_i) \leq 1 \implies -1 \leq \sigma_i f(Z_i)\leq 1 \implies -1 \leq \frac{1}{n} \sum_{i=1}^n \sigma_i f(Z_i) \leq 1 
+    \end{equation}
+    and so it is subgaussian, satisfying 
+    \begin{equation}
+      \mathbb{E}\left[ \exp \left( \lambda \frac{1}{n} \sum_{i=1}^n \sigma_i f(Z_i) \right)\right] \leq \exp \left( \frac{2 \lambda^2}{2} \right)
+    \end{equation}
+    where $\sigma = 2$. Using \ref{subgaussian_bound}, we can reduce it to 
+    \begin{align}
+      \mathbb{E}_{\sigma_i} \left[ \sup_{f \in \mathcal{F}} \left| \frac{1}{n} \sum_{i=1}^n \sigma_i f(Z_i) \right| \mid Z_1, \ldots, Z_n \right] 
+      & = \mathbb{E}_{\sigma_i} \left[ \max_{f \in \mathcal{F}} \left| \frac{1}{n} \sum_{i=1}^n \sigma_i f(Z_i) \right| \mid Z_1, \ldots, Z_n \right] \\
+      & = \mathbb{E}_{\sigma_i} \left[ \max_{\substack{(f(Z_1), \ldots, f(Z_n)) \\ \in \mathcal{F}_{z_1, \ldots, z_n}}} \left| \frac{1}{n} \sum_{i=1}^n \sigma_i f(Z_i) \right| \mid Z_1, \ldots, Z_n \right] \\
+      & \leq 2 \sqrt{2 \log{| F_{z_1, \ldots, z_n}|}} \\
+      & \leq 2 \sqrt{2 \log{s_n (\mathcal{F})}}
+    \end{align}
+    where in the penultimate step, we have used the fact that $Z_i$'s are fixed in order to prove that maximizing over $\mathcal{F}$ is the same as maximizing over the projection values. We can then unfix the $Z_i$'s, but at this point the random variable isn't even dependent on them, so the expectation reduces to 
+    \begin{equation}
+      \mathbb{E} \left[ 2 \sqrt{2 \log{s_n (\mathcal{F})}} \right] = 2 \sqrt{2 \log{s_n (\mathcal{F})}}
     \end{equation}
   \end{proof}
 
@@ -226,10 +242,25 @@
   It turns out that there are very interesting properties about the VC dimension. One such fact is Sauer's lemma, which states that if the VC dimension is finite, then the rate of growth of the shattering number suddenly changes from exponential $2^n$ to polynomial $n^{\mathrm{VC}}$, and this is what makes a lot of machine learning work. 
 
   \begin{lemma}[Sauer–Shelah Lemma]
-    
+    When the VC dimension $n^{VC}$ of a function class $\mathcal{F}$ is finite, then for $n > n^{VC}$, the shattering number is bounded as 
+    \begin{equation}
+      s_n (\mathcal{F}) \leq \left( \frac{\epsilon n}{d} \right)^d
+    \end{equation}
+    which grows polynomially in $n$. 
   \end{lemma}
+  \begin{proof}
+    
+  \end{proof}
 
-  Now we move onto the big VC theorem which now bounds the supremum of the difference between the empirical risk and the true risk. To prove this, we need a few tricks, the first being the symmetrization trick using ghost samples. 
+  Therefore, if we use this lemma on the shattering number bound on the Rademacher complexity, we get 
+  \begin{equation}
+    \mathrm{Rad}_n (\mathcal{F}) \leq \sqrt{\frac{2 \log s_n (\mathcal{F})}{n}} \leq \sqrt{\frac{2 d \log{n}}{n}} 
+  \end{equation}
+  It turns out that with much longer proofs, the $\log{n}$ can be removed. 
+
+  There are other types of complexity besides Rademacher that we will use when the VC dimension is infinite. 
+
+  To prove this, we need a few tricks, the first being the symmetrization trick using ghost samples. 
 
   \begin{lemma}[Symmetrization Lemma]
     Given a set of random variables $Z_1, \ldots, Z_n$ and a function class $\mathcal{F}$, we can define ghost samples $Z_1^\prime, \ldots, Z_n^\prime$ that are iid copies of $Z_1, \ldots, Z_n$. Then, we can bound the Rademacher complexity of the function class $\mathcal{F}$ by 
@@ -256,23 +287,70 @@
 
   The reason we want this is that it removes the $R(f)$, which is some unknown true mean that can be hard to deal with since it takes infinite values. It's easier to work with two empirical risks than deal with the true risk. 
 
+  Now we move onto the big VC theorem which now bounds the supremum of the difference between the empirical risk and the true risk. You can think of it as an extension to Hoeffding's inequality to \textit{classes} of functions. 
+
   \begin{theorem}[VC Theorem]
     Given a binary function class $\mathcal{F}$, we have
     \begin{equation}
       \mathbb{P} \bigg( \sup_{f \in \mathcal{F}} | \hat{R} (f) - R(f) | \geq \epsilon \bigg) \leq 2 S(\mathcal{F}, n) e^{-n \epsilon^2 / 8} \approx n^d e^{-n \epsilon^2 / 8}
     \end{equation}
-    You can see that the exponential term is from Hoeffding but there is an extra cost of taking the supremum over the whole function class, which is the shattering number.
+    You can see that the exponential term is from Hoeffding but there is an extra cost of taking the supremum over the whole function class, which is the shattering number. Fortunately, with Sauer's lemma, we can see that the coefficient grows polynoimally but the rest decays exponentially. 
   \end{theorem}
   \begin{proof}
-    Given $Z_1, \ldots, Z_n \sim \mathbb{P}$, we take a new set of random variables $Z_1^\prime, \ldots, Z_n^\prime$ that are iid copies of $Z_1, \ldots, Z_n$, called \textit{ghost samples}. 
+    Given $Z_1, \ldots, Z_n \sim \mathbb{P}$, we take a new set of random variables $Z_1^{\prime}, \ldots, Z_n^{\prime}$ that are iid copies of $Z_1, \ldots, Z_n$, called \textit{ghost samples}.
+   
+    We begin by relating the original probability to one involving ghost samples:
+    \begin{align}
+      \mathbb{P} \left( \sup_{f \in \mathcal{F}} | \hat{R}(f) - R(f) | \geq \epsilon \right) &= \mathbb{P} \left( \sup_{f \in \mathcal{F}} \left| \frac{1}{n} \sum_{i=1}^n f(Z_i) - \mathbb{E}[f(Z)] \right| \geq \epsilon \right)
+    \end{align}
+   
+    Since $Z_1^{\prime}, \ldots, Z_n^{\prime}$ are independent copies of $Z$ with the same distribution, we have $\mathbb{E}[f(Z)] = \mathbb{E}\left[\frac{1}{n} \sum_{i=1}^n f(Z_i^{\prime})\right]$. Therefore:
+    \begin{align}
+      &= \mathbb{P} \left( \sup_{f \in \mathcal{F}} \left| \frac{1}{n} \sum_{i=1}^n f(Z_i) - \mathbb{E}\left[\frac{1}{n} \sum_{i=1}^n f(Z_i^{\prime})\right] \right| \geq \epsilon \right)
+    \end{align}
+   
+    By Jensen's inequality and the convexity of the supremum:
+    \begin{align}
+      &\leq \mathbb{P} \left( \sup_{f \in \mathcal{F}} \left| \frac{1}{n} \sum_{i=1}^n f(Z_i) - \frac{1}{n} \sum_{i=1}^n f(Z_i^{\prime}) \right| \geq \epsilon \right)\\
+      &= \mathbb{P} \left( \sup_{f \in \mathcal{F}} \left| \frac{1}{n} \sum_{i=1}^n (f(Z_i) - f(Z_i^{\prime})) \right| \geq \epsilon \right)
+    \end{align}
+   
+    Introduce independent Rademacher random variables $\sigma_1, \ldots, \sigma_n$ (each taking values $\pm 1$ with probability $1/2$), independent of all $Z_i, Z_i^{\prime}$. Since $f(Z_i) - f(Z_i^{\prime})$ has a symmetric distribution around 0:
+    \begin{align}
+      &= \mathbb{P} \left( \sup_{f \in \mathcal{F}} \left| \frac{1}{n} \sum_{i=1}^n \sigma_i (f(Z_i) - f(Z_i^{\prime})) \right| \geq \epsilon \right)\\
+      &\leq 2\mathbb{P} \left( \sup_{f \in \mathcal{F}} \frac{1}{n} \sum_{i=1}^n \sigma_i (f(Z_i) - f(Z_i^{\prime})) \geq \epsilon \right)
+    \end{align}
+   
+    Conditioning on $Z_1, \ldots, Z_n, Z_1^{\prime}, \ldots, Z_n^{\prime}$, the supremum is taken over at most $S(\mathcal{F}, 2n)$ distinct functions on the combined sample $\{Z_1, \ldots, Z_n, Z_1^{\prime}, \ldots, Z_n^{\prime}\}$.
+   
+    For each fixed realization of the samples, we have at most $S(\mathcal{F}, 2n)$ different sign patterns, and for each pattern, $\sum_{i=1}^n \sigma_i (f(Z_i) - f(Z_i^{\prime}))$ is a sum of independent bounded random variables.
+   
+    For any fixed function $f$, since $f$ is binary-valued, $|f(Z_i) - f(Z_i^{\prime})| \leq 2$. By Hoeffding's inequality:
+    \begin{align}
+      \mathbb{P} \left( \frac{1}{n} \sum_{i=1}^n \sigma_i (f(Z_i) - f(Z_i^{\prime})) \geq \epsilon \right) \leq e^{-n\epsilon^2/8}
+    \end{align}
+   
+    Taking the union bound over all possible functions in the restriction of $\mathcal{F}$ to the $2n$ samples:
+    \begin{align}
+      \mathbb{P} \left( \sup_{f \in \mathcal{F}} \frac{1}{n} \sum_{i=1}^n \sigma_i (f(Z_i) - f(Z_i^{\prime})) \geq \epsilon \right) &\leq S(\mathcal{F}, 2n) e^{-n\epsilon^2/8}
+    \end{align}
+   
+    Since $S(\mathcal{F}, 2n) \leq S(\mathcal{F}, n)^2$ and using the fact that we're interested in the bound in terms of $S(\mathcal{F}, n)$:
+    \begin{align}
+      \mathbb{P} \left( \sup_{f \in \mathcal{F}} | \hat{R}(f) - R(f) | \geq \epsilon \right) &\leq 2 S(\mathcal{F}, n) e^{-n\epsilon^2/8}
+    \end{align}
+   
+    By Sauer's lemma, if $\mathcal{F}$ has VC dimension $d$, then $S(\mathcal{F}, n) \leq \left(\frac{en}{d}\right)^d \approx n^d$ for large $n$, giving the final approximation.
   \end{proof}
+
+  The key insight is that the ghost sample technique allows us to replace the unknown population risk with an empirical average over independent samples, enabling the application of concentration inequalities while paying the price of the shattering coefficient.
 
   Therefore, for some classes of sets with finite VC dimension, the shattering term will grow polynomially in $n$ but the exponential term decays faster, which is what makes this work. That's why as $n$ grows, we can get a good bound on the supremum of this difference. 
 
   \begin{theorem}
-    With probability $\geq 1 - \delta$, we have 
+    We have 
     \begin{equation}
-      \sup_{f \in \mathcal{F}} | \hat{R} (f) - R(f) | \leq 2 \mathrm{Rad}_n (\mathcal{F}) + \sqrt{\frac{\log (2 / \delta)}{2 n}}
+      \mathbb{P} \left( \sup_{f \in \mathcal{F}} |\hat{R} (f) - R(f)| \leq 2 \mathrm{Rad}_n (\mathcal{F}) + \sqrt{\frac{\log (2 / \delta)}{2 n}} \right) \geq 1 - \delta
     \end{equation}
   \end{theorem}
 
