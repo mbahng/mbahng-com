@@ -55,6 +55,7 @@
 1965moreau_proximal-operators.md
 1967cover_knn.md
 1967hocking_best-subset-regression.md
+1967macqueen_k-means-clustering.md
 1967marcenko_distribution-eigenvalues.md
 1969hestenes_multiplier-gradient-methods.md
 1969joreskog_mle-factor-analysis.md
@@ -181,6 +182,7 @@
 2006hyvarinen_sm-extension.md
 2006li_oneshot.md
 2006zou_sparse-pca.md
+2007arthur_kmeans-plus-plus.md
 2007bengio_deep-autoencoders-greedy-training.md
 2007hallin_num-factors-general-dfm.md
 2007ranzato_sparse-ae.md
