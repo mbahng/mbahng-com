@@ -216,6 +216,7 @@
 2011berrendero_multivariate-functional-pca.md
 2011candes_robust-pca.md
 2011duchi_adagrad.md
+2011fletcher_geodesic-regression.md
 2011glorot_relu.md
 2011hallin-dynamic-factors-blocks.md
 2011he_model-update-multi-stats.md
@@ -226,6 +227,7 @@
 2011zeiler_adaptive_deconvnets.md
 2012alain_ae-estimating-score.md
 2012bai_stat-analysis-fm-high-dim.md
+2012fletcher_geodesic-least-squares.md
 2012hinton_prevent-coadapting.md
 2012hinton_rmsprop.md
 2012krizhevsky_alexnet.md
@@ -319,8 +321,10 @@
 2017jang_gumbel.md
 2017kalchbrenner_bytenet.md
 2017lauly_docnade.md
+2017petersen_frechet-regression.md
 2017vanhatalo_dpca-max-num-lags.md
 2017vaswani_attention-transformer.md
+2017zhang_manifold-regression-gross-errors.md
 2017zhu_cyclegan.md
 2018devlin_bert.md
 2018frankle_lotteryticket.md
@@ -367,9 +371,11 @@
 2022li_yolov6.md
 2022ouyang_llm-human-feedback.md
 2022ramesh_dalle2.md
+2022shin_robust-geodesic-regression.md
 2022wang_yolov7.md
 2023almazrouei_falcon.md
 2023diao_pqindex.md
+2023liu_linreg-on-manifold.md
 2023raffel_t5.md
 2023reis_yolov8.md
 2023touvron_llama.md
