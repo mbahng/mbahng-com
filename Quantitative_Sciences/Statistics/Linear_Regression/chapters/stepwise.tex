@@ -1,0 +1,89 @@
+\section{Stepwise Regression} 
+
+  Now we move to \textit{sparse} linear regression. 
+
+  Now suppose that $d > n$, then the first problem is that we can no longer use least squares since $X^T X$ is no longer invertible and the same problem happens with maximum likelihood. This is known as the \textbf{high dimensional} or \textbf{large $p$, small $n$} problem. The most straightforward way is simply to reduce the covariates to a dimension smaller than $n$. This can be done with three ways. 
+  \begin{enumerate}
+    \item We perform PCA on the $X$ and use the first $k$ principal components where $k < n$. 
+    \item We cluster the covariates based on their correlation. We can use one feature from each cluster or take the average of the covariates within each cluster. 
+    \item We can screen the variables by choosing the $k$ features that have the largest correlation with $Y$. 
+  \end{enumerate}
+  Once this is done, we are back in the low dimensional regime and can use least squares. Essentially, this is a way to find a good subset of the covariates, which can be formalized by the following. Let $S$ be a subset of $[d]$ and let $X_S = (X_j \,:\, j \in S)$. If the size of $S$ is not too large, we can regress $Y$ on $X_S$ instead of $X$. 
+
+\subsection{Best Subset Regression}
+
+  \begin{definition}[Best Subset Regression]
+    Fix $k < d$ and let $\mathcal{S}_k$ denote all subsets of size $k$. For a given $S \in \mathcal{S}_k$, let $\beta_S$ be the best linear predictor for the subset $S$. \textbf{Best subset regression} is a linear regression model that wants to solve the best subset $S$ that minimizes the loss 
+    \begin{equation}
+      \mathbb{E} [ (Y - \beta_S^T X_S)^2] 
+    \end{equation}
+    which is equivalent to finding 
+    \begin{equation}
+      \argmin_{\beta} \mathbb{E} [ (Y - \beta^T X)^2] \text{ subject to } ||\beta||_0 \leq k
+    \end{equation}
+    where $||\beta||_0$ is the number of non-zero entries in $\beta$. 
+  \end{definition}
+
+  There will be a bias variance tradeoff. As $k$ increases, the bias decreases but the variance increases. 
+
+  The minimization of the empirical error is over all subset of size $k$, and we can expect bad news. 
+
+  \begin{theorem}[Best Subset Regression is NP-Hard]
+    Solving the best subset loss is NP-hard. 
+  \end{theorem}
+  \begin{proof}
+    
+  \end{proof}
+
+  Even though best subset regression is infeasible, we can still approximate best subset regression in two different ways. 
+  \begin{enumerate}
+    \item A greedy approximation leads to \textit{forward stepwise regression}. 
+    \item A convex relaxation of the problem leads to the \textit{Lasso} regression. 
+  \end{enumerate}
+  It turns out that the theoretical guarantees and computational time for both are the same, but the Lasso is much more popular. It may be due to a cleaner form or that it's easier to study, but who knows. 
+
+\subsection{Forward Stepwise Regression} 
+
+  Forward stepwise regression is a greedy algorithm that starts with an empty set of covariates and adds the covariate that most improves the fit. It avoids the NP-hardness of the best subset regression by adding covariates one by one. 
+
+  \begin{definition}[Greedy Forward Stepwise Regression]
+    Given your data $\mathcal{D}$, let's first standardize it to have mean $0$ and variance $1$.\footnote{This may or may not be a good idea, since the variance of each covariate can tell you a lot about the importance of the covariate.} You start off with a set $\mathcal{Q} = \{\}$ and choose the number of parameters $K$. 
+    \begin{enumerate}
+      \item With each covariate $X = (X_1, \ldots, X_n)$, we compute the correlation between it and the $Y$, which reduces to the inner product (since we standardized). 
+      \begin{equation}
+        \rho_j = \langle Y, X_{:, j} \rangle = \frac{1}{n} \sum_{i=1}^n Y_i X_{ji}
+      \end{equation}
+
+      \item Then, we take the covariate index that has the highest empirical correlation with $Y$, add it to $\mathcal{Q}$ and regress $Y$ only on this covariate. 
+      \begin{equation}
+        q_1 = \argmax_j \rho_j , \;\; \mathcal{Q} = \{q_1\}, \;\; \hat{\beta}_{q_1} = \argmin_{\beta} \frac{1}{n} ||Y - X_{:, q_1} \beta||^2 
+      \end{equation}
+
+      \item Then you repeat the process. You take the residual values $r = Y - X_{:, q_1} \hat{\beta}_{q_1} \in \mathbb{R}^n$ compute the correlation between $r$ and the remaining covariates, and pick our the maximum covariate index $q_2$. Then, you \textit{repeat the regression from start} with these two covariates 
+      \begin{equation}
+        q_2 = \argmax_j \langle r, X_{: ; j} \rangle , \;\; \mathcal{Q} = \{q_1, q_2\}, \;\; \hat{\beta}_{q_1, q_2} = \argmin_{\beta} \frac{1}{n} ||Y - X_{:,[q_1, q_2]} \beta||^2
+      \end{equation}
+      Note that you're not going to get the same coefficient for $\hat{\beta}_{q_1}$ as before since you're doing two variable regression. 
+
+      \item You get out the residual values $r = Y - X_{:, [q_1, q_2]} \hat{\beta}_{q_1, q_2} \in \mathbb{R}^n$ and keep repeating this process until you have $K$ covariates in $\mathcal{Q}$. 
+    \end{enumerate}
+  \end{definition}
+
+  Again, there is a bias variance tradeoff in choosing the number of covariates $K$, but through cross-validation, we can find the optimal $K$. It is also easy to add constraints, e.g. if we wanted to place a restriction that two adjacent covariates can't be chosen, we can easily add this to the algorithm. 
+
+  \begin{theorem}[Rate of Convergence for Stepwise Regression]
+    Let $\hat{f}_K$ be the optimal regressor we get from $K$ covariates in stepwise regression. Then, we have something like
+    \begin{equation}
+      \|f - \hat{f}\|^2 \leq c \|f - f_K\|^2 + \frac{\log{n}}{\sqrt{n}}
+    \end{equation}
+    This turns out to be the optimal rate. 
+  \end{theorem}
+
+  What this is saying that forward stepwise gets to within about $\frac{1}{\sqrt{n}}$ of what you would get if you did the perfect best subset regression. Another interesting property is that this bound is dimensionless, which makes sense since we are approximating the best $K$-term linear predictor (not the true regressor), which is a weaker claim. On the other hand, if we use nonparameteric estimators to estimate the true regressor, then we will get the curse of dimensionality. 
+
+\subsection{Bias Variance Tradeoff}
+
+\subsection{Stagewise Regression} 
+
+  Stagewise regression is a variant of forward stepwise regression where we add the covariate that most improves the fit, but we only take a small step in that direction. This is useful when we have a lot of covariates and we don't want to overfit. 
+
