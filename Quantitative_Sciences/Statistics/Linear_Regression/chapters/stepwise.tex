@@ -13,20 +13,16 @@
 \subsection{Best Subset Regression}
 
   \begin{definition}[Best Subset Regression]
-    Fix $k < d$ and let $\mathcal{S}_k$ denote all subsets of size $k$. For a given $S \in \mathcal{S}_k$, let $\beta_S$ be the best linear predictor for the subset $S$. \textbf{Best subset regression} is a linear regression model that wants to solve the best subset $S$ that minimizes the loss 
+    \textbf{Best subset regression} is a linear regression model that wants to solve the best subset $S$ that minimizes the constrained loss 
     \begin{equation}
-      \mathbb{E} [ (Y - \beta_S^T X_S)^2] 
+      L(\beta, x, y) =  (y - \beta x)^2, \qquad \text{ subject to } \|\beta\|_0 \leq K
     \end{equation}
-    which is equivalent to finding 
-    \begin{equation}
-      \argmin_{\beta} \mathbb{E} [ (Y - \beta^T X)^2] \text{ subject to } ||\beta||_0 \leq k
-    \end{equation}
-    where $||\beta||_0$ is the number of non-zero entries in $\beta$. 
+    where $\|\beta\|_0$ is the number of non-zero entries in $\beta$.\footnote{Note that $\| \cdot \|_0$ is not a norm.}
   \end{definition}
 
   There will be a bias variance tradeoff. As $k$ increases, the bias decreases but the variance increases. 
 
-  The minimization of the empirical error is over all subset of size $k$, and we can expect bad news. 
+  The minimization of the empirical error is over all subset of size $k$, and from this fact we can expect bad news. 
 
   \begin{theorem}[Best Subset Regression is NP-Hard]
     Solving the best subset loss is NP-hard. 
@@ -40,7 +36,7 @@
     \item A greedy approximation leads to \textit{forward stepwise regression}. 
     \item A convex relaxation of the problem leads to the \textit{Lasso} regression. 
   \end{enumerate}
-  It turns out that the theoretical guarantees and computational time for both are the same, but the Lasso is much more popular. It may be due to a cleaner form or that it's easier to study, but who knows. 
+  It turns out that the theoretical guarantees and computational time for both are the same, but the Lasso is much more popular due to having cleaner form and performing better in practice. 
 
 \subsection{Forward Stepwise Regression} 
 
@@ -71,17 +67,95 @@
 
   Again, there is a bias variance tradeoff in choosing the number of covariates $K$, but through cross-validation, we can find the optimal $K$. It is also easy to add constraints, e.g. if we wanted to place a restriction that two adjacent covariates can't be chosen, we can easily add this to the algorithm. 
 
-  \begin{theorem}[Rate of Convergence for Stepwise Regression]
-    Let $\hat{f}_K$ be the optimal regressor we get from $K$ covariates in stepwise regression. Then, we have something like
-    \begin{equation}
-      \|f - \hat{f}\|^2 \leq c \|f - f_K\|^2 + \frac{\log{n}}{\sqrt{n}}
-    \end{equation}
-    This turns out to be the optimal rate. 
-  \end{theorem}
-
-  What this is saying that forward stepwise gets to within about $\frac{1}{\sqrt{n}}$ of what you would get if you did the perfect best subset regression. Another interesting property is that this bound is dimensionless, which makes sense since we are approximating the best $K$-term linear predictor (not the true regressor), which is a weaker claim. On the other hand, if we use nonparameteric estimators to estimate the true regressor, then we will get the curse of dimensionality. 
-
 \subsection{Bias Variance Tradeoff}
+
+\subsection{Concentration Bounds}
+
+  \begin{theorem}[DeVore and Temlyakov, 1996]
+    For all $f \in \mathcal{L}_1$, the residual $r_N$ after $N$ steps of OGA satisfies
+    \begin{equation}
+      \|r_N\| \leq \frac{\|f\|_{\mathcal{L}_1}}{\sqrt{N + 1}} \tag{4}
+    \end{equation}
+    for all $N \geq 1$.
+  \end{theorem}
+  \begin{proof}
+    Note that $f_N$ is the best approximation to $f$ from $\text{Span}(V_N)$. On the other hand, the best approximation from the set $\{a g_N : a \in \mathbb{R}\}$ is $\langle f, g_N \rangle g_N$. The error of the former must be smaller than the error of the latter. In other words, $\|f - f_N\|^2 \leq \|f - f_{N-1} - \langle r_{N-1}, g_N \rangle g_N\|^2$. Thus,
+    \begin{align}
+      \|r_N\|^2 &\leq \|r_{N-1} - \langle r_{N-1}, g_N \rangle g_N\|^2 \\
+      &= \|r_{N-1}\|^2 + |\langle r_{N-1}, g_N \rangle|^2 \|g_N\|^2 - 2|\langle r_{N-1}, g_N \rangle|^2 \\
+      &= \|r_{N-1}\|^2 - |\langle r_{N-1}, g_N \rangle|^2. \tag{5}
+    \end{align}
+
+    Now, $f = f_{N-1} + r_{N-1}$ and $\langle f_{N-1}, r_{N-1} \rangle = 0$. So,
+    \begin{align}
+      \|r_{N-1}\|^2 &= \langle r_{N-1}, r_{N-1} \rangle = \langle r_{N-1}, f - f_{N-1} \rangle = \langle r_{N-1}, f \rangle - \langle r_{N-1}, f_{N-1} \rangle \\
+      &= \langle r_{N-1}, f \rangle = \sum_j \beta_j \langle r_{N-1}, \psi_j \rangle \leq \sup_{\psi \in D} |\langle r_{N-1}, \psi \rangle| \sum_j |\beta_j| \\
+      &= \sup_{\psi \in D} |\langle r_{N-1}, \psi \rangle| \|f\|_{\mathcal{L}_1} = |\langle r_{N-1}, g_N \rangle| \|f\|_{\mathcal{L}_1}.
+    \end{align}
+
+    Continuing from equation (5), we have
+    \begin{align}
+      \|r_N\|^2 &\leq \|r_{N-1}\|^2 - |\langle r_{N-1}, g_N \rangle|^2 = \|r_{N-1}\|^2 \left( 1 - \frac{\|r_{N-1}\|^2 |\langle r_{N-1}, g_N \rangle|^2}{\|r_{N-1}\|^4} \right) \\
+      &\leq \|r_{N-1}\|^2 \left( 1 - \frac{\|r_{N-1}\|^2 |\langle r_{N-1}, g_N \rangle|^2}{|\langle r_{N-1}, g_N \rangle|^2 \|f\|_{\mathcal{L}_1}^2} \right) = \|r_{N-1}\|^2 \left( 1 - \frac{\|r_{N-1}\|^2}{\|f\|_{\mathcal{L}_1}^2} \right).
+    \end{align}
+
+    If $a_0 \geq a_1 \geq a_2 \geq \cdots$ are nonnegative numbers such that $a_0 \leq M$ and $a_N \leq a_{N-1}(1 - a_{N-1}/M)$ then it follows from induction that $a_N \leq M/(N+1)$. The result follows by setting $a_N = \|r_N\|^2$ and $M = \|f\|_{\mathcal{L}_1}^2$. $\square$
+  \end{proof}
+
+  If $f$ is not in $\mathcal{L}_1$, it is still possible to bound the error as follows.
+
+  \begin{theorem}
+    For all $f \in \mathcal{H}$ and $h \in \mathcal{L}_1$,
+    \begin{equation}
+      \|r_N\|^2 \leq \|f - h\|^2 + \frac{4\|h\|_{\mathcal{L}_1}^2}{N}. \tag{6}
+    \end{equation}
+  \end{theorem}
+  \begin{proof}
+    Choose any $h \in \mathcal{L}_1$ and write $h = \sum_j \beta_j \psi_j$ where $\|h\|_{\mathcal{L}_1} = \sum_j |\beta_j|$. Write $f = f_{N-1} + f - f_{N-1} = f_{N-1} + r_{N-1}$ and note that $r_{N-1}$ is orthogonal to $f_{N-1}$. Hence, $\|r_{N-1}\|^2 = \langle r_{N-1}, f \rangle$ and so
+    \begin{align}
+      \|r_{N-1}\|^2 &= \langle r_{N-1}, f \rangle = \langle r_{N-1}, h + f - h \rangle = \langle r_{N-1}, h \rangle + \langle r_{N-1}, f - h \rangle \\
+      &\leq \langle r_{N-1}, h \rangle + \|r_{N-1}\| \|f - h\| \\
+      &= \sum_j \beta_j \langle r_{N-1}, \psi_j \rangle + \|r_{N-1}\| \|f - h\| \\
+      &\leq \sum_j |\beta_j| |\langle r_{N-1}, \psi_j \rangle| + \|r_{N-1}\| \|f - h\| \\
+      &\leq \max_j |\langle r_{N-1}, \psi_j \rangle| \sum_j |\beta_j| + \|r_{N-1}\| \|f - h\| \\
+      &= |\langle r_{N-1}, g_N \rangle| \|h\|_{\mathcal{L}_1} + \|r_{N-1}\| \|f - h\| \\
+      &\leq |\langle r_{N-1}, g_N \rangle| \|h\|_{\mathcal{L}_1} + \frac{1}{2} (\|r_{N-1}\|^2 + \|f - h\|^2).
+    \end{align}
+
+    Hence,
+    \begin{equation}
+      |\langle r_{N-1}, g_N \rangle|^2 \geq \frac{(\|r_{N-1}\|^2 - \|f - h\|^2)^2}{4\|h\|_{\mathcal{L}_1}^2}.
+    \end{equation}
+
+    Thus,
+    \begin{equation}
+      a_N \leq a_{N-1} \left( 1 - \frac{a_{N-1}}{4\|h\|_{\mathcal{L}_1}^2} \right)
+    \end{equation}
+    where $a_N = \|r_N\|^2 - \|f - h\|^2$. By induction, the last displayed inequality implies that $a_N \leq 4\|h\|_{\mathcal{L}_1}^2/k$ and the result follows. $\square$
+  \end{proof}
+
+  \begin{corollary}
+    For each $N$,
+    \begin{equation}
+      \|r_N\|^2 \leq \sigma_N^2 + \frac{4\theta_N^2}{N}
+    \end{equation}
+    where $\theta_N$ is the $\mathcal{L}_1$ norm of the best $N$-atom approximation.
+  \end{corollary}
+
+  By combining the previous results with concentration of measure arguments we get the following result, due to Barron, Cohen, Dahmen and DeVore (2008).
+
+  \begin{theorem}
+    Let $\hat{h}_n = \arg\min_{h \in \mathcal{F}_n} \|f_0 - h\|^2$. Suppose that $\limsup_{n \to \infty} \|\hat{h}_n\|_{\mathcal{L}_1,n} < \infty$. Let $N \sim \sqrt{n}$. Then, for every $\gamma > 0$, there exist $C > 0$ such that
+    \begin{equation}
+      \|f - \hat{f}_N\|^2 \leq 4\sigma_N^2 + \frac{C \log n}{n^{1/2}}
+    \end{equation}
+    except on a set of probability $n^{-\gamma}$.
+  \end{theorem} 
+  \begin{proof}
+    
+  \end{proof}
+
+  If we square root it to compare the norm, this reduces to a rate of about $\frac{1}{\sqrt[4]{n}}$. This is the optimal rate. What this is saying that forward stepwise gets to within about $\frac{1}{\sqrt{n}}$ of what you would get if you did the perfect best subset regression. Another interesting property is that this bound is dimensionless, which makes sense since we are approximating the best $K$-term linear predictor (not the true regressor), which is a weaker claim. On the other hand, if we use nonparameteric estimators to estimate the true regressor, then we will get the curse of dimensionality. 
 
 \subsection{Stagewise Regression} 
 

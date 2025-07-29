@@ -23,8 +23,19 @@
   \end{equation}
   Then, we train the model $\mathcal{M}$ on $S-1$ pieces of the data and then test it across the final piece, and do this $S$ times for every test piece, averaging its perforance across all $S$ test runs. Therefore, for every model $\mathcal{M}_k$, we must train it $S$ times, for all $K$ models, requiring $KS$ training runs. If data is particularly scarce, we set $S = N$, called the \textbf{leave-one-out} technique. Then we just choose the model with the best average test performance. 
 
-  The following result shows that cross-validation (data splitting) leads to an estimator with risk nearly as good as the best model in the class. 
+  \begin{code}[Minimal Example of Train Test Split in scikit-learn]
+    To implement this in scikit-learn, we want to use the \texttt{train\_test\_split} class. We can also set a random state parameter to reproduce results. 
+    \begin{lstlisting}
+      from sklearn.model_selection import train_test_split 
 
+      # Split into training (80\%) and test (20\%) data 
+      X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=66)
+    \end{lstlisting}
+  \end{code}
+
+\subsection{Concentration Bounds}
+
+  The following result shows that cross-validation (data splitting) leads to an estimator with risk nearly as good as the best model in the class. 
 
   \begin{theorem}[Gyorfi, Kohler, Krzyak, Walk (2002)]
     Let $\mathcal{M} = \{m_h\}$ be a finite class of regression estimators indexed by a parameter $h$, with $m$ being the true risk minimizer, $m_{\hat{h}}$ being the empirical risk minimizer over the whole dataset $\mathcal{D}$, and $m_{H}$ being the empirical risk minimizer over the test set $\mathcal{D}_{\mathrm{test}}$ for ordinary least squares loss. 
@@ -38,18 +49,74 @@
     \end{equation}
     where $c = L^2 (16/\delta + 35 + 19\delta)$. 
   \end{theorem}
+  \begin{proof}
+    Then
+    \begin{align}
+      \mathbb{E} \left( \int |m_H - m|^2 dP(x)|D \right) &= \mathbb{E} \left( \int |Y - m_H|^2 dP(x)|D \right) - \mathbb{E}|Y - m(X)|^2 \\
+      &= T_1 + T_2
+    \end{align}
+    where
+    \begin{equation}
+      T_1 = \mathbb{E} \left( \int |Y - m_H|^2 dP(x)|D \right) - \mathbb{E}|Y - m(X)|^2 - T_2
+    \end{equation}
+    and
+    \begin{align}
+      T_2 &= (1+\delta) \frac{1}{n} \sum_{D'} (|Y_i - m_H(X_i)|^2 - |Y_i - m(X_i)|^2) \\
+      &\leq (1+\delta) \frac{1}{n} \sum_{D'} (|Y_i - m_{\hat{h}}(X_i)|^2 - |Y_i - m(X_i)|^2)
+    \end{align}
+    and so
+    \begin{align}
+      \mathbb{E}[T_2|D] &\leq (1 + \delta) \left( \mathbb{E}(|Y - m_{\hat{h}}(X)|^2|D) - \mathbb{E}|Y - m(X)|^2 \right) \\
+      &= (1 + \delta) \int |m_{\hat{h}}(x) - m(x)|^2 dP(x).
+    \end{align}
 
-  \begin{code}[Minimal Example of Train Test Split in scikit-learn]
-    To implement this in scikit-learn, we want to use the \texttt{train\_test\_split} class. We can also set a random state parameter to reproduce results. 
-    \begin{lstlisting}
-      from sklearn.model_selection import train_test_split 
+    The second part of the proof involves some tedious calculations. We will bound $P(T_1 \geq s|D)$. The event $T_1 \geq s$ is the same as
+    \begin{align}
+      &(1 + \delta) \left( \mathbb{E}(|m_H(X) - Y|^2|D) - \mathbb{E}|m(X) - Y|^2 - \frac{1}{n} \sum_{D'} (|Y_i - m_H(X_i)|^2 - |Y_i - m(X_i)|^2) \right) \\
+      &\geq s + \delta \left( \mathbb{E}|m_H(X) - Y|^2 - \mathbb{E}|m(X) - Y|^2 \right).
+    \end{align}
 
-      # Split into training (80\%) and test (20\%) data 
-      X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=66)
-    \end{lstlisting}
-  \end{code}
+    This has probability at most $|\mathcal{M}|$ times the probability that
+    \begin{align}
+      &(1 + \delta) \left( \mathbb{E}(|m_h(X) - Y|^2|D) - \mathbb{E}|m(X) - Y|^2 - \frac{1}{n} \sum_{D'} (|Y_i - m_H(X_i)|^2 - |Y_i - m(X_i)|^2) \right) \\
+      &\geq s + \delta \left( \mathbb{E}|m_h(X) - Y|^2 - \mathbb{E}|m(X) - Y|^2 \right)
+    \end{align}
+    for some $h$, that is
+    \begin{equation}
+      \mathbb{E}[Z|D] - \frac{1}{n} \sum_i Z_i \geq \frac{s + \delta\mathbb{E}[Z|D]}{1 + \delta}
+    \end{equation}
+    for some $h$, where $Z = |m_h(X) - Y|^2 - |m(X) - Y|^2$. Now
+    \begin{equation}
+      \sigma^2 = \text{Var}(Z|D) \leq \mathbb{E}[Z^2|D] \leq 16L^2 \int |m_h(x) - m(x)|^2 dP(x) = 16L^2 \mathbb{E}[Z|D].
+    \end{equation}
 
-  However, this process requires a lot of training runs and therefore may be computationally infeasible. Therefore, various \textbf{information criterion} has been proposed to efficiently select a model. 
+    Using this, and Bernstein's inequality,
+    \begin{align}
+      P \left( \mathbb{E}[Z|D] - \overline{Z} \geq \frac{s + \delta\mathbb{E}[Z|D]}{1 + \delta} |D \right) \\
+      \leq P \left( \mathbb{E}[Z|D] - \overline{Z} \geq \frac{s + \delta\sigma^2/(16L^2)}{1 + \delta} |D \right) \\
+      \leq e^{-nA/B}
+    \end{align}
+    where
+    \begin{equation}
+      A = \frac{1}{(1 + \delta)^2} \left( s + \frac{\delta\sigma^2}{16L^2} \right)
+    \end{equation}
+    and
+    \begin{equation}
+      B = 2\sigma^2 + \frac{2 \cdot 8L^2}{3(1 + \delta)} \left( s + \frac{\delta\sigma^2}{16L^2} \right).
+    \end{equation}
+
+    Now $A/B \geq s/c$ for $c = L^2(16/\delta + 35 + 196)$. So
+    \begin{equation}
+      P(T_1 \geq s|D) \leq |\mathcal{M}| e^{-ns/c}.
+    \end{equation}
+
+    Finally
+    \begin{equation}
+      \mathbb{E}[T_1|D] \leq u + \int_u^{\infty} P(T_1 > s|D) \leq u + \frac{c|\mathcal{M}|}{n} e^{-nu/c}.
+    \end{equation}
+
+    The result follows by setting $u = c \log |\mathcal{M}|/n$. $\square$
+  \end{proof}
 
 \subsection{Leave 1 Out Cross Validation} 
 
