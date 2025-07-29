@@ -1,3 +1,38 @@
 \section{Nonparameteric Support Vector Machines} 
 
   Rather than inner products and L2 regularization, we can take the kernel and L2 norm in the RKHS.  
+
+  Recall that in linear SVMs, we have used a plug-in classifier on a linear model $F(x) = \beta^T x$\footnote{This means that $f(x) = \mathrm{sign}(F(x))$.} and trained it using the hinge loss regularized with the $L^2$ norm. 
+  \begin{equation}
+    \argmin_{\beta \in \mathbb{R}^{d+1}} \frac{1}{n} \sum_{i=1}^n \max\{0, 1 - y^{(i)} F(x^{(i)})\} + \lambda \|\beta\|^2 = \argmin_{\beta \in \mathbb{R}^{d+1}} \frac{1}{n} \sum_{i=1}^n \max\{0, 1 - y^{(i)} \beta^T x^{(i)}\} + \lambda \|\beta\|^2
+  \end{equation}
+  Now in the nonparameteric case, all we do is replace $F$ to not be a linear model, but some function in a RKHS $\mathcal{F}$. Therefore, we are minimizing 
+  \begin{equation}
+    \argmin_{F \in \mathcal{F}} \frac{1}{n} \sum_{i=1}^n \max\{0, 1 - y^{(i)} F(x^{(i)})\} + \lambda \|\beta\|_{\mathcal{F}}^2
+  \end{equation}
+  where the $L^2$ norm of the vector $\beta$ becomes the norm of the function. So you are just minimizing the hinge loss over an arbitrary RKHS. 
+
+  This numerically corresponds to replacing every inner product of your data $\langle x^{(i)}, x^{(j)} \rangle$ with the Mercer kernel $K(x^{(i)}, x^{(j)})$. 
+
+
+\subsection{Concentration Bounds} 
+
+  The following theorem gives a bit of insight into the bias-variance tradeoff. 
+
+  \begin{theorem}[Blanchard, Bosquet, Massert, 2008]
+    For all $F$ in a RKHS with $\|F\|_K \leq R$, the following is true with probability $1 - \delta$. 
+    \begin{equation}
+      P(Y \neq h(X)) \leq \left( \frac{1}{n} \sum_{i} \max\{0, 1 - y^{(i)} F(x^{(i)})\} \right) + \frac{2R}{n} \sqrt{\sum_i K(x^{(i)}, x^{(i)})} + \sqrt{\frac{8 \log(2/\delta)}{n}}
+    \end{equation}
+  \end{theorem}
+
+  It's a little weird that it states that it holds for \textit{all} $F$ in the RKHS, but since it holds for all functions, it also holds for the minimizer $\hat{F}$ as well. 
+
+  But we also see that there is a tradeoff between bias and variance. If we set $R$ to be large, i.e. we do not regularize as much, then the second term will get large and we get a worse bound (higher complexity and so higher variance), but at the same time we may get a better fit in the first term (lower bias). 
+
+  If we apply this with a Gaussian kernel $K(x, y) = \exp(-\frac{\|x - y\|}{2 \sigma^2})$, then we see that 
+  \begin{equation}
+    P(Y \neq h(X)) \leq \left( \frac{1}{n} \sum_{i} \max\{0, 1 - y^{(i)} F(x^{(i)})\} \right) + \frac{R}{ \sqrt{\pi n} \sigma} + \sqrt{\frac{8 \log(2/\delta)}{n}}
+  \end{equation}
+  and so we have another parameter $\sigma$ to tune. We could try to make $\sigma$ large to make the second term small. This would certainly decrease the variance, but then the first term (the loss) might increase due to high bias.\footnote{Think again that if we had a nearly uniform kernel over the entire space, then we would have a constant function, which has extremely high bias and low variance.}
+
