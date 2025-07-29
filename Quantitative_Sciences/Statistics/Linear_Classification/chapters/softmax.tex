@@ -68,43 +68,70 @@
 
 \subsection{Maximum Likelihood Estimation} 
 
-  \begin{lemma}[Likelihood for Multinomial]
-    
-  \end{lemma}
+  We do the same steps as that of logistic regression. 
 
-  \begin{definition}[Multiclass Cross Entropy Loss as Surrogate Loss for Softmax]
+  \begin{lemma}[Likelihood for Multinomial]
+    The surrogate likelihood function for a multinomial is 
+    \begin{equation}
+      \mathbb{P}(X = j) = \mathbb{P}(X = e_j) = \prod_{k=1}^K p_k^{(e_j)_k} 
+    \end{equation}
+    where we have one-hot encoded the $k$th class. 
+  \end{lemma} 
+  \begin{proof}
+    All terms in the product will be $1$ if $k \neq j$, and so the only term remaining will be $p_j^1 = p_j$. 
+  \end{proof} 
+
+  By taking the negative log-likelihood, we can get our loss function. 
+
+  \begin{definition}[Multiclass Cross Entropy Loss as Surrogate Loss]
     The surrogate loss for softmax regression is the \textbf{multiclass cross entropy loss}, which is defined as 
     \begin{equation}
-      L(\theta, x, y) = - \sum_{k=1}^K y_k \log \big( h_\theta (\mathbf{x}) \big)_k
+      L(\theta, x, y) = - \sum_{k=1}^K y_k \log \big( f(x) \big)_k
     \end{equation}
   \end{definition}
 
-  Since a closed form solution is not available for logistic regression, it is clearly not available for softmax. 
+  Now we define our risk. 
+
+  \begin{theorem}[Risk]
+    The expected risk of softmax regression on the cross entropy loss is 
+    \begin{equation}
+      R(f) = \mathbb{E}_{x, y} \left[ - \sum_{k=1}^K y_k \log \big( f(x) \big)_k \right]
+    \end{equation}
+    and the empirical risk on a dataset $\mathcal{D} = \{(x^{(i)}, y^{(i)})\}_{i=1}^n$ is 
+    \begin{equation}
+      \hat{R}(f) = - \frac{1}{n} \sum_{i=1}^n \sum_{k=1}^K y_k \log \big( f(x) \big)_k
+    \end{equation}
+  \end{theorem}
+
+  Since a closed form solution is not available for logistic regression, it is clearly not available for softmax. Note that since we are taking the derivative of a vector w.r.t. a matrix, we will have to work with higher-order tensors. Fortunately, this reduces down to a cute form that we can still compute with matrices. 
 
   \begin{theorem}[Gradient of Softmax Loss]
-    
+    The gradient of the empirical risk is 
+    \begin{align}
+      \nabla_W \hat{R}(f) & = \sum_{i=1}^n (f(x^{(i)}) - y^{(i)}) (x^{(i)})^T \\ 
+      \nabla_b \hat{R}(f) & = \sum_{i=1}^n (f(x^{(i)}) - y^{(i)})
+    \end{align}
   \end{theorem}
   \begin{proof}
-    We one hot encode our target variables as $\mathbf{y}^{(i)}$ and write our likelihood as 
+    Let's write the cross entropy loss function 
     \begin{equation}
-      L(\theta; \mathcal{D}) = \prod_{i=1}^N \prod_{k=1}^K p(C_k \mid \mathbf{x}^{(i)})^{\mathbf{y}^{(i)}_k} = \prod_{i=1}^N \prod_{k=1}^K \big( \mathbf{h}_\mathbf{W} (\mathbf{x}^{(i)})\big)_k^{\mathbf{y}_k^{(i)}}
+      \ell (\theta) = - \sum_{i=1}^N \sum_{k=1}^K y^{(i)}_k \log \big( h_{\theta} (x^{(i)})\big)_k = - \sum_{i=1}^N y^{(i)} \cdot \log \big( h_{\theta} (x^{(i)} \big)
     \end{equation}
-    Taking the negative logarithm gives us the \textbf{cross entropy} loss function
-    \begin{equation}
-      \ell (\boldsymbol{\theta}) = - \sum_{i=1}^N \sum_{k=1}^K y^{(i)}_k \log \big( \mathbf{h}_{\boldsymbol{\theta}} (\mathbf{x}^{(i)})\big)_k = - \sum_{i=1}^N \mathbf{y}^{(i)} \dot \log \big( \mathbf{h}_{\boldsymbol{\theta}} (\mathbf{x}^{(i)} \big)
-    \end{equation}
-    where $\cdot$ is the dot product. The gradient of this function may seem daunting, but it turns out to be very cute. Let us take a single sample $(\mathbf{x}^{(i)}, \mathbf{y}^{(i)})$, drop the index $i$, and write
-    \begin{align*}
-      \mathbf{x} & \mapsto \mathbf{W} \mathbf{x} + \mathbf{b} = \mathbf{z} \\
-      \hat{\mathbf{y}} = \mathbf{a} & = o (\mathbf{z}) \\
-      L & = - \mathbf{y} \cdot \log (\mathbf{a}) = - \sum_{k=1}^K y_k \log(a_k)
-    \end{align*}
+   
+    where $\cdot$ is the dot product. The gradient of this function may seem daunting, but it turns out to be very cute. Let us take a single sample $(x^{(i)}, y^{(i)})$, drop the index $i$, and write
+    \begin{align}
+      z & = W x + b = z \\
+      \hat{y} & = a = o (z) \\
+      L & = - y \cdot \log (a) = - \sum_{k=1}^K y_k \log(a_k)
+    \end{align}
+   
     We must compute 
     \begin{equation}
-      \frac{\partial L}{\partial \mathbf{W}} = \frac{\partial L}{\partial \mathbf{a}} \frac{\partial \mathbf{a}}{\partial \mathbf{z}} \frac{\partial \mathbf{z}}{\partial \boldsymbol{\theta}}
+      \frac{\partial L}{\partial W} = \frac{\partial L}{\partial a} \frac{\partial a}{\partial z} \frac{\partial z}{\partial \theta}
     \end{equation}
-    We can compute $\partial L /\partial \mathbf{z}$ as such, using our derivations for the softmax derivative above. We compute element wise. 
-    \begin{align*}
+   
+    We can compute $\partial L /\partial z$ as such, using our derivations for the softmax derivative above. We compute element wise. 
+    \begin{align}
       \frac{\partial L}{\partial z_j} & = - \sum_{k=1}^K y_k \, \frac{\partial}{\partial z_j} \log (a_k) \\
       & = - \sum_{k=1}^K y_k \frac{1}{a_k} \frac{\partial a_k}{\partial z_j} \\
       & = - \sum_{k=1}^K \frac{y_k}{a_k} \, a_k (1_{\{k = j\}} - a_j) \\
@@ -112,41 +139,56 @@
       & = \bigg( \sum_{k=1}^K y_k a_j \bigg) - y_j \\
       & = a_j \bigg( \sum_{k=1}^K y_k \bigg) - y_j \\
       & = a_j - y_j
-    \end{align*}
+    \end{align}
+   
     and combining these gives 
     \begin{equation}
-      \frac{\partial L}{\partial \mathbf{z}} = (\mathbf{a} - \mathbf{y})^T
+      \frac{\partial L}{\partial z} = (a - y)^T
     \end{equation}
-    Now, computing $\partial \mathbf{z} / \partial \mathbf{W}$ gives us a $3$-tensor, which is not ideal to work with. However, let us just compute this with respect to the elements again. We have 
-    \begin{align*}
-      z_k & = \sum_{d=1}^D W_{kd} x_d + b_k \\ 
-      \frac{\partial z_k}{\partial W_{ij}} & = \sum_{d=1}^D x_d \frac{\partial}{\partial W_{ij}} W_{kd}
-    \end{align*}
+   
+    Now, computing $\partial z / \partial W$ gives us a $3$-tensor, which is not ideal to work with. However, let us just compute this with respect to the elements again. We have 
+    \begin{equation}
+      z_k = \sum_{d=1}^D W_{kd} x_d + b_k, \qquad \frac{\partial z_k}{\partial W_{ij}} = \sum_{d=1}^D x_d \frac{\partial}{\partial W_{ij}} W_{kd}
+    \end{equation}
+   
     where 
     \begin{equation}
-      \frac{\partial}{\partial W_{ij}} W_{kd} = \begin{cases} 1 & \text{ if } i = k, j = d \\ 0 & \text{ else} \end{cases}
+      \frac{\partial}{\partial W_{ij}} W_{kd} = \begin{cases} 
+        1 & \text{ if } i = k, j = d \\ 
+        0 & \text{ else} 
+      \end{cases}
     \end{equation}
-    Therefore, since $d$ is iterating through all elements, the sum will only be nonzero if $k = i$. That is, $\frac{\partial z_k}{\partial W_{ij}} = x_j$ if $k = i$ and $0$ if else. Therefore, 
-    \begin{center}
-      \includegraphics[scale=0.3]{img/softmax_deriv.png}
-    \end{center}
+   
+    Therefore, since $d$ is iterating through all elements, the sum will only be nonzero if $k = i$. That is, $\frac{\partial z_k}{\partial W_{ij}} = x_j$ if $k = i$ and $0$ if else. 
+    \begin{equation}
+      \frac{\partial z}{\partial W_{ij}} = \begin{bmatrix}
+      0 \\
+      \vdots \\
+      0 \\
+      x_j \\
+      0 \\
+      \vdots \\
+      0
+      \end{bmatrix} \leftarrow i\text{th element} 
+    \end{equation}
+   
     Now computing 
     \begin{equation}
-      \frac{\partial L}{\partial W_{ij}} = \frac{\partial L}{\partial \mathbf{z}} \frac{\partial \mathbf{z}}{\partial W_{ij}} = (\mathbf{a} - \mathbf{y}) \frac{\partial \mathbf{z}}{\partial W_{ij}} = \sum_{k=1}^K (a_k - y_k) \frac{\partial z_k}{\partial W_{ij}} = (a_i - y_i) x_j
+      \frac{\partial L}{\partial W_{ij}} = \frac{\partial L}{\partial z} \frac{\partial z}{\partial W_{ij}} = (a - y) \frac{\partial z}{\partial W_{ij}} = \sum_{k=1}^K (a_k - y_k) \frac{\partial z_k}{\partial W_{ij}} = (a_i - y_i) x_j
     \end{equation}
-    To get $\partial L / \partial W_{ij}$ we want a matrix whose entry $(i, j)$ is $(a_i - y_i) x_j$. This is simply the outer product as shown below. For the bias term, $\partial \mathbf{z} / \partial \mathbf{b}$ is simply the identity matrix. 
+    To get $\partial L / \partial W_{ij}$ we want a matrix whose entry $(i, j)$ is $(a_i - y_i) x_j$. This is simply the outer product as shown below. For the bias term, $\partial z / \partial b$ is simply the identity matrix. 
     \begin{equation}
-      \frac{\partial L}{\partial \mathbf{W}} = (\mathbf{a} - \mathbf{y}) \mathbf{x}^T, \;\;\;\; \frac{\partial L}{\partial \mathbf{b}} = \mathbf{a} - \mathbf{y}
+      \frac{\partial L}{\partial W} = (a - y) x^T, \;\;\;\; \frac{\partial L}{\partial b} = a - y
     \end{equation}
-
+   
     Therefore, summing the gradient over some minibatch $M \subset [N]$ gives 
     \begin{equation}
-      \nabla_{\mathbf{W}} \ell_M = \sum_{i \in M} (\mathbf{h}_{\boldsymbol{\theta}}(\mathbf{x}^{(i)}) - \mathbf{y}^{(i)}) (\mathbf{x}^{(i)})^T, \;\;\;\;\; \nabla_{\mathbf{b}} \ell_M = \sum_{i \in M} (\mathbf{h}_{\boldsymbol{\theta}}(\mathbf{x}^{(i)}) - \mathbf{y}^{(i)})
+      \nabla_{W} \ell_M = \sum_{i \in M} (h_{\theta}(x^{(i)}) - y^{(i)}) (x^{(i)})^T, \;\;\;\;\; \nabla_{b} \ell_M = \sum_{i \in M} (h_{\theta}(x^{(i)}) - y^{(i)})
     \end{equation}
     and our stochastic gradient descent algorithm is 
     \begin{align*}
-      \boldsymbol{\theta} = \begin{pmatrix} \mathbf{W} \\ \mathbf{b} \end{pmatrix} & = \begin{pmatrix} \mathbf{W} \\ \mathbf{b} \end{pmatrix} - \eta \begin{pmatrix} \nabla_{\mathbf{W}} \ell_M \\ \nabla_{\mathbf{b}} \ell_M \end{pmatrix} \\
-      & = \begin{pmatrix} \mathbf{W} \\ \mathbf{b} \end{pmatrix} - \eta \begin{pmatrix} \sum_{i \in M} (\mathbf{h}_{\boldsymbol{\theta}}(\mathbf{x}^{(i)}) - \mathbf{y}^{(i)}) (\mathbf{x}^{(i)})^T \\ \sum_{i \in M} (\mathbf{h}_{\boldsymbol{\theta}}(\mathbf{x}^{(i)}) - \mathbf{y}^{(i)}) \end{pmatrix} 
+      \theta = \begin{pmatrix} W \\ b \end{pmatrix} & = \begin{pmatrix} W \\ b \end{pmatrix} - \eta \begin{pmatrix} \nabla_{W} \ell_M \\ \nabla_{b} \ell_M \end{pmatrix} \\
+      & = \begin{pmatrix} W \\ b \end{pmatrix} - \eta \begin{pmatrix} \sum_{i \in M} (h_{\theta}(x^{(i)}) - y^{(i)}) (x^{(i)})^T \\ \sum_{i \in M} (h_{\theta}(x^{(i)}) - y^{(i)}) \end{pmatrix} 
     \end{align*}
   \end{proof}
 
