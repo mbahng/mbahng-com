@@ -10,28 +10,76 @@
       \item \textit{Aggregate}. For each sub dataset $\mathcal{D}_m$, train our model to get the optimal hypothesis $h_{\mathcal{D}_m}^\ast$. We should have $M$ different hypothesis functions, each trained on each sub dataset. 
       \[h_{\mathcal{D}_1}^\ast, h_{\mathcal{D}_2}^\ast, \ldots, h_{\mathcal{D}_M}^\ast\]
     \end{enumerate}
-    To predict the output on a new value $\hat{\mathbf{x}}$, we can evaluate all the $h_{\mathcal{D}_m}^\ast (\hat{\mathbf{x}})$ .
+    To predict the output on a new value $x$, we can evaluate all the $h_{\mathcal{D}_m}^\ast (x)$ and average/vote them.
   \end{definition}
 
-  Note that the bootstrapping step could be expanded to different types of subsampling. 
+  Since the whole point of this algorithm is to reduce variance, bagging does not really overfit. Here is a nice example providing intuition on why this works. 
+
+  \begin{example}[Theory of Bagging on Toy Dataset]
+    To get some intuition about why bagging is useful, consider this example from Buhlmann and Yu (2002). Suppose that we have a $1$-dimensional dataset $X_1, \ldots, X_n \in \mathbb{R}$ that we are trying to split. Consider the simple decision rule. 
+    \begin{equation}
+      \hat{\theta} (x) = \mathbbm{1}(\bar{X}_n \leq x)
+    \end{equation}
+    Now its clear that if we have a different dataset, then we will get a different function, and so given an $x$, let's try to investigate the behavior of $\hat{\theta}(x)$. Let $\mu = \mathbb{E}[X_i]$ and for simplicity assume that $\text{Var}(X_i) = 1$. If $x$ is really positivce or really negative (just away from $\mu$), then it is clear that $\hat{\theta}(x)$ is almost always $0$ or $1$, so that's not really interesting. We want to see the variability around $\mu$, where $\hat{\theta}(x)$ could be $0$ or $1$. 
+    \begin{enumerate}
+      \item So suppose that $x$ is close to $\mu$ relative to the sample size. To make this a bit more precise, we can consider a sequence defined $(x_n = \mu + \frac{c}{\sqrt{n}})$. We can use the CLT to approximate $\bar{X} \approx N(\mu, \frac{\sigma^2}{n})$, i.e. $\bar{Y} = \mu + \frac{\sigma}{\sqrt{n}} Z$ for $Z \sim N(0, 1)$. Substituting this into our definition of $\hat{\theta}$, we get 
+      \begin{align}
+        \hat{\theta}(x_n) & = \mathbbm{1}(\bar{Y} < x_n) \\ 
+                          & = \mathbbm{1} \left( \mu + \frac{\sigma}{\sqrt{n}} Z < \mu + \frac{c \sigma}{\sqrt{n}} \right) \\ 
+                          & = \mathbbm{1}(Z \leq c)
+      \end{align}
+      This is a random variable that can be $0$ or $1$, and we can compute the mean and variance of this. 
+      \begin{equation}
+        \mathbb{E}[\hat{\theta}] = \Phi(c), \qquad \Var[\hat{\theta}] = \Phi(c) (1 - \Phi(c)
+      \end{equation}
+
+      \item Now, let's look at the bagged version, which we call 
+      \begin{equation}
+        \hat{\theta}^\ast (x) = \mathbbm{1} (\bar{Y}^\ast \leq x_n), \qquad \bar{Y}^\ast = \frac{1}{n} \sum Y_i^\ast
+      \end{equation}
+      where each $Y_i^\ast \sim P_n$ is sampled from the empirical distribution function that puts mass $1/n$ on each data point. So conditioned on the original data, we can still use the CLT. 
+      \begin{equation}
+        \bar{Y}^\ast \sim N(\bar{Y}, \frac{s^2}{n}) 
+      \end{equation} 
+      Since $s^2$ converges in probability to $\sigma^2$, we can write 
+      \begin{equation}
+        \bar{Y}^\ast \approx \bar{Y} + \frac{\sigma}{\sqrt{n}} Z
+      \end{equation}
+      So substituting this again, we get 
+      \begin{equation}
+        \hat{\theta}(x) = \mathbbm{1} \left( \bar{Y} + \frac{\sigma}{\sqrt{n}} Z \leq x_n \right) = \mathbbm{1} \left( Z \leq \frac{\sqrt{n} (x_n - \bar{Y})}{\sigma} \right)
+      \end{equation}
+      But this is just a Bernoulli random variable with probability equal to the CDF of the normal distribution, so by taking the randomness over the bootstrap samples, we have the random variable in $Z$
+      \begin{equation}
+        \mathbb{E} [\hat{\theta}(x)]  = \Phi \left( \frac{\sqrt{n} (x_n - \bar{Y})}{\sigma} \right) = \Phi(c - Z) 
+      \end{equation} 
+      In other words, we bootstrap and take this indicator function, then bootstrap and take another indicator, and keep doing this. Then I take an average of these indicator functions. This average of a bunch of step functions ends up looking like a normal CDF. Since $Z$ is a standard normal, $\Phi(Z) \sim \mathrm{Uniform}(0, 1)$. Computing the mean and variance over the randomness of the original data is 
+      \begin{equation}
+        \mathbb{E}[\Phi(-Z)] = \mathbb{E}[\Phi(Z)] = \frac{1}{2}, \qquad \Var[\Phi(Z)] = \frac{1}{12}
+      \end{equation}
+    \end{enumerate}
+
+    To summarize, the unbagged version satisfies $\hat{\theta}_n \approx \mathbbm{1}(Z \leq c)$ while the bagged version has $\hat{\theta}^\ast \approx \Phi(c + Z)$ which is a smoothed version of $\mathbbm{1}(Z \leq c)$. In other words, bagging is a smoothing operator. If we take $c = 0$, then $\hat{\theta}$ converges to a Bernoulli with mean $1/2$ and variance $1/4$. The bagged estimator converges to a uniform with mean $1/2$ and variance $1/12$, which is a reduction in variance. 
+  \end{example}
+
+\subsection{Random Forests} 
+
+  In random forests, you are doing baggging with decision trees but with a twist. 
+
+  \begin{definition}[Random Forests]
+    A \textbf{random forest} is an ensemble of trees, where each tree $\mathcal{T}_i$ is trained as such: 
+    \begin{enumerate}
+      \item Take a bootstrap sample $\mathcal{D}_i$ to train the tree. 
+      \item Every time you split, choose the splitting variable from a random subset of the $d$ covariates to split on.\footnote{A heuristic is to take about $\sqrt{d}$ features.} 
+      \item Then average the predictions. 
+    \end{enumerate}
+  \end{definition}
+
+  In a sense, this works better because the extra subsampling of the features make each tree less correlated. It's similar to dropout in deep learning. 
+
+\subsection{Pasting}
 
   \begin{definition}[Pasting]
     If random subsets (without replacement) are sampled from the original dataset $\mathcal{D}$, then this method is known as \textbf{pasting}. 
-  \end{definition}
-
-  \begin{definition}[Random Subspaces]
-    When random subsets of the data are drawn as random subsets of the features, then this is known as \textbf{random subspaces}. 
-  \end{definition}
-
-  \begin{definition}[Random Patches]
-    When random subsets of both the data and the features are chosen, then this is known as \textbf{random patches}. 
-  \end{definition}
-
-  Since the whole point of this algorithm is to reduce variance, bagging does not really overfit. 
-
-\subsection{Random Forests}
-
-  \begin{definition}[Random Forests]
-    A \textbf{random forest} is a (random patch) bagging algorithm where the component models are decision trees.  
   \end{definition}
 
