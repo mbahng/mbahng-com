@@ -51,6 +51,22 @@
     \end{align}
   \end{proof} 
 
+  \begin{example}[Simulation]
+    Let's do this for a simple dataset of $200$ points across $10$ covariates with some noise $\epsilon \sim N(0, 0.01)$. 
+    \begin{lstlisting}
+      >>> import numpy as np 
+      >>> n, d = 200, 10
+      >>> beta_true = np.array([1, 2, 3, 1, -2, -3, 1, -2, 3, -1])
+      >>> X = np.random.randn(n, d)
+      >>> Y = X.dot(beta_true) + 0.1 * np.random.randn(n)
+      >>> beta_hat = np.linalg.inv(X.T @ X) @ X.T @ Y 
+      >>> print(beta_hat)
+      [ 1.00981636  1.99629568  2.99167398  0.98981948 -1.99678893 -2.99819217
+        0.99060477 -1.99468555  2.99490104 -0.99246088]
+    \end{lstlisting} 
+    We can clearly see that we have good approximates on this. 
+  \end{example}
+
   \begin{corollary}[Variance of MSE Minimizer]
     The variance of the MSE minimizer with respect to $Y$ is 
     \begin{equation}
@@ -68,6 +84,34 @@
       \Var(\hat{\beta}) & = \hat{\sigma}^2 (X^T X)^{-1} \in \mathbb{R}^{d \times d}
     \end{align}
   \end{proof}
+
+  \begin{example}[Simulation]
+    Let's empirically demonstrate the previous theorem by taking a dataset of fixed $X$, and then generating the $Y$ $10000$ times. For each $Y$ we train $\hat{\beta}$, and take the sample covariance. For conciseness, we only print the top-left $3 \times 3$ block matrix. 
+
+    \begin{lstlisting}
+      >>> import numpy as np 
+      >>> n, d = 200, 10
+      >>> beta_true = np.array([1, 2, 3, 1, -2, -3, 1, -2, 3, -1])
+      >>> X = np.random.randn(n, d)
+      >>> def run(): 
+      ...   Y = X.dot(beta_true) + 0.1 * np.random.randn(n)
+      ...   beta_hat = np.linalg.inv(X.T @ X) @ X.T @ Y 
+      ...   return beta_hat
+      ... 
+      >>> 
+      >>> true_cov = 0.1 * np.linalg.inv(X.T.dot(X)) 
+      >>> print(true_cov[:3, :3]) # True covariance according to our theorem
+      [[ 5.51430990e-04  1.04398204e-05 -4.60641482e-06]
+       [ 1.04398204e-05  5.82171568e-04 -1.70354446e-05]
+       [-4.60641482e-06 -1.70354446e-05  4.38241743e-04]]
+      >>> betas = np.stack([run() for _ in range(10000)], axis=0)
+      >>> print(np.cov(betas.T)[:3, :3]) # estimated sample covariance
+      [[ 5.55882814e-05  5.47990882e-07 -4.53151038e-07]
+       [ 5.47990882e-07  5.89809163e-05 -2.02919464e-06]
+       [-4.53151038e-07 -2.02919464e-06  4.37200525e-05]]
+      >>> 
+    \end{lstlisting}
+  \end{example}
 
   Note that we have assumed that $X^T X$ was invertible in order for such a solution to be unique, i.e. $X$ must be full rank. This process breaks down when it isn't invertible, e.g. if there are repetitions in the features (one feature is a linear combination of the others and hence not full column rank). We will talk more about this soon. 
 
@@ -183,12 +227,50 @@
   Now note that matrix inversion and multiplication are of cubic time complexity. This may be an actual problem when either $n$ or $d$ is large. Therefore, we can simply numerically optimize it with stochastic gradient descent. Over a minibatch $M \subset \mathcal{D}$, we have 
   \begin{align}
     \beta & = \beta - \eta \nabla_\beta \ell (\beta) \\
-    & = \beta - \eta \sum_{(x, y) \in M} (y - \beta^T x) x
+    & = \beta - \eta \sum_{(x, y) \in M} (\beta^T x - y) x
   \end{align}
-  This is guaranteed to converge since $\ell(\beta)$, as the sum of convex functions, is also convex. 
+  This is guaranteed to converge since $\ell(\beta)$, as the sum of convex functions, is also convex.  
 
+  \begin{example}[SGD From Scratch]
+    Let's see this in action. 
 
-  \begin{code}[MWE for OLS Linear Regression in scikit-learn]
+    \begin{lstlisting}
+      >>> import numpy as np 
+      >>> n, d = 200, 5
+      >>> beta_true = np.array([1, 2, 3, 1, -2])
+      >>> X = np.random.randn(n, d)
+      >>> Y = X.dot(beta_true) + 0.1 * np.random.randn(n)
+      >>> # Gradient descent 
+      >>> lr = 1e-2
+      >>> beta_hat = np.random.randn(5)
+      >>> for _ in range(1000): 
+      ...   grad = (1/200) * np.sum((Y - X.dot(beta_hat)).reshape(-1, 1) * X, axis=0)
+      ...   beta_hat += lr * grad  
+      ... 
+      >>> 
+      >>> print(beta_hat)
+      [ 1.01353957  1.99694533  2.99698439  1.00279151 -2.00176132]
+    \end{lstlisting}
+
+    Note that this is sensitive to numerical errors if we set the learning rate to be too high. On the other hand, it may not converge fast enough if we set the learning rate too low. The following are after 1000 steps of convergence. 
+
+    \begin{lstlisting}
+      lr: 10.0
+      [nan nan nan nan nan]
+      lr: 1.0
+      [ 0.99783623  2.00872921  3.00480298  1.00303178 -2.00464259]
+      lr: 0.1
+      [ 0.99783623  2.00872921  3.00480298  1.00303178 -2.00464259]
+      lr: 0.01
+      [ 0.99680738  2.00773822  3.00377349  1.00355067 -2.00464062]
+      lr: 0.001
+      [ 0.38075539  0.56665193  1.13758925  0.80863722 -1.51169666]
+      lr: 0.0001
+      [-0.12150123 -0.11091773  0.47147945  0.14935135 -0.28254488]
+    \end{lstlisting}
+  \end{example}
+
+  \begin{code}[OLS Linear Regression in scikit-learn]
     Here is a minimal working example of performing linear regression with scikit-learn. Note that the input data must be of shape $(n, d)$. 
 
     \noindent\begin{minipage}{.6\textwidth}
@@ -265,7 +347,59 @@
     and $R^2$ value of $1$ represents the best model. 
   \end{definition}
 
-  However, a drawback of $R^2$ is that it always increases if we add predictors to the regression model, leading to a possible overfitting. There are cases when the $RSS > TSS$, leading to a negative $R^2$ value. This essentially means that the model is doing worse than just taking the mean. 
+  However, a drawback of $R^2$ is that it always increases if we add predictors to the regression model, leading to a possible overfitting. 
+
+  \begin{example}[RSS and $R^2$ Values as we Account for More Covariates]
+    \begin{lstlisting}
+      import numpy as np
+      import matplotlib.pyplot as plt
+
+      n, d = 200, 10
+      beta_true = np.array([1, 2, 3, 1, -2, 1, 2, 3, 1, -2])
+      X = np.random.randn(n, d)
+      Y = X.dot(beta_true) + 0.1 * np.random.randn(n) 
+
+      RSSs = []
+      R2s = []
+      TSS = np.var(Y)
+      RSSs.append(TSS)
+      R2s.append(0)
+
+      for k in range(1, 11): 
+          X_trunc = X[:,:k]
+          beta_hat = np.linalg.inv(X_trunc.T @ X_trunc) @ X_trunc.T @ Y 
+          RSS = np.var(Y - X_trunc.dot(beta_hat)) 
+          R2 = 1 - RSS/TSS  
+          RSSs.append(RSS) 
+          R2s.append(R2)
+
+      fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+      ax1.plot(range(11), RSSs, 'r-', marker='o')
+      ax1.set_title('Residual Sum of Squares (RSS)')
+      ax1.set_xlabel('Number of Features')
+      ax1.set_ylabel('RSS')
+      ax1.grid(True, alpha=0.3)
+
+      ax2.plot(range(11), R2s, 'b-', marker='o')
+      ax2.set_title('R-squared')
+      ax2.set_xlabel('Number of Features')
+      ax2.set_ylabel('R2')
+      ax2.grid(True, alpha=0.3)
+
+      plt.tight_layout()
+      plt.show() 
+    \end{lstlisting} 
+    This gives the following plot. You can indeed see that the RSS is monotonically decreasing and the $R^2$ is monotonically increasing as we add more covariates. 
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/rss_r2.png}
+      \caption{Note that the steps at which the RSS decrease the most are precisely the covariates where its true values are largest. The first covariate (true value of $1$) doesn't decrease the RSS too much, but as we add the second (true value $2$) and third ($3$), the RSS decreases much sharply. } 
+    \end{figure}
+  \end{example}
+
+  There are cases when the $RSS > TSS$, leading to a negative $R^2$ value. This essentially means that the model is doing worse than just taking the mean. 
 
 \subsection{Simple Linear Regression}
 
