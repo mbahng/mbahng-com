@@ -27,77 +27,67 @@
 
 \subsection{Least Squares Solution} 
 
-  Note that we have assumed that $\mathbf{X}^T \mathbf{X}$ was invertible in order for such a solution to be unique, i.e. $\mathbf{X}$ must be full rank. This process breaks down when it isn't invertible, e.g. if there are repetitions in the features (one feature is a linear combination of the others and hence not full column rank). We will talk more about this soon. 
+  Using simple calculus, we can simply find the point $\beta$ where the derivative of the loss is $0$. 
+ 
+  \begin{theorem}[Least Squares Solution For Linear Regression]
+    The solution that minimizes the MSE is 
+    \begin{equation}
+      \beta = (X^T X)^{-1} X^T Y 
+    \end{equation}
+  \end{theorem}
+  \begin{proof}
+    We simply minimize 
+    \begin{align}
+      L(\beta) = \|Y - X \beta\|^2 = \langle Y - X \beta, Y - X \beta \rangle \\ 
+      & = (Y - X \beta)^T (Y - X \beta) \\ 
+      & = Y^T Y - \beta^T X^T Y - Y^T X \beta + \beta^T X^T X \beta \\
+      & = Y^T Y - 2 Y^T X \beta + \beta^T X^T X \beta 
+    \end{align}
+    where we omit the constant term because it doesn't affect the argmin. Taking the derivative\footnote{Remember the following matrix derivative rules when differentiating with respect to vector $x$. $\frac{\partial}{\partial x} x^T A = A$, $\frac{\partial}{\partial x} x^T A x = 2 Ax$. } and setting it equal to $0$ gives 
+    \begin{align}
+    \frac{\partial L}{\partial \beta} = - 2 X^T Y + 2 X^T X \beta = 0  
+    & \implies X^T X \beta = X^T Y \\ 
+    & \implies \hat{\beta} = (X^T X)^{-1} X^T Y
+    \end{align}
+  \end{proof} 
+
+  \begin{corollary}[Variance of MSE Minimizer]
+    The variance of the MSE minimizer with respect to $Y$ is 
+    \begin{equation}
+      \Var(\hat{\beta}) = \hat{\sigma}^2 (X^T X)^{-1} \in \mathbb{R}^{d \times d}
+    \end{equation}
+  \end{corollary}
+  \begin{proof}
+    We can calculate the variance of $\beta$ by using the fact that $\Var[A X] = A \Var[X] A^T$, is
+    \begin{equation}
+      \Var(\hat{\beta}) = (X^{T} X)^{-1} X^{T} \;\sigma^2 I \; X  (X^{T} X)^{-1} = \sigma^2 (X^{T} X)^{-1} (X^{T} X)  (X^{T} X)^{-1} = \sigma^2  (X^{T} X)^{-1}
+    \end{equation}
+    But we don't know the true $\sigma^2$, so we estimate it with $\hat{\sigma}^2$ by taking the variance of the residuals. Therefore, we have 
+    \begin{align}
+      \beta & = (X^T X)^{-1} X^T Y \in \mathbb{R}^d \\
+      \Var(\hat{\beta}) & = \hat{\sigma}^2 (X^T X)^{-1} \in \mathbb{R}^{d \times d}
+    \end{align}
+  \end{proof}
+
+  Note that we have assumed that $X^T X$ was invertible in order for such a solution to be unique, i.e. $X$ must be full rank. This process breaks down when it isn't invertible, e.g. if there are repetitions in the features (one feature is a linear combination of the others and hence not full column rank). We will talk more about this soon. 
 
   \begin{definition}[Hat Matrix]
-    For convenience of notation, let's call 
+    The \textbf{hat matrix} is defined 
     \begin{equation}
-      \mathbf{H} = \mathbf{X} (\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T 
+      H = X (X^T X)^{-1} X^T \in \mathbb{R}^{n \times n}
     \end{equation}
-    the $n \times n$ \textbf{hat matrix}, which is essentially a projection of the observed $y_i$'s to the predictions. 
+    It is the projection of the observed $y^{(i)}$'s to the least squared predictions.\footnote{It projects to the column space of $X$.} 
     \begin{equation}
-      \hat{\mathbf{y}} = \mathbf{H} \mathbf{y}
+      \hat{Y} = H Y
     \end{equation}
   \end{definition}
 
-  \begin{lemma}[Properties]
-    The hat matrix is an orthogonal projection matrix that projects to the column space of $\mathbf{X}$. 
-  \end{lemma}
-
-  Note that this parallels the orthogonal projection of conditional expectation to the true function onto the subspace of $X$ measurable functions. Except that we are not doing this in function space, but rather the sample space $\mathbb{R}^n$. 
-
   We can also see that the residuals $\hat{\epsilon}_i = y_i - \hat{y}_i$ has the property that 
   \begin{equation}
-    \hat{\boldsymbol{\epsilon}} = \mathbf{y} - \hat{\mathbf{y}} = (\mathbf{I}_n - \mathbf{H}) \mathbf{y} 
+    \hat{\epsilon} = y - \hat{y} = (I_n - H) y 
   \end{equation}
 
-  Now if we look back to the derivative of the loss $S$, we really want to set 
-  \begin{equation}
-    \mathbf{X}^T (\mathbf{y} - \mathbf{X} \hat{\boldsymbol{\beta}}) = \mathbf{X}^T \hat{\boldsymbol{\epsilon}} = \mathbf{0}
-  \end{equation}
-  
-  \begin{theorem}[Least Squares Solution For Linear Regression]
-    Given the design matrix $\mathbf{X}$, we can present the linear model in vectorized form: 
-    \begin{equation}
-      \mathbf{Y} = \mathbf{X} \boldsymbol{\beta} + \boldsymbol{\epsilon}, \; \boldsymbol{\epsilon} \sim N(\mathbf{0}, \sigma^2 \mathbf{I})
-    \end{equation}
-    The solution that minimizes the squared loss is 
-    \begin{align*}
-      \boldsymbol{\beta} & = (\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T \mathbf{Y} \in \mathbb{R}^d \\
-      \Var(\hat{\boldsymbol{\beta}}) & = \hat{\sigma}^2 (\mathbf{X}^T \mathbf{X})^{-1} \in \mathbb{R}^{d \times d}
-    \end{align*}
-  \end{theorem}
-  \begin{proof}
-    The errors can be written as $\boldsymbol{\epsilon} = \mathbf{Y} - \mathbf{X} \boldsymbol{\beta}$, and you have the following total sum of squared errors: 
-
-    \[S(\boldsymbol{\beta}) = \boldsymbol{\epsilon}^T \boldsymbol{\epsilon} = (\mathbf{Y} - \mathbf{X} \boldsymbol{\beta})^T (\mathbf{Y} - \mathbf{X} \boldsymbol{\beta})\]
-
-    We want to find the value of $\boldsymbol{\beta}$ that minimizes the sum of squared errors. In order to do this, remember the following matrix derivative rules when differentiating with respect to vector $\mathbf{x}$. 
-    \begin{enumerate}
-      \item $\mathbf{x}^T \mathbf{A} \mapsto \mathbf{A}$
-      \item $\mathbf{x}^T \mathbf{A} \mathbf{x} \mapsto 2 \mathbf{A} \mathbf{x}$
-    \end{enumerate}
-    Now this should be easy. 
-    \begin{align*}
-        S(\boldsymbol{\beta}) & = \mathbf{Y}^T \mathbf{Y} - \boldsymbol{\beta}^T \mathbf{X}^T \mathbf{Y} - \mathbf{Y}^T \mathbf{X} \boldsymbol{\beta} + \boldsymbol{\beta}^T \mathbf{X}^T \mathbf{X} \boldsymbol{\beta} \\
-        & = \mathbf{Y}^T \mathbf{Y} - 2 \mathbf{Y}^T \mathbf{X} \boldsymbol{\beta} + \boldsymbol{\beta}^T \mathbf{X}^T \mathbf{X} \boldsymbol{\beta} \\
-        \frac{\partial}{\partial \boldsymbol{\beta}} S(\boldsymbol{\beta}) & = - 2 \mathbf{X}^T \mathbf{Y} + 2 \mathbf{X}^T \mathbf{X} \boldsymbol{\beta}
-    \end{align*}
-    and setting it to $\mathbf{0}$ gives 
-    \[2 \mathbf{X}^T \mathbf{X} \boldsymbol{\beta} - 2 \mathbf{X}^T \mathbf{Y} = 0 \implies \mathbf{X}^T \mathbf{X} \boldsymbol{\beta} = \mathbf{X}^T \mathbf{Y}\]
-    and the variance of $\boldsymbol{\beta}$, by using the fact that $\Var[\mathbf{A} \mathbf{X}] = \mathbf{A} \Var[X] \mathbf{A}^T$, is
-    \[\Var(\hat{\boldsymbol{\beta}}) =
-     (\mathbf{X}^{\prime} \mathbf{X})^{-1} \mathbf{X}^{\prime}
-     \;\sigma^2 \mathbf{I} \; \mathbf{X}  (\mathbf{X}^{\prime} \mathbf{X})^{-1}
-    = \sigma^2 (\mathbf{X}^{\prime} \mathbf{X})^{-1} (\mathbf{X}^{\prime}
-     \mathbf{X})  (\mathbf{X}^{\prime} \mathbf{X})^{-1}
-    = \sigma^2  (\mathbf{X}^{\prime} \mathbf{X})^{-1}\]
-    But we don't know the true $\sigma^2$, so we estimate it with $\hat{\sigma}^2$ by taking the variance of the residuals. Therefore, we have 
-    \begin{align*}
-        \boldsymbol{\beta} & = (\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T \mathbf{Y} \in \mathbb{R}^d \\
-        \Var(\hat{\boldsymbol{\beta}}) & = \hat{\sigma}^2 (\mathbf{X}^T \mathbf{X})^{-1} \in \mathbb{R}^{d \times d}
-    \end{align*}
-  \end{proof}
+  Note that this parallels the orthogonal projection of conditional expectation to the true function onto the subspace of $X$ measurable functions. Except that we are not doing this in function space, but rather the sample space $\mathbb{R}^n$. 
 
   \begin{example}[Copying Data]
     What happens if you copy your data in OLS? In this case, our MLE estimate becomes 
@@ -107,10 +97,12 @@
     \end{align*}
     and our estimate is unaffected. However, the variance shrinks by a factor of $2$ to 
     \begin{equation}
-      \frac{\sigma^2}{2} (\mathbf{X}^T \mathbf{X})^{-1}
+      \frac{\sigma^2}{2} (X^T X)^{-1}
     \end{equation}
     A consequence of that is that confidence intervals will shrink with a factor of $1/\sqrt{2}$. The reason is that we have calculated as if we still had iid data, which is untrue. The pair of doubled values are obviously dependent and have a correlation of $1$. 
   \end{example}
+
+\subsection{Gauss Markov Theorem}
 
   Now recall from our \hyperref[fi-bias_variance_mse]{frequentist inference notes} that with the MSE loss, we have the bias-variance-noise decomposition as 
   \begin{align}
@@ -143,43 +135,58 @@
 
 \subsection{Likelihood Estimation}
 
-  Now given these assumptions, what is the likelihood of the data? 
+  Now we add the \textit{additional} assumption that the residuals are distributed according to a Gaussian. This gives us a parameteric closed-form of our likelihood, which we can then maximize with respect to $\beta$. The likelihood is simple to compute. 
 
   \begin{lemma}[Likelihood]
     Given a dataset $\mathcal{D} = \{(x^{(i)}, y^{(i)})\}_{i=1}^N$, our likelihood is 
-    \[L(\theta ; \mathcal{D}) = \prod_{i=1}^N p(y^{(i)} \mid x^{(i)}; \theta) = \prod_{i=1}^N \frac{1}{\sqrt{2 \pi \sigma^2}} \exp \bigg( -\frac{(y^{(i)} - \theta^T x^{(i)})^2}{2 \sigma^2} \bigg)\]
+    \[L(\beta ; \mathcal{D}) = \prod_{i=1}^N p(y^{(i)} \mid x^{(i)}; \beta) = \prod_{i=1}^N \frac{1}{\sqrt{2 \pi \sigma^2}} \exp \bigg( -\frac{(y^{(i)} - \beta^T x^{(i)})^2}{2 \sigma^2} \bigg)\]
   \end{lemma} 
 
-  By taking the negative log, we can get our loss.  
-
-  \begin{definition}[Mean Squared Error Loss]
+  \begin{theorem}[Negative Log-Likelihood is MSE Loss]
     We can take its negative log, remove additive constants, and scale accordingly to get 
     \begin{align}
-      \ell (\theta) & = -\frac{N}{2} \ln{\sigma^2} - \frac{N}{2} \ln(2 \pi) + \frac{1}{2 \sigma^2} \sum_{i=1}^N \big(y^{(i)} - \boldsymbol{\theta}^T \mathbf{x}^{(i)} \big)^2 \\
-      & =\frac{1}{2} \sum_{i=1}^N \big(y^{(i)} - \boldsymbol{\theta}^T \mathbf{x}^{(i)} \big)^2 
+      \ell (\beta) & = -\frac{N}{2} \ln{\sigma^2} - \frac{N}{2} \ln(2 \pi) + \frac{1}{2 \sigma^2} \sum_{i=1}^N \big(y^{(i)} - \beta^T x^{(i)} \big)^2 \\
+      & =\frac{1}{2} \sum_{i=1}^N \big(y^{(i)} - \beta^T x^{(i)} \big)^2 
     \end{align}
     which then corresponds to minimizing the sum of squares error function. 
-  \end{definition}
-
-  \begin{theorem}[Gradient Descent for Linear Regression]
-    Taking the gradient of this log likelihood w.r.t. $\theta$ gives 
-    \[\nabla_\theta \ell (\theta) = \sum_{i=1}^N ( y^{(i)} - \theta^T x^{(i)}) x^{(i)} \]
-    and running gradient descent over a minibatch $M \subset \mathcal{D}$ gives 
-    \begin{align*}
-        \theta & = \theta - \eta \nabla_\theta \ell (\theta) \\
-        & = \theta - \eta \sum_{(x, y) \in M} (y - \theta^T x) x
-    \end{align*}
-    This is guaranteed to converge since $\ell(\theta)$, as the sum of convex functions, is also convex. 
-
-    Note that since we can solve this in closed form, by setting the gradient to $0$, we have 
-    \[0 = \sum_{n=1}^N y^{(n)} \boldsymbol{\phi}(\mathbf{x}^{(n)})^T - \mathbf{w}^T \bigg( \sum_{n=1}^N \boldsymbol{\phi}(\mathbf{x}^{(n)}) \boldsymbol{\phi}(\mathbf{x}^{(n)})^T \bigg)\]
-    which is equivalent to solving the least squares equation 
-    \[\mathbf{w}_{ML} = ( \boldsymbol{\Phi}^T \boldsymbol{\Phi})^{-1} \boldsymbol{\Phi}^T \mathbf{Y}\]
-    Note that if we write out the bias term out explicitly, we can see that it just accounts for the translation (difference) between the average of the outputs $\bar{y} = \frac{1}{N} \sum_{n=1}^N y_n$ and the average of the basis functions $\bar{\phi_j} = \frac{1}{N} \sum_{n=1}^N \phi_j (\mathbf{x}^{(n)})$. 
-    \[w_0 = \bar{y} - \sum_{j=1}^{M-1} w_j \bar{\phi_j}\]
-    We can also maximize the log likelihood w.r.t. $\sigma^2$, which gives the MLE 
-    \[\sigma^2_{ML} = \frac{1}{N} \sum_{n=1}^N \big( y^{(n)} - \mathbf{w}^T_{ML} \boldsymbol{\phi}(\mathbf{x}^{(n)}) \big)^2\]
   \end{theorem}
+
+  So assuming Gaussian residuals also gives us back the MSE as a natural loss function. This is usually the way that beginners tend to use the loss function, but this is not as general as the Gauss-Markov theorem, which is \textit{distribution-free}. As soon as we have the same loss, it should be clear that the MLE is the same as the least-squares optimizer. 
+
+  \begin{corollary}[MLE is the Same as Least-Squares Estimator]
+    The MLE is 
+    \begin{equation}
+      \hat{\beta} = (X^T X)^{-1} X^T Y
+    \end{equation}
+    which is the same as the least squares estimator. We have an additional nusiance parameter $\sigma^2$, however, and the MLE is 
+    \begin{equation}
+      \hat{\sigma}^2 = \frac{1}{n} \sum_{i=1}^n \big( y^{(i)} - \hat{\beta}^T x^{(i)} \big)^2
+    \end{equation}
+    where $\hat{\beta}$ is already solved. 
+  \end{corollary}
+  \begin{proof}
+    This is not needed, but let's go through the computations anyways. Taking the gradient of this log likelihood w.r.t. $\beta$ gives 
+    \begin{equation}
+      \nabla_\beta \ell (\beta) = \sum_{i=1}^n ( y^{(i)} - \beta^T x^{(i)}) x^{(i)}
+    \end{equation}
+    Note that since we can solve this in closed form, by setting the gradient to $0$, we have 
+    \begin{equation}
+      0 = \sum_{i=1}^n y^{(i)} x^{(i) T} - \beta^T \bigg( \sum_{i=1}^n x^{(i)} x^{(i) T} \bigg)
+    \end{equation}
+
+    which is equivalent to solving the least squares equation 
+    \begin{equation}
+      \beta = ( X^T X)^{-1} X^T Y
+    \end{equation}
+  \end{proof}
+
+  Now note that matrix inversion and multiplication are of cubic time complexity. This may be an actual problem when either $n$ or $d$ is large. Therefore, we can simply numerically optimize it with stochastic gradient descent. Over a minibatch $M \subset \mathcal{D}$, we have 
+  \begin{align}
+    \beta & = \beta - \eta \nabla_\beta \ell (\beta) \\
+    & = \beta - \eta \sum_{(x, y) \in M} (y - \beta^T x) x
+  \end{align}
+  This is guaranteed to converge since $\ell(\beta)$, as the sum of convex functions, is also convex. 
+
 
   \begin{code}[MWE for OLS Linear Regression in scikit-learn]
     Here is a minimal working example of performing linear regression with scikit-learn. Note that the input data must be of shape $(n, d)$. 
@@ -188,10 +195,8 @@
     \begin{lstlisting}[]{Code}
       import numpy as np 
       from sklearn.linear_model import LinearRegression 
-
       X = np.array([[1, 1], [1, 2], [2, 2], [2, 3]]) 
       y = np.dot(X, np.array([1, 2])) + 3 
-
       model = LinearRegression()  
       model.fit(X, y) 
       print(X) 
@@ -217,57 +222,118 @@
       .
       .
       .
-      .
-      .
     \end{lstlisting}
     \end{minipage}
   \end{code}
 
+\subsection{Coefficient of Determination} 
+
+  We now suggest a more interpretable metric for a linear regression model. Say that we did not have any of the $X$ data and were told to try and predict the $Y$'s according to the MSE loss. The best we can do is simply compute their mean, and our regression function would always be 
+  \begin{equation}
+    f(x) = \bar{Y} \approx \mathbb{E}_y[y]
+  \end{equation}
+  Rather than thinking of this as a sum of squared errors, we can think of this in term of variance. If we had our naive model above, then our sums of squares errors is equal to the sample variance. 
+  \begin{equation}
+    \frac{1}{n} \sum_{i=1}^n \left( y^{(i)} - f(x^{(i)}) \right)^2 = \frac{1}{n} \sum_{i=1}^n \left( y^{(i)} - \bar{y} \right)^2  
+    \approx \Var_y [y]
+  \end{equation}
+  This is not a very good approximation, and this is shown by a large amount of variance that is not captured. 
+
+  \begin{definition}[Total Sum of Squares]
+    The \textbf{total sum of squares} is defined 
+    \begin{equation}
+      TSS = \frac{1}{n} \sum_{i=1}^n \left( y^{(i)} - \bar{y} \right)^2
+    \end{equation}
+  \end{definition} 
+
+  What we want to do is \textit{reduce} this variance by having better estimates of the mean $\bar{y}$. Now if we are given the $x$, perhaps using the $x$'s to model a better mean of $y$ through $f$ might help, and doing this will lead to a hopefully lower variance, i.e. the \textit{residual sum of squares}. 
+
+  \begin{definition}[Residual Sum of Squares]
+    The \textbf{residual sum of squares} is defined 
+    \begin{equation}
+      RSS = \frac{1}{n} \sum_{i=1}^n \left( y^{(i)} - f(x^{(i)}) \right)^2 
+    \end{equation}
+  \end{definition} 
+
+  If we have a TSS of $2$ and a RSS of $1$, then we have decreased our variance by 50\%. We can formalize this into the following. 
+
+  \begin{definition}[Coefficient of Determination]
+    The \textbf{coefficient of determination} is the proportion of the variation in the dependent variable that is predictable from the independent variables It is defined 
+    \begin{equation}
+      R^2 = 1 - \frac{RSS}{TSS}
+    \end{equation}
+    and $R^2$ value of $1$ represents the best model. 
+  \end{definition}
+
+  However, a drawback of $R^2$ is that it always increases if we add predictors to the regression model, leading to a possible overfitting. There are cases when the $RSS > TSS$, leading to a negative $R^2$ value. This essentially means that the model is doing worse than just taking the mean. 
+
 \subsection{Simple Linear Regression}
 
-  The simple linear regression is the special case of the linear regression with only one covariate.\footnote{I've included a separate section on this since this was especially important for quant interviews.}
-  \begin{equation}
-    y = \alpha + x \beta
-  \end{equation}
-  which is just a straight line fit. Interviewers like this model for its aesthetically pleasing theoretical properties. A few of them are described here, beginning with parameter estimation. For $n$ pairs of $(x_i, y_i)$, 
-  \begin{equation}
-    y_i = \alpha + \beta x_i + \epsilon_i
-  \end{equation}
-  To minimize the sum of squared errors 
-  \begin{equation}
-    \sum_{i} \epsilon_i^2 = \sum_{i} (y_i - \alpha - \beta x_i)^2
-  \end{equation}
-  Taking the partial derivatives w.r.t. $\alpha$ and $\beta$ and setting them equal to $0$ gives 
-  \begin{align*}
-    &\sum_i (y_i - \hat{\alpha} - \hat{\beta} x_i) = 0 \\
-    &\sum_i (y_i - \hat{\alpha} - \hat{\beta} x_i) x_i = 0
-  \end{align*}
-  From just the first equation, we can write 
-  \begin{equation}
-    n \bar{y} = n \hat{\alpha} + n \hat{\beta} \bar{x} \implies y = \hat{\alpha} + \hat{\beta} \bar{x} \implies \hat{\alpha}  = \bar{y} - \hat{\beta} \bar{x} 
-  \end{equation}
-  The second equation gives 
-  \begin{equation}
-    \sum_{i} x_i y_i = \hat{\alpha} n \bar{x} + \hat{\beta} \sum_{i} x_i^2
-  \end{equation}
-  and substituting what we derived gives 
-  \begin{align*}
-    \sum_{i} x_i y_i & = (\bar{y} - \hat{\beta} \bar{x}) n \bar{x} + \hat{\beta} \sum_i x_i^2 \\
-    & = n \bar{x} \bar{y} + \hat{\beta} \bigg( \Big(\sum_i x_i^2 \Big) - n \bar{x}^2 \bigg)
-  \end{align*}
-  and so we have 
-  \begin{equation}
-    \hat{\beta} = \frac{ \big( \sum_i x_i y_i \big) - n \bar{x}\bar{y}}{\big( \sum x_i^2 \big) - n \bar{x}^2} = \frac{ \sum_i x_i y_i - \bar{x} y_i}{\sum x_i^2 - \bar{x} x_i} = \frac{ \sum_i (x_i - \bar{x}) y_i}{\sum_i (x_i - \bar{x}) x_i}
-  \end{equation}
-  Now we can use the identity
-  \begin{align*}
-    \sum_{i} (x_i - \bar{x}) (y_i - \bar{y}) & = \sum_i y_i (x_i - \bar{x}) = \sum_i x_i (y_i - \bar{y}) 
-  \end{align*}
-  to substitute both the numerator and denominator of the equation to 
-  \begin{align*}
-    \hat{\beta} & = \frac{\sum_i (x_i - \bar{x}) (y_i - \bar{y})}{\sum_i (x_i - \bar{x})^2} = \frac{\mathrm{cov}(x, y)}{\mathrm{var}(x)} = \rho_{xy} \frac{s_y}{s_x}
-  \end{align*}
-  where $\rho_{xy}$ is the correlation between $x$ and $y$, and the variance and covariance represent the sample variance and covariance (indicated in lower case letters). Therefore, the correlation coefficient $\rho_{xy}$ is precisely equal to the slope of the best fit line when $x$ and $y$ have been standardized first, i.e. $s_x = s_y = 1$. 
+  The simple linear regression is the special case of the linear regression with only one covariate.\footnote{I've included a separate section on this since this was especially important for quant interviews.} Interviewers like this model for its aesthetically pleasing theoretical properties. We will just list a bunch of them. 
+
+
+  \begin{definition}[Simple Linear Regression]
+    We will use the following notation. 
+    \begin{equation}
+      y = \alpha + x \beta
+    \end{equation}
+  \end{definition}
+
+  \begin{theorem}[Best Fit]
+    The least-squares best fit is 
+    \begin{align}
+      \hat{\beta} & = \frac{\sum_i (x_i - \bar{x}) (y_i - \bar{y})}{\sum_i (x_i - \bar{x})^2} = \frac{\mathrm{cov}(x, y)}{\mathrm{var}(x)} = \rho_{xy} \frac{s_y}{s_x}
+    \end{align}
+    where $\rho_{xy}$ is the correlation between $x$ and $y$, and the variance and covariance represent the sample variance and covariance (indicated in lower case letters). Therefore, the correlation coefficient $\rho_{xy}$ is precisely equal to the slope of the best fit line when $x$ and $y$ have been standardized first, i.e. $s_x = s_y = 1$. 
+  \end{theorem}
+  \begin{proof}
+    For $n$ pairs of $(x_i, y_i)$, 
+    \begin{equation}
+      y_i = \alpha + \beta x_i + \epsilon_i
+    \end{equation}
+
+    To minimize the sum of squared errors 
+    \begin{equation}
+      \sum_{i} \epsilon_i^2 = \sum_{i} (y_i - \alpha - \beta x_i)^2
+    \end{equation}
+
+    Taking the partial derivatives w.r.t. $\alpha$ and $\beta$ and setting them equal to $0$ gives 
+    \begin{align}
+      &\sum_i (y_i - \hat{\alpha} - \hat{\beta} x_i) = 0 \\
+      &\sum_i (y_i - \hat{\alpha} - \hat{\beta} x_i) x_i = 0
+    \end{align}
+
+    From just the first equation, we can write 
+    \begin{equation}
+      n \bar{y} = n \hat{\alpha} + n \hat{\beta} \bar{x} \implies y = \hat{\alpha} + \hat{\beta} \bar{x} \implies \hat{\alpha}  = \bar{y} - \hat{\beta} \bar{x} 
+    \end{equation}
+
+    The second equation gives 
+    \begin{equation}
+      \sum_{i} x_i y_i = \hat{\alpha} n \bar{x} + \hat{\beta} \sum_{i} x_i^2
+    \end{equation}
+
+    and substituting what we derived gives 
+    \begin{align}
+      \sum_{i} x_i y_i & = (\bar{y} - \hat{\beta} \bar{x}) n \bar{x} + \hat{\beta} \sum_i x_i^2 \\
+      & = n \bar{x} \bar{y} + \hat{\beta} \bigg( \Big(\sum_i x_i^2 \Big) - n \bar{x}^2 \bigg)
+    \end{align}
+
+    and so we have 
+    \begin{equation}
+      \hat{\beta} = \frac{ \big( \sum_i x_i y_i \big) - n \bar{x}\bar{y}}{\big( \sum x_i^2 \big) - n \bar{x}^2} = \frac{ \sum_i x_i y_i - \bar{x} y_i}{\sum x_i^2 - \bar{x} x_i} = \frac{ \sum_i (x_i - \bar{x}) y_i}{\sum_i (x_i - \bar{x}) x_i}
+    \end{equation}
+
+    Now we can use the identity
+    \begin{align}
+      \sum_{i} (x_i - \bar{x}) (y_i - \bar{y}) & = \sum_i y_i (x_i - \bar{x}) = \sum_i x_i (y_i - \bar{y}) 
+    \end{align}
+
+    to substitute both the numerator and denominator of the equation to 
+    \begin{align}
+      \hat{\beta} & = \frac{\sum_i (x_i - \bar{x}) (y_i - \bar{y})}{\sum_i (x_i - \bar{x})^2} = \frac{\mathrm{cov}(x, y)}{\mathrm{var}(x)} = \rho_{xy} \frac{s_y}{s_x}
+    \end{align}
+  \end{proof}
 
   \begin{example}[Switching Variables]
     Say that we are fitting $Y$ onto $X$ in a simple regression setting with MLE $\beta_1$, and now we wish to fit $X$ onto $Y$. How will the MLE slope change? We can see that 
@@ -277,18 +343,18 @@
     The reason for this is because regression lines don't necessarily correspond to one-to-one to a casual relationship. Rather, they relate more directly to a conditional probability or best prediction. 
   \end{example}
 
-  The \textbf{coefficient of determination} $R^2$ is a measure tells you how well your line fits the data. When you have your $y_i$'s, their deviation around its mean is captured by the sample variance $s^2_y = \sum_i (y_i - \bar{y})^2$. When we fit our line, we want the deviation of $y_i$ around our predicted values $\hat{y}_i$, i.e. our sum of squared loss $\sum_i (y_i - \hat{y}_i)^2$, to be lower. Therefore, we can define 
-  \[R^2 = 1 - \frac{\mathrm{MSE Loss}}{\mathrm{var}(y)} = 1 - \frac{\sum_i (y_i - \hat{y}_i)^2}{\sum_i (y_i - \bar{y})^2}\]
-  In simple linear regression, we have 
-  \[R^2 = \rho_{yx}^2\]
-  An $R^2$ of $0$ means that the model does not improve prediction over the mean model and $1$ indicates perfect prediction. However, a drawback of $R^2$ is that it can increase if we add predictors to the regression model, leading to a possible overfitting. 
-
-  \begin{theorem}
-    The residual sum of squares (RSS) is equal to the a proportion of the variance of the $y_i$'s. 
+  \begin{theorem}[Coefficient of Determination]
+    In simple linear regression, we have 
+    \begin{equation}
+      R^2 = \rho_{yx}^2
+    \end{equation}
+    That is, it is simply the square of the sample correlation between $x$ and $y$. Now the notation $R^2$ makes sense. 
+  \end{theorem}
+  \begin{proof}
     \begin{equation}
       \mathrm{RSS} = \sum (y_i - \hat{y}_i)^2 = (1 - \rho^2) \sum (y_i - \bar{y})^2 
     \end{equation}
-  \end{theorem}
+  \end{proof}
 
 \subsection{Concentration Bounds} 
 
