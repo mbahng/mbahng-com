@@ -1,5 +1,5 @@
 [[2013rato_dpca-lag-structure.pdf]]
-#dimensionality-reduction #pca #pca-dynamic
+#pca #pca-dynamic
 [[1995ku_dynamic-pca-time-lag]]
 
 # Contribution 

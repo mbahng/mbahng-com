@@ -1,5 +1,5 @@
 [[1997gallagher_recursive-pca.pdf]]
-#dimensionality-reduction #pca #pca-dynamic 
+#pca #pca-dynamic 
 [[1994wold_exp-weight-moving-pca]]
 
 # Contribution 

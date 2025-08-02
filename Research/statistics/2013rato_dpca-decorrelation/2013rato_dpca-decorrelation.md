@@ -1,5 +1,5 @@
 [[2013rato_dpca-decorrelation.pdf]]
-#dimensionality-reduction #pca #pca-dynamic
+#pca #pca-dynamic
 [[2013rato_dpca-lag-structure]]
 
 # Contribution 

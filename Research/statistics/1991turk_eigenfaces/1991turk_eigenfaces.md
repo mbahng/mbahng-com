@@ -1,4 +1,4 @@
 [[1991turk_eigenfaces.pdf]]
-#dimensionality-reduction
+#pca
 [[1986sirovich_eigenfaces]]
 

@@ -1,5 +1,5 @@
 [[2000li_efficient-recursive-pca.pdf]]
-#dimensionality-reduction #pca #pca-dynamic 
+#pca #pca-dynamic 
 [[1997gallagher_recursive-pca]]
 
 # Contribution 
