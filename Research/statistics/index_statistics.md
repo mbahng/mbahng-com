@@ -1,5 +1,4 @@
 1663cardano_games-of-chance.md
-1687newton_principia.md
 1710arbuthnot_human-sex-ratio.md
 1711demoivre_on-measurement-of-chance.md
 1713bernoulli_bernoulli-binomial-dist.md
