@@ -1,5 +1,5 @@
 [[2013uijlings_selective-search.pdf]] 
-#computer-vision
+#computer-vision:segmentation
 [[2004lowe_sift]], [[2004felzenszwalb-graph-image-seg]] 
 
 # Contribution 

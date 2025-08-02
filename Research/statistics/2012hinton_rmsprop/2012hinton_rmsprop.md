@@ -1,4 +1,4 @@
 [[2012hinton_rmsprop.pdf]]
-#optimization
+#optimization #deep-learning:training
 [[2011duchi_adagrad]]
 

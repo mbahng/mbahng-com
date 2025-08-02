@@ -1,5 +1,5 @@
 [[1996breiman_bagging.pdf]]
-#ensemble
+#ensembles
 [[1979efron_bootstrap]], [[1986quinlan_id3-tree]]
 
 

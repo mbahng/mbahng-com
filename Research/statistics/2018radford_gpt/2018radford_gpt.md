@@ -1,6 +1,8 @@
 [[2018radford_gpt.pdf]]
-#deep-learning
-#attention
+#deep-learning:attention #deep-learning:generative #deep-learning:meta-learning:zero-shot
+#natural-language-processing:question-answer 
+#natural-language-processing:classification 
+#natural-language-processing:translation 
 [[2018liu_transformer-wikipedia]]
 
 # Contribution 

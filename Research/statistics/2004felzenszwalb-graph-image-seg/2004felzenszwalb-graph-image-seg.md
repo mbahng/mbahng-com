@@ -1,6 +1,5 @@
 [[2004felzenszwalb-graph-image-seg.pdf]]
-#computer-vision
-
+#computer-vision:segmentation
 
 # Contribution 
    

@@ -1,4 +1,4 @@
 [[1997freund_adaboost.pdf]]
-#ensemble
+#ensembles
 [[1990shapire_weak-learnability]]
 

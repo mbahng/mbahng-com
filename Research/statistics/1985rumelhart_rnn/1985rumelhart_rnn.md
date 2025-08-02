@@ -1,5 +1,4 @@
 [[1985rumelhart_rnn.pdf]]
-#deep-learning
-
+#deep-learning:recurrent
 [[1958rosenblatt_perceptron]]
 

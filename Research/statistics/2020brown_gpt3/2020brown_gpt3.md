@@ -1,5 +1,8 @@
 [[2020brown_gpt3.pdf]]
-#deep-learning:natural-language-processing #deep-learning:attention
+#deep-learning:attention #deep-learning:generative #deep-learning:meta-learning:zero-shot
+#natural-language-processing:question-answer 
+#natural-language-processing:classification 
+#natural-language-processing:translation 
 [[2019child_sparse-transformer]], [[2020kaplan_scaling-laws-for-lm]]
 
 # Contributions 

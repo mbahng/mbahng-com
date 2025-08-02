@@ -1,5 +1,4 @@
 [[2016chen_xgboost.pdf]]
-#ensemble #tree
-
+#ensembles #trees
 [[1999shapire_improved-boosting]]
 

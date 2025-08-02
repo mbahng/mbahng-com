@@ -1,2 +1,2 @@
 [[2004lowe_sift.pdf]]
-#computer-vision
+#computer-vision:feature-descriptor

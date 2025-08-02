@@ -1,4 +1,4 @@
 [[2020lin_godst.pdf]]
-#tree
+#trees
 [[1993quinlan_c4.5]]
 

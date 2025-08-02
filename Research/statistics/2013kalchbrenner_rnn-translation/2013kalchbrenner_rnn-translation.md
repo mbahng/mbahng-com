@@ -1,5 +1,5 @@
 [[2013kalchbrenner_rnn-translation.pdf]]
-#deep-learning:natural-language-processing
+#natural-language-processing
 [[2010mikolov_rnn-language]], [[2013kalchbrenner_rcnn-discourse]]
 
 # Contribution 

@@ -1,5 +1,5 @@
 [[2015bahdanau_neural-machine-translation.pdf]]
-#natural-language-processing, attention
+#natural-language-processing:translation #deep-learning:attention #deep-learning:recurrent
 [[2014cho_encoder-decoder-properties]], [[2014sutskever_seq2seq]]
 
 # Contribution

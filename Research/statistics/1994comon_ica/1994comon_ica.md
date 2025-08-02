@@ -1,4 +1,4 @@
 [[1994comon_ica.pdf]]
-#ica
+#factors-and-components:ica
 [[1991herault_inca]]
 

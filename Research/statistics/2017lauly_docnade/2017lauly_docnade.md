@@ -1,5 +1,5 @@
 [[2017lauly_docnade.pdf]]
-#deep-learning:natural-language-processing
+#natural-language-processing
 
 [[2011larochelle_nade]]
 

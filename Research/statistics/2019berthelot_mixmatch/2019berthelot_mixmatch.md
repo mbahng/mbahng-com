@@ -1,2 +1,2 @@
 [[2019berthelot_mixmatch.pdf]]
-#deep-learning:computer-vision
+#computer-vision

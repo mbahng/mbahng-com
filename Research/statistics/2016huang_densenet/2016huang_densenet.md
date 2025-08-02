@@ -1,5 +1,5 @@
 [[2016huang_densenet.pdf]]
-#deep-learning:computer-vision
+#deep-learning:convolution #computer-vision
 
 [[2015he_resnet]] 
 

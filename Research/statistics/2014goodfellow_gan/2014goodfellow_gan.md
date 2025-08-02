@@ -1,5 +1,4 @@
 [[2014goodfellow_gan.pdf]]
-#deep-learning:computer-vision
-
+#deep-learning:generative #deep-learning:adversarial #computer-vision:classification
 [[2015alian_gsn]]
 

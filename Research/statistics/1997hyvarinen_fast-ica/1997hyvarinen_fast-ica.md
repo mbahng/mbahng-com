@@ -1,4 +1,4 @@
 [[1997hyvarinen_fast-ica.pdf]]
-#ica
+#factors-and-components:ica
 [[1994bell_infomax]]
 

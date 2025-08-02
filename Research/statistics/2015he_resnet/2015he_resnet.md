@@ -1,5 +1,5 @@
 [[2015he_resnet.pdf]]
-#deep-learning:computer-vision
+#deep-learning:convolution #computer-vision:classification
 
 [[2014simonyan_vgg]]
 

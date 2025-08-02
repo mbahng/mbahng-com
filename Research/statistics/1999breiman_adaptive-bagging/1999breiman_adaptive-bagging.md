@@ -1,3 +1,3 @@
 [[1999breiman_adaptive-bagging.pdf]]
-#ensemble
+#ensembles
 [[1998dietterich_random-split-selection]]

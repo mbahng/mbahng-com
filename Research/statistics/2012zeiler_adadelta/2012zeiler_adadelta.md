@@ -1,4 +1,4 @@
 [[2012zeiler_adadelta.pdf]]
-#optimization
+#deep-learning:training #optimization
 [[1986rumelhard_backprop]], [[2012hinton_rmsprop]]
 

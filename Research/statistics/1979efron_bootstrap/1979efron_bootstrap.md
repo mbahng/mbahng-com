@@ -1,4 +1,4 @@
 [[1979efron_bootstrap.pdf]]
-#ensemble
+#ensembles
 [[1956quenouille_jackknife]]
 

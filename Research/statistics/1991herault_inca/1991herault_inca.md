@@ -1,4 +1,4 @@
 [[1991herault_inca.pdf]]
-#ica
+#factors-and-components:ica
 [[1936eckart_pca-with-svd]]
 

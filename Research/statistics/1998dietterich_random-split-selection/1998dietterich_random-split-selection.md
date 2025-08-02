@@ -1,3 +1,3 @@
 [[1998dietterich_random-split-selection.pdf]]
-#ensemble
+#ensembles
 [[1996breiman_bagging]]

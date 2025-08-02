@@ -1,5 +1,5 @@
 [[2014sutskever_seq2seq.pdf]]
-#deep-learning:natural-language-processing
+#natural-language-processing:translation #deep-learning:recurrent
 [[2014cho_rnn-encoder-decoder-smt]], [[1997hochreiter_lstm]]
 
 # Contribution 

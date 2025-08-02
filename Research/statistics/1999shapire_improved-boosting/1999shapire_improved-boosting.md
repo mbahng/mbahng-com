@@ -1,5 +1,5 @@
 [[1999shapire_improved-boosting.pdf]]
-#ensemble
+#ensembles
 
 [[1997freund_adaboost]]
 

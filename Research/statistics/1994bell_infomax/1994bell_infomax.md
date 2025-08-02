@@ -1,4 +1,4 @@
 [[1994bell_infomax.pdf]]
-#ica
+#factors-and-components:ica
 [[1994comon_ica]]
 

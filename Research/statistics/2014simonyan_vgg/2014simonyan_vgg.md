@@ -1,5 +1,5 @@
 [[2014simonyan_vgg.pdf]]
-#deep-learning:computer-vision
+#deep-learning:convolution #computer-vision
 
 [[2012krizhevsky_alexnet]], [[2013sermanet_overfeat]]
 

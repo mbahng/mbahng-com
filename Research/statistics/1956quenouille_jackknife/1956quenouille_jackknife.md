@@ -1,4 +1,4 @@
 [[1956quenouille_jackknife.pdf]]
-#ensemble
+#ensembles
 [[1949quenouille_jackknife]]
 

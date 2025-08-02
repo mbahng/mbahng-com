@@ -1,6 +1,5 @@
 [[2013girshik_rcnn.pdf]]
-#deep-learning:computer-vision
-
+#deep-learning:convolution #computer-vision:detection
 [[2013uijlings_selective-search]], [[2013sermanet_overfeat]]
 
 # Contributions 
