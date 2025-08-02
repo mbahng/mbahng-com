@@ -196,7 +196,133 @@
     \end{enumerate}
   \end{proof}
 
-  It turns out that the MLE of $W$ for PPCA, denoted $W_{\mathrm{PPCA}}^\ast = (\Sigma - \sigma^{\ast 2} I_d)^{1/2} V_k$ has columns in the same direction but with a smaller length than $W_{\mathrm{PCA}} = S V_k = \Sigma^{1/2} V_k$ for standard PCA. For this reason, you should think of PPCA as ``almost'' PCA. 
+  \begin{example}[Fitting PPCA on Numpy]
+    The following PPCA code fits and visualizes the line estimated by PPCA.  
+    \begin{lstlisting}
+      import numpy as np
+      import matplotlib.pyplot as plt
+
+      n = 100
+      z = np.random.normal(1, 2, n)
+      W_true = np.array([[2], [1]])
+      X_clean = z.reshape(-1, 1) @ W_true.T
+      X = X_clean + np.random.normal(0, 0.8, X_clean.shape)
+
+      # MLE of mu: mu_hat = (1/n) sum x^(i)
+      mu_hat = np.mean(X, axis=0)
+      X_centered = X - mu_hat
+
+      # Compute sample covariance Sigma_hat
+      Sigma_hat = X_centered.T @ X_centered / n
+
+      # Eigendecomposition: Sigma_hat = V Lambda V^T
+      eigenvals, V = np.linalg.eigh(Sigma_hat)
+      idx = np.argsort(eigenvals)[::-1]
+      eigenvals, V = eigenvals[idx], V[:, idx]
+
+      # Parameters
+      d, k = X.shape[1], 1
+
+      # MLE of sigma^2: sigma^2_hat = (1/(d-k)) sum_{j=k+1}^d lambda_j
+      sigma2_hat = np.sum(eigenvals[k:]) / (d - k)
+
+      # V_k: first k columns of V
+      V_k = V[:, :k]
+
+      # MLE of W: W_hat = (Sigma_hat - sigma^2_hat*I_d)^(1/2) V_k
+      Lambda_adjusted = np.maximum(eigenvals - sigma2_hat, 0)
+      sqrt_Lambda = np.diag(np.sqrt(Lambda_adjusted))
+      W_hat = V @ sqrt_Lambda @ V.T @ V_k
+
+      # Reconstruction
+      M = W_hat.T @ W_hat + sigma2_hat * np.eye(k)
+      z_recon = X_centered @ W_hat @ np.linalg.inv(M)
+      X_recon = z_recon @ W_hat.T + mu_hat
+
+      # Plotting...
+    \end{lstlisting}
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/ppca_2d.png}
+      \caption{Our estimated principal subspace is pretty close to the true subspace.} 
+    \end{figure}
+  \end{example}
+
+  It turns out that the MLE of $W$ for PPCA, denoted $W_{\mathrm{PPCA}}^\ast = (\Sigma - \sigma^{\ast 2} I_d)^{1/2} V_k$ has columns in the same direction but with a smaller length than $W_{\mathrm{PCA}} = S V_k = \Sigma^{1/2} V_k$ for standard PCA. For this reason, you should think of PPCA as ``almost'' PCA. In fact, let's demonstrate this with a quick code example. 
+
+  \begin{example}[PPCA vs PCA]
+    We fit PPCA and PCA onto the same dataset. 
+    \begin{lstlisting}
+      import numpy as np
+      import matplotlib.pyplot as plt
+      from mpl_toolkits.mplot3d import Axes3D
+
+      np.random.seed(42)
+      n = 150
+      z1 = np.random.normal(0, 1, n)
+      z2 = np.random.normal(0, 1, n)
+      z = np.column_stack([z1, z2])
+      W_true = np.array([[1, 0.5], [0.8, 1], [0.3, 0.7]])
+      mu_true = np.array([1, 2, 0.5])
+      X_clean = z @ W_true.T + mu_true
+      X = X_clean + np.random.normal(0, 0.3, X_clean.shape)
+
+      # Shared preprocessing
+      mu = np.mean(X, axis=0)
+      X_centered = X - mu
+      Sigma_hat = X_centered.T @ X_centered / n
+      eigenvals, V = np.linalg.eigh(Sigma_hat)
+      idx = np.argsort(eigenvals)[::-1]
+      eigenvals, V = eigenvals[idx], V[:, idx]
+
+      d, k = 3, 2
+      V_k = V[:, :k]
+
+      # PPCA
+      sigma2_hat = np.sum(eigenvals[k:]) / (d - k)
+      Lambda_adjusted = np.maximum(eigenvals[:k] - sigma2_hat, 0)
+      W_ppca = V_k @ np.diag(np.sqrt(Lambda_adjusted))
+
+      M = W_ppca.T @ W_ppca + sigma2_hat * np.eye(k)
+      z_recon = X_centered @ W_ppca @ np.linalg.inv(M)
+      X_ppca_recon = z_recon @ W_ppca.T + mu
+
+      # Regular PCA
+      W_pca = V_k @ np.diag(np.sqrt(eigenvals[:k]))
+      U, s, Vt = np.linalg.svd(X_centered, full_matrices=False)
+      X_pca_recon = U[:, :k] @ np.diag(s[:k]) @ Vt[:k, :] + mu
+
+      # Plotting...
+    \end{lstlisting}
+    We indeed see that they generate different fits. 
+
+    \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        PPCA W matrix:
+        [[-1.03970713 -0.34416644]
+         [-1.26026994  0.14944401]
+         [-0.72131911  0.23497575]]
+        Column norms: [1.78593742 0.44271622]
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        PCA W matrix:
+        [[-1.05394957 -0.41427404]
+         [-1.27753377  0.17988615]
+         [-0.73120011  0.28284092]]
+        Column norms: [1.81040212 0.53289867]
+      \end{lstlisting}
+    \end{minipage}
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.35]{img/ppca_vs_pca.png}
+      \caption{The same dataset fitted with PPCA (left) and PCA (right). You can see that their norms are different.} 
+    \end{figure}
+  \end{example}
 
   Our next result is intuitive. We have introduced the error term $\epsilon$ that allows us to extend beyond the principal subspace. If we let $\epsilon$ vanish, the density model defined by PPCA becomes very sharp around these $d$ dimensions spanned by the columns of $W$. At $0$, we are reduced to regular PCA. 
 
@@ -351,11 +477,156 @@
   
   Since there is not an analytical solution of factor models, much less an analogue of Eckart-Young theorem, we introduce the development of mainstream numerical techniques. 
 
-\subsubsection{Iterated Principal Factors}
-
   \begin{algo}[Iterated Principal Factors]
-    
+    \begin{algorithm}[H]
+      \caption{Iterated Principal Factors}
+      \begin{algorithmic}[1]
+        \Procedure{IteratedPrincipalFactors}{$X \in \mathbb{R}^{n \times d}$, $k$}
+            
+        \Require{Data matrix $X$, number of factors $k < d$}
+        \Ensure{Loading matrix $\Lambda \in \mathbb{R}^{d \times k}$, uniquenesses $\Psi \in \mathbb{R}^{d \times d}$}
+        
+        \State $R \gets \text{corr}(X)$ \Comment{Sample correlation matrix}
+        \State $h^2_i \gets 1 - 1/R_{ii}$ for $i = 1, \ldots, d$ \Comment{Initial communalities}
+        \State $R^* \gets R$ with $\text{diag}(R^*) = h^2$ \Comment{Reduced correlation matrix}
+        \State $\text{converged} \gets \text{False}$
+        
+        \While{not converged}
+          \State $h^2_{\text{old}} \gets h^2$
+          \State $V, D \gets \text{eigen}(R^*)$ \Comment{Eigendecomposition}
+          \State $\Lambda \gets V_{:,1:k} \sqrt{D_{1:k,1:k}}$ \Comment{First $k$ factors}
+          
+          \For{$i \gets 1$ to $d$}
+            \State $h^2_i \gets \sum_{j=1}^k \Lambda_{ij}^2$ \Comment{Update communalities}
+          \EndFor
+          
+          \State $R^* \gets R$ with $\text{diag}(R^*) = h^2$
+          \State $\text{converged} \gets ||h^2 - h^2_{\text{old}}||_2 < \epsilon$
+        \EndWhile
+        
+        \For{$i \gets 1$ to $d$}
+          \State $\Psi_{ii} \gets 1 - h^2_i$ \Comment{Uniquenesses}
+        \EndFor
+        
+        \State \Return $\Lambda, \Psi$
+        \EndProcedure
+      \end{algorithmic}
+    \end{algorithm}
   \end{algo}
+
+  \begin{example}[Code Walkthrough]
+    In numpy, we can code this up. 
+
+    \begin{lstlisting}
+      import numpy as np
+      import matplotlib.pyplot as plt
+      from scipy.linalg import eigh
+
+      # Generate synthetic data
+      np.random.seed(42)
+      n = 200  # number of samples
+      k = 2    # number of factors
+      d = 3    # number of observed variables
+
+      # True parameters
+      eta = np.random.randn(n, k)  # factors (isotropic gaussian)
+      Lambda_true = np.array([[0.8, 0.3],
+                             [0.6, 0.7], 
+                             [0.9, 0.2]])  # loading matrix (3x2)
+
+      # Generate noise with different std devs
+      noise_std = np.array([0.3, 0.5, 0.2])
+      epsilon = np.random.randn(n, d) * noise_std
+
+      # Generate observed data
+      X = eta @ Lambda_true.T + epsilon
+      X = X - np.mean(X, axis=0)  # center data
+
+      # Iterated Principal Factors Algorithm
+      def iterated_principal_factors(X, k, max_iter=1000, tol=1e-6):
+         n, d = X.shape
+         
+         # Compute correlation matrix
+         R = np.corrcoef(X.T)
+         
+         # Initialize communalities
+         h2 = 1 - 1/np.diag(R)
+         
+         for iteration in range(max_iter):
+             h2_old = h2.copy()
+             
+             # Create reduced correlation matrix
+             R_star = R.copy()
+             np.fill_diagonal(R_star, h2)
+             
+             # Eigendecomposition
+             eigenvals, eigenvecs = eigh(R_star)
+             
+             # Sort in descending order
+             idx = np.argsort(eigenvals)[::-1]
+             eigenvals = eigenvals[idx]
+             eigenvecs = eigenvecs[:, idx]
+             
+             # Extract first k factors
+             Lambda = eigenvecs[:, :k] @ np.diag(np.sqrt(np.maximum(eigenvals[:k], 0)))
+             
+             # Update communalities
+             h2 = np.sum(Lambda**2, axis=1)
+             
+             # Check convergence
+             if np.linalg.norm(h2 - h2_old) < tol:
+                 break
+         
+         # Compute uniquenesses
+         psi = 1 - h2
+         
+         return Lambda, psi, iteration + 1
+
+      # Fit the model
+      Lambda_est, psi_est, iterations = iterated_principal_factors(X, k=2)
+    \end{lstlisting}
+
+    It turns out that we get 
+    \begin{equation}
+      \hat{\Lambda} = \begin{bmatrix}
+        -0.959 & 0.051 \\
+        -0.708 & -0.167 \\
+        -0.946 & 0.073
+      \end{bmatrix} \not\approx \begin{bmatrix}
+        0.8 & 0.3 \\
+        0.6 & 0.7 \\
+        0.9 & 0.2
+      \end{bmatrix} = \Lambda_{\mathrm{true}}
+    \end{equation}
+    which is not a good estimate. But remember that factor analysis is invariant to rotations $R$. Though it can find the proper subspace spanned by these two columns (latent variables), it cannot actually converge onto a basis. Therefore, if we carefully choose a rotation matrix $R$,\footnote{This can be done using SVD.} we see that this is indeed a good approximate. 
+
+    \begin{equation}
+      \begin{bmatrix}
+        0.8 & 0.3 \\
+        0.6 & 0.7 \\
+        0.9 & 0.2
+      \end{bmatrix} \approx 
+      \begin{bmatrix}
+        -0.959 & 0.051 \\
+        -0.708 & -0.167 \\
+        -0.946 & 0.073
+      \end{bmatrix} 
+      \begin{bmatrix}
+        -0.909 & -0.418 \\
+        0.418 & -0.909
+      \end{bmatrix} = \begin{bmatrix}
+        0.892 & 0.354 \\
+        0.574 & 0.447 \\
+        0.890 & 0.329
+      \end{bmatrix}
+    \end{equation}
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.4]{img/factor.png}
+      \caption{The subspace spanned by our estimate of the 2-dimensional latent variables (right) does seem like a good approximate to the true subspace (left).} 
+    \end{figure}
+  \end{example}
 
 \subsection{PCA vs PPCA vs Factor Models} 
 
