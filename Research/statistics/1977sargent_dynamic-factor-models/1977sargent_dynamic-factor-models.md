@@ -1,5 +1,5 @@
 [[1977sargent_dynamic-factor-models.pdf]]
-#factors-and-components:factor-analysis:dynamic #economics
+#factors-and-components:factor-analysis:dynamic
 [[1956bauer_simultaneous-iteration-method]], [[1977geweke_dynamic-fm]]
 
 # Contribution 
