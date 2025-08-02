@@ -1,5 +1,5 @@
 [[1980stone_convergence-rates-nonparametric-estimators.pdf]]
-#regression #regression-kernel
+#kernels-and-smoothers:kernel-regression
 [[1964watson_kernel-regression]]
 
 # Contributions 

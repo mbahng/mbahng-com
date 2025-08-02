@@ -1,4 +1,4 @@
 [[1986quinlan_id3-tree.pdf]]
-#tree 
+#trees
 [[1984breiman_cart-tree]]
 

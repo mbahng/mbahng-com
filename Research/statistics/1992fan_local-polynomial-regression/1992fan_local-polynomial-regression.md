@@ -1,5 +1,5 @@
 [[1992fan_local-polynomial-regression.pdf]]
-#regression #regression-kernel
+#kernels-and-smoothers:local-polynomial-regression
 [[1980stone_convergence-rates-nonparametric-estimators]]
 
 # Contribution 

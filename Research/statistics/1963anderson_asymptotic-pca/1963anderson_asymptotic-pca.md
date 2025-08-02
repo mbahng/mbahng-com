@@ -1,5 +1,5 @@
 [[1963anderson_asymptotic-pca.pdf]]
-#pca 
+#factors-and-components:pca
 [[1933hotelling_pca]] 
 
 # Contribution  

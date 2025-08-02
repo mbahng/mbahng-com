@@ -1,4 +1,4 @@
 [[1986sirovich_eigenfaces.pdf]]
-#pca
+#factors-and-components:pca
 [[1936eckart_pca-with-svd]]
 

@@ -1,3 +1,3 @@
 [[1967cover_knn.pdf]]
-#clustering
+#kernels-and-smoothers
 

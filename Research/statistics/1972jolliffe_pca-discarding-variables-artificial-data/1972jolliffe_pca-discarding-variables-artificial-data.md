@@ -1,5 +1,5 @@
 [[1972jolliffe_pca-discarding-variables-artificial-data.pdf]]
-#pca #pca-sparse
+#factors-and-components:pca:sparse
 [[1936eckart_pca-with-svd]]
 
 # Contribution 

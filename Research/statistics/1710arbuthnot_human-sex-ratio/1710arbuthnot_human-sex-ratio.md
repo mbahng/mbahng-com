@@ -1,5 +1,5 @@
 [[1710arbuthnot_human-sex-ratio.pdf]]
-#hypothesis-test
+#frequentist-inference:hypothesis-test
 
 # Contribution 
 

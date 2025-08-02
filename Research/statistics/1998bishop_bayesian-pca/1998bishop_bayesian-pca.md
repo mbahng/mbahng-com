@@ -1,4 +1,4 @@
 [[1998bishop_bayesian-pca.pdf]]
-#pca #pca-probabilistic
+#factors-and-components:pca:probabilistic
 [[1997tipping_probabilistic-pca]]
 

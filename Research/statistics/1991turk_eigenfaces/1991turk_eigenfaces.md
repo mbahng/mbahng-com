@@ -1,4 +1,4 @@
 [[1991turk_eigenfaces.pdf]]
-#pca
+#factors-and-components:pca
 [[1986sirovich_eigenfaces]]
 

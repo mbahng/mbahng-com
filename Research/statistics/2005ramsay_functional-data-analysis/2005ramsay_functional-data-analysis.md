@@ -1,5 +1,5 @@
 [[2005ramsay_functional-data-analysis.pdf]]
-#pca #pca-functional
+#factors-and-components:pca:functional
 [[2000boente_kernel-fpca]]
 
 # Contribution 

@@ -1,4 +1,4 @@
 [[2010xavier_xavier-init.pdf]]
-#initialization
+#deep-learning:initialization
 [[1958rosenblatt_perceptron]]
 

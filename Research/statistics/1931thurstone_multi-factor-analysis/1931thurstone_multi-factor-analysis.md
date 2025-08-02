@@ -1,5 +1,5 @@
 [[1931thurstone_multi-factor-analysis.pdf]]
-#factor-models
+#factors-and-components:factor-analysis
 [[1904spearman_factor-models]]
 
 # Contribution 

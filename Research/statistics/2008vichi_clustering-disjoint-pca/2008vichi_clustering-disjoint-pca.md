@@ -1,3 +1,3 @@
 [[2008vichi_clustering-disjoint-pca.pdf]]
-#pca #pca-group
+#factors-and-components:pca:group
 [[1987flury_generalizations-common-pca]]

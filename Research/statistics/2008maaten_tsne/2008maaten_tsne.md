@@ -1,3 +1,3 @@
 [[2008maaten_tsne.pdf]]
-#clustering
+#clustering:dimensionality-reduction
 [[2006coifman_diffusion-maps]]

@@ -1,5 +1,5 @@
 [[2013sermanet_overfeat.pdf]] 
-#deep-learning #computer-vision
+#deep-learning:computer-vision
 
 [[2012krizhevsky_alexnet.md]]
 

@@ -1,5 +1,5 @@
 [[2011he_model-update-multi-stats.pdf]]
-#pca #pca-dynamic 
+#factors-and-components:pca:dynamic 
 [[2008he_variable-mw-pca]]
 
 # Contribution 

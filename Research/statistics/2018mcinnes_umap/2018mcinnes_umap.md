@@ -1,3 +1,3 @@
 [[2018mcinnes_umap.pdf]]
-#clustering
+#clustering:dimensionality-reduction
 [[2008maaten_tsne]]

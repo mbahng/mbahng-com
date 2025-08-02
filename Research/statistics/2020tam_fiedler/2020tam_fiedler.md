@@ -1,4 +1,4 @@
 [[2020tam_fiedler.pdf]]
-#regularization
+#deep-learning:regularization
 [[2013srivastava_dropout]]
 

@@ -1,5 +1,5 @@
 [[1950lanczos_iterative-eigenvalue-solver.pdf]]
-#matrix-theory #pca
+#matrix-theory 
 [[1929vonmises_power-iteration]]
 
 # Contribution 

@@ -1,5 +1,5 @@
 [[1935thurstone_vectors-of-mind.pdf]]
-#factor-models
+#factors-and-components:factor-analysis
 [[1931thurstone_multi-factor-analysis]]
 
 # Contribution 

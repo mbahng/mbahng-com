@@ -1,3 +1,3 @@
 [[2008anderson_generalized-linear-dfm.pdf]]
-#factor-models #dynamic-fm
+#factors-and-components:factor-analysis:dynamic
 [[2001forni_general-dfm-representation-theory]]

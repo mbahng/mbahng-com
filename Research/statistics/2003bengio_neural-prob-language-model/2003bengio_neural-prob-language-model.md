@@ -1,5 +1,5 @@
 [[2003bengio_neural-prob-language-model.pdf]]
-#deep-learning #natural-language-processing
+#deep-learning:natural-language-processing
 [[1958rosenblatt_perceptron]]
 
 # Contributions 

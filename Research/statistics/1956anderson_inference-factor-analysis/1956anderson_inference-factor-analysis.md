@@ -1,5 +1,5 @@
 [[1956anderson_inference-factor-analysis.pdf]]
-#factor-models
+#factors-and-components:factor-analysis
 [[1941harman_modern-factor-analysis]]
 
 # Contribution 

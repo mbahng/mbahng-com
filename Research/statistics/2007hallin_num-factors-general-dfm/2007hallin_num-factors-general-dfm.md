@@ -1,4 +1,4 @@
 [[2007hallin_num-factors-general-dfm.pdf]]
-#factor-models #dynamic-fm
+#factors-and-components:factor-analysis:dynamic
 [[2001forni_general-dfm-representation-theory]]
 

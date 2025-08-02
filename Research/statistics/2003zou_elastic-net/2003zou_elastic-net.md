@@ -1,4 +1,4 @@
 [[2003zou_elastic-net.pdf]]
-#regularization
+#linear-regression:regularization
 [[1996tibshirani_lasso]]
 

@@ -1,5 +1,5 @@
 [[2019chen_protopnet.pdf]]
-#interpretable #prototype
+#deep-learning:interpretable:prototype
 [[2018li_prototypeautoencoder]]
 # Background. 
 

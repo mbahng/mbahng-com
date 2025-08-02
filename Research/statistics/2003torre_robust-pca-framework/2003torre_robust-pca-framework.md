@@ -1,5 +1,5 @@
 [[2003torre_robust-pca-framework.pdf]]
-#pca #pca-robust
+#factors-and-components:pca:robust
 [[1981ruymgaart_robust-pca]]
 
 # Contribution

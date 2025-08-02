@@ -1,5 +1,5 @@
 [[1984breiman_cart-tree.pdf]]
-#tree 
+#trees
 [[1976hyafil_tree-optim-np-complete]]
 
 

@@ -1,5 +1,5 @@
 [[1995ku_dynamic-pca-time-lag.pdf]]
-#pca #pca-dynamic
+#factors-and-components:pca:dynamic
 [[2015vanhatalo_autocorrelation-impact-pca]]
 
 # Contribution

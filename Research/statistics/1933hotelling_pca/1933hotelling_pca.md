@@ -1,5 +1,5 @@
 [[1933hotelling_pca.pdf]]
-#pca
+#factors-and-components:pca
 [[1901pearson_pca]]
 
 # Contribution

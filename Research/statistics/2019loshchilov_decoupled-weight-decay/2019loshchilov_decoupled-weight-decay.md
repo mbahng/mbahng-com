@@ -1,4 +1,4 @@
 [[2019loshchilov_decoupled-weight-decay.pdf]]
-#optimization #regularization
+#optimization:gradient #deep-learning:regularization
 [[2015kingma_adam]]
 

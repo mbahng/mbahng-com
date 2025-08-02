@@ -1,5 +1,5 @@
 [[2000li_efficient-recursive-pca.pdf]]
-#pca #pca-dynamic 
+#factors-and-components:pca:dynamic 
 [[1997gallagher_recursive-pca]]
 
 # Contribution 

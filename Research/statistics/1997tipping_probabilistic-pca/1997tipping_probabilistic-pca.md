@@ -1,5 +1,5 @@
 [[1997tipping_probabilistic-pca.pdf]]
-#pca #pca-probabilistic
+#factors-and-components:pca:probabilistic
 [[1987bartholomew_factor-analysis-latent-variable]], [[1936eckart_pca-with-svd]]
 
 # Contribution 

@@ -1,5 +1,5 @@
 [[2014zhao_robust-pca-complex-noise.pdf]]
-#pca #pca-robust
+#factors-and-components:pca:robust
 [[2014hallin_r-estimation-pca]]
 
 # Contribution 

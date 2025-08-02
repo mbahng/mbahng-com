@@ -1,5 +1,5 @@
 [[2021donnelly_deformable-protopnet.pdf]]
-#interpretable #prototype 
+#deep-learning:interpretable:prototype
 [[2019chen_protopnet]], [[2021wang_tesnet]], [[2009felzenszwalb_object-detection-deformable]], [[2017dai_deformable-convnets]]
 
 # Contributions 

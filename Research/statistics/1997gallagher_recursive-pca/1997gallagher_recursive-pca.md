@@ -1,5 +1,5 @@
 [[1997gallagher_recursive-pca.pdf]]
-#pca #pca-dynamic 
+#factors-and-components:pca:dynamic 
 [[1994wold_exp-weight-moving-pca]]
 
 # Contribution 

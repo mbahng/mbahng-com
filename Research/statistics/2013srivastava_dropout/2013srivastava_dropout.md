@@ -1,5 +1,5 @@
 [[2013srivastava_dropout.pdf]]
-#regularization
+#deep-learning:regularization
 [[2012hinton_prevent-coadapting]]
 
 # Contributions 

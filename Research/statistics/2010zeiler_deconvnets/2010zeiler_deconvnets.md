@@ -1,5 +1,5 @@
 [[2010zeiler_deconvnets.pdf]]
-#convolution
+#deep-learning:convolution
 [[1998lecun_lenet]]
 ## Background 
 

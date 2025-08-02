@@ -1,4 +1,4 @@
 [[2014choiu_multi-fpca-normalization.pdf]]
-#pca #pca-functional
+#factors-and-components:pca:functional
 [[2011berrendero_multivariate-functional-pca]]
 

@@ -1,5 +1,5 @@
 [[2000vines_simple-pcs.pdf]]
-#pca #pca-sparse
+#factors-and-components:pca:sparse
 [[1982desarbo_hausmann-pca-constrained]] 
 
 # Contribution 

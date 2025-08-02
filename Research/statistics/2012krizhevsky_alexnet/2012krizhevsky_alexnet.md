@@ -1,5 +1,5 @@
 [[2012krizhevsky_alexnet.pdf]]
-#deep-learning #convolution
+#deep-learning:convolution
 [[1998lecun_lenet]]
 
 # Contributions 

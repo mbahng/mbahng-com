@@ -1,5 +1,5 @@
 [[2018li_prototypeautoencoder.pdf]]
-#interpretable #prototype
+#deep-learning:interpretable:prototype
 [[2013zeiler_understandingcnns]]
 
 # Background. 

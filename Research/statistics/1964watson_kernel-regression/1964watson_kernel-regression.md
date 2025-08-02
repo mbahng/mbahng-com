@@ -1,5 +1,5 @@
 [[1964watson_kernel-regression.pdf]]
-#regression #regression-kernel
+#kernels-and-smoothers:kernel-regression
 [[1922fisher_regression]]
 
 # Contributions 

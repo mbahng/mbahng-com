@@ -1,3 +1,3 @@
 [[2006bai_conf-index-forecasts-factor.pdf]]
-#factor-models #dynamic-fm
+#factors-and-components:factor-analysis:dynamic
 [[2003bai_inference-theory-fm-high-dim]]

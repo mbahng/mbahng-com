@@ -1,5 +1,5 @@
 [[2005jin_robust-recursive-pca.pdf]]
-#pca #pca-dynamic
+#factors-and-components:pca:dynamic
 [[2000li_efficient-recursive-pca]]
 
 # Contribution 

@@ -1,5 +1,5 @@
 [[1901pearson_pca.pdf]]
-#pca
+#factors-and-components:pca
 
 # Contribution
    

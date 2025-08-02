@@ -1,5 +1,5 @@
 [[1962lawley_factor-analysis-stats.pdf]]
-#factor-models
+#factors-and-components:factor-analysis
 [[1956anderson_inference-factor-analysis]]
 
 # Contribution 

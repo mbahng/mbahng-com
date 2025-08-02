@@ -1,2 +1,2 @@
 [[1964karhunen_karhunen-loeve-transform.pdf]]
-#pca #pca-functional
+#factors-and-components:pca:functional

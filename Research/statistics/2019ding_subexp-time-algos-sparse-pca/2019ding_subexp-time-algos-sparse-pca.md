@@ -1,4 +1,4 @@
 [[2019ding_subexp-time-algos-sparse-pca.pdf]]
-#pca #pca-sparse
+#factors-and-components:pca:sparse
 [[2015krauthgamer_semidefinite-relaxation]]
 

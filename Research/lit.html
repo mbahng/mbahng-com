@@ -60,8 +60,8 @@
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       font-size: 12px;
       color: #666;
-      min-width: 150px;
-      max-width: 250px;
+      min-width: 200px;
+      max-width: 350px;
     }
     
     .search-box {
@@ -441,6 +441,122 @@
       font-weight: bold;
       margin-bottom: 3px;
     }
+    
+    /* Hierarchical legend styles */
+    .legend-category {
+      margin-bottom: 4px;
+    }
+    
+    .legend-left {
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+    
+    .subcategory-indent {
+      font-family: monospace;
+      color: #999;
+      margin-right: 4px;
+      min-width: fit-content;
+    }
+    
+    .category-arrow {
+      margin-right: 4px;
+      user-select: none;
+      min-width: 12px;
+      text-align: center;
+    }
+    
+    .category-arrow.expandable {
+      cursor: pointer;
+    }
+    
+    .category-arrow.placeholder {
+      cursor: default;
+    }
+    
+    .legend-color {
+      margin-right: 6px;
+    }
+    
+    .legend-category-empty {
+      /* Removed opacity to keep all categories visible and black */
+    }
+    
+    .legend-category-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 3px 0;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: background-color 0.2s;
+    }
+    
+    .legend-category-header:hover {
+      background-color: rgba(240, 240, 240, 0.5);
+    }
+    
+    .category-arrow {
+      display: inline-block;
+      width: 16px;
+      text-align: center;
+      font-size: 10px;
+      margin-right: 4px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    
+    .category-arrow.expandable:hover {
+      transform: scale(1.2);
+    }
+    
+    .legend-top-level {
+      font-weight: bold;
+      font-size: 13px;
+    }
+    
+    .legend-subcategories {
+      margin-left: 20px;
+      border-left: 1px solid #eee;
+      padding-left: 8px;
+      margin-top: 2px;
+    }
+    
+    .legend-subcategory {
+      margin-bottom: 2px;
+      font-size: 11px;
+    }
+    
+    .subcategory-indent {
+      color: #999;
+      font-size: 10px;
+      margin-right: 4px;
+      width: 12px;
+      display: inline-block;
+    }
+    
+    .hierarchy-item {
+      border-bottom: 1px solid #eee;
+      padding-bottom: 4px;
+      margin-bottom: 6px;
+    }
+    
+    /* Multi-level hierarchy styles */
+    .legend-level-2 {
+      margin-left: 10px;
+      font-size: 10px;
+    }
+    
+    .legend-level-3 {
+      margin-left: 20px;
+      font-size: 9px;
+    }
+    
+    .legend-level-4 {
+      margin-left: 30px;
+      font-size: 8px;
+    }
   </style>
 </head>
 <body>
@@ -545,6 +661,60 @@ window.MathJax = {
   let tagVisibility = {}; // Track which tags are visible
   let highlightedTag = null; // Track currently highlighted tag
   let currentDirectory = 'statistics'; // Default directory
+  
+  // Function to normalize tags to lowercase with dashes
+  function normalizeTag(tag) {
+    return tag.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9:-]/g, '');
+  }
+  
+  // Function to get display name from normalized tag
+  function getDisplayName(normalizedTag) {
+    return normalizedTag.split('-').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  }
+  
+  // Hierarchical tag structure - top-level categories from Statistics home.html (normalized)
+  const topLevelCategories = [
+    'information-theory', 'signal-processing', 'function-spaces', 'concentration-of-measure',
+    'frequentist-inference', 'bayesian-inference', 'optimization', 'sampling-and-integration',
+    'decision-theory', 'learning-theory', 'linear-regression', 'linear-classification',
+    'time-series', 'kernels-and-smoothers', 'trees', 'ensembles', 'factors-and-components',
+    'clustering', 'latent-variable-models', 'graphical-models', 'deep-learning',
+    'reinforcement-learning', 'computer-vision', 'natural-language-processing', 'others'
+  ];
+  
+  // Map normalized categories to display names
+  const categoryDisplayNames = {
+    'information-theory': 'Information Theory',
+    'signal-processing': 'Signal Processing', 
+    'function-spaces': 'Function Spaces',
+    'concentration-of-measure': 'Concentration of Measure',
+    'frequentist-inference': 'Frequentist Inference',
+    'bayesian-inference': 'Bayesian Inference',
+    'optimization': 'Optimization',
+    'sampling-and-integration': 'Sampling and Integration',
+    'decision-theory': 'Decision Theory',
+    'learning-theory': 'Learning Theory',
+    'linear-regression': 'Linear Regression',
+    'linear-classification': 'Linear Classification',
+    'time-series': 'Time Series',
+    'kernels-and-smoothers': 'Kernels and Smoothers',
+    'trees': 'Trees',
+    'ensembles': 'Ensembles',
+    'factors-and-components': 'Factors and Components',
+    'clustering': 'Clustering',
+    'latent-variable-models': 'Latent Variable Models',
+    'graphical-models': 'Graphical Models',
+    'deep-learning': 'Deep Learning',
+    'reinforcement-learning': 'Reinforcement Learning',
+    'computer-vision': 'Computer Vision',
+    'natural-language-processing': 'Natural Language Processing',
+    'others': 'Others'
+  };
+  
+  let hierarchicalTags = {}; // Structure: {topLevel: {subcategories: Map, papers: []}}  
+  let tagHierarchy = {}; // Maps all tags to their hierarchy path
   
   // Get directory from URL parameter
   function getCurrentDirectory() {
@@ -934,8 +1104,70 @@ window.MathJax = {
     if (!node.tags || node.tags.length === 0) {
       return tagVisibility['no-tags'];
     }
-    // For multi-tag nodes, visible if ANY tag is visible
-    return node.tags.some(tag => tagVisibility[tag.toLowerCase()]);
+    
+    // Check visibility based on hierarchical structure
+    return node.tags.some(tag => {
+      // Check if the tag itself is visible
+      if (tagVisibility[tag]) return true;
+      
+      // Check if the tag's top-level category is visible
+      const hierarchy = tagHierarchy[tag];
+      if (hierarchy) {
+        if (tagVisibility[hierarchy.topLevel]) return true;
+        
+        // Check if any parent path is visible (for hierarchical tags)
+        if (hierarchy.path.length > 0) {
+          for (let i = 1; i <= hierarchy.fullPath.length; i++) {
+            const partialPath = hierarchy.fullPath.slice(0, i).join(':');
+            if (tagVisibility[partialPath]) return true;
+          }
+        }
+      }
+      
+      return false;
+    });
+  }
+  
+  // Function to get the count of papers for a specific tag or category
+  function getTagCount(tag) {
+    let count = 0;
+    
+    // Count all nodes that have this tag (directly or through hierarchy)
+    nodes.forEach(node => {
+      if (!node.tags || node.tags.length === 0) return;
+      
+      // Check if node has this tag directly or through hierarchy
+      const hasTag = node.tags.some(nodeTag => {
+        // Direct match
+        if (nodeTag === tag || nodeTag.toLowerCase() === tag.toLowerCase()) return true;
+        
+        // Check hierarchical matches
+        const hierarchy = tagHierarchy[nodeTag];
+        if (hierarchy) {
+          // Match against top-level category
+          if (hierarchy.topLevel === tag) return true;
+          
+          // Match against any level of the hierarchy path
+          for (let i = 1; i <= hierarchy.fullPath.length; i++) {
+            const partialPath = hierarchy.fullPath.slice(0, i).join(':');
+            if (partialPath === tag) return true;
+          }
+        }
+        
+        return false;
+      });
+      
+      if (hasTag) {
+        count++;
+      }
+    });
+    
+    return count;
+  }
+  
+  // Function to get the count of papers with no tags
+  function getNoTagsCount() {
+    return nodes.filter(node => !node.tags || node.tags.length === 0).length;
   }
   
   // Function to toggle all tags on/off
@@ -971,65 +1203,215 @@ window.MathJax = {
     updateGraphVisibility();
   }
   
-  // Function to create and populate the legend
+  // Function to create and populate the hierarchical legend
   function createLegend(allTags) {
     const legendContainer = document.getElementById('legend-items');
     legendContainer.innerHTML = '';
     
-    // Initialize all tags as visible
+    // Initialize visibility for all categories and tags
     tagVisibility['no-tags'] = true;
+    
+    // Initialize all top-level categories as visible
+    topLevelCategories.forEach(category => {
+      tagVisibility[category] = true;
+    });
+    
+    // Initialize all individual tags as visible
     allTags.forEach(tag => {
       tagVisibility[tag] = true;
     });
     
     // Add "No tags" entry for gray nodes
     const noTagItem = document.createElement('div');
-    noTagItem.className = 'legend-item';
+    noTagItem.className = 'legend-item hierarchy-item';
     noTagItem.innerHTML = `
       <div class="legend-left">
         <div class="legend-color" style="background-color: #808080;"></div>
-        <span class="legend-tag-name" data-tag="No tags">No tags</span>
+        <span class="legend-tag-name" data-tag="No tags">No tags [${getNoTagsCount()}]</span>
       </div>
       <div class="legend-toggle active" data-tag="no-tags"></div>
     `;
     legendContainer.appendChild(noTagItem);
     
-    // Add entries for each tag
-    allTags.forEach(tag => {
-      const item = document.createElement('div');
-      item.className = 'legend-item';
-      item.innerHTML = `
+    // Create hierarchical legend structure
+    topLevelCategories.forEach(topCategory => {
+      const categoryData = hierarchicalTags[topCategory];
+      const hasContent = categoryData && categoryData.subcategories && categoryData.subcategories.size > 0;
+      
+      
+      // Always show top-level categories, but dim them if they have no content
+      const topLevelItem = document.createElement('div');
+      topLevelItem.className = `legend-category ${hasContent ? '' : 'legend-category-empty'}`;
+      
+      // Create collapsible header for top-level category
+      const categoryHeader = document.createElement('div');
+      categoryHeader.className = 'legend-category-header';
+      categoryHeader.innerHTML = `
         <div class="legend-left">
-          <div class="legend-color" style="background-color: ${tagColors[tag]};"></div>
-          <span class="legend-tag-name" data-tag="${tag}">${tag}</span>
+          <span class="category-arrow ${hasContent ? 'expandable' : ''}" data-category="${topCategory}">
+            ${hasContent ? '▶' : '•'}
+          </span>
+          <div class="legend-color" style="background-color: ${tagColors[topCategory] || generateCategoryColor(topCategory)};"></div>
+          <span class="legend-tag-name legend-top-level" data-tag="${topCategory}">${categoryDisplayNames[topCategory] || getDisplayName(topCategory)} [${getTagCount(topCategory)}]</span>
         </div>
-        <div class="legend-toggle active" data-tag="${tag}"></div>
+        <div class="legend-toggle ${tagVisibility[topCategory] ? 'active' : ''}" data-tag="${topCategory}"></div>
       `;
-      legendContainer.appendChild(item);
+      
+      topLevelItem.appendChild(categoryHeader);
+      
+      // Create subcategory container (initially hidden)
+      if (hasContent) {
+        const subcategoryContainer = document.createElement('div');
+        subcategoryContainer.className = 'legend-subcategories';
+        subcategoryContainer.style.display = 'none';
+        subcategoryContainer.setAttribute('data-category', topCategory);
+        
+        // Recursively add nested subcategories
+        renderNestedCategories(subcategoryContainer, categoryData.subcategories, [topCategory], 1);
+        
+        topLevelItem.appendChild(subcategoryContainer);
+      }
+      
+      legendContainer.appendChild(topLevelItem);
     });
     
-    // Add click event listeners to individual toggles
+    // Add event listeners
+    setupLegendEventListeners();
+  }
+  
+  // Recursive function to render nested categories
+  function renderNestedCategories(container, subcategoriesMap, pathSoFar, level) {
+    subcategoriesMap.forEach((categoryData, categoryName) => {
+      const currentPath = [...pathSoFar, categoryName];
+      const fullTag = currentPath.join(':');
+      const hasNestedContent = categoryData.subcategories.size > 0;
+      
+      const subItem = document.createElement('div');
+      subItem.className = `legend-item legend-subcategory legend-level-${level}`;
+      
+      // Create indentation based on level
+      const indent = '  '.repeat(level - 1) + '└';
+      
+      subItem.innerHTML = `
+        <div class="legend-left">
+          <div class="subcategory-indent">${indent}</div>
+          <span class="category-arrow ${hasNestedContent ? 'expandable' : 'placeholder'}" ${hasNestedContent ? `data-category="${fullTag}"` : ''}>${hasNestedContent ? '▶' : ''}</span>
+          <div class="legend-color" style="background-color: ${getTagColor(fullTag, currentPath)};"></div>
+          <span class="legend-tag-name" data-tag="${fullTag}">${getDisplayName(categoryName)} [${getTagCount(fullTag)}]</span>
+        </div>
+        <div class="legend-toggle ${tagVisibility[fullTag] ? 'active' : ''}" data-tag="${fullTag}"></div>
+      `;
+      
+      container.appendChild(subItem);
+      
+      // If there are nested subcategories, add them
+      if (hasNestedContent) {
+        const nestedContainer = document.createElement('div');
+        nestedContainer.className = 'legend-subcategories';
+        nestedContainer.style.display = 'none';
+        nestedContainer.setAttribute('data-category', fullTag);
+        
+        renderNestedCategories(nestedContainer, categoryData.subcategories, currentPath, level + 1);
+        container.appendChild(nestedContainer);
+      }
+    });
+  }
+  
+  // Helper function to get color for a tag based on its hierarchy
+  function getTagColor(fullTag, pathArray) {
+    // Try exact match first
+    if (tagColors[fullTag]) return tagColors[fullTag];
+    
+    // Try hierarchy lookup
+    const hierarchy = tagHierarchy[fullTag];
+    if (hierarchy && tagColors[hierarchy.topLevel]) {
+      // Generate variation based on depth
+      const depth = pathArray.length - 1;
+      const topLevelIndex = topLevelCategories.indexOf(hierarchy.topLevel);
+      const baseHue = (topLevelIndex * 25) % 360;
+      const depthVariation = depth * 20;
+      const lightnessVariation = Math.min(depth * 10, 30);
+      
+      return `hsl(${(baseHue + depthVariation) % 360}, ${Math.max(45 - depth * 5, 25)}%, ${Math.min(65 + lightnessVariation, 85)}%)`;
+    }
+    
+    // Fallback
+    return generateSubcategoryColor(pathArray[0]);
+  }
+  
+  // Generate colors for categories
+  function generateCategoryColor(category) {
+    const normalizedCategory = normalizeTag(category);
+    const index = topLevelCategories.indexOf(normalizedCategory);
+    const hue = (index >= 0 ? index * 25 : Math.abs(normalizedCategory.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) * 137.508) % 360;
+    return `hsl(${hue}, 65%, 55%)`;
+  }
+  
+  function generateSubcategoryColor(topCategory) {
+    const normalizedTopCategory = normalizeTag(topCategory);
+    const index = topLevelCategories.indexOf(normalizedTopCategory);
+    const hue = (index >= 0 ? index * 25 : Math.abs(normalizedTopCategory.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) * 137.508) % 360;
+    return `hsl(${hue}, 45%, 70%)`;
+  }
+  
+  // Setup all legend event listeners
+  function setupLegendEventListeners() {
+    // Toggle visibility event listeners
     document.querySelectorAll('.legend-toggle[data-tag]').forEach(toggle => {
-      toggle.addEventListener('click', function() {
+      toggle.addEventListener('click', function(e) {
+        e.stopPropagation();
         const tag = this.getAttribute('data-tag');
         this.classList.toggle('active');
         toggleTagVisibility(tag);
       });
     });
     
-    // Add click event listeners to tag names for highlighting
+    // Highlight event listeners
     document.querySelectorAll('.legend-tag-name').forEach(tagName => {
-      tagName.addEventListener('click', function() {
+      tagName.addEventListener('click', function(e) {
+        e.stopPropagation();
         const tag = this.getAttribute('data-tag');
         highlightNodesWithTag(tag);
       });
     });
     
-    // Add click event listener to toggle all button
+    // Category expansion event listeners
+    document.querySelectorAll('.category-arrow.expandable').forEach(arrow => {
+      arrow.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const category = this.getAttribute('data-category');
+        toggleCategoryExpansion(category);
+      });
+    });
+    
+    // Top-level category header click listeners
+    document.querySelectorAll('.legend-category-header').forEach(header => {
+      header.addEventListener('click', function(e) {
+        const arrow = this.querySelector('.category-arrow.expandable');
+        if (arrow) {
+          const category = arrow.getAttribute('data-category');
+          toggleCategoryExpansion(category);
+        }
+      });
+    });
+    
+    // Toggle all button
     document.getElementById('toggle-all').addEventListener('click', toggleAllTags);
     
-    // Add click event listener to dropdown header
+    // Dropdown header
     document.getElementById('legend-header').addEventListener('click', toggleLegendDropdown);
+  }
+  
+  // Toggle category expansion
+  function toggleCategoryExpansion(category) {
+    const arrow = document.querySelector(`[data-category="${category}"].category-arrow`);
+    const subcategories = document.querySelector(`.legend-subcategories[data-category="${category}"]`);
+    
+    if (subcategories) {
+      const isExpanded = subcategories.style.display !== 'none';
+      subcategories.style.display = isExpanded ? 'none' : 'block';
+      arrow.textContent = isExpanded ? '▶' : '▼';
+    }
   }
   
   // Function to toggle legend dropdown
@@ -1062,17 +1444,39 @@ window.MathJax = {
     
     // Highlight the clicked tag in the legend
     d3.selectAll('.legend-tag-name').filter(function() {
-      return this.textContent === tag;
+      return this.getAttribute('data-tag') === tag || this.textContent === tag;
     }).classed('highlighted', true);
     
     // Highlight nodes with the selected tag
     d3.selectAll('.node').each(function(d) {
-      const hasTag = tag === 'No tags' ? 
-        (!d.tags || d.tags.length === 0) : 
-        (d.tags && d.tags.some(nodeTag => {
-          // Try both exact match and case-insensitive match
-          return nodeTag === tag || nodeTag.toLowerCase() === tag.toLowerCase();
-        }));
+      let hasTag = false;
+      
+      if (tag === 'No tags') {
+        hasTag = !d.tags || d.tags.length === 0;
+      } else {
+        // Check if node has this tag directly
+        if (d.tags) {
+          hasTag = d.tags.some(nodeTag => {
+            // Direct match
+            if (nodeTag === tag || nodeTag.toLowerCase() === tag.toLowerCase()) return true;
+            
+            // Check hierarchical matches
+            const hierarchy = tagHierarchy[nodeTag];
+            if (hierarchy) {
+              // Match against top-level category
+              if (hierarchy.topLevel === tag) return true;
+              
+              // Match against any level of the hierarchy path
+              for (let i = 1; i <= hierarchy.fullPath.length; i++) {
+                const partialPath = hierarchy.fullPath.slice(0, i).join(':');
+                if (partialPath === tag) return true;
+              }
+            }
+            
+            return false;
+          });
+        }
+      }
       
       if (hasTag) {
         d3.select(this).classed('node-highlighted', true);
@@ -1227,8 +1631,172 @@ window.MathJax = {
     const secondLine = lines[1].trim();
     if (!secondLine) return [];
     
-    const tagMatches = secondLine.match(/#[\w-]+/g);
-    return tagMatches ? tagMatches.map(tag => tag.substring(1)) : [];
+    const tagMatches = secondLine.match(/#[\w\s:-]+/g);
+    return tagMatches ? tagMatches.map(tag => normalizeTag(tag.substring(1).trim())) : [];
+  }
+  
+  // Function to process hierarchical tags and build hierarchy
+  function processHierarchicalTags(allTags) {
+    console.log('Processing', allTags.length, 'tags');
+    
+    // Initialize hierarchical structure
+    hierarchicalTags = {};
+    tagHierarchy = {};
+    
+    // Initialize all top-level categories (they are already normalized)
+    topLevelCategories.forEach(category => {
+      hierarchicalTags[category] = {
+        subcategories: new Map(), // Use Map to handle nested structure
+        papers: new Set()
+      };
+    });
+    
+    
+    // Process each tag
+    allTags.forEach(tag => {
+      if (tag.includes(':')) {
+        // Hierarchical format: "X:Y" or "X:Y:Z" etc.
+        const parts = tag.split(':').map(part => part.trim());
+        const topLevelPart = parts[0];
+        
+        // Normalize the first part and try to match to a top-level category
+        const normalizedTopLevel = normalizeTag(topLevelPart);
+        const matchedTopLevel = findMatchingTopLevel(normalizedTopLevel);
+        
+        if (matchedTopLevel) {
+          const topLevel = matchedTopLevel;
+          const hierarchyPath = parts.slice(1).map(part => normalizeTag(part)); // Normalize each part
+          
+          // Store the full hierarchy path
+          tagHierarchy[tag] = {
+            topLevel: topLevel,
+            path: hierarchyPath,
+            fullPath: [topLevel, ...hierarchyPath]
+          };
+          
+          // Ensure top-level category exists before accessing
+          if (!hierarchicalTags[topLevel]) {
+            console.warn(`Top-level category "${topLevel}" not found, creating it`);
+            hierarchicalTags[topLevel] = {
+              subcategories: new Map(),
+              papers: new Set()
+            };
+          }
+          
+          // Build nested structure in hierarchicalTags
+          addToHierarchy(hierarchicalTags[topLevel].subcategories, hierarchyPath);
+          
+        } else {
+          // If first part doesn't match, treat entire tag as subcategory of "Others"
+          const normalizedTag = normalizeTag(tag);
+          tagHierarchy[tag] = {
+            topLevel: 'others',
+            path: [normalizedTag],
+            fullPath: ['others', normalizedTag]
+          };
+          
+          // Ensure "others" category exists
+          if (!hierarchicalTags['others']) {
+            hierarchicalTags['others'] = {
+              subcategories: new Map(),
+              papers: new Set()
+            };
+          }
+          
+          addToHierarchy(hierarchicalTags['others'].subcategories, [normalizedTag]);
+        }
+      } else {
+        // Simple tag - try to match to top-level categories (already normalized)
+        const matchedTopLevel = findMatchingTopLevel(tag);
+        
+        if (matchedTopLevel) {
+          tagHierarchy[tag] = {
+            topLevel: matchedTopLevel,
+            path: [],
+            fullPath: [matchedTopLevel]
+          };
+          
+          // Ensure the matched top-level category exists in hierarchicalTags
+          if (!hierarchicalTags[matchedTopLevel]) {
+            console.warn(`Matched top-level category "${matchedTopLevel}" not found, creating it`);
+            hierarchicalTags[matchedTopLevel] = {
+              subcategories: new Map(),
+              papers: new Set()
+            };
+          }
+          
+          // For simple tags that match top-level categories, we don't add them as subcategories
+          // They are just assigned to the top-level category directly
+        } else {
+          // Assign to "others" as subcategory
+          tagHierarchy[tag] = {
+            topLevel: 'others',
+            path: [tag],
+            fullPath: ['others', tag]
+          };
+          
+          // Ensure "others" category exists
+          if (!hierarchicalTags['others']) {
+            hierarchicalTags['others'] = {
+              subcategories: new Map(),
+              papers: new Set()
+            };
+          }
+          
+          addToHierarchy(hierarchicalTags['others'].subcategories, [tag]);
+        }
+      }
+    });
+    
+    console.log('Processed hierarchy for', Object.keys(tagHierarchy).length, 'tags');
+  }
+  
+  // Helper function to find matching top-level category
+  function findMatchingTopLevel(normalizedTag) {
+    // Direct match (since both are normalized)
+    if (topLevelCategories.includes(normalizedTag)) {
+      return normalizedTag;
+    }
+    
+    // Try partial matches
+    return topLevelCategories.find(category => {
+      // Partial matches
+      if (category.includes(normalizedTag)) return true;
+      if (normalizedTag.includes(category)) return true;
+      
+      // Match against individual words (split by dashes)
+      const categoryWords = category.split('-');
+      const tagWords = normalizedTag.split('-');
+      
+      // Check if all tag words are found in category words
+      return tagWords.every(tagWord => 
+        categoryWords.some(catWord => catWord.includes(tagWord) || tagWord.includes(catWord))
+      );
+    });
+  }
+  
+  // Helper function to add hierarchical paths to nested Map structure
+  function addToHierarchy(subcategoriesMap, path) {
+    if (!subcategoriesMap) {
+      console.error('subcategoriesMap is undefined!', subcategoriesMap);
+      return;
+    }
+    
+    if (path.length === 0) return;
+    
+    const currentLevel = path[0];
+    const remainingPath = path.slice(1);
+    
+    if (!subcategoriesMap.has(currentLevel)) {
+      subcategoriesMap.set(currentLevel, {
+        subcategories: new Map(),
+        papers: new Set()
+      });
+    }
+    
+    if (remainingPath.length > 0) {
+      addToHierarchy(subcategoriesMap.get(currentLevel).subcategories, remainingPath);
+    }
   }
   
   function extractContributionFromContent(content) {
@@ -1318,18 +1886,42 @@ window.MathJax = {
   }
   
   function generateTagColors(allTags) {
-    const colors = [];
-    
-    for (let i = 0; i < allTags.length; i++) {
-      const hue = (i * 137.508) % 360;
-      const saturation = 60 + (i % 3) * 15;
-      const lightness = 45 + (i % 4) * 10;
-      colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
-    }
-    
     const tagColorMap = {};
+    
+    // First, generate colors for top-level categories
+    topLevelCategories.forEach((category, index) => {
+      const hue = (index * 25) % 360;
+      tagColorMap[category] = `hsl(${hue}, 65%, 55%)`;
+    });
+    
+    // Then generate colors for individual tags
     allTags.forEach((tag, index) => {
-      tagColorMap[tag] = colors[index];
+      if (!tagColorMap[tag]) {
+        // Check if this tag belongs to a hierarchical structure
+        const hierarchy = tagHierarchy[tag];
+        if (hierarchy) {
+          const topLevelIndex = topLevelCategories.indexOf(hierarchy.topLevel);
+          if (topLevelIndex >= 0) {
+            const baseHue = (topLevelIndex * 25) % 360;
+            // Create variations based on hierarchy depth
+            const depth = hierarchy.path.length;
+            const depthVariation = depth * 20;
+            const lightnessVariation = Math.min(depth * 10, 30);
+            
+            tagColorMap[tag] = `hsl(${(baseHue + depthVariation) % 360}, ${Math.max(55 - depth * 5, 30)}%, ${Math.min(65 + lightnessVariation, 80)}%)`;
+          } else {
+            // Fallback color
+            const hue = (index * 137.508) % 360;
+            tagColorMap[tag] = `hsl(${hue}, 60%, 60%)`;
+          }
+        } else {
+          // Standard color generation for non-hierarchical tags
+          const hue = (index * 137.508) % 360;
+          const saturation = 60 + (index % 3) * 15;
+          const lightness = 45 + (index % 4) * 10;
+          tagColorMap[tag] = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        }
+      }
     });
     
     return tagColorMap;
@@ -1340,11 +1932,16 @@ window.MathJax = {
     
     Object.values(notes).forEach(note => {
       if (note.tags && note.tags.length > 0) {
-        note.tags.forEach(tag => allTags.add(tag.toLowerCase()));
+        note.tags.forEach(tag => allTags.add(tag));
       }
     });
     
-    return Array.from(allTags).sort();
+    const tagArray = Array.from(allTags).sort();
+    
+    // Process hierarchical tags
+    processHierarchicalTags(tagArray);
+    
+    return tagArray;
   }
   
   function getColorForTags(tags) {
@@ -1354,12 +1951,32 @@ window.MathJax = {
     
     // For single tag, return solid color
     if (tags.length === 1) {
-      const tag = tags[0].toLowerCase();
-      return tagColors[tag] || '#96CEB4';
+      const tag = tags[0];
+      // Try exact match first
+      if (tagColors[tag]) return tagColors[tag];
+      
+      // Try hierarchical lookup
+      const hierarchy = tagHierarchy[tag];
+      if (hierarchy && tagColors[hierarchy.topLevel]) {
+        return tagColors[hierarchy.topLevel];
+      }
+      
+      // Fallback
+      return tagColors[tag.toLowerCase()] || '#96CEB4';
     }
     
     // For multiple tags, create a gradient
-    const colors = tags.slice(0, 4).map(tag => tagColors[tag.toLowerCase()] || '#96CEB4');
+    const colors = tags.slice(0, 4).map(tag => {
+      if (tagColors[tag]) return tagColors[tag];
+      
+      const hierarchy = tagHierarchy[tag];
+      if (hierarchy && tagColors[hierarchy.topLevel]) {
+        return tagColors[hierarchy.topLevel];
+      }
+      
+      return tagColors[tag.toLowerCase()] || '#96CEB4';
+    });
+    
     return createGradientId(colors);
   }
   
@@ -1532,7 +2149,7 @@ window.MathJax = {
   }
   
   function generateGraphData(notes, links) {
-    function getDisplayName(filePath) {
+    function getNodeDisplayName(filePath) {
       // Extract filename from path like "statistics/2013srivastava_dropout/2013srivastava_dropout.md"
       const fileName = filePath.split('/').pop().replace('.md', '');
       
@@ -1552,7 +2169,7 @@ window.MathJax = {
     
     const nodes = Object.keys(notes).map(note => ({
       id: note,
-      label: getDisplayName(note),
+      label: getNodeDisplayName(note),
       tags: notes[note].tags
     }));
     

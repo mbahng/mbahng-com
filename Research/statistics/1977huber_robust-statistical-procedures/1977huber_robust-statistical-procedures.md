@@ -1,5 +1,5 @@
 [[1977huber_robust-statistical-procedures.pdf]]
-#pca #pca-robust
+#factors-and-components:pca:robust
 
 # Contribution 
 

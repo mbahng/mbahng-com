@@ -1,5 +1,5 @@
 [[1933neyman_significance-tests.pdf]]
-#hypothesis-test
+#frequentist-inference:hypothesis-test
 [[1925fisher_significance-tests]]
 
 # Contribution 

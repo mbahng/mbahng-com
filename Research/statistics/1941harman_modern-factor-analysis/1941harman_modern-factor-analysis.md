@@ -1,5 +1,5 @@
 [[1941harman_modern-factor-analysis.pdf]]
-#factor-models
+#factors-and-components:factor-analysis
 [[1937bartlett_statistical-computation-mental-factors]]
 
 # Contribution 

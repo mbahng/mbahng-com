@@ -1,5 +1,4 @@
 [[1986sejnowski_boltzmann-machine.pdf]]
-#deep-learning
-
+#deep-learning:energy-model
 [[1958rosenblatt_perceptron]]
 

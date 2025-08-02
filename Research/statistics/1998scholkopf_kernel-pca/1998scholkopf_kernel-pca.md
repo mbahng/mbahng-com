@@ -1,4 +1,4 @@
 [[1998scholkopf_kernel-pca.pdf]]
-#nonlinear-dim-red
+#factors-and-components:pca:kernel #kernels-and-smoothers:pca
 [[1989hastie_principal-curves]]
 

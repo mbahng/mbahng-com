@@ -1,6 +1,7 @@
 [[2021nauta_prototree.pdf]]
-#interpretable #prototype
-Cites: [[2019chen_protopnet]]
+#deep-learning:interpretable:prototype #trees:neural
+[[2019chen_protopnet]]
+
 ## Contribution. 
 
    Extends the original ProtoPnet model by using a soft decision tree to classify rather than minimum distance. Outperforms original with only 10% of the number of prototypes. 

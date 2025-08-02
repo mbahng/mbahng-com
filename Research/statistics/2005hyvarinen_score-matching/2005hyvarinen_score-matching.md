@@ -1,2 +1,2 @@
 [[2005hyvarinen_score-matching.pdf]]
-#score-matching
+#bayesian-inference:score-matching

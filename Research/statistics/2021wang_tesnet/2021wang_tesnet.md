@@ -1,5 +1,5 @@
 [[2021wang_tesnet.pdf]]
-#interpretable #prototype
+#deep-learning:interpretable:prototype
 [[2019chen_protopnet]]
 
 # Background

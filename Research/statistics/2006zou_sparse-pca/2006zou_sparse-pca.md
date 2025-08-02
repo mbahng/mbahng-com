@@ -1,4 +1,4 @@
 [[2006zou_sparse-pca.pdf]]
-#pca #pca-sparse
+#factors-and-components:pca:sparse
 [[2003jolliffe_pca-lasso]]
 

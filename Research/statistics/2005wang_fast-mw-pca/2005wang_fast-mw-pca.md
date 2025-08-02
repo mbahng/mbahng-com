@@ -1,5 +1,5 @@
 [[2005wang_fast-mw-pca.pdf]]
-#pca #pca-dynamic 
+#factors-and-components:pca:dynamic 
 [[2000li_efficient-recursive-pca]]
 
 # Contribution 

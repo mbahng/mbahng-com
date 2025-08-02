@@ -1,5 +1,5 @@
 [[2008he_variable-mw-pca.pdf]]
-#pca #pca-dynamic 
+#factors-and-components:pca:dynamic 
 [[2006choi_multi-stats-processes-monitoring]]
 
 # Contribution 

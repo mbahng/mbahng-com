@@ -1,5 +1,5 @@
 [[1998lecun_lenet.pdf]]
-#deep-learning #computer-vision
+#deep-learning:computer-vision
 [[1958rosenblatt_perceptron]]
 
 # Contributions 

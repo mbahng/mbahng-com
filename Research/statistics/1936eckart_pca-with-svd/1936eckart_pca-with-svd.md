@@ -1,5 +1,5 @@
 [[1936eckart_pca-with-svd.pdf]]
-#pca
+#factors-and-components:pca
 [[1933hotelling_pca]]
 
 # Contribution 

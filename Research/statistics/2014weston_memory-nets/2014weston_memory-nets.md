@@ -1,5 +1,5 @@
 [[2014weston_memory-nets.pdf]]
-#memory # qa
+#deep-learning:memory #deep-learning:natural-language-processing:question-answer
 [[2015bahdanau_neural-machine-translation]] 
 
 # Contribution 

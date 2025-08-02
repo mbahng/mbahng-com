@@ -1,4 +1,4 @@
 [[2019brennan_optimal-sparse-pca.pdf]]
-#pca #pca-sparse
+#factors-and-components:pca:sparse
 [[2013berthet_comp-lower-bounds-sparse-pca]]
 

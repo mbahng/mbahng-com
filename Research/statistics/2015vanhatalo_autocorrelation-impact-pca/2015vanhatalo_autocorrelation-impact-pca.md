@@ -1,5 +1,5 @@
 [[2015vanhatalo_autocorrelation-impact-pca.pdf]]
-#pca #pca-dynamic
+#factors-and-components:pca:dynamic
 [[1936eckart_pca-with-svd]]
 
 # Contribution 

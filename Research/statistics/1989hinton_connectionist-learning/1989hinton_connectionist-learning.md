@@ -1,5 +1,5 @@
 [[1989hinton_connectionist-learning.pdf]]
-#deep-learning #encoder-decoder
+#deep-learning:encoder-decoder
 [[1958rosenblatt_perceptron]]
 
 # Contribution 

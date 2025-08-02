@@ -1,5 +1,5 @@
 [[2015boente_s-estimators-fpca.pdf]]
-#pca #pca-functional #pca-robust
+#factors-and-components:pca:functional #factors-and-components:pca:robust
 [[2013li_num-functional-pcs]]
 
 # Contribution 
