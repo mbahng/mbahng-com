@@ -264,6 +264,7 @@
 2014dinh_nice.md
 2014goodfellow_gan.md
 2014hallin_r-estimation-pca.md
+2014kim_multiple-geodesic-regression.md
 2014lin_coco.md
 2014lin_nin.md
 2014mnih_ram-visual-attention.md
