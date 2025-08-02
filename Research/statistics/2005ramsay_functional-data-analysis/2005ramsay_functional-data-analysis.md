@@ -1,5 +1,5 @@
 [[2005ramsay_functional-data-analysis.pdf]]
-#dimensionality-reduction #pca #pca-functional
+#pca #pca-functional
 [[2000boente_kernel-fpca]]
 
 # Contribution 

@@ -1,5 +1,5 @@
 [[1994wold_exp-weight-moving-pca.pdf]]
-#dimensionality-reduction #pca #pca-dynamic 
+#pca #pca-dynamic 
 [[2015vanhatalo_autocorrelation-impact-pca]]
 
 # Contribution 
