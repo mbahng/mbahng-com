@@ -201,6 +201,154 @@
 
 \subsection{Multiple Geodesic Regression} 
 
-  Note that this was a model for a path in some manifold, and naturally we would like to extend this to have multiple covariates. Kim in 2014 did exactly that, and provided a framework for multivariate general linear models in \cite{2014kim}. 
+  Note that this was a model for a path in some manifold, and naturally we would like to extend this to have multiple covariates. Kim in 2014 did exactly that, and provided a framework for multivariate general linear models in \cite{2014kim}.  
 
-\subsection{Robust Geodesic Regression}
+  \begin{definition}[Multiple Geodesic Regression] 
+    The \textbf{multiple geodesic regression} model is a probabilistic model that predicts the conditional distribution of $y \in (M, d)$ given $x \in \mathbb{R}$ as 
+    \begin{equation}
+      y = \exp \bigg( \exp \Big( p, \sum_{i=1}^d x_j v_j \Big), \epsilon \bigg) = \exp \big( \exp (p, V x)\big)
+    \end{equation} 
+    where the parameters are $\theta = \{p \in \mathbb{R}^m, V \in \mathbb{R}^{m \times d}\}$, and $\epsilon$ is a random variable defined over the tangent space at $\exp(p, Vx)$. 
+  \end{definition} 
+
+  \begin{definition}[Least Squares Geodesic Regression]
+    The least squares geodesic regression aims to minimize the MSE loss 
+    \begin{equation}
+      L(\theta, (x, y)) = L(p, v, x, y) = d(\exp(p, Vx), y)^2
+    \end{equation}
+  \end{definition} 
+
+  \begin{example}[Code Walkthrough]
+    We demonstrate this by conducting geodesic regression on a dataset of 50 samples $(x \in \mathbb{R}^2, y \in S^2)$. We start by generating a 2-dimensional toy dataset according to our model. 
+
+    \begin{lstlisting}
+      def generate_sample_data(n_samples=50, n_features=2, noise_level=0.1):
+        X = np.random.uniform(-1, 1, (n_samples, n_features))
+        
+        p_true = S2.normalize(np.array([1, 0, 0]))
+        V_true = np.array([[0, 0.3], [0.5, -0.2], [0.2, 0.4]])
+        
+        for i in range(n_features):
+          V_true[:, i] = S2.project_to_tangent(p_true, V_true[:, i])
+        
+        Y = []
+        for x in X:
+          tangent_vec = V_true @ x
+          y_clean = S2.exp(p_true, tangent_vec)
+          
+          noise = np.random.normal(0, noise_level, 3)
+          noise = S2.project_to_tangent(y_clean, noise)
+          y_noisy = S2.exp(y_clean, noise)
+          y_noisy = S2.normalize(y_noisy)
+          
+          Y.append(y_noisy)
+        
+        return X, np.array(Y), p_true, V_true
+    \end{lstlisting}
+
+    \begin{lstlisting}
+      class MultipleGeodesicRegression:
+        def __init__(self, n_features):
+          self.n_features = n_features
+          self.p = None
+          self.V = None
+        
+        def _geodesic_point(self, p, V, x):
+          tangent_vec = V @ x
+          return S2.exp(p, tangent_vec)
+        
+        def _objective(self, params, X, Y):
+          p_flat = params[:3]
+          V_flat = params[3:].reshape(3, self.n_features)
+          
+          p_flat = S2.normalize(p_flat)
+          
+          for i in range(self.n_features):
+            V_flat[:, i] = S2.project_to_tangent(p_flat, V_flat[:, i])
+          
+          total_loss = 0.0
+          for i in range(len(X)):
+            pred = self._geodesic_point(p_flat, V_flat, X[i])
+            loss = S2.distance(pred, Y[i])**2
+            total_loss += loss
+          
+          return total_loss / len(X)
+        
+        def fit(self, X, Y, p_init=None, V_init=None, method='BFGS'):
+          X = np.array(X)
+          Y = np.array(Y)
+          
+          if p_init is None:
+            p_init = S2.normalize(np.array([1, 0, 0]))
+          if V_init is None:
+            V_init = np.random.normal(0, 0.1, (3, self.n_features))
+          
+          for i in range(self.n_features):
+            V_init[:, i] = S2.project_to_tangent(p_init, V_init[:, i])
+          
+          initial_params = np.concatenate([p_init, V_init.flatten()])
+          
+          result = minimize(
+            self._objective,
+            initial_params,
+            args=(X, Y),
+            method=method,
+            options={'disp': False}
+          )
+          
+          if result.success:
+            self.p = S2.normalize(result.x[:3])
+            self.V = result.x[3:].reshape(3, self.n_features)
+            
+            for i in range(self.n_features):
+              self.V[:, i] = S2.project_to_tangent(self.p, self.V[:, i])
+            
+            return result
+          else:
+            raise RuntimeError(f"Optimization failed: {result.message}")
+        
+        def predict(self, X):
+          X = np.array(X)
+          predictions = []
+          
+          for x in X:
+            pred = self._geodesic_point(self.p, self.V, x)
+            predictions.append(pred)
+          
+          return np.array(predictions)
+        
+        def score(self, X, Y):
+          predictions = self.predict(X)
+          total_loss = 0.0
+          
+          for i in range(len(Y)):
+            loss = S2.distance(predictions[i], Y[i])**2
+            total_loss += loss
+          
+          return total_loss / len(Y)
+    \end{lstlisting}
+
+    The results show that it is a good estimate. Both the initial point $\hat{p}$ and the matrix $\hat{V}$ are good estimators. 
+    \begin{equation}
+      \hat{p} = \begin{pmatrix} 0.99984466 \\ 0.01430395 \\ 0.01029851 \end{pmatrix} \approx \begin{pmatrix} 1 \\ 0 \\ 0 \end{pmatrix} = p, \qquad \hat{V} =  \begin{pmatrix}
+        -0.00905151 & -0.00171887 \\
+        0.48494844 & -0.18346139 \\
+        0.20521662 & 0.42169444
+      \end{pmatrix}
+      \approx \begin{pmatrix} 0 & 0 \\ 0.5 & -0.2 \\ 0.2 & 0.4  \end{pmatrix} = V
+    \end{equation}
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.32]{img/multi_geodesic_est.png}
+      \caption{The estimated values of the first column of $V$ (left) and the second column of $V$ (right) are good approximations of the true. Note that they point in the direction of the gradients.} 
+    \end{figure}
+
+    \begin{figure}[H]
+      \centering 
+      \includegraphics[scale=0.3]{img/multi_geodesic_surface.png}
+      \caption{Since we are regressing a 2-dimensional space onto a 2-dimensional manifold, the image of $f$ is trivially $S^2$ except in degenerate cases. However, it is still nice to compare our predicted values $\hat{y} = f(x)$ to the true $y$.} 
+    \end{figure}
+  \end{example}
+
+\subsection{Robust Geodesic Regression} 
