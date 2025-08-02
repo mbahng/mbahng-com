@@ -39,3 +39,168 @@
   \end{lemma}
 
   Unfortunately, minimizing this does not yield an analytic solution. 
+
+  \begin{example}[Code Walkthrough]
+    Let us fit a line onto this. We first define our manifold class with the matrix exponential and logarithm methods. 
+
+    \begin{lstlisting}
+      class S2:
+        @staticmethod
+        def exp(p, v):
+          v_norm = np.linalg.norm(v)
+          if v_norm < 1e-8:
+            return p
+          return np.cos(v_norm) * p + np.sin(v_norm) * v / v_norm
+        
+        @staticmethod
+        def log(p, q):
+          cos_dist = np.clip(np.dot(p, q), -1, 1)
+          if np.abs(cos_dist - 1) < 1e-8:
+            return np.zeros_like(p)
+          
+          theta = np.arccos(cos_dist)
+          sin_theta = np.sin(theta)
+          
+          if sin_theta < 1e-8:
+            return np.zeros_like(p)
+          
+          return theta * (q - cos_dist * p) / sin_theta
+        
+        @staticmethod
+        def distance(p, q):
+          cos_dist = np.clip(np.dot(p, q), -1, 1)
+          return np.arccos(cos_dist)
+        
+        @staticmethod
+        def project_to_tangent(p, v):
+          return v - np.dot(v, p) * p
+        
+        @staticmethod
+        def normalize(x):
+          return x / np.linalg.norm(x)
+    \end{lstlisting}
+
+    Next, we define our data generation process. 
+
+    \begin{lstlisting}
+      def generate_sample_data(n_samples=50, noise_level=0.1):
+        X = np.random.uniform(-2, 2, n_samples)
+        
+        p_true = S2.normalize(np.array([1, 0, 0]))
+        v_true = S2.normalize(np.array([0, 1, 0.2]))
+        v_true = S2.project_to_tangent(p_true, v_true) * 0.5
+        
+        Y = []
+        for x in X:
+          y_clean = S2.exp(p_true, v_true * x)
+          
+          noise = np.random.normal(0, noise_level, 3)
+          noise = S2.project_to_tangent(y_clean, noise)
+          y_noisy = S2.exp(y_clean, noise)
+          y_noisy = S2.normalize(y_noisy)
+          
+          Y.append(y_noisy)
+        
+        return X, np.array(Y), p_true, v_true
+    \end{lstlisting}
+
+    Finally, we define our regression model and optimize the loss with BFGS (SGD doesn't work very well here). 
+
+    \begin{lstlisting}
+      class GeodesicRegression:
+        def __init__(self):
+          self.p = None
+          self.v = None
+        
+        def _geodesic_point(self, p, v, x):
+          return S2.exp(p, v * x)
+        
+        def _objective(self, params, X, Y):
+          p_flat = params[:3]
+          v_flat = params[3:6]
+          
+          p_flat = S2.normalize(p_flat)
+          v_flat = S2.project_to_tangent(p_flat, v_flat)
+          
+          total_loss = 0.0
+          for i in range(len(X)):
+            pred = self._geodesic_point(p_flat, v_flat, X[i])
+            loss = S2.distance(pred, Y[i])**2
+            total_loss += loss
+          
+          return total_loss / len(X)
+        
+        def fit(self, X, Y, p_init=None, v_init=None, method='BFGS'):
+          X = np.array(X)
+          Y = np.array(Y)
+          
+          if p_init is None:
+            p_init = S2.normalize(np.array([1, 0, 0]))
+          if v_init is None:
+            v_init = np.array([0, 0.1, 0])
+          
+          v_init = S2.project_to_tangent(p_init, v_init)
+          
+          initial_params = np.concatenate([p_init, v_init])
+          
+          result = minimize(
+            self._objective,
+            initial_params,
+            args=(X, Y),
+            method=method,
+            options={'disp': False}
+          )
+          
+          if result.success:
+            self.p = S2.normalize(result.x[:3])
+            self.v = S2.project_to_tangent(self.p, result.x[3:6])
+            return result
+          else:
+            raise RuntimeError(f"Optimization failed: {result.message}")
+        
+        def predict(self, X):
+          X = np.array(X)
+          predictions = []
+          
+          for x in X:
+            pred = self._geodesic_point(self.p, self.v, x)
+            predictions.append(pred)
+          
+          return np.array(predictions)
+        
+        def score(self, X, Y):
+          predictions = self.predict(X)
+          total_loss = 0.0
+          
+          for i in range(len(Y)):
+            loss = S2.distance(predictions[i], Y[i])**2
+            total_loss += loss
+          
+          return total_loss / len(Y)
+
+      X_train, Y_train, p_true, v_true = generate_sample_data(n_samples=30)
+      model = GeodesicRegression()
+      result = model.fit(X_train, Y_train)
+    \end{lstlisting}
+    
+    This gives the following, which is a good estimate of the original parameters. 
+
+    \begin{equation}
+      \hat{p} = \begin{pmatrix} 0.99993911 \\ -0.01038634 \\ -0.00372747 \end{pmatrix} \approx \begin{pmatrix} 1 \\ 0 \\ 0 \end{pmatrix} = p_{\mathrm{true}}, \qquad 
+      \hat{v} = \begin{pmatrix} 0.00530609 \\ 0.48332324 \\ 0.07667702 \end{pmatrix} \approx \begin{pmatrix} 0 \\ 0.49029034 \\ 0.09805807 \end{pmatrix} = v_{\mathrm{true}}
+    \end{equation}
+
+    The following figure also visualizes this. 
+
+    \begin{figure}[H]
+      \centering  
+      \includegraphics[scale=0.4]{img/geodesic_sphere.png}
+      \caption{} 
+    \end{figure}
+  \end{example}
+
+\subsection{Multiple Geodesic Regression} 
+
+  Note that this was a model for a path in some manifold, and naturally we would like to extend this to have multiple covariates. Kim in 2014 did exactly that, and provided a framework for multivariate general linear models in \cite{2014kim}. 
+
+\subsection{Robust Geodesic Regression}
