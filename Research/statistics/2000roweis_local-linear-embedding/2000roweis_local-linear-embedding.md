@@ -1,4 +1,4 @@
 [[2000roweis_local-linear-embedding.pdf]]
-#dimensionality-reduction #nonlinear-dim-red
+#clustering
 [[2000tenenbaum_isomap]]
 

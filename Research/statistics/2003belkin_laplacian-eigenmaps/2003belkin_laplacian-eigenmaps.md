@@ -1,3 +1,3 @@
 [[2003belkin_laplacian-eigenmaps.pdf]]
-#dimensionality-reduction #nonlinear-dim-red
+#clustering
 [[2000roweis_local-linear-embedding]]

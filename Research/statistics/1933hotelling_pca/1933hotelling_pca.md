@@ -1,5 +1,5 @@
 [[1933hotelling_pca.pdf]]
-#dimensionality-reduction #pca
+#pca
 [[1901pearson_pca]]
 
 # Contribution

@@ -1,5 +1,5 @@
 [[2008he_variable-mw-pca.pdf]]
-#dimensionality-reduction #pca #pca-dynamic 
+#pca #pca-dynamic 
 [[2006choi_multi-stats-processes-monitoring]]
 
 # Contribution 

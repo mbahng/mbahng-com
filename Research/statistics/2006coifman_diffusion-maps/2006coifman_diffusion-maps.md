@@ -1,3 +1,3 @@
 [[2006coifman_diffusion-maps.pdf]]
-#dimensionality-reduction #nonlinear-dim-red
+#clustering
 [[2003belkin_laplacian-eigenmaps]]

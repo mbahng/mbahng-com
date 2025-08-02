@@ -236,6 +236,7 @@
 2013bengio_generalized-dae-generative.md
 2013berthet_comp-lower-bounds-sparse-pca.md
 2013birnbaum_minimax-bounds-sparse-pca.md
+2013faraway_distance-matrix-regression.md
 2013girshik_rcnn.md
 2013hallin-fm-high-dim-time-series.md
 2013kalchbrenner_rcnn-discourse.md

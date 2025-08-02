@@ -1,3 +1,3 @@
 [[1952torgerson_multidim-scaling.pdf]]
-#dimensionality-reduction #nonlinear-dim-red
+#clustering
 [[1938young_points-mutual-dist]]

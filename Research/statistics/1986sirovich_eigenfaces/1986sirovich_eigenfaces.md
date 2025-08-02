@@ -1,4 +1,4 @@
 [[1986sirovich_eigenfaces.pdf]]
-#dimensionality-reduction
+#pca
 [[1936eckart_pca-with-svd]]
 
