@@ -61,6 +61,7 @@
 1972jolliffe_discarding-variables-pca-real-data.md
 1972jolliffe_pca-discarding-variables-artificial-data.md
 1972wilson_asymptotic-prop-knn.md
+1974brillinger_time-series.md
 1976dudani_distance-weighted-knn.md
 1976hyafil_tree-optim-np-complete.md
 1976rockafellar_lagrangian-proximal-point-algo-convex.md

@@ -1,2 +1,2 @@
 [[2018kitaev_transformer-constituency-parsing.pdf]]
-#deep-learning:attention #language
+#deep-learning:attention #natural-language-processing:constituency-parsing
