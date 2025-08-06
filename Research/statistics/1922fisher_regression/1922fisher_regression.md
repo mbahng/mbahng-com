@@ -1,5 +1,5 @@
 [[1922fisher_regression.pdf]]
-#regression
+#linear-regression
 [[1897yule_theory-of-correlation]]
 
 # Contribution 

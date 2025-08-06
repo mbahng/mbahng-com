@@ -1,5 +1,5 @@
 [[1815gergonne_polynomial-least-squares.pdf]]
-#regression
+#linear-regression
 [[1809gauss_theory-of-heavenly-bodies]]
 
 # Contribution 

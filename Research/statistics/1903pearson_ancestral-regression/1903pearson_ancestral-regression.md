@@ -1,5 +1,5 @@
 [[1903pearson_ancestral-regression.pdf]]
-#regression
+#linear-regression
 [[1823gauss_least-errors]]
 
 # Contribution 

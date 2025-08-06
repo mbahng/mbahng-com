@@ -1,5 +1,5 @@
 [[1897yule_theory-of-correlation.pdf]]
-#regression
+#linear-regression
 [[1903pearson_ancestral-regression]]
 
 # Contribution 

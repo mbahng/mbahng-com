@@ -1,3 +1,3 @@
 [[1805legendre_least-squares-comets.pdf]]
-#probability #regression
+#probability #linear-regression
 [[1785laplace_approximations-of-formulas]]
