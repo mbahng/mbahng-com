@@ -49,7 +49,6 @@
 1964karhunen_karhunen-loeve-transform.md
 1964polyak_polyak-momentum.md
 1964rao_pca-applied.md
-1964sharpe_capm.md
 1964watson_kernel-regression.md
 1965moreau_proximal-operators.md
 1967cover_knn.md
@@ -62,12 +61,10 @@
 1972jolliffe_discarding-variables-pca-real-data.md
 1972jolliffe_pca-discarding-variables-artificial-data.md
 1972wilson_asymptotic-prop-knn.md
-1973black_black-scholes.md
 1976dudani_distance-weighted-knn.md
 1976hyafil_tree-optim-np-complete.md
 1976rockafellar_lagrangian-proximal-point-algo-convex.md
 1976rockafellar_proximal-point-algo.md
-1976ross_capm-arbitrage.md
 1977geweke_dynamic-fm.md
 1977huber_robust-statistical-procedures.md
 1977sargent_dynamic-factor-models.md
@@ -161,7 +158,6 @@
 2003jolliffe_pca-lasso.md
 2003torre_robust-pca-framework.md
 2003zou_elastic-net.md
-2004fama_capm-theory-evidence.md
 2004felzenszwalb-graph-image-seg.md
 2004lowe_sift.md
 2005baik_phase-transition-largest-eigenval.md
@@ -184,6 +180,7 @@
 2007arthur_kmeans-plus-plus.md
 2007bengio_deep-autoencoders-greedy-training.md
 2007hallin_num-factors-general-dfm.md
+2007hoff_bvmf-simulation.md
 2007ranzato_sparse-ae.md
 2008anderson_generalized-linear-dfm.md
 2008he_variable-mw-pca.md
@@ -365,7 +362,6 @@
 2021ramesh_dalle.md
 2021wang_tesnet.md
 2022alayrac_flamingo.md
-2022choi_bachelier-guide.md
 2022chowdhery_palm.md
 2022hoffmann_chinchilla.md
 2022hu_dynamic-pca-high-dim.md
@@ -382,6 +378,7 @@
 2023touvron_llama.md
 2023touvron_llama2.md
 2023wei_chain-of-thought.md
+2023winter_sequential-gibbs-pca.md
 2024bi_deepseek.md
 2024deepseek_deepseek-v2.md
 2024meta_llama3.md
