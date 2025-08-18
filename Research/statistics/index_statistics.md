@@ -378,6 +378,7 @@
 2023reis_yolov8.md
 2023touvron_llama.md
 2023touvron_llama2.md
+2023wang_proto-svm.md
 2023wei_chain-of-thought.md
 2023winter_sequential-gibbs-pca.md
 2024bi_deepseek.md
