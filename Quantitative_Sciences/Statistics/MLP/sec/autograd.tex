@@ -1,0 +1,139 @@
+\section{Autograd Engines}
+
+  In numerical computing packages like \texttt{numpy} in Python and \texttt{eigen} in C++, we often work with scalars, vectors, and matrices. From linear algebra, the generalization of these objects is a tensor, which is an element of a tensor product space.\footnote{For a refresher, look at my linear algebra notes.} The full mathematical abstraction is rarely needed in practice, and so developers call tensors by their realization as \textit{multidimensional arrays}. 
+  
+  \begin{definition}[Tensor]
+    A \textbf{tensor} is an element of a tensor product space $\bigotimes_i V_i$. It is represented as a \textbf{multidimensional array} of shape $(\dim(V_1), \ldots, \dim(V_n))$. 
+  \end{definition}
+
+  If we were trying to build a \texttt{Tensor} class from scratch, what attributes should it have? Well obviously we need the actual data in the tensor, which we will call \texttt{storage}, plus some metadata about the \texttt{shape} (in math, known as the tensor \textit{rank}). Usually, these packages optimize as much as possible for efficiency, and so these are implemented as C-style arrays, which then requires knowledge of the type of each element of the Tensor, called the \texttt{dtype}. Great, with these three attributes, we can do almost every type of arithmetic manipulation. Let's first introduce the most basic math tensor operations, which includes the normal operations supported in an algebra, plus some other ones. We will denote the shapes as well. 
+  \begin{enumerate}
+    \item \textit{Tensor Addition}. 
+    \item \textit{Tensor Additive Inverse}. 
+    \item \textit{Scalar Multiplication}. 
+    \item \textit{Matrix Multiplication}. 
+    \item \textit{Elementwise Multiplication}. 
+    \item \textit{Elementwise Multiplicative Inverse}.  
+    \item \textit{Transpose}. 
+  \end{enumerate} 
+
+  We would probably like some constructors that allows you to directly initialize tensors filled with $0$s (\texttt{zeros}), $1$s (\texttt{ones}), a multiplicative identity (\texttt{eye}\footnote{homophone for $I$, used to denoted the identity matrix.}) Some random initializers would be good, such as sampling from uniforms (\texttt{uniform}), \texttt{gaussians} (\texttt{gaussian}, \texttt{randn}). 
+
+  Finally, we would like some very fundamental operations, such as typecasting, comparison, and indexing as well. 
+
+  \begin{algorithm}[H]
+    \caption{Tensor Class Implementation}
+    \begin{algorithmic}[1]
+    \State \textbf{class} Tensor:
+        \State \textbf{Attributes:}
+        \State \hspace{1em}storage: array  \Comment{Underlying data storage}
+        \State \hspace{1em}shape: tuple    \Comment{Dimensions of tensor}
+        \State \hspace{1em}dtype: type     \Comment{Data type of elements}
+
+        \State \textbf{Constructors:}
+        \State \texttt{def \_\_init\_\_(data, shape, dtype):}
+            \State \hspace{2em}Initialize tensor with given data, shape, and dtype
+
+        \State \textbf{Static Constructors:}
+        \State \texttt{@staticmethod}
+        \State \texttt{def zeros(shape, dtype):}
+            \State \hspace{2em}\Return tensor filled with zeros
+        \State \texttt{@staticmethod}
+        \State \texttt{def ones(shape, dtype):}
+            \State \hspace{2em}\Return tensor filled with ones
+        \State \texttt{@staticmethod}
+        \State \texttt{def eye(n, dtype):}
+            \State \hspace{2em}\Return n×n identity matrix
+        \State \texttt{@staticmethod}
+        \State \texttt{def uniform(shape, low, high, dtype):}
+            \State \hspace{2em}\Return tensor with uniform random values
+        \State \texttt{@staticmethod}
+        \State \texttt{def gaussian(shape, mean, std, dtype):}
+            \State \hspace{2em}\Return tensor with gaussian random values
+
+        \State \textbf{Arithmetic Operations:}
+        \State \texttt{def \_\_add\_\_(self, other):}
+            \State \hspace{2em}\Return element-wise addition
+        \State \texttt{def \_\_neg\_\_(self):}
+            \State \hspace{2em}\Return additive inverse
+        \State \texttt{def \_\_mul\_\_(self, other):}
+            \State \hspace{2em}\Return scalar or element-wise multiplication
+        \State \texttt{def matmul(self, other):}
+            \State \hspace{2em}\Return matrix multiplication
+        \State \texttt{def \_\_truediv\_\_(self, other):}
+            \State \hspace{2em}\Return element-wise division
+        \State \texttt{def transpose(self):}
+            \State \hspace{2em}\Return transposed tensor
+
+        \State \textbf{Utility Operations:}
+        \State \texttt{def \_\_repr\_\_(self):}
+            \State \hspace{2em}\Return string representation
+        \State \texttt{def \_\_str\_\_(self):}
+            \State \hspace{2em}\Return human-readable string
+        \State \texttt{def \_\_getitem\_\_(self, index):}
+            \State \hspace{2em}\Return indexed value(s)
+        \State \texttt{def \_\_eq\_\_(self, other):}
+            \State \hspace{2em}\Return element-wise equality comparison
+    \end{algorithmic}
+  \end{algorithm}
+
+  Note that there are other operations, such as concatenation, splitting, and stacking that would be a good idea to implement.  
+
+\subsection{Strides} 
+
+  A specific property of PyTorch is that they use strides as another source of metadata in storing tensors, which greatly speeds up operations. Consider that we want to transpose the first two dimensions of a tensor. Then, we would have to create a new tensor and fill it in with all the elements, which may be too computationally expensive for such a small operation. 
+
+  \begin{definition}[Stride] 
+    Given a tensor $T$ of size $(N_1, \ldots N_M)$, it is stored as a contiguous array of $\prod_m T_m$ elements, and we can index it as 
+    \begin{equation}
+      T[n_1, n_2, \ldots, n_M], \;\;\; 1 \leq n_i \leq N_i
+    \end{equation} 
+    To counteract this, the \textbf{stride} is a array $S$ of $M$ elements, 
+    \begin{equation}
+      S = (S_1, \ldots, S_M)
+    \end{equation} 
+    where indexing with some $I = (n_1, \ldots, n_M)$ is equivalent to computing $S \cdot I$ and taking that index in the array in memory. It defines a mapping. 
+  \end{definition}
+
+  If we do some calculation, the default stride of such a vector is defined 
+  \begin{equation}
+    S_m = \prod_{m < j} N_j, \;\;\; S_M = 1
+  \end{equation}
+
+  \begin{example}[Transposing]
+    If we want to transpose the tensor above, then we change the stride from 
+    \begin{equation}
+      S = \bigg( \prod_{1 < j} N_j , \prod_{2 < j} N_j, \ldots, 1 \bigg)
+    \end{equation} 
+    to 
+    \begin{equation}
+      S = \bigg( \prod_{2 < j} N_j , \prod_{1 < j} N_j, \ldots, 1 \bigg)
+    \end{equation} 
+  \end{example}
+
+\subsection{Automatic Differentiation} 
+
+  \begin{lemma}[Derivative of $+/-$]
+    Given two tensors $X, Y$ and $Z_+ = X + Y, Z_{-} = X - Y$, we have 
+    \begin{align}
+      \frac{\partial Z_+}{\partial X} = +1 && \frac{\partial Z_+}{\partial Y} = +1 \\ 
+      \frac{\partial Z_-}{\partial X} = +1 && \frac{\partial Z_-}{\partial Y} = -1 
+    \end{align}
+    where $\pm1$ are tensors of $1$ or $-1$s of the same shape as $X, Y$. 
+  \end{lemma}
+
+  \begin{lemma}[Derivative of Element-wise Multiplication]
+    Given two tensors $X, Y$ and $Z = X \odot Y$, we have 
+    \begin{align}
+      \frac{\partial Z}{\partial X} = Y && \frac{\partial Z}{\partial Y} = X
+    \end{align}
+  \end{lemma} 
+
+  \begin{lemma}[Derivative of Matrix Multiplication]
+    Given $X \in (N, M)$ and $Y \in (M, P)$, with $Z = XY \in (N, P)$, the derivative of matrix multiplication is 
+    \begin{align}
+      \frac{\partial Z}{\partial X} \in (N, P, N, M) && \bigg( \frac{\partial Z}{\partial X} \bigg)_{i, j, k, l} \coloneqq \frac{\partial Z_{i, j}}{\partial X_{k, l}} \\
+      \frac{\partial Z}{\partial Y} \in (N, P, M, P) && \bigg( \frac{\partial Z}{\partial Y} \bigg)_{i, j, k, l} \coloneqq \frac{\partial Z_{i, j}}{\partial Y_{k, l}} 
+    \end{align} 
+  \end{lemma} 
+
