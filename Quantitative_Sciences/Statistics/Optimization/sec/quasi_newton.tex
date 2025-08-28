@@ -1,0 +1,53 @@
+\section{Quasi-Newton Methods}
+
+\subsection{Secant Method}
+
+\subsection{DFP}
+
+\subsection{Broyden}
+
+\subsection{Symmetric Rank 1}
+
+\subsection{BFGS}
+
+  Netwon's method is extremely effective for finding the minimum of a convex function, but there are two disadvantages. First, it is sensitive to initial conditions, and second, it is extremely expensive, with a computational complexity of $O(n^3)$ from having to invert the Hessian. An alternative family of optimizers, called \textit{quasi-Newton} methods, try to \textit{approximate} the Hessian (or Jacobian) with $\hat{H} f$, reducing the computational cost without too much loss in convergence rates, and simply use this approximation in the Newton's update: 
+  \[\mathbf{x}_{k+1} \gets \mathbf{x}_k - [\hat{H} f_{\mathbf{x}_k}]^{-1} \nabla_\mathbf{x} f (\mathbf{x}_k)\]
+  The method of the Hessian approximation varies by algorithm, but the most popular is BFGS. 
+
+  So how do we approximate the Hessian with only the gradient information? With secants. Starting off with $f: \mathbb{R} \longrightarrow \mathbb{R}$, let us assume that we have two points $(x_k, f(x_k))$ and $(x_{k+1}, f(x_{k+1}))$. We can approximate our derivative (gradient in dimension 1) at $x_{k+1}$ using finite differences: 
+  \[f^\prime (x_{k+1}) (x_{k+1} - x_k) \approx f(x_{k+1}) - f(x_k)\]
+  and doing the same for $f^\prime$ gives us the second derivative approximation: 
+  \[f^{\prime\prime} (x_{k+1}) (x_{k+1} - x_k) \approx f^\prime (x_{k+1}) - f^\prime (x_k)\]
+  which gives us the update: 
+  \[x_{k+1} \gets x_k - \frac{x_{k} - x_{k-1}}{f^\prime (x_k) - f^\prime (x_{k-1})} \, f^\prime (x_k)\]
+  This method of approximating Netwon's method in one dimension by replacing the second derivative with its finite difference approximation is called the \textit{secant method}. In multiple dimensions, given two points $\mathbf{x}_k, \mathbf{x}_{k+1}$ with their respective gradients $\nabla f (\mathbf{x}_{k}), \nabla f (\mathbf{x}_{k+1})$, we can approximate the Hessian $\hat{H} f_{\mathbf{x}_{k+1}} \approx D (\nabla f)_{\mathbf{x}_{k+1}}$ (which is the total derivative of the gradient) at $\mathbf{x}_{k+1}$ with the equation
+  \[\hat{H} f_{\mathbf{x}_{k+1}} (\mathbf{x}_{k+1} - \mathbf{x}_k) = \nabla_\mathbf{x} f (\mathbf{x}_{k+1}) - \nabla_\mathbf{x} f (\mathbf{x}_k)\]
+  This is solving the equation of form $A \mathbf{x} = \mathbf{y}$ for some linear map $A$. Since $\hat{H} f_{\mathbf{x}_{k+1}}$ is a symmetric $n \times n$ matrix with $n (n+1) / 2$ components, there are $n (n+1) / 2$ unknowns with only $n$ equations, making this an underdetermined system. Quasi-Newton methods have to impose additional constraints, with the BFGS choosing the one where we want $\hat{H} f_{\mathbf{x}_{k+1}}$ to be as close as to $\hat{H} f_{\mathbf{x}_{k}}$ at each update $k+1$. Luckily, we can formalize this notion as minimizing the distance between $f_{\mathbf{x}_{k+1}}$ and $\hat{H} f_{\mathbf{x}_{k}}$. Therefore, we wish to find 
+  \[\arg \min_{\hat{H} f_{\mathbf{x}_{k+1}}} ||\hat{H} f_{\mathbf{x}_{k+1}} - \hat{H} f_{\mathbf{x}_{k}}||_F,\]
+  where $|| \cdot ||_F$ is the Frobenius matrix norm, subject to the restrictions that $\hat{H} f_{\mathbf{x}_{k+1}}$ be positive definite and symmetric and that $\hat{H} f_{\mathbf{x}_{k+1}} (\mathbf{x}_{k+1} - \mathbf{x}_k) = \nabla_\mathbf{x} f (\mathbf{x}_{k+1}) - \nabla_\mathbf{x} f (\mathbf{x}_k)$ is satisfied. Since we have to invert it eventually, we can actually just create an optimization problem that directly computes the inverse. So, we wish to find 
+  \[\arg \min_{(\hat{H} f_{\mathbf{x}_{k+1}})^{-1}} ||(\hat{H} f_{\mathbf{x}_{k+1}})^{-1} - (\hat{H} f_{\mathbf{x}_{k}})^{-1} ||_F\]
+  subject to the restrictions that 
+  \begin{enumerate}
+      \item $(\hat{H} f_{\mathbf{x}_{k+1}})^{-1}$ be positive definite and symmetric. It turns out that the positive definiteness restriction also restricts it to be symmetric. 
+      \item $\mathbf{x}_{k+1} - \mathbf{x}_k = (\hat{H} f_{\mathbf{x}_{k+1}})^{-1} [\nabla_\mathbf{x} f (\mathbf{x}_{k+1}) - \nabla_\mathbf{x} f (\mathbf{x}_k)]$
+  \end{enumerate}
+  After some complicated mathematical derivation, which we will not go over here, the problem ends up being equivalent to updating our approximate Hessian at each iteration by adding two symmetric, rank-one matrices $U$ and $V$ scaled by some constant, which can each be computed as an outer product of vectors with itself. 
+  \[\hat{H} f_{\mathbf{x}_{k+1}} = \hat{H} f_{\mathbf{x}_{k}} + a U + b V = \hat{H} f_{\mathbf{x}_{k}} + a \mathbf{u} \mathbf{u}^T + b \mathbf{v} \mathbf{v}^T\]
+  where $\mathbf{u}$ and $\mathbf{v}$ are linearly independent. This addition of a rank-2 sum of matrices $a U + b V$, known as a rank-2 update, guarantees the "closeness" of $\hat{H} f_{\mathbf{x}_{k+1}}$ to $\hat{H} f_{\mathbf{x}_{k}}$ at each iteration. With this form, we now impose the quasi-Newton condition. Substituting $\Delta \mathbf{x}_k = \mathbf{x}_{k+1} - \mathbf{x}_k$ and $\mathbf{y}_k = \nabla_\mathbf{x} f (\mathbf{x}_{k+1}) - \nabla_\mathbf{x} f (\mathbf{x}_k)$, we have
+  \[\hat{H} f_{\mathbf{x}_{k+1}} \Delta \mathbf{x}_k = \hat{H} f_{\mathbf{x}_{k+1}} \Delta \mathbf{x}_k + a \mathbf{u} \mathbf{u}^T \Delta \mathbf{x}_k + b \mathbf{v} \mathbf{v}^T \Delta \mathbf{x}_k = \mathbf{y}_k\]
+  A natural choice of vectors turn out to be $\mathbf{u} = \mathbf{y}_k$ and $\mathbf{v} = \hat{H} f_{\mathbf{x}_{k}} \Delta \mathbf{x}_k$, and substituting this and solving gives us the optimal values 
+  \[a = \frac{1}{\mathbf{y}_k^T \Delta \mathbf{x}_k}, \;\;\;\;\; b = -\frac{1}{\Delta \mathbf{x}_k^T \hat{H} f_{\mathbf{x}_{k}} \Delta \mathbf{x}_k}\]
+  and substituting these values back to the Hessian approximation update gives us the BFGS update: 
+  \[\hat{H} f_{\mathbf{x}_{k+1}} = \hat{H} f_{\mathbf{x}_{k}} + \frac{\mathbf{y}_k \mathbf{y}_k^T}{\mathbf{y}_k^T \Delta \mathbf{x}_k} - \frac{\hat{H} f_{\mathbf{x}_{k}} \Delta \mathbf{x}_k \Delta \mathbf{x}_k^T \hat{H} f_{\mathbf{x}_{k}}}{\Delta \mathbf{x}_k^T \hat{H} f_{\mathbf{x}_{k}} \Delta \mathbf{x}_k}\]
+  We still need to invert this, and using the \textit{Woodbury formula}
+  \[(A + U C V)^{-1} = A^{-1} - A^{-1} U (C^{-1} + V A^{-1} U)^{-1} V A^{-1}\]
+  which tells us how to invert the sum of an intertible matrix $A$ and a rank-$k$ correction, we can derive the iterative update of the inverse Hessian as 
+  \[(\hat{H} f_{\mathbf{x}_{k+1}})^{-1} = \bigg( I - \frac{\Delta \mathbf{x}_k \mathbf{y}^T}{\mathbf{y}_k^T \Delta \mathbf{x}_k}\bigg) (\hat{H} f_{\mathbf{x}_{k}})^{-1} \bigg( I - \frac{\mathbf{y}_k \Delta \mathbf{x}_k^T}{\mathbf{y}_k^T \Delta \mathbf{x}_k}\bigg) + \frac{\Delta \mathbf{x}_k \Delta \mathbf{x}_k^T}{\mathbf{y}_k^T \Delta \mathbf{x}_k}\]
+  Remember that this is the iterative step that we want to actually compute, rather than the ones computing the regular Hessian. The whole point of using the Woodbury formula to derive an inverse update step was to do away with the tedious $O(n^3)$ computations of inverting an $n \times n$ matrix. This rank-2 update also preserves positive-definiteness. 
+
+  Finally, we can choose the initial inverse Hessian approximation $(\hat{H} f_{\mathbf{x}_{k+1}})^{-1}$ to be the identity $I$ or the true inverse Hessian $(H f_{\mathbf{x}_{k+1}})^{-1}$ (computed just once), which would lead to more efficient convergence. The pseudocode for BFGS is a bit too long and confusing to include here, but most of the time, we won't be implementing BFGS by hand; efficient and established BFGS optimizers are already in numerous packages. Like most optimizers, BFGS is not guaranteed to converge to the true global minimum. 
+
+\subsection{Limited Memory BFGS (L-BFGS)}
+
+
+
