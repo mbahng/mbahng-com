@@ -2,11 +2,109 @@
 
 \subsection{Secant Method}
 
-\subsection{DFP}
+  \begin{algo}[Secant Method]
+    The Secant Method approximates Newton's method by estimating the derivative using two most recent iterates instead of requiring $f'(x)$. 
+    \begin{algorithm}[H]
+    \label{alg:secant}
+    \begin{algorithmic}[1]
+      \Require{Function $f(x)$, initial guesses $x_0, x_1$, tolerance $\epsilon$, maximum iterations $N_{max}$}
 
-\subsection{Broyden}
+      \Procedure{Secant}{$f, x_0, x_1, \epsilon, N_{max}$}
+        \State $k \gets 0$
+        \While{$k < N_{max}$}
+          \If{$|f(x_1)| < \epsilon$}
+            \State \Return $x_1$
+          \EndIf
+          \State $x_{new} \gets x_1 - f(x_1)\dfrac{x_1 - x_0}{f(x_1) - f(x_0)}$
+          \State $x_0 \gets x_1$
+          \State $x_1 \gets x_{new}$
+          \State $k \gets k + 1$
+        \EndWhile
+        \State \Return Failure
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
 
-\subsection{Symmetric Rank 1}
+\subsection{Davidon-Fletcher-Powell (DFP)}
+
+  \begin{algo}[DFP Quasi-Newton Method]
+    The DFP method is a quasi-Newton optimization algorithm that maintains an approximation $H_k$ of the inverse Hessian to update parameters efficiently. 
+    \begin{algorithm}[H]
+    \label{alg:dfp}
+    \begin{algorithmic}[1]
+      \Require{Objective $f(\theta)$, gradient $\nabla f$, initial guess $\theta_0$, tolerance $\epsilon$}
+
+      \Procedure{DFP}{$f, \nabla f, \theta_0$}
+        \State $H \gets I$ \Comment{Initialize inverse Hessian approximation}
+        \While{not converged}
+          \State $g \gets \nabla f(\theta)$
+          \State $d \gets -H g$
+          \State $\alpha \gets \text{LineSearch}(f, \theta, d)$
+          \State $\theta_{new} \gets \theta + \alpha d$
+          \State $s \gets \theta_{new} - \theta$
+          \State $y \gets \nabla f(\theta_{new}) - g$
+          \State $H \gets H + \frac{ss^T}{s^T y} - \frac{Hy y^T H}{y^T H y}$
+          \State $\theta \gets \theta_{new}$
+        \EndWhile
+        \State \Return $\theta$
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
+
+\subsection{Broyden's Method}
+
+  \begin{algo}[Broyden’s Method]
+    Broyden’s method is a quasi-Newton method that updates an approximation $B_k$ to the Jacobian matrix without computing derivatives directly. 
+    \begin{algorithm}[H]
+    \label{alg:broyden}
+    \begin{algorithmic}[1]
+      \Require{Function $F(\theta)$, initial guess $\theta_0$, tolerance $\epsilon$}
+
+      \Procedure{Broyden}{$F, \theta_0$}
+        \State $B \gets I$ \Comment{Initial Jacobian approximation}
+        \While{not converged}
+          \State $\Delta \theta \gets -B^{-1} F(\theta)$
+          \State $\theta_{new} \gets \theta + \Delta \theta$
+          \State $\Delta F \gets F(\theta_{new}) - F(\theta)$
+          \State $B \gets B + \frac{(\Delta F - B \Delta \theta)\Delta \theta^T}{\Delta \theta^T \Delta \theta}$
+          \State $\theta \gets \theta_{new}$
+        \EndWhile
+        \State \Return $\theta$
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
+
+\subsection{Symmetric Rank-1 Update (SR1)}
+
+  \begin{algo}[Symmetric Rank-1 Update]
+    The SR1 update is another quasi-Newton method that maintains an approximation $H_k$ of the inverse Hessian, using a symmetric rank-1 correction. 
+    \begin{algorithm}[H]
+    \label{alg:sr1}
+    \begin{algorithmic}[1]
+      \Require{Objective $f(\theta)$, gradient $\nabla f$, initial guess $\theta_0$, tolerance $\epsilon$}
+
+      \Procedure{SR1}{$f, \nabla f, \theta_0$}
+        \State $H \gets I$
+        \While{not converged}
+          \State $g \gets \nabla f(\theta)$
+          \State $d \gets -H g$
+          \State $\alpha \gets \text{LineSearch}(f, \theta, d)$
+          \State $\theta_{new} \gets \theta + \alpha d$
+          \State $s \gets \theta_{new} - \theta$
+          \State $y \gets \nabla f(\theta_{new}) - g$
+          \If{$(s - Hy)^T y \neq 0$}
+            \State $H \gets H + \dfrac{(s - Hy)(s - Hy)^T}{(s - Hy)^T y}$
+          \EndIf
+          \State $\theta \gets \theta_{new}$
+        \EndWhile
+        \State \Return $\theta$
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
 
 \subsection{BFGS}
 
@@ -47,7 +145,84 @@
 
   Finally, we can choose the initial inverse Hessian approximation $(\hat{H} f_{\mathbf{x}_{k+1}})^{-1}$ to be the identity $I$ or the true inverse Hessian $(H f_{\mathbf{x}_{k+1}})^{-1}$ (computed just once), which would lead to more efficient convergence. The pseudocode for BFGS is a bit too long and confusing to include here, but most of the time, we won't be implementing BFGS by hand; efficient and established BFGS optimizers are already in numerous packages. Like most optimizers, BFGS is not guaranteed to converge to the true global minimum. 
 
-\subsection{Limited Memory BFGS (L-BFGS)}
+  \begin{algo}[BFGS]
+    The BFGS algorithm maintains an approximation $B_k$ to the inverse Hessian, updating it using gradient differences and parameter steps. This avoids explicitly computing or inverting the Hessian at each iteration. 
+    \begin{algorithm}[H]
+    \label{alg:bfgs}
+    \begin{algorithmic}[1]
+      \Require{Objective $f(\theta)$, gradient $\nabla f$, initial guess $\theta_0$, tolerance $\epsilon$, maximum iterations $N_{max}$}
 
+      \Procedure{BFGS}{$f, \nabla f, \theta_0$}
+        \State $B \gets I$ \Comment{Initialize inverse Hessian approximation}
+        \State $\theta \gets \theta_0$
+        \State $k \gets 0$
+        \While{$k < N_{max}$ and $||\nabla f(\theta)|| > \epsilon$}
+          \State $g \gets \nabla f(\theta)$
+          \State $d \gets -B g$
+          \State $\alpha \gets \text{LineSearch}(f, \theta, d)$ \Comment{Enforce Wolfe conditions}
+          \State $\theta_{new} \gets \theta + \alpha d$
+          \State $s \gets \theta_{new} - \theta$
+          \State $y \gets \nabla f(\theta_{new}) - g$
+          \If{$y^T s \leq 0$}
+            \State \textbf{break} \Comment{Curvature condition violated}
+          \EndIf
+          \State $B \gets \Big(I - \frac{s y^T}{y^T s}\Big) B \Big(I - \frac{y s^T}{y^T s}\Big) + \frac{s s^T}{y^T s}$
+          \State $\theta \gets \theta_{new}$
+          \State $k \gets k + 1$
+        \EndWhile
+        \State \Return $\theta$
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
 
+  \begin{algo}[Limited-memory BFGS]
+    L-BFGS avoids storing the full inverse Hessian by keeping only the last $m$ update pairs $(s_i, y_i)$. 
+    At each step, the search direction is computed using a two-loop recursion. 
+    This reduces storage from $O(n^2)$ to $O(mn)$ and is widely used in large-scale optimization.
+    \begin{algorithm}[H]
+    \label{alg:lbfgs}
+    \begin{algorithmic}[1]
+      \Require{Objective $f(\theta)$, gradient $\nabla f$, initial $\theta_0$, history size $m$, tolerance $\epsilon$, maximum iterations $N_{max}$}
+
+      \Procedure{L-BFGS}{$f, \nabla f, \theta_0, m$}
+        \State Initialize $\theta \gets \theta_0$
+        \State Initialize empty history lists $S, Y$
+        \State $k \gets 0$
+        \While{$k < N_{max}$ and $||\nabla f(\theta)|| > \epsilon$}
+          \State $g \gets \nabla f(\theta)$
+          \State $q \gets g$
+          \State Initialize empty list $\alpha$
+          \Comment{First loop: backward pass}
+          \For{$i = |S|$ down to $1$}
+            \State $\rho_i \gets 1 / (y_i^T s_i)$
+            \State $\alpha_i \gets \rho_i \, s_i^T q$
+            \State $q \gets q - \alpha_i y_i$
+          \EndFor
+          \State Choose scalar $H_0$ (e.g., $H_0 = \frac{s_{k-1}^T y_{k-1}}{y_{k-1}^T y_{k-1}} I$ if available, else $I$)
+          \State $r \gets H_0 q$
+          \Comment{Second loop: forward pass}
+          \For{$i = 1$ to $|S|$}
+            \State $\beta \gets \rho_i \, y_i^T r$
+            \State $r \gets r + s_i (\alpha_i - \beta)$
+          \EndFor
+          \State $d \gets -r$ \Comment{Search direction}
+          \State $\alpha \gets \text{LineSearch}(f, \theta, d)$
+          \State $\theta_{new} \gets \theta + \alpha d$
+          \State $s \gets \theta_{new} - \theta$
+          \State $y \gets \nabla f(\theta_{new}) - g$
+          \If{$y^T s > 0$} \Comment{Curvature condition}
+            \State Append $s, y$ to $S, Y$
+            \If{$|S| > m$} 
+              \State Remove oldest pair
+            \EndIf
+          \EndIf
+          \State $\theta \gets \theta_{new}$
+          \State $k \gets k + 1$
+        \EndWhile
+        \State \Return $\theta$
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
 
