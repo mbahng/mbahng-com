@@ -1,10 +1,10 @@
-\section{Iterators and Loops}
+\section{Loops}
 
   Iterables, Iterators, Generators, zipping, range vs xrange. Range is an iterable, not iterator. 
 
   For loops and while loops are straightforward enough, but it's important to know the difference between them. 
 
-\subsection{Dynamic Evaluation of Condition During Loop}
+\subsection{While Loops}
 
   In while loops, the condition is rechecked and thus any functions called during this is recomputed at each loop, and so when deleting things from a list, the loop already accounts for the new length. However, a for loop evaluates the length of the list only once and leads to index violation errors.  
 
@@ -89,59 +89,175 @@
   \end{lstlisting}
   \end{minipage}
 
-\subsection{Iterators and Enhanced For Loops}
+\subsection{Iterators and Iterables} 
 
-  A list is an example of an \textit{iterable} object. An \texttt{Iterable} class implements an \texttt{\_\_iter\_\_()} method that transforms it into an \texttt{Iterator} object. An \texttt{Iterator} objects allows one to generate some value every time a \texttt{\_\_next\_\_()} method is called. It should implement the next function and an \texttt{\_\_iter\_\_()} method also, which just returns itself. Here is an example for a list. 
+  Great, so while loops are conceptually simple in that they simply recompute the condition at each loop. For loops---on the other hand---behave quite differently. 
 
+  \begin{definition}[Iterables and Iterators] 
+    An \textbf{iterator} class is any class that implements a \texttt{\_\_next\_\_()} instance method that either returns some value or raises a \texttt{StopIteration}. An \textbf{iterable} class is any class that implements a \texttt{\_\_iter\_\_()} instance method returning an iterator object. When we use a for loop by saying \texttt{for elem in object: ...}, 
+    \begin{enumerate}
+      \item the \texttt{object} must be an iterable. 
+      \item the for loop implicitly calls \texttt{object.\_\_iter\_\_()} before the loop starts to return an iterator \texttt{iter}. 
+      \item the loop will continue to call \texttt{iter.\_\_next\_\_()} and assign it to \texttt{elem} until a \texttt{StopIteration} is raised. 
+    \end{enumerate}
+    The built-in \texttt{iter()} method calls \texttt{\_\_iter\_\_()} and \texttt{next()} calls \texttt{\_\_next\_\_()}. Therefore, the two implementations of the for loop is exactly the same. 
+
+    \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        x = [1, 2, 3, 4] 
+        for elem in x: 
+            print(elem)
+        .
+        .
+        .
+        .
+        .
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        x = [1, 2, 3, 4] 
+        x_ = iter(x) 
+        while True: 
+          try: 
+            item = next(x_)
+          except StopIteration: 
+            break 
+          print(item)
+      \end{lstlisting}
+    \end{minipage}
+    Therefore, we are really just creating an iterator object around the list and doing a while loop. So a for loop is really just a while loop in the backend!  
+  \end{definition} 
+
+  Everything that you can call a for loop on is an iterator. 
   \begin{lstlisting}
-    class Iterator: 
+    In [1]: iter("hello")
+    Out[1]: <str_ascii_iterator at 0x1051d4910>
 
-      def __init__(self, input: list): 
-        self.index = 0 
-        self.input = input
-        self.limit = len(input)
+    In [2]: iter([1, 2, 3])
+    Out[2]: <list_iterator at 0x1051fbb80>
 
-      def __iter__(self): 
-        return self
+    In [3]: iter(range(4))
+    Out[3]: <range_iterator at 0x10528d6e0>
 
-      def __next__(self): 
-        if self.index > self.limit: 
-          raise StopIteration
-        self.index += 1 
-        return self.input[self.index]
+    In [4]: iter({"a" : 1, "b" : 2})
+    Out[4]: <dict_keyiterator at 0x10519f6f0>
+  \end{lstlisting} 
+  A common mistake to confuse iterables with iterators! Note that lists and ranges are \textit{not} iterators! They are iterables, so you must call \texttt{iter()} on them before calling \texttt{next()}. 
+  \begin{lstlisting}
+    TypeError                            Traceback (most recent call last)
+    Cell In[5], line 1
+    ----> 1 next([1, 2, 3])
+
+    TypeError: 'list' object is not an iterator
+
+    In [6]: next(range(4))
+    ----------------------------------------------------------------------
+    TypeError                            Traceback (most recent call last)
+    Cell In[6], line 1
+    ----> 1 next(range(4))
+
+    TypeError: 'range' object is not an iterator
   \end{lstlisting}
 
-  So far, we have talked about looping through a list by looking at the indices. Another way is to to use an \textit{enhanced for loop} to iterate directly over the values. When we use an enhanced for loop, we are really just creating an iterator object around the list and doing a while loop. Therefore, a for loop is really just a while loop!  
+  Now let's implement our own class. There are two ways that we can do this: implement the iterator and iterable in two separate classes, or have 1 class support both \texttt{\_\_iter\_\_()} and \texttt{\_\_next\_\_()} methods to make it \textit{both} an iterator and iterable. 
 
-  \noindent\begin{minipage}{.5\textwidth}
-  \begin{lstlisting}[]{Code}
-    x = [1, 2, 3, 4] 
-    for elem in x: 
-        print(elem)
-    .
-    .
-    .
-    .
-    .
-  \end{lstlisting}
-  \end{minipage}
-  \hfill
-  \begin{minipage}{.49\textwidth}
-  \begin{lstlisting}[]{Output}
-    x = [1, 2, 3, 4] 
-    x_ = iter(x) 
-    while True: 
-      try: 
-        item = next(x_)
-      except StopIteration: 
-        break 
-      print(item)
-  \end{lstlisting}
-  \end{minipage}
+  \begin{theorem}[Separate Implementations of Iterator and Iterable]
+    Observe that the state of the \texttt{StudentIter} created by each of the two for loops are independent with their own states. Therefore, each of the two \texttt{x} that we iterate over are two distinct \texttt{StudentIter} object, and so we can hit all $4 \times 4$ combinations. 
 
-  This means that every for loop is really just a while loop. For loops were created early on in programming for convenience. Even when doing for loops over indexes, the \texttt{range} is really an iterable, and so you can convert it into an iterator and do the same thing. 
+    \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        class Student: 
 
-  Another fact about \texttt{range} is that it is \textit{lazy}, meaning that to save memory, calling \texttt{range(100)} does not generate a list of 100 elements. The iterator really evaluates the next number on demand, which adds runtime overhead but saves memory.   
+          def __init__(self): 
+            ...
+
+          def __iter__(self) -> "StudentIter":  
+            """A reusable iterator object"""
+            return StudentIter(self)
+
+        class StudentIter: 
+
+          def __init__(self, student: Student): 
+            self.student = student 
+            self.i = -1
+
+          def __next__(self): 
+            self.i += 1  
+            if self.i > 3: 
+              raise StopIteration
+            return self.i
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        In [14]: for i in x:
+            ...:   for j in x:
+            ...:     print(i, j)
+            ...: 
+        0 0
+        0 1
+        0 2
+        0 3
+        1 0
+        1 1
+        1 2
+        1 3
+        2 0
+        2 1
+        2 2
+        2 3
+        3 0
+        3 1
+        3 2
+        3 3
+      \end{lstlisting}
+    \end{minipage}
+  \end{theorem}
+
+  \begin{theorem}[One Class as Iterator and Iterable]
+    In this case, the state of the next value returned by \texttt{\_\_next\_\_()} is stored in the \texttt{Student} object, and so \texttt{x} is the one \texttt{Student} object. 
+
+    \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        class Student: 
+
+          def __init__(self): 
+            self.i = -1
+
+          def __iter__(self): 
+            "Nonreusable iterator object"
+            return self 
+
+          def __next__(self): 
+            self.i += 1  
+            if self.i > 3: 
+              raise StopIteration
+            return self.i
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        In [13]: x = Student()
+        In [14]: for i in x:
+            ...:   for j in x:
+            ...:     print(i, j)
+            ...: 
+        0 1
+        0 2
+        0 3
+        .
+        .
+        .
+        .
+        .
+        .
+      \end{lstlisting}
+    \end{minipage}
+  \end{theorem}
 
   \begin{example}[Common Trap]
     Look at the following code 
@@ -183,3 +299,54 @@
     \end{lstlisting}
   \end{example}
 
+  Another fact about \texttt{range} is that it is \textit{lazy}, meaning that to save memory, calling \texttt{range(100)} does not generate a list of 100 elements. The iterator really evaluates the next number on demand, which adds runtime overhead but saves memory.   
+
+\subsection{Generators}
+
+  With iterators, we can cleverly keep track of states to design a custom behavior of looping, and as we have seen with range objects, we can also reduce memory by using lazy evaluation. One disadvantage is that there is relatively a lot of boilerplate code to design such an iterator. This is where generators come in. 
+
+  \begin{definition}[Generator]
+    A \textbf{generator function} is a function that returns a both an iterable and iterator object (so has its own \texttt{\_\_iter\_\_()} and \texttt{\_\_next\_\_()} method with the \texttt{yield} keyword). The following are equivalent. 
+
+    \noindent\begin{minipage}{.5\textwidth}
+      \begin{lstlisting}[]{Code}
+        # generator function
+        def make_counter(max):
+          count = 1
+          while count <= max:
+            yield count
+            count += 1
+
+        counter = make_counter(5) 
+        .
+        .
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.49\textwidth}
+      \begin{lstlisting}[]{Output}
+        class Counter: 
+          def __init__(self, max): 
+            self.max = max
+            self.count = 0
+
+          def __iter__(self): 
+            return self
+
+          def __next__(self): 
+            if self.count < self.max: 
+              self.count += 1 
+              return self.count 
+            else: 
+              raise StopIteration
+
+        counter = Counter(5) 
+      \end{lstlisting}
+    \end{minipage}
+  \end{definition} 
+
+  By default, you should always try to use generators over iterators, and change to the latter if either 
+  \begin{enumerate}
+    \item the state you are maintaining over the loop is complex, or 
+    \item the loop needs to be reusable.  
+  \end{enumerate}
