@@ -1,0 +1,54 @@
+\section{Profiling} 
+
+\subsection{Python}  
+
+  The main tool I use to profile Python code is the \texttt{cProfile} module. It is a \textit{determinstic} profiler and is very good at handling large scripts over large codebases. To print the profiling outputs, run 
+  \begin{lstlisting}
+    python -m cProfile -s time script.py --args ... 
+  \end{lstlisting}
+  where \texttt{-s} is the parameter in which the function calls are sorted. This gives you something like 
+  
+  \begin{lstlisting}
+    26457919 function calls (25109295 primitive calls) in 37.789 seconds
+
+    Ordered by: internal time
+    List reduced from 17047 to 100 due to restriction <100>
+
+       ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+     61380/60    2.684    0.000    7.607    0.127 /usr/project/xtmp/mb625/protopnext-image-genetic/protopnet/prediction_heads.py:157(forward)
+           18    1.578    0.088    5.114    0.284 /usr/project/xtmp/mb625/protopnext-image-genetic/protopnet/prototype_layers.py:453(u...
+        84718    1.370    0.000    1.370    0.000 {built-in method torch.tensor}
+        10993    1.339    0.000    1.360    0.000 {method 'to' of 'torch._C._TensorBase' objects}
+          549    0.987    0.002    0.987    0.002 {built-in method torch.conv2d}
+       122760    0.903    0.000    0.903    0.000 {built-in method torch.rsub}
+        73728    0.898    0.000    2.021    0.000 /usr/project/xtmp/mb625/protopnext-image-genetic/protopnet/prediction_heads.py:349
+        33600    0.878    0.000    0.878    0.000 /usr/project/xtmp/mb625/protopnext-image-genetic/protopnet/datasets/bioscan_genetic.py:56
+  \end{lstlisting}  
+  Some info: 
+  \begin{enumerate}
+    \item Note that these times refer to the time it took to run the function \textit{in its current stack frame} (so not profiled for any subfunction calls). 
+    \item The \texttt{ncalls} give you one number which give you the number \texttt{t} times this function was called. If it is form \texttt{r/t}, then \texttt{t} refers to the unique calls, and \texttt{r} refers to the total number of calls, including recursive calls.  
+    \item The \texttt{filename:lineno(function)} precisely tells you which function we are profiling.  
+  \end{enumerate}
+
+
+  For more control over the analysis, you should write the profiling information to some text file. You can specify this with the \texttt{-o} arg (the \texttt{-s} doesn't do anything). 
+  \begin{lstlisting}
+    python -m cProfile -o profile.txt script.py --args ... 
+  \end{lstlisting}
+  The saved file is not directly readable, and you need the \texttt{pstats} module to parse it. 
+  \begin{lstlisting}
+    import pstats
+
+    p = pstats.Stats('profile.txt')         # load the data
+    p.strip_dirs() \                        # can strip away all leading path information from file names
+      .sort_stats('time') \                 # sort it by time 
+      .print_stats(100)                     # print the top 100 function calls 
+  \end{lstlisting}  
+
+  Say that we saw that the function call of \texttt{'torch.cat'} was causing the biggest bottleneck. To see where each \texttt{'cat'} was called, we can write 
+  \begin{lstlisting}
+    p.print_callers(100, 'cat')
+  \end{lstlisting} 
+
+\subsection{C++}
