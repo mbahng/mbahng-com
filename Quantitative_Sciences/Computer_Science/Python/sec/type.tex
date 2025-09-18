@@ -1,4 +1,4 @@
-\section{Classes} 
+\section{Types} 
 
   The development of the Python type hierarchy is a bit involved and requires you to know both implementation details and history. During the early days of Python 2, the language had both \textit{types} and \textit{classes}. Types were built-in objects implemented in C, and classes were what you built when using a \texttt{class} statement. These two were named differently because you couldn't mix these; classes could not extend types. However, this difference was artificial and ultimately a limitation in the language implementation. Starting with Python 2.2, the developers of Python have slowly moved towards unifying the two concepts, which the difference completely done in Python 3. Built-in types are now labeled classes, and you can extend them at will. Since we are working in Python 3, they are interchangeable.  
 
@@ -15,7 +15,27 @@
       class ClassName: 
         ...  
     \end{lstlisting}
-  \end{definition} 
+  \end{definition}
+
+  \begin{example}[Animal Class Definition]
+    A class can be instantiated with the following. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{lstlisting}
+        class Animal: 
+            def __init__(self, name):
+                self.name = name
+            
+            def speak(self):
+                return f"{self.name} makes a sound"
+      \end{lstlisting} 
+      \caption{} 
+      \label{fig:animal_class}
+    \end{figure}
+  \end{example}  
+
+\subsection{Dunder Methods}
 
   It is important to have good tools to analyze the class itself and the instance. These are mainly stored in \textit{dunder (double underscore)} methods, also called \textit{magic methods}. 
 
@@ -63,24 +83,6 @@
       \label{tab:functions_for_classes}
     \end{table}
   \end{definition}
-
-  A class can be instantiated with the following. 
-
-  \begin{example}[Animal Class Definition]
-    \begin{figure}[H]
-      \centering 
-      \begin{lstlisting}
-        class Animal: 
-            def __init__(self, name):
-                self.name = name
-            
-            def speak(self):
-                return f"{self.name} makes a sound"
-      \end{lstlisting} 
-      \caption{} 
-      \label{fig:animal_class}
-    \end{figure}
-  \end{example} 
 
   \begin{definition}[Documentation and Metadata]
     \begin{table}[H]
@@ -244,7 +246,11 @@
     Note that in the abstract algebraic sense, \texttt{a + b} is really just a binary operation and may not be commutative. There are also \textit{reverse versions} of the binary operations, e.g. \texttt{\_\_radd\_\_}, that are called when the left operand doesn't support the operation. There are also \textit{in-place versions} like \texttt{\_\_iadd\_\_()} for operations like \texttt{+=}.  
   \end{definition}
 
-\subsection{Inheritance, Polymorphism, and Encapsulation} 
+\subsection{Encapsulation} 
+
+  
+ 
+\subsection{Inheritance and Method Resolution Order} 
 
   Conceptually, we might think of certain types a subset of another type. Therefore, it makes sense to design some \textit{hierarchy} of these types where children can extend the functionality of their parents. This is the conceptual idea of inheritance, which is a convenient way of designing code. In fact, if we had infinite coding power where we don't care about maintainability or the DRY (don't repeat yourself) principle, then you wouldn't need inheritance. 
 
@@ -277,6 +283,7 @@
       \caption{}
     \end{figure}
   \end{definition}
+
 
   A more directly practical advantage of coding is that we can take advantage of the \textit{method resolution order (MRO)}. Let's introduce what this is slowly with a sequence of examples. 
 
@@ -385,30 +392,175 @@
     \end{lstlisting}
   \end{example} 
 
-  \begin{definition}[Commands for Child-Parent Class Relation]
-    \begin{table}[H]
-      \centering
-      \begin{tabular}{|c|c|}
-        \hline
-        \textbf{Method} & \textbf{Description} \\
-        \hline
-        \texttt{super()} & \texttt{Accesses parent class?} \\
-        \hline
-      \end{tabular}
-      \caption{}
-      \label{tab:}
-    \end{table}
-  \end{definition}
+  In most cases, when you are trying to call a method from a parent class, you are most likely trying to find the next class in the MRO that implements this method, which may not be the direct parent.\footnote{\href{https://stackoverflow.com/questions/222877/what-does-super-do-in-python-difference-between-super-init-and-expl}{https://stackoverflow.com/questions/222877/what-does-super-do-in-python-difference-between-super-init-and-expl}}. So rather than explicitly hard-coding something like this 
 
+  \begin{lstlisting}
+    class P: 
+      def method(self): 
+        ...
+
+    class C(P): 
+      def method(self): 
+        P.method(self) 
+        ...
+  \end{lstlisting} 
+
+  You might have heard that you should use something called \texttt{super()}. 
+
+  \begin{definition}[Superclass] 
+    The \textbf{superclass \texttt{S} with respect to a method \texttt{m}} of a class \texttt{C} is the next class in the MRO that actually implements the method \texttt{m}. This can be gotten by calling \texttt{super()}.\footnote{Note that unlike other sources, I distinguish the superclass and the parent class. The superclass is with respect to a method, and the parent class does not need to specify a method.}
+  \end{definition} 
+
+  The MRO is useful when calling methods not explicitly defined in our child class (but defined in some parent class), but ultimately, the whole point of having child classes is so that we can \textit{extend} our parent classes. For example, the first thing we must always do with an object is to instantiate it---through the constructor. There are three general ways that we can implement the constructor of child class \texttt{C} with parent class \texttt{P}. 
 
   \begin{enumerate}
-    \item The constructor of the child class should call the constructor of the parent class in order to set up the attributes.\footnote{This is not strictly necessary, and we don't necessarily need to do this if we will completely override the parent's attributes. But then why would you use inheritance in the first place?} 
+    \item Do not define the constructor on \texttt{C}. Then, the MRO will just call the constructor of the parent class. 
 
-    \item You can add and override both attributes and methods by simply defining them after parent class constructor.   
-    \item You can delete an attribute from the child class with the \texttt{delattr(ChildClass, "attribute")}, though this probably means you shouldn't be using inheritance at all. 
-    \item You cannot delete a method that exists in the parent class from the child class. The best you can do is override it to throw an exception. 
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{lstlisting}
+          class P: 
+            def __init__(self, name): 
+              self.name = name
+        \end{lstlisting}
+        \caption{}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{lstlisting}
+          class C(P): 
+            ...
+            .
+        \end{lstlisting}
+        \caption{}
+      \end{subfigure}
+      \caption{}
+    \end{figure}
+
+    \item Define the constructor on \texttt{C}, but do not call the parent's constructor. This allows you to completely override the parent constructor, but this is a bad idea for two reasons. First, if you are really just re-implementing the same thing that the parent constructor has done, then you are better off doing (3). If you truly need to override the \textit{whole} parent constructor, then perhaps you are not truly extending the parent class, and class inheritance is not the right approach. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{lstlisting}
+          class P: 
+            def __init__(self, name): 
+              self.name = name
+          .
+        \end{lstlisting}
+        \caption{}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{lstlisting}
+          class C(P): 
+            def __init__(self, name, breed): 
+              self.name = name 
+              self.breed = breed
+        \end{lstlisting}
+        \caption{}
+      \end{subfigure}
+      \caption{}
+    \end{figure}
+
+    \item Define the constructor on \texttt{C}. In the child constructor, call the parent's constructor to set up all of the parent's attributes, and then add your own or do some postprocessing after. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{lstlisting}
+          class P: 
+            def __init__(self, name): 
+              self.name = name
+          .
+        \end{lstlisting}
+        \caption{}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{lstlisting}
+          class C(P): 
+            def __init__(self, name, breed): 
+              super().__init__(name)
+              self.breed = breed
+        \end{lstlisting}
+        \caption{}
+      \end{subfigure}
+      \caption{}
+    \end{figure}
   \end{enumerate}
 
+  It's clear what the best choice is. Since we generally want to retain the class attributes (hence call parent constructor) and extend them (hence explicitly define the child constructor), we should by default opt for the third choice. 
+
+  \begin{theorem}[Heuristic]
+    In the beginning of your child constructor, you should almost always call \texttt{super().\_\_init\_\_(*args)}. 
+  \end{theorem} 
+
+  You might also notice that not implementing a constructor method at all is equivalent to just implementing a constructor method with only \texttt{super().\_\_init\_\_()}.\footnote{\href{https://stackoverflow.com/questions/61174178/why-is-python-super-used-in-the-childs-init-method}{https://stackoverflow.com/questions/61174178/why-is-python-super-used-in-the-childs-init-method}}. However, this is still bad for maintainability, and can be especially dangerous if there are keyword arguments that are passed on. 
+
+  For the constructor, we've seen that we must always define \texttt{\_\_init\_\_()} and have it call the super's constructor. This generally comes from the fact that the attributes of a child class should be a strict superset of those of parent classes. For methods, we may either want a method \texttt{m()} of a child class to call super's method as well, along with doing additional things, or we might want to completely override it. Consider the animal class again. 
+  \begin{lstlisting}
+    class Animal: 
+      def __init__(self, name):
+        self.name = name
+      
+      def speak(self):
+        return f"Rahhh" # generic animal sound
+  \end{lstlisting} 
+
+  Overriding and extending methods is straightforward. 
+
+  \begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+      \begin{lstlisting}
+        class Dog(Animal): 
+          def speak(self): 
+            return "woof"
+        .
+      \end{lstlisting}
+      \caption{To override, just redefine it, and the MRO will view this implementation first.}
+    \end{subfigure}
+    \hfill 
+    \begin{subfigure}[b]{0.48\textwidth}
+      \centering
+      \begin{lstlisting}
+        class Dog(Animal): 
+          def speak(self): 
+            return super().speak() + " said the dog."
+      \end{lstlisting}
+      \caption{To extend it, have it call the super's method first, and then do whatever you want after. }
+    \end{subfigure}
+    \caption{}
+  \end{figure}
+
+  Deleting any parent attribute or method is not a good idea and goes against the whole purpose of inheritance. If it must be done, here are the best methods I know. 
+
+  \begin{theorem}[Deleting Attribute Belonging to Parent in Child]
+    You can delete an attribute from the child class by calling \texttt{delattr(ChildClass, "attribute")}. 
+    \begin{lstlisting}
+      class P: 
+        def __init__(self, name): 
+          self.name = name  
+
+      class C(P): 
+        def __init__(self, name): 
+          super().__init__(self, name) 
+          delattr(C, "name") 
+    \end{lstlisting}
+  \end{theorem}
+
+  \begin{theorem}[Deleting Method Belong to Parent in Child]
+    You cannot delete a method that exists in the parent class from the child class, since the MRO will just be invoked. The best you can do is override it to throw an exception. 
+  \end{theorem}
 
   \begin{example}[Modifying Attributes in Child Class]
     We begin with an \texttt{Animal} class.
@@ -477,26 +629,56 @@
     \end{figure}
   \end{example}
 
-  \begin{definition}[Multiple Inheritance]
-    
+\subsection{Interfaces and Abstract Base Classes} 
+
+  Note that inheritance does two things. First, it allows us to reuse code since a child class inherits attributes/methods from a superclass. Second, we can extend or override parent functionality, which allows us to use different implementations of the same method. The fancy sounding term ``polymorphism'' is just a colloqial buzzword that refers to being able to treat objects of different types in the same way, mostly through calling a method with the same name. 
+
+  \begin{definition}[Polymorphism]
+    \textbf{Polymorphism} is the ability of objects of different types to be treated as instances of the same type through a common interface. It comes in many forms, including 
+    \begin{enumerate}
+      \item \textit{Subtype/Inclusion Polymorphism}. Basically what we did with inheritance. 
+      \item \textit{Parameteric Polymorphism}. Allows function or data type to be written generically, so that it can handle values \textit{uniformly} without depending on their type. 
+      \item \textit{Overriding}. 
+      \item \textit{Overloading}. Taking the 
+    \end{enumerate}
   \end{definition}
 
-\subsection{Metaclasses}
+  With inheritance, we can create hierarchies of classes where child classes extend or override parent functionality. However, we are still short 
 
-  Metaclasses 
-    - Apparently need to know for PEP 3119
+  At this point, we have defined the class hierarchy by taking the class names (more specifically, the \textit{fully qualified class name (FQCN)}) and explicitly defining a parent-child relationship (e.g. \texttt{Dog(Animal)}). As stated in \href{https://peps.python.org/pep-3119/}{PEP-3119}, in the domain of OOP, the uage patterns of interacting with an object can be divided into two basic categories. 
+  \begin{enumerate}
+    \item \textit{Invocation}. Interacting with an object by invoking its methods. 
+    \item \textit{Inspection}. The ability for external code (outside of the object's methods) to examine the type or properties of that object, and make decisions on how to treat that object based on that information. 
+  \end{enumerate}
+  Both usage patterns 
 
 \subsection{Interfaces and Abstract Base Classes} 
 
-  But classes are limited? So we want to use interfaces (duck typing).  
+  Apparently need to know for PEP 3119. 
 
-    % - Implemented as ABCs in python. https://peps.python.org/pep-3119/ 
+  But classes are limited? So we want to use interfaces (duck typing). 
+
+    % - Implemented as ABCs in python. 
     % - A new module abc which serves as an “ABC support framework”. It defines a metaclass for use with ABCs and a decorator that can be used to define abstract methods. 
     % - PEP 3141 gives a hierarchy of the numbers.  
     % - ABCs have two points, one obtained by subclassing ("invasive"), one by registering (non-invasive). (https://stackoverflow.com/questions/3392352/python-abcs-registering-vs-subclassing) 
-    %
+    % 
+
+  PEP 3141 gives a hierarchy of the numbers. 
+
+  \begin{definition}[Numeric ABCs] 
+    The \texttt{numbers} module contains them. 
+    \begin{enumerate}
+      \item \texttt{numbers.Number} 
+      \item \texttt{numbers.Complex} 
+      \item \texttt{numbers.Real} 
+      \item \texttt{numbers.Rational} 
+      \item \texttt{numbers.Integral} 
+    \end{enumerate}
+  \end{definition}
 
 \subsection{Type Hints}
+
   Type Hints - PEP 484 (3.5) 
 
 \subsection{Protocols}
@@ -666,4 +848,16 @@
   Duck typing and structural typing are similar (and often confused) but distinct, and the preference for one over the other is controversial. The big difference is that duck typing is ``looser'' in that type checking happens at \textit{runtime}, whether an object has the required methods/properties when they are actually used. 
 
   We will start by going through all the types in Python. 
+
+\subsection{Metaclasses} 
+
+  Note that for every class, there are specific properties (in the colloquial sense) that it satisfies, e.g. it has an MRO accessible through \texttt{\_\_mro\_\_}, etc. If we wanted to change this behavior, for example 
+  \begin{enumerate}
+    \item add attributes or methods automatically, 
+    \item enforce certain rules 
+  \end{enumerate}
+  then we would want to work with something that controls \textit{classes}, in the same way that classes control objects. This is where \textit{metaclasses} come in. 
+
+
+\subsection{Factories}
 
