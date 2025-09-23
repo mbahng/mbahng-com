@@ -1,0 +1,493 @@
+\section{Design Patterns} 
+
+  At some point, you would have mastered the syntax and your main bottleneck will be how well you can design your repository. Chances are, you would either have specific needs or would see the same problems over and over again. The following \textit{design patterns} are general ways that you can structure your code to meet these needs or avoid these problems. 
+
+  \begin{definition}[UML Diagram]
+    A \textbf{UML (Unified Modeling Language) diagram} is a directed graph of nodes. 
+    \begin{enumerate}
+      \item Each node is a class $C$, labeled in a box, with attributes and methods. 
+      \item A node can \textit{extend} a class, i.e. is a child class. 
+      \item A node can \textit{implement} a class, i.e. is an implementation of an interface. 
+    \end{enumerate}
+  \end{definition} 
+
+  In the Gang of 4's \textit{Design Patterns}, they go over 23 design patterns. I'll list them briefly here for a quick reference, but each subsection will go through in detail the following: 
+  \begin{enumerate}
+    \item The motivation behind this pattern. Mainly, when to use it, and what natural problems motivate this pattern.  
+    \item The solution, which describes the elements that make up this design, their relationships, responsibilities, and collaborations. 
+    \item The consequences, which are the results and trade-offs of applying the pattern. 
+    \item A real-life example of when I had to use this pattern, with code and a UML diagram. 
+  \end{enumerate}
+
+\subsection{Strategy} 
+
+  If you are coding some object that should have the following characteristics 
+  \begin{align}
+    a & \in \{a_1, a_2, a_3\} = A \\
+    b & \in \{b_1, b_2\} = B \\
+    c & \in \{c_1, c_2, c_3, c_4\} = C
+  \end{align}
+  and which characteristics it has determines the implementation of the method, then you should use the strategy pattern.
+
+  \begin{definition}[Strategy Pattern] 
+    The \textbf{strategy pattern} defines a family of algorithms (different implementations of a set of method), encapsulates each one, and makes them interchangeable. This enables selecting an algorithm at runtime and let's them vary independently from clients that use it. This is basically object composition. 
+  \end{definition} 
+
+  This pattern is good as it 
+  \begin{enumerate}
+    \item often reduces long lists of conditionals, 
+    \item avoids duplicate code, 
+    \item keeps class changes from forcing other class changes, and 
+    \item can hide complicated/secret code from the user
+  \end{enumerate}
+
+  However, there may be an increased number of objects/classes. 
+
+  \begin{example}[Overwatch]
+    Say that you are redesigning Overwatch. We can characterize each hero in the following ways: 
+    \begin{enumerate}
+      \item \textit{Composition}: poking, brawling, diving.\footnote{https://www.youtube.com/watch?v=93nrrdo-w0M} If they are a poker, then they will deal a little damage. If they are a brawler, they will deal medium damage. If they are a diver, they will deal high damage. 
+      \item \textit{Ability to Fly}: Can fly or cannot fly. If they can fly, their $z$-coordinate will increase by 10 units. If they cannot fly, then nothing will happen. 
+      \item \textit{Role}: Tank, DPS, Support. Tanks will have the ability to raise a shield for defense. DPS have the ability to dodge attacks. Supports have the ability to heal themselves. 
+    \end{enumerate}
+    We start off with a class Hero and then want three attributes: 
+
+    \begin{lstlisting}
+      from abc import ABC, abstractmethod
+
+      class Composition(ABC): 
+        @abstractmethod
+        def attack(self, other: "Hero"): pass 
+
+      class Poker(Composition): 
+        def attack(self, other): print(f"5 damage dealt to {other}")
+
+      class Brawler(Composition): 
+        def attack(self, other): print(f"10 damage dealt to {other}")
+
+      class Diver(Composition): 
+        def attack(self, other): print(f"20 damage dealt to {other}")
+
+      class Fly(ABC): 
+        @abstractmethod 
+        def fly(self): pass 
+
+      class CanFly(Fly): 
+        def fly(self): print("Flying") 
+
+      class CannotFly(Fly): 
+        def fly(self): print("Cannot fly.") 
+
+      class Role(ABC): 
+        @abstractmethod 
+        def defend(self): pass 
+
+      class DPS(Role): 
+        def defend(self): print("Dodging") 
+
+      class Tank(Role): 
+        def defend(self): print("Raising a shield")
+
+      class Support(Role): 
+        def defend(self): print("Healed myself")
+    \end{lstlisting} 
+
+    \begin{lstlisting}
+      class Hero: 
+
+        def __init__(self, comp, fly, role): 
+          self.comp: Composition = comp 
+          self.fly: Fly = fly 
+          self.role: Role = role 
+
+        def attack(self, other): return self.comp.attack(other)
+        def fly(self): return self.fly.fly() 
+        def defend(self): return self.role.defend()
+
+
+      winston = Hero(Diver(), CannotFly(), Tank()) 
+      widowmaker = Hero(Poker(), CannotFly(), DPS()) 
+
+      winston.attack(widowmaker) 
+      # 20 damage dealt to ...
+    \end{lstlisting}
+  \end{example}
+
+\subsection{Factory} 
+
+  When a method returns one of several possible classes that share a common super class. You would want some kind of ``factory'' that can seamlessly generate new objects for you. We want to emphasize that this behavior is generally wanted at runtime. You should use it 
+  \begin{enumerate}
+    \item when you don't know ahead of time what class object you need. 
+    \item when all of the potential classes are in the same subclass hierarchy. 
+    \item to centralize class selection code. 
+    \item when you don't want to use to have to know every subclass. 
+    \item to encapsulate object creation. 
+  \end{enumerate}
+
+  \begin{definition}[Factory Pattern]
+    The \textbf{factory method pattern} is a design pattern that uses factory methods to deal with the problem of creating objects \textit{at runtime} without having to specify their exact classes. Rather than by calling a constructor, this is accomplished by invoking a factory method to create an object. Factory methods can be specified in an interface and implemented by subclasses or implemented in a base class and optionally overridden by subclasses.
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Spawning Enemies in a Game]
+    
+  \end{example}
+
+  \begin{example}[Case Study]
+    \texttt{torch.randn()} is a factory method that generates torch tensors sampled element-wise from a standard Gaussian! 
+  \end{example}
+
+\subsection{Singleton} 
+
+  A class is a blueprint, so it should be the case that we would instantiate multiple objects from this class, right? Not always. There are times when we want just \textit{one} instance $o$ of a class $C$ to exist, and it is usually in the case when a bunch of other objects $o_1, \ldots, o_n$ need to interact with $o$ uniformly. 
+
+  \begin{definition}[Singleton]
+    The \textbf{singleton pattern} is characterized by the following. 
+    \begin{enumerate}
+      \item Only one instance of the class should exist. 
+    \end{enumerate}
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Logger]
+    Say that you want to implement a simple logger. You want there to be only one logger object that writes to a central location. 
+
+    \begin{lstlisting}
+      class Logger:
+        _instance = None
+        
+        def __new__(cls):
+          if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance.logs = []  # Initialize logs only once
+          return cls._instance
+        
+        def log(self, message):
+          self.logs.append(message)
+          print(f"[LOG] {message}")
+        
+        def show_all_logs(self):
+          print("\n=== All Logs ===")
+          for i, log in enumerate(self.logs, 1):
+            print(f"{i}. {log}")
+    \end{lstlisting}
+
+    \noindent\begin{minipage}{.65\textwidth}
+      \begin{lstlisting}[]{Code}
+        # Usage example
+        def main():
+          # First logger instance
+          logger1 = Logger()
+          logger1.log("Application started")
+          logger1.log("User logged in")
+          
+          # Second logger instance (same as first!)
+          logger2 = Logger()
+          logger2.log("Processing data")
+          
+          # Third instance from different part of code
+          logger3 = Logger()
+          logger3.log("Task completed")
+          
+          # All loggers are the same instance
+          print(f"\nlogger1 is logger2: {logger1 is logger2}")
+          print(f"logger2 is logger3: {logger2 is logger3}")
+          
+          # All share the same log history
+          logger1.show_all_logs()
+
+        if __name__ == "__main__":
+          main() 
+      \end{lstlisting}
+      \end{minipage}
+      \hfill
+      \begin{minipage}{.34\textwidth}
+      \begin{lstlisting}[]{Output}
+        [LOG] Application started
+        [LOG] User logged in
+        [LOG] Processing data
+        [LOG] Task completed
+
+        logger1 is logger2: True
+        logger2 is logger3: True
+
+        === All Logs ===
+        1. Application started
+        2. User logged in
+        3. Processing data
+        4. Task completed
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+        .
+      \end{lstlisting}
+    \end{minipage}
+  \end{example}
+
+\subsection{Builder} 
+
+  Motivation. 
+
+  \begin{definition}[Builder Pattern]
+    The \textbf{builder pattern} is characterized by the following. 
+    \begin{enumerate}
+      \item It is used to create objects made from a bunch of other objects. 
+      \item The creation of these parts are independent of the main object. 
+      \item The creation of the parts are hidden from the client. 
+      \item To builder knows the specifics and nobody else does. 
+    \end{enumerate}
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Observer} 
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Abstract Factory}
+
+  Motivation. 
+
+  \begin{definition}[Abstract Factory Pattern]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Prototype} 
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Command} 
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Adapter}
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Facade}
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Bridge}
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Template Method}
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Iterator}
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Composite}
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Flyweight}
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Proxy}
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Chain of Responsibility}
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Interpreter}
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Mediator}
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Memento}
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
+\subsection{Visitor}
+
+  Motivation. 
+
+  \begin{definition}[]
+    
+  \end{definition}
+
+  Results. 
+
+  \begin{example}[Case Study]
+    
+  \end{example}
+
