@@ -183,7 +183,7 @@
       \end{enumerate}
     \end{definition}
 
-    Results. 
+    Results. However, it has gotten a bit out of style recently. 
 
     \begin{example}[Pizza]
       \begin{lstlisting}
@@ -1315,3 +1315,103 @@
       \end{lstlisting}
     \end{example}
 
+  \subsubsection{State} 
+
+    Motivation. 
+    
+    \begin{definition}[State Pattern]
+      In a \textbf{state pattern}, we can have an object change its behavior when its internal state changes. It is characterized by the following. 
+      \begin{enumerate}
+        \item It reduces the need for conditional statements depending on some attribute value.\footnote{Known as ``switch hell.''}  
+        \item This is very similar to strategy, and sometimes interchangeable, depending on who you ask. 
+      \end{enumerate}
+    \end{definition}
+
+    \begin{example}[Coin Machine]
+      \begin{lstlisting}
+        from abc import ABC, abstractmethod
+
+        # State interface
+        class State(ABC):
+            @abstractmethod
+            def insert_coin(self, machine):
+                pass
+            
+            @abstractmethod
+            def eject_coin(self, machine):
+                pass
+            
+            @abstractmethod
+            def dispense(self, machine):
+                pass
+
+        # Concrete States
+        class NoCoinState(State):
+            def insert_coin(self, machine):
+                print("Coin inserted")
+                machine.set_state(machine.has_coin_state)
+            
+            def eject_coin(self, machine):
+                print("No coin to eject")
+            
+            def dispense(self, machine):
+                print("Insert coin first")
+
+        class HasCoinState(State):
+            def insert_coin(self, machine):
+                print("Coin already inserted")
+            
+            def eject_coin(self, machine):
+                print("Coin ejected")
+                machine.set_state(machine.no_coin_state)
+            
+            def dispense(self, machine):
+                print("Dispensing item...")
+                machine.set_state(machine.sold_state)
+
+        class SoldState(State):
+            def insert_coin(self, machine):
+                print("Please wait, dispensing item")
+            
+            def eject_coin(self, machine):
+                print("Cannot eject, already dispensing")
+            
+            def dispense(self, machine):
+                print("Item dispensed!")
+                machine.set_state(machine.no_coin_state)
+
+        # Context
+        class VendingMachine:
+            def __init__(self):
+                self.no_coin_state = NoCoinState()
+                self.has_coin_state = HasCoinState()
+                self.sold_state = SoldState()
+                
+                self.current_state = self.no_coin_state
+            
+            def set_state(self, state):
+                self.current_state = state
+            
+            def insert_coin(self):
+                self.current_state.insert_coin(self)
+            
+            def eject_coin(self):
+                self.current_state.eject_coin(self)
+            
+            def dispense(self):
+                self.current_state.dispense(self)
+
+        # Usage
+        machine = VendingMachine()
+
+        machine.insert_coin()  # Coin inserted
+        machine.dispense()     # Dispensing item...
+        machine.dispense()     # Item dispensed!
+
+        machine.dispense()     # Insert coin first
+        machine.eject_coin()   # No coin to eject
+
+        machine.insert_coin()  # Coin inserted
+        machine.eject_coin()   # Coin ejected 
+      \end{lstlisting}
+    \end{example}
