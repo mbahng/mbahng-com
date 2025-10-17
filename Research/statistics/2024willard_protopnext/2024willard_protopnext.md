@@ -1,5 +1,7 @@
-[[2024willard_protopnext.pdf]], [[2021donnelly_deformable-protopnet]]
+[[2024willard_protopnext.pdf]]
 #deep-learning:interpretable:prototype
+[[2021donnelly_deformable-protopnet]]
+
 # Background
 
 # Contribution

@@ -1367,7 +1367,7 @@ window.MathJax = {
     Object.keys(tagVisibility).forEach(tag => {
       tagVisibility[tag] = (tag === targetTag);
     });
-    
+
     // Update all toggle buttons to reflect new state
     document.querySelectorAll('.legend-toggle[data-tag]').forEach(toggle => {
       const tag = toggle.getAttribute('data-tag');
@@ -1377,13 +1377,72 @@ window.MathJax = {
         toggle.classList.remove('active');
       }
     });
-    
+
     // Update toggle all button (should be inactive since not all are on)
     const toggleAllBtn = document.getElementById('toggle-all');
     toggleAllBtn.classList.remove('active');
-    
+
     // Update graph visibility
     updateGraphVisibility();
+
+    // Pan to center of mass of visible nodes
+    panToCenterOfVisibleNodes();
+  }
+
+  // Function to pan to the center of mass of visible nodes
+  function panToCenterOfVisibleNodes() {
+    if (!simulation || !graphZoom) return;
+
+    // Wait a bit for the simulation to update positions after filtering
+    setTimeout(() => {
+      // Get all visible nodes
+      const visibleNodes = nodes.filter(getNodeVisibility);
+
+      if (visibleNodes.length === 0) return;
+
+      // Calculate center of mass
+      let sumX = 0;
+      let sumY = 0;
+      let minX = Infinity, maxX = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
+
+      visibleNodes.forEach(node => {
+        sumX += node.x;
+        sumY += node.y;
+        minX = Math.min(minX, node.x);
+        maxX = Math.max(maxX, node.x);
+        minY = Math.min(minY, node.y);
+        maxY = Math.max(maxY, node.y);
+      });
+
+      const centerX = sumX / visibleNodes.length;
+      const centerY = sumY / visibleNodes.length;
+
+      // Get the SVG dimensions
+      const svg = d3.select('#graph svg');
+      const width = +svg.attr('width');
+      const height = +svg.attr('height');
+
+      // Calculate bounding box of visible nodes
+      const nodeWidth = maxX - minX;
+      const nodeHeight = maxY - minY;
+
+      // Calculate zoom level to fit all visible nodes with some padding
+      const padding = 100;
+      const scaleX = width / (nodeWidth + padding * 2);
+      const scaleY = height / (nodeHeight + padding * 2);
+      const targetScale = Math.min(scaleX, scaleY, 1.0); // Cap at 1.0 to zoom out, not in
+
+      // Calculate the target transform to center on the center of mass
+      const targetX = width / 2 - targetScale * centerX;
+      const targetY = height / 2 - targetScale * centerY;
+
+      // Apply smooth animated transition
+      svg.transition()
+         .duration(1000)
+         .ease(d3.easeQuadInOut)
+         .call(graphZoom.transform, d3.zoomIdentity.translate(targetX, targetY).scale(targetScale));
+    }, 300);
   }
 
   // Setup all legend event listeners
@@ -2250,15 +2309,37 @@ window.MathJax = {
   function createGraph() {
     const width = window.innerWidth;
     const height = window.innerHeight;
-    
+
     const svg = d3.select("#graph")
       .append("svg")
       .attr("width", width)
       .attr("height", height);
-    
+
     const g = svg.append("g");
-    
+
     const defs = svg.append("defs");
+
+    // Create grid pattern
+    const gridPattern = defs.append("pattern")
+      .attr("id", "grid")
+      .attr("width", 200)
+      .attr("height", 200)
+      .attr("patternUnits", "userSpaceOnUse");
+
+    gridPattern.append("path")
+      .attr("d", "M 200 0 L 0 0 0 200")
+      .attr("fill", "none")
+      .attr("stroke", "#f5f5f5")
+      .attr("stroke-width", 1);
+
+    // Add grid rectangle as first element in g (so it's behind everything)
+    g.append("rect")
+      .attr("class", "grid-background")
+      .attr("x", -10000)
+      .attr("y", -10000)
+      .attr("width", 20000)
+      .attr("height", 20000)
+      .attr("fill", "url(#grid)");
     
     // Remove old marker definition since we're using direct polygons
     

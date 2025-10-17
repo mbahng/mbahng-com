@@ -385,12 +385,15 @@
 2024deepseek_deepseek-v2.md
 2024meta_llama3.md
 2024openai_gpt4.md
+2024sun_sparsity-score.md
 2024wang_yolov10.md
 2024wang_yolov9.md
 2024willard_protopnext.md
 2024xin_deepseek-prover-1.5.md
 2025deepseek_deepseek-r1.md
 2025deepseek_deepseek-v3.md
+2025dheur_conformal-scores-multi.md
 2025google_gemini.md
 2025mctavish_predictive-equivalence.md
+2025wang_mg-protopnet.md
 dataset.md
