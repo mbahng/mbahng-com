@@ -395,5 +395,6 @@
 2025dheur_conformal-scores-multi.md
 2025google_gemini.md
 2025mctavish_predictive-equivalence.md
+2025qiu_evolution-llm.md
 2025wang_mg-protopnet.md
 dataset.md
