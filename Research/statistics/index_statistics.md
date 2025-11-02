@@ -346,6 +346,7 @@
 2019loshchilov_decoupled-weight-decay.md
 2019lu_cglow.md
 2019radford_gpt2.md
+2019shallue_data-parallelism-effects.md
 2019zhou_omniscale-net.md
 2020bovhkobskiy_yolov4.md
 2020brown_gpt3.md
