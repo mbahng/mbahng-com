@@ -314,6 +314,7 @@
 2016selvaraju_gradcam.md
 2016sennrich_nmt-rare-words-subword-units.md
 2016wu_google-nmt.md
+2017amos_input-convex-nn.md
 2017dai_deformable-convnets.md
 2017forni_dfm-infinite-dim-asymptotic-analysis.md
 2017horn_inaturalist.md

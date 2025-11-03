@@ -1,6 +1,6 @@
 [[2025dheur_conformal-scores-multi.pdf]]
 #others
-[[2024sun_sparsity-score]], [[2024willard_protopnext]] 
+[[2024sun_sparsity-score]], [[2024willard_protopnext]], [[2017amos_input-convex-nn.pdf]]
 
 # Definition 
 
