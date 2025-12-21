@@ -1,0 +1,41 @@
+name: Update Daily Problems
+
+on:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: '0 0 * * *' # Run daily at midnight to refresh LeetCode pool
+
+permissions:
+  contents: write
+
+jobs:
+  update-problems:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Run extraction scripts
+        run: |
+          python extract_exercises.py
+          python fetch_leetcode.py
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add assets/json/daily_problems.json assets/json/leetcode_problems.json
+          # Only commit if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update daily problems and LeetCode cache [skip ci]"
+            git push
+          fi
