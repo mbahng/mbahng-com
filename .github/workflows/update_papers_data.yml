@@ -1,0 +1,39 @@
+name: Update Papers Data
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Runs every hour
+  workflow_dispatch:    # Allows you to run it manually from the Actions tab
+  issues:
+    types: [opened, edited, labeled, reopened]
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
+      - name: Install gh-store
+        run: pip install gh-store
+        
+      - name: Update snapshot
+        run: |
+          python -m gh_store update-snapshot \
+            --token ${{ secrets.GITHUB_TOKEN }} \
+            --repo ${{ github.repository }} \
+            --snapshot-path assets/json/gh-store-snapshot.json
+            
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update papers data snapshot"
+          file_pattern: 'assets/json/gh-store-snapshot.json'
+
