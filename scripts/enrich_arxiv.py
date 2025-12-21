@@ -29,11 +29,8 @@ def get_arxiv_metadata(paper_id):
         return None
 
 def main():
-    print("=== Metadata Enrichment Start ===")
-    
-    # CRITICAL: We check ALL issues (open and closed) because the previous workflow might have closed them.
+    print("=== Metadata Enrichment Debug Mode ===")
     try:
-        print("Fetching issues from GitHub...")
         res = subprocess.run(['gh', 'issue', 'list', '--label', 'stored-object', '--state', 'all', '--json', 'number,title,body', '--limit', '50'], 
                              capture_output=True, text=True, check=True)
         issues = json.loads(res.stdout)
@@ -41,41 +38,60 @@ def main():
         print(f"ERROR: Could not fetch issues: {e}")
         return
 
-    print(f"Found {len(issues)} issues to check.")
+    print(f"Checking {len(issues)} issues...")
     
     updates = 0
     for issue in issues:
         body = issue['body']
-        if '```json' not in body: continue
+        if '```json' not in body:
+            continue
         
         try:
             json_part = body.split('```json')[1].split('```')[0].strip()
             data = json.loads(json_part)
             
-            title = data.get('title', '')
-            is_arxiv = data.get('sourceId') == 'arxiv' or 'arxiv.org' in data.get('url', '')
+            # DEBUG LOG
+            paper_id = data.get('paperId', 'N/A')
+            current_title = data.get('title', 'N/A')
+            source = data.get('sourceId', 'N/A')
+            print(f"Processing Issue #{issue['number']} | ID: {paper_id} | Title: '{current_title}' | Source: {source}")
+
+            is_arxiv = source == 'arxiv' or 'arxiv.org' in data.get('url', '')
             
-            # Identify papers that need metadata
-            if is_arxiv and (not title or title.lower() in ['untitled', '', 'none']):
-                paper_id = data.get('paperId')
-                if not paper_id:
+            # Broadened check for "Untitled"
+            needs_fix = is_arxiv and (
+                not current_title or 
+                current_title.strip() == "" or 
+                current_title.lower() in ['untitled', 'none', 'n/a', 'paper ' + paper_id]
+            )
+
+            if needs_fix:
+                if paper_id == 'N/A':
                     match = re.search(r'(\d{4}\.\d{4,5})', data.get('url', ''))
                     if match: paper_id = match.group(1)
                 
-                if paper_id:
-                    print(f"  - Enriching Issue #{issue['number']} (ID: {paper_id})")
+                if paper_id != 'N/A':
+                    print(f"  [ACTION] Enriching {paper_id}...")
                     meta = get_arxiv_metadata(paper_id)
                     if meta:
                         data.update(meta)
                         new_body = body.replace(json_part, json.dumps(data, indent=2))
                         subprocess.run(['gh', 'issue', 'edit', str(issue['number']), '--body', new_body], check=True)
-                        print(f"    [+] Updated: {meta['title'][:50]}...")
+                        print(f"  [SUCCESS] Updated to: {meta['title'][:40]}")
                         updates += 1
                         time.sleep(1)
-        except Exception as e:
-            print(f"  [!] Skip Issue #{issue['number']}: {e}")
+                    else:
+                        print(f"  [FAILURE] Metadata not found on arXiv API.")
+            else:
+                if not is_arxiv:
+                    print("  [SKIP] Not an arXiv paper.")
+                else:
+                    print("  [SKIP] Title already populated.")
 
-    print(f"=== Enrichment Finished. {updates} updated. ===")
+        except Exception as e:
+            print(f"  [!] Error parsing JSON in Issue #{issue['number']}: {e}")
+
+    print(f"=== Finished. {updates} updated. ===")
 
 if __name__ == "__main__":
     main()
