@@ -549,18 +549,10 @@ function initTable(data) {
     paginationSize: 1000,
     paginationSizeSelector: [10, 25, 50, 100, 500, 1000, 2000, 5000],
     movableColumns: true,
-    groupBy: "lastRead",
     initialSort: [
-      {column: "lastReadTimestamp", dir: "desc"},
-      {column: "lastRead", dir: "desc"}
+      {column: "readingTimeSeconds", dir: "desc"}
     ],
     columns: [
-      {
-        title: "Read Dates", 
-        field: "interactionDays", 
-        widthGrow: 1,
-        formatter: formatInteractionDaysWithColor
-      },
       {
         title: "Read Time (s)", 
         field: "readingTimeSeconds",  
@@ -586,28 +578,12 @@ function initTable(data) {
         field: "published", 
         widthGrow: 1,
         formatter: formatPublishedWithColor
-        // formatter: function(cell) {
-        //   const cellElement = cell.getElement();
-        //   const freshness = cell.getData().paperFreshness;
-        //   cellElement.setAttribute("data-paper-freshness", freshness);
-        //   return cell.getData().published;
-        // }
       },
       {
         title: "Tags", 
         field: "tags", 
         widthGrow: 1,
         formatter: formatTags
-      },
-      {
-        title: "Last Read Date", 
-        field: "lastRead", 
-        widthGrow: 1
-      },
-      {
-        title: "Last Read time", 
-        field: "lastReadTimestamp", 
-        widthGrow: 1
       }
     ],
     rowFormatter: function(row) {
