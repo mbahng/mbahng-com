@@ -1,0 +1,75 @@
+name: Update Snapshot
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master ]
+    paths:
+      - 'assets/json/gh-store-snapshot.json'
+      - '.github/workflows/2_update_snapshot.yml'
+
+concurrency:
+  group: store-update
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: read
+  actions: read
+
+jobs:
+  update-snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for updates
+        uses: actions/github-script@v7
+        with:
+          script: |
+            while (true) {
+              const runs = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: '1_store_sync.yml',
+              });
+              
+              const activeUpdates = runs.data.workflow_runs.filter(run => 
+                (run.status === 'in_progress' || run.status === 'queued')
+              );
+              
+              if (activeUpdates.length === 0) break;
+              console.log(`Waiting for ${activeUpdates.length} active updates to complete...`);
+              await new Promise(r => setTimeout(r, 10000));
+            }
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          
+      - name: Install dependencies
+        run: pip install gh-store
+
+      # Add enrichment step here to keep titles fixed
+      - name: Enrich Metadata
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/enrich_arxiv.py
+
+      - name: Update snapshot
+        env:
+          SNAPSHOT_PATH: assets/json/gh-store-snapshot.json
+        run: |
+          python -m gh_store update-snapshot \
+            --token ${{ secrets.GITHUB_TOKEN }} \
+            --repo ${{ github.repository }} \
+            --snapshot-path ${{ env.SNAPSHOT_PATH }}
+
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: Update store snapshot [${{ github.run_id }}]"
+          file_pattern: 'assets/json/gh-store-snapshot.json'
