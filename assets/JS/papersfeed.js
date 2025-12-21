@@ -888,8 +888,8 @@ function formatDateRangeDescription(fromDate, toDate) {
 
 // Load and initialize
 document.addEventListener("DOMContentLoaded", function() {
-  // Fetch data file
-  fetch("assets/json/gh-store-snapshot.json")
+  // Fetch data file with cache buster
+  fetch(`assets/json/gh-store-snapshot.json?v=${Date.now()}`)
     .then(response => {
       if (!response.ok) {
         throw new Error("Failed to load data.json");
