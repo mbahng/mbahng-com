@@ -98,11 +98,9 @@ function initTable(data) {
     height: false,
     pagination: false,
     groupBy: "lastReadString",
-    groupHeader: function(value){
-        return value; 
-    },
+    groupHeader: function(value){ return value; },
     groupStartOpen: true,
-    groupToggleElement: false, // Disable toggle clicking on the header text
+    groupToggleElement: false,
     initialSort: [{column: "lastRead", dir: "desc"}],
     columns: [
       {title: "Time Read", field: "readingTimeSeconds", width: 120, formatter: formatReadingTime},
@@ -128,13 +126,9 @@ function initTable(data) {
             <a href="${data.url}" target="_blank" class="detail-title-link">
               <h3 class="detail-title">${data.title}</h3>
             </a>
-            <div class="detail-authors">
-              ${data.authors}
-            </div>
+            <div class="detail-authors">${data.authors}</div>
           </div>
-          <div class="detail-abstract">
-            <p>${data.abstract}</p>
-          </div>
+          <div class="detail-abstract"><p>${data.abstract}</p></div>
         </div>
       `;
       
@@ -146,10 +140,15 @@ function initTable(data) {
         document.querySelectorAll('.tabulator-row.row-open').forEach(el => {
           if (el !== element) el.classList.remove('row-open');
         });
+        
         if (isOpen) {
           element.classList.remove("row-open");
         } else {
           element.classList.add("row-open");
+          // Re-render MathJax for the newly shown abstract
+          if (window.MathJax && window.MathJax.typesetPromise) {
+            window.MathJax.typesetPromise([detailHolder]);
+          }
         }
       });
     }
@@ -161,7 +160,6 @@ function initTable(data) {
 
 function setupEventListeners() {
   const searchInput = document.getElementById("search-input");
-
   searchInput.addEventListener("input", (e) => {
     const term = e.target.value.toLowerCase();
     table.setFilter((data) => {

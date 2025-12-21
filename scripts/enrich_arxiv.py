@@ -14,22 +14,29 @@ def get_arxiv_metadata(paper_id):
         with urllib.request.urlopen(req) as response:
             xml_data = response.read().decode('utf-8')
             root = ET.fromstring(xml_data)
-            ns = {'atom': 'http://www.w3.org/2005/Atom'}
+            ns = {
+                'atom': 'http://www.w3.org/2005/Atom',
+                'arxiv': 'http://arxiv.org/schemas/atom'
+            }
             entry = root.find('atom:entry', ns)
-            if entry is None: return None
-            title_node = entry.find('atom:title', ns)
-            if title_node is None: return None
+            if entry is None or entry.find('atom:title', ns) is None: return None
+            
+            # Fetch tags (categories)
+            primary_cat = entry.find('arxiv:primary_category', ns)
+            tags = [cat.get('term') for cat in entry.findall('atom:category', ns)]
             
             return {
-                "title": title_node.text.strip().replace('\n', ' '),
+                "title": entry.find('atom:title', ns).text.strip().replace('\n', ' '),
                 "authors": [a.find('atom:name', ns).text for a in entry.findall('atom:author', ns)],
                 "abstract": entry.find('atom:summary', ns).text.strip().replace('\n', ' '),
-                "publishedDate": entry.find('atom:published', ns).text.split('T')[0]
+                "publishedDate": entry.find('atom:published', ns).text.split('T')[0],
+                "tags": tags,
+                "arxiv_tags": tags # Set both for compatibility
             }
     except: return None
 
 def main():
-    print("=== ArXiv Enrichment: Raw JSON Mode ===")
+    print("=== ArXiv Enrichment: Tag Support Enabled ===")
     try:
         res = subprocess.run(['gh', 'issue', 'list', '--label', 'stored-object', '--state', 'all', '--json', 'number,body'], 
                              capture_output=True, text=True, check=True)
@@ -42,28 +49,28 @@ def main():
         if not body.startswith('{'): continue
             
         try:
-            # Parse raw body as JSON
             data = json.loads(body)
-            
-            # Skip interaction-only issues
-            if 'interactions' in data and 'url' not in data:
-                continue
+            if 'interactions' in data and 'url' not in data: continue
 
             paper_id = data.get('paperId')
             title = data.get('title', '')
+            tags = data.get('tags', [])
             
             # Extract ID from URL if missing
             if not paper_id and 'url' in data:
                 match = re.search(r'(\d{4}\.\d{4,5})', data['url'])
                 if match: paper_id = match.group(1)
 
-            if paper_id and (not title or title.lower() in ['untitled', '']):
+            # Enrich if Title or Tags are missing
+            needs_enrichment = paper_id and (not title or title.lower() in ['untitled', ''] or not tags)
+
+            if needs_enrichment:
                 print(f"Enriching Issue #{issue['number']} (ID: {paper_id})...")
                 meta = get_arxiv_metadata(paper_id)
                 if meta:
                     data.update(meta)
                     subprocess.run(['gh', 'issue', 'edit', str(issue['number']), '--body', json.dumps(data, indent=2)], check=True)
-                    print(f"  [SUCCESS] Title: {meta['title'][:50]}...")
+                    print(f"  [SUCCESS] Tags found: {', '.join(meta['tags'])}")
                     updates += 1
                     time.sleep(1)
         except: continue
