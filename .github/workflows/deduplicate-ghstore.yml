@@ -1,0 +1,47 @@
+name: Deduplicate GH-Store Objects
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (no changes)'
+        type: boolean
+        default: false # Default to ACTUALLY cleaning up
+      specific_object:
+        description: 'Process specific object ID only (leave blank for all)'
+        type: string
+        required: false
+
+jobs:
+  deduplicate:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
+      - name: Install dependencies
+        run: pip install gh-store
+      
+      - name: Run deduplication tool
+        run: |
+          CMD="python -m gh_store.tools.canonicalize --token ${{ secrets.GITHUB_TOKEN }} --repo ${{ github.repository }}"
+          
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            CMD="$CMD --dry-run"
+          fi
+          
+          if [[ "${{ github.event.inputs.specific_object }}" != "" ]]; then
+            CMD="$CMD --object-id ${{ github.event.inputs.specific_object }}"
+          fi
+          
+          # Run deduplication
+          eval "$CMD --deduplicate"

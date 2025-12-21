@@ -1,0 +1,52 @@
+name: Build Extension
+
+on:
+  push:
+    paths:
+      - 'papers-feed-template/extension/**'
+      - '.github/workflows/build-extension.yml'
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: papers-feed-template/extension
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    # Regenerate package-lock.json to ensure it matches package.json
+    - name: Regenerate package-lock.json
+      run: |
+        if [ -f "package-lock.json" ]; then
+          rm -f package-lock.json
+        fi
+        npm install --package-lock-only --no-audit
+
+    - name: Flush old build
+      run: rm -rf dist/
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Install dependencies
+      run: npm install --prefer-offline
+        
+    - name: Build extension
+      run: |
+        set -ex
+        npm run build
+        echo "Build output:"
+        ls -la dist/
+
+    # Commit the built files
+    - name: Commit bundled files
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "chore: Update extension bundles"
+        file_pattern: "papers-feed-template/extension/dist/*"
