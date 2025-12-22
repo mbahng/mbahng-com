@@ -26,7 +26,7 @@ function formatReadingTime(cell) {
   const seconds = cell.getValue();
   if (!seconds) return '0';
   const mins = Math.floor(seconds / 60);
-  return `<span class="toggle-icon"></span><strong>${mins}m</strong> ${seconds % 60}s`;
+  return `${mins}m ${seconds % 60}s`;
 }
 
 function extractDomain(url) {
@@ -48,71 +48,60 @@ function processComplexData(data) {
     const interactionKey = `interactions:${paperId}`;
     const interactionData = objects[interactionKey] ? objects[interactionKey].data : null;
     
-    // Group interactions by day
     const sessionsByDay = new Map();
     
     if (interactionData && interactionData.interactions) {
       interactionData.interactions.forEach(i => {
         if (i.type === "reading_session") {
           const date = new Date(i.timestamp);
-          // Create a key for the date (YYYY-MM-DD)
-          // We use local date string to respect timezone, or ISO if preferred. 
-          // Assuming user wants local groupings.
-          const dateKey = date.toLocaleDateString('en-US'); 
+          // Key for grouping: YYYY-MM-DD (Sortable alphabetically)
+          const dateKey = date.toISOString().split('T')[0]; 
           
           if (!sessionsByDay.has(dateKey)) {
             sessionsByDay.set(dateKey, {
-              dateObj: date,
+              dateISO: dateKey,
+              actualLatestTimestamp: new Date(i.timestamp),
               duration: 0
             });
           }
           
           const dayData = sessionsByDay.get(dateKey);
           dayData.duration += (i.data.duration_seconds || 0);
-          
-          // Keep the latest timestamp for sorting within the day if needed
-          if (date > dayData.dateObj) {
-            dayData.dateObj = date;
+          if (new Date(i.timestamp) > dayData.actualLatestTimestamp) {
+            dayData.actualLatestTimestamp = new Date(i.timestamp);
           }
         }
       });
     }
 
-    // Common Metadata
     const commonMeta = {
       paperKey: paperKey,
       id: paperId,
       source: paperData.sourceId || extractDomain(paperData.url),
       title: paperData.title || `Paper ${paperId}`,
       authors: Array.isArray(paperData.authors) ? paperData.authors.join(', ') : (paperData.authors || 'Unknown Authors'),
-      abstract: paperData.abstract || 'No abstract available.',
+      abstract: (paperData.abstract || 'No abstract available.').replace(/\r?\n|\r/g, " ").replace(/\s+/g, " ").trim(),
       published: normalizeDate(paperData.publishedDate) || 'N/A',
       tags: paperData.tags || paperData.arxiv_tags || [],
       url: paperData.url
     };
 
-    // If no interactions, show it once under "Unknown Date" or created date
     if (sessionsByDay.size === 0) {
       const createdDate = new Date(paperRaw.meta.created_at);
-      const dateKey = createdDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      
+      const dateKey = createdDate.toISOString().split('T')[0];
       result.push({
         ...commonMeta,
         readingTimeSeconds: 0,
         lastRead: createdDate,
-        lastReadString: dateKey,
+        groupDate: dateKey,
       });
     } else {
-      // Create a row for EACH day the paper was read
-      sessionsByDay.forEach((dayInfo, dateString) => {
-        // Format date nicely for grouping
-        const formattedDate = dayInfo.dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-        
+      sessionsByDay.forEach((dayInfo, dateKey) => {
         result.push({
           ...commonMeta,
-          readingTimeSeconds: dayInfo.duration, // Time read *on that day*
-          lastRead: dayInfo.dateObj,
-          lastReadString: formattedDate
+          readingTimeSeconds: dayInfo.duration,
+          lastRead: dayInfo.actualLatestTimestamp,
+          groupDate: dateKey // Sortable ISO date
         });
       });
     }
@@ -126,11 +115,17 @@ function initTable(data) {
     layout: "fitColumns",
     height: false,
     pagination: false,
-    groupBy: "lastReadString",
-    groupHeader: function(value){ return value; },
+    groupBy: "groupDate", // Group by ISO string for correct alphabetical sorting
+    groupHeader: function(value){
+        // Convert ISO string back to "December 22, 2025" for display
+        const date = new Date(value + "T12:00:00"); // Add time to avoid TZ issues
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    },
     groupStartOpen: true,
     groupToggleElement: false,
+    // Sort by groupDate (desc) then by exact reading time (desc)
     initialSort: [
+      {column: "groupDate", dir: "desc"},
       {column: "lastRead", dir: "desc"}
     ],
     columns: [
@@ -140,12 +135,11 @@ function initTable(data) {
       {title: "Published", field: "published", width: 120},
       {title: "Tags", field: "tags", widthGrow: 2, formatter: formatTags},
       {title: "lastRead", field: "lastRead", visible: false},
-      {title: "lastReadString", field: "lastReadString", visible: false}
+      {title: "groupDate", field: "groupDate", visible: false}
     ],
     rowFormatter: function(row) {
       const element = row.getElement();
       const data = row.getData();
-      
       const existing = element.querySelector(".detail-view");
       if(existing) existing.remove();
 
@@ -162,7 +156,6 @@ function initTable(data) {
           <div class="detail-abstract"><p>${data.abstract}</p></div>
         </div>
       `;
-      
       detailHolder.addEventListener("click", (e) => e.stopPropagation());
       element.appendChild(detailHolder);
       
@@ -171,7 +164,6 @@ function initTable(data) {
         document.querySelectorAll('.tabulator-row.row-open').forEach(el => {
           if (el !== element) el.classList.remove('row-open');
         });
-        
         if (isOpen) {
           element.classList.remove("row-open");
         } else {
