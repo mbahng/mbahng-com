@@ -1,0 +1,39 @@
+name: Update PDF Page Counts
+
+on:
+  push:
+    paths:
+      - '**.pdf'
+      - 'index.html'
+      - 'scripts/count_pages.py'
+      - '.github/workflows/update_page_counts.yml'
+  workflow_dispatch:
+
+jobs:
+  update-counts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install beautifulsoup4 pypdf
+
+      - name: Run page count script
+        run: python scripts/count_pages.py
+
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add assets/json/page_counts.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update PDF page counts" && git push)

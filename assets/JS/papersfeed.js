@@ -1,4 +1,6 @@
 // assets/JS/papersfeed.js
+
+
 // Global variables
 let table;
 let allData = [];
@@ -54,7 +56,6 @@ function processComplexData(data) {
       interactionData.interactions.forEach(i => {
         if (i.type === "reading_session") {
           const date = new Date(i.timestamp);
-          // Key for grouping: YYYY-MM-DD (Sortable alphabetically)
           const dateKey = date.toISOString().split('T')[0]; 
           
           if (!sessionsByDay.has(dateKey)) {
@@ -92,7 +93,7 @@ function processComplexData(data) {
       result.push({
         ...commonMeta,
         readingTimeSeconds: 0,
-        lastRead: createdDate,
+        lastRead: createdDate.getTime(), // Use numeric timestamp
         groupDate: dateKey,
       });
     } else {
@@ -100,12 +101,16 @@ function processComplexData(data) {
         result.push({
           ...commonMeta,
           readingTimeSeconds: dayInfo.duration,
-          lastRead: dayInfo.actualLatestTimestamp,
-          groupDate: dateKey // Sortable ISO date
+          lastRead: dayInfo.actualLatestTimestamp.getTime(), // Use numeric timestamp
+          groupDate: dateKey
         });
       });
     }
   }
+  
+  // MANUAL SORT: Ensure data is strictly chronological before table init
+  result.sort((a, b) => b.lastRead - a.lastRead);
+  
   return result;
 }
 
@@ -115,31 +120,35 @@ function initTable(data) {
     layout: "fitColumns",
     height: false,
     pagination: false,
-    groupBy: "groupDate", // Group by ISO string for correct alphabetical sorting
+    
+    // Grouping Config
+    groupBy: "groupDate", 
     groupHeader: function(value){
-        // Convert ISO string back to "December 22, 2025" for display
-        const date = new Date(value + "T12:00:00"); // Add time to avoid TZ issues
+        const date = new Date(value + "T12:00:00"); 
         return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     },
     groupStartOpen: true,
     groupToggleElement: false,
-    // Sort by groupDate (desc) then by exact reading time (desc)
+    groupDir: "desc", // Keep this
+
+    // Row Sorting
     initialSort: [
-      {column: "groupDate", dir: "desc"},
       {column: "lastRead", dir: "desc"}
     ],
+    
     columns: [
       {title: "Time Read", field: "readingTimeSeconds", width: 120, formatter: formatReadingTime},
       {title: "Title", field: "title", widthGrow: 5},
       {title: "Source", field: "source", width: 100},
       {title: "Published", field: "published", width: 120},
       {title: "Tags", field: "tags", widthGrow: 2, formatter: formatTags},
-      {title: "lastRead", field: "lastRead", visible: false},
-      {title: "groupDate", field: "groupDate", visible: false}
+      {title: "lastRead", field: "lastRead", visible: false, sorter:"number"}, // Changed from datetime to number
+      {title: "groupDate", field: "groupDate", visible: false, sorter:"string"}
     ],
     rowFormatter: function(row) {
       const element = row.getElement();
       const data = row.getData();
+      
       const existing = element.querySelector(".detail-view");
       if(existing) existing.remove();
 
@@ -153,9 +162,12 @@ function initTable(data) {
             </a>
             <div class="detail-authors">${data.authors}</div>
           </div>
-          <div class="detail-abstract"><p>${data.abstract}</p></div>
+          <div class="detail-abstract" style="max-width: 80%; overflow-x: hidden;">
+            <p style="max-width: 100%; word-break: break-word; white-space: normal;">${data.abstract}</p>
+          </div>
         </div>
       `;
+      
       detailHolder.addEventListener("click", (e) => e.stopPropagation());
       element.appendChild(detailHolder);
       
