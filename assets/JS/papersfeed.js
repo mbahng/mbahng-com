@@ -137,7 +137,6 @@ function initTable(data) {
     ],
     
     columns: [
-      {title: "Time Read", field: "readingTimeSeconds", width: 120, formatter: formatReadingTime},
       {title: "Title", field: "title", widthGrow: 5},
       {title: "Source", field: "source", width: 100},
       {title: "Published", field: "published", width: 120},
