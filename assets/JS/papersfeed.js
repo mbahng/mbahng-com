@@ -171,12 +171,18 @@ function initTable(data) {
       element.appendChild(detailHolder);
       
       element.addEventListener("click", function(e) {
+        console.log('Click triggered. Initial ScrollY:', window.scrollY);
         // Prevent default browser behavior (e.g., text selection or anchor jumping)
         e.preventDefault();
         // Stop the event from bubbling up to parent elements
         e.stopPropagation();
 
+        // Save scroll position
+        const scrollX = window.scrollX;
+        const scrollY = window.scrollY;
+
         const isOpen = element.classList.contains("row-open");
+        console.log('Row is open:', isOpen);
         
         // Close other open rows
         document.querySelectorAll('.tabulator-row.row-open').forEach(el => {
@@ -185,12 +191,30 @@ function initTable(data) {
 
         if (isOpen) {
           element.classList.remove("row-open");
+          console.log('Row closed. ScrollY:', window.scrollY);
         } else {
           element.classList.add("row-open");
+          console.log('Row opened. ScrollY:', window.scrollY);
           if (window.MathJax && window.MathJax.typesetPromise) {
-            window.MathJax.typesetPromise([detailHolder]);
+            window.MathJax.typesetPromise([detailHolder]).then(() => {
+                console.log('MathJax typeset complete. ScrollY:', window.scrollY);
+            });
           }
         }
+        
+        // Restore scroll position
+        // Use requestAnimationFrame to ensure it runs after any layout changes
+        requestAnimationFrame(() => {
+            console.log('Restoring scroll position (rAF) to:', scrollY, 'Current ScrollY:', window.scrollY);
+            window.scrollTo(scrollX, scrollY);
+            console.log('Scroll position restored (rAF). Final ScrollY:', window.scrollY);
+        });
+
+        // Backup restore with setTimeout in case of delayed layout shifts or external interference
+        setTimeout(() => {
+             console.log('Restoring scroll position (timeout) to:', scrollY, 'Current ScrollY:', window.scrollY);
+             window.scrollTo(scrollX, scrollY);
+        }, 50);
       });
     }
   });
