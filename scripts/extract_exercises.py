@@ -2,8 +2,12 @@ import os
 import re
 import json
 
-root_dir = 'Natural_Sciences'
-output_file = 'assets/json/daily_problems.json'
+# Determine project root (one level up from this script)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+
+root_dir = os.path.join(project_root, 'Natural_Sciences')
+output_file = os.path.join(project_root, 'assets/json/daily_problems.json')
 exercises = []
 
 # Simplified Regex for exercise (captures everything between begin and end)

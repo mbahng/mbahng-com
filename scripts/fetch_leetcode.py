@@ -86,7 +86,11 @@ def main():
             
     print(f"Successfully fetched {len(results)} problems.")
     
-    output_file = 'assets/json/leetcode_problems.json'
+    # Determine project root (one level up from this script)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    
+    output_file = os.path.join(project_root, 'assets/json/leetcode_problems.json')
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2)
