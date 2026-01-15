@@ -170,11 +170,19 @@ function initTable(data) {
       detailHolder.addEventListener("click", (e) => e.stopPropagation());
       element.appendChild(detailHolder);
       
-      element.addEventListener("click", function() {
+      element.addEventListener("click", function(e) {
+        // Prevent default browser behavior (e.g., text selection or anchor jumping)
+        e.preventDefault();
+        // Stop the event from bubbling up to parent elements
+        e.stopPropagation();
+
         const isOpen = element.classList.contains("row-open");
+        
+        // Close other open rows
         document.querySelectorAll('.tabulator-row.row-open').forEach(el => {
           if (el !== element) el.classList.remove('row-open');
         });
+
         if (isOpen) {
           element.classList.remove("row-open");
         } else {
