@@ -1,5 +1,136 @@
 \section{Parsing} 
 
+  The whole purpose of parsing is to derive an order of operations of our tokens. There are two types or parsing. We will start out with \textit{LL parsing}, which is easier to construct by hand. 
+
+  \begin{definition}[LL Parsing]
+    \textbf{LL parsing} refers to parsing while reading the input from left-to-right, with leftmost derivation, aka ``top-down'' or ``recursive descent.'' As the name suggests, we write a bunch of mutually recursive functions---one function per non-terminal symbol. Any time we need to parse the nonterminal symbol, we call that function. 
+  \end{definition}
+
+  Let us take the grammar $G = (V, \Sigma, R, S)$ with nonterminals $V = \{S, C, A, B, Q \}$, terminals $\Sigma = \{x, a, d, b, q\}$, start symbol $S$, and production rules. Note that for any symbol $X$, $X \to$ is shorthand for $X \to \epsilon$, i.e. the rule that can ``delete'' $X$ without any cost. Furthermore, \$ indicates an \textit{end of input}. 
+  \begin{enumerate}
+    \item $\texttt{S} \to AC\$$
+    \item $C \to c$
+    \item $C \to $
+    \item $A \to aBCd$
+    \item $A \to BQ$
+    \item $B \to bB$
+    \item $B \to $
+    \item $Q \to q$
+    \item $q \to $
+  \end{enumerate} 
+  Ideally, we would like an algorithm to parse these things similar to the functions below (\texttt{eat(c)} is a function that consumes the next token and requires it to match \texttt{c}). 
+
+  \noindent\begin{minipage}{.5\textwidth}
+    \begin{lstlisting}[]{Code}
+      parseS(): 
+        parseA() 
+        parseC()
+        eat("$")
+      parseC(): 
+        if (peek() == "x"): 
+          eat("x")
+    \end{lstlisting}
+    \end{minipage}
+    \hfill
+    \begin{minipage}{.49\textwidth}
+    \begin{lstlisting}[]{Output}
+      parseA(): 
+        if (peek() == "a"): 
+          parseB() 
+          parseC() 
+          eat("d") 
+        else: 
+          parseB()
+          parseQ()
+    \end{lstlisting}
+  \end{minipage}
+
+  The potential problem is that there may be multiple choices for rules. To fix this, we talk about 4 things: \textit{SDE}, \textit{RDE}, \textit{First Set}, \textit{Follow Set}
+
+  \begin{definition}[Symbol Derives Empty]
+    A \textbf{SDE} is a function that takes in a non-terminal and returns a boolean, indicating true if the non-terminal symbol could derive the empty string.  
+  \end{definition}
+
+  \begin{example}
+    In the example above, $B, Q$ can both derive empty since $B \implies \epsilon, Q \implies \epsilon$. Consequently, since $A \implies BQ$, $A$ can also derive empty. $S$ cannot since it has a ``\$.''
+  \end{example}
+
+  \begin{definition}[Rule Derives Empty]
+    An \textbf{RDE} is a function that takes in a rule $(\alpha \to \beta)$ and returns a boolean, indicating true if the rule can be used to derive the empty string. 
+  \end{definition}
+
+  \begin{theorem}[Recursive Definition of SDE, RDE]
+    Let $\wedge, \vee$ is the logical AND and OR operations, respectively. Then, 
+    \begin{equation}
+      \SDE(S) = \bigvee_{S \to \ast} \RDE(S \to \ast)
+    \end{equation}
+    For nonterminal $n$ and terminal $t$, 
+    \begin{equation}
+      \RDE(N \to \ast t \ast) = 0
+    \end{equation}
+    since $t$ must be in all future derivations. Given nonterminals $R_0, \ldots, R_n$, we have 
+    \begin{equation}
+      \RDE(n \to R_0 \ldots R_n) = \bigwedge_{i=0}^n \SDE(R_i) 
+    \end{equation}
+  \end{theorem}
+
+  This is a good definition in itself mathematically, but this has no guarantee of termination. We can implement this fix by using a graph algorithm, keeping track of the visited states, and saying that if a symbol ever derives back to itself, then we return False. A different way is to iterate to a \textit{fixed point}, which is a great algorithmic approach in general. 
+
+  \begin{algo}[Iterative Computation of SDE, RDE]
+    The general idea is that you have a system of equations and want a solution to it. You start with a solution and keep refreshing it until it doesn't change. Start by assuming no symbols derive empty and no rules deriving empty. You iteratively correct this assumption by looking at the rules, starting with the simplest (e.g. $C \to \epsilon$ and $Q \to \epsilon$). 
+  \end{algo}
+
+  Basically, this is a 0th order optimization problem in $\{0, 1\}^N$. This will terminate since once you switch over to True, you can't go back to false. 
+
+  \begin{definition}[First Set]
+    Given nonterminal $n$ and terminal $t$, the \texttt{FirstSet} function takes in any string of nonterminals/terminals and returns a set of terminals. More specifically, a terminal $t^\prime$ is in 
+    \begin{equation}
+      \texttt{FirstSet}((n|t)^\ast)
+    \end{equation}
+    if and only if there exists some derivation that has its first character as $t^\prime$. 
+  \end{definition}
+
+  \begin{example}
+    In the example above, we can compute 
+    \begin{align}
+      \First(aBqD) & = \{a\} \\ 
+      \First(B) & = \{b, q\} \\ 
+      \First(BqD) = \{b, q\} 
+    \end{align}
+  \end{example}
+
+  \begin{theorem}[Recursive Definition of FirstSet]
+    We can define 
+    \begin{align}
+      \First() & = \{\} \\ 
+      \First(t(n|t)^\ast) & = \{t\} \\ 
+      \First(n(n|t)^\ast) & = \begin{cases} 
+        \bigcup_{n \to \ast} \First(\ast) & \text{ if } \SDE((n|t)^\ast) = 0 \\ 
+        \First((n|t)^\ast) \cup \bigcup_{n \to \ast} \First(\ast) & \text{ if } \SDE((n|t)^\ast) = 1
+      \end{cases} 
+    \end{align}
+  \end{theorem}
+
+  Note that the $\bigcup_{n \to \ast} \First(\ast)$ may infinitely recurse. So to actually compute this, we again do an iterative approach, designed so that it is guaranteed to converge. 
+  
+  \begin{algo}[Iterative Computation of FirstSet]
+    
+  \end{algo}
+
+  \begin{example}
+    So after computing this, we can see that a string in this language must start with an $a$, $b$, $q$, $c$, or $\$$, but not with a $d$!
+  \end{example}
+
+  The next function answers the following. Given that I have a nonterminal, what can legally come after it for any valid word in my language? 
+
+  \begin{definition}[Follow Set]
+    Let $G = (V, \Sigma, R, S)$ be a grammar. Then for any nonterminal $n \in V$, $\Follow(n) \subset \Sigma$ is the set of terminals satisfying the following property: $t \in \Follow(n)$ if there exists a some word $w$ derived from $S$ that contains a $n$ immediately followed by a $t$. That is, 
+    \begin{equation}
+      S \implies w, \quad w = \ldots nt \ldots
+    \end{equation}
+  \end{definition}
+
+
 \subsection{Context-Free Grammars}
 
 \subsection{Parsing Strategies}

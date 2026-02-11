@@ -1170,4 +1170,56 @@
 
 \subsection{Tokenizing} 
 
-  Now that we have the tools for lexing, we can finally do it. Really, lexing is just the same thing as tokenizing. 
+  Now that we have the tools for lexing, we can finally do it. Really, lexing is just the same thing as tokenizing. In principle, a lexer has a bunch of different regex's that you are trying to match. But what happens if you have multiple matches? Consider the example below. 
+
+  \begin{example}[Ambiguities in Tokenizing]
+    Say that we have a language with the following tokens. 
+    \begin{enumerate}
+      \item \texttt{<x>}: \texttt{x}. 
+      \item \texttt{<nxy1>}: \texttt{(x*)y} 
+      \item \texttt{<z>}: \texttt{z}
+    \end{enumerate}
+    This leads to the following DFA. 
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[automata]
+        % States
+        \node[state, initial, initial text=] (q0) {};
+        \node[state, accepting, right=of q0] (qx) {\texttt{<x>}};
+        \node[state, accepting, below=of q0] (qz) {\texttt{<z>}};
+        \node[state, accepting, below=of qx] (qnxy) {\texttt{<nxyl>}};
+        \node[state, right=of qx] (qtrap) {};
+
+        % Transitions
+        \path (q0) edge node {\texttt{x}} (qx)
+              (q0) edge node {\texttt{z}} (qz)
+              (q0) edge node {\texttt{y}} (qnxy)
+              (qx) edge node {\texttt{x}} (qtrap)
+              (qx) edge node {\texttt{y}} (qnxy)
+              (qtrap) edge [loop above] node {\texttt{x}} (qtrap)
+              (qtrap) edge node[swap] {\texttt{y}} (qnxy);
+      \end{tikzpicture}
+      \caption{} 
+      \label{fig:}
+    \end{figure}
+
+    Then, to parse ``\texttt{xxxzxxxy},'' we have 3 choices, which leads to ambiguity. 
+    \begin{enumerate}
+      \item \texttt{<x> <x> <x> <z> <nxy1>}
+      \item \texttt{<x> <x> <x> <z> <x> <nxy1>}
+      \item \texttt{<x> <x> <x> <z> <x> <x> <nxy1>}
+    \end{enumerate}
+  \end{example}
+
+  Therefore, we run it through the principle:
+  \begin{enumerate}
+    \item Take the longest match. 
+    \item Rules have an ordering. 
+  \end{enumerate}
+
+  Therefore, to detect tokens, we run it through a DFA and see the accepting state it lands on. If it is in a dead state, then output the most recent accepting state. 
+
+  Lexers can have multiple DFAs, and depending on context (through start state), you traverse different DFAs (e.g. code vs comments). To see keyword vs identifier, you usually use a hashmap to check for keywords (e.g. \texttt{if} $\to$ \texttt{<IF>}), and if there are no matches, then you catch it with a regex. 
+
+  
