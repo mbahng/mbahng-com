@@ -1,0 +1,1173 @@
+\section{Lexers} 
+
+  \begin{definition}[Alphabet]
+    An \textbf{alphabet} $\Sigma$ is a set. 
+  \end{definition}
+
+  \begin{definition}[Kleene Star]
+    Given a set $\Sigma$, we define
+    \begin{equation}
+      \Sigma^\ast \coloneqq \bigcup_{n=0}^\infty \Sigma^n
+    \end{equation}
+    Each element of $\Sigma^\ast$ is called a \textbf{word} or a \textbf{string}, and a subset of $\Sigma^\ast$ is called an \textbf{expression}. The \textbf{empty word}, denoted $\epsilon$, is the unique string of length $0$. 
+  \end{definition}
+
+  Now let's define some operations. 
+
+  \begin{definition}[Concatenation]
+    Given two words $u, v \in \Sigma^\ast$, the \textbf{concatenation} $uv = u \cdot v$ is the word formed by appending the sequence of symbols in $v$ to the sequence of symbols in $u$. 
+  \end{definition}
+
+  Note that $(\Sigma^\ast, \cdot, \epsilon)$ is a monoid, where $\epsilon$ represents the empty word. 
+
+  \begin{definition}[Formal Language]
+    A \textbf{formal language} over alphabet $\Sigma$ is a subset $L \subset \Sigma^\ast$. 
+    \begin{enumerate}
+      \item A word $w \in \Sigma^\ast$ is \textbf{well-formed} if $w \in L$. 
+      \item An expression $E \subset \Sigma^\ast$ is \textbf{well-formed} if $E \subset L$. 
+    \end{enumerate}
+  \end{definition}
+
+  \begin{example}[C Identifiers]
+    The set $\Sigma = \{\_, a, \ldots, z, A, \ldots, Z, 0, \ldots, 9\}$ can be the alphabet of the formal language $L$ representing all variable identifiers in the C programming language. 
+  \end{example}
+
+  \begin{definition}[Product of Formal Languages]
+    Given two formal languages $L_1, L_2 \subset \Sigma^\ast$, their product is defined 
+    \begin{equation}
+      L_1 L_2 \coloneqq \{ uv \mid u \in L_1, v \in L_2 \}
+    \end{equation}
+  \end{definition}
+
+  Generally, a subset of $\Sigma^\ast$ doesn't give us much structure, so we would like to define some way to pick the subset $L$ out. We can do this with \textit{grammars}. 
+
+  \begin{definition}[Formal Grammar]
+    A \textbf{formal grammar} is a 4-tuple $G = (V, \Sigma, R, S)$ consisting of the following. 
+    \begin{enumerate}
+      \item \textit{Non-terminal Symbols}. $V$ is a finite set consisting of \textbf{non-terminal symbols}, also known as \textbf{variables}. 
+      \item \textit{Terminal Symbols}. $\Sigma$ is a finite set---disjoint from $V$---consisting of \textbf{terminals}. 
+      \item \textit{Production Rule}. $R$ is a relation, i.e. is a finite subset of 
+        \begin{equation}
+          (V \cup \Sigma)^\ast V (V \cup \Sigma)^\ast \times (V \cup \Sigma)^\ast
+        \end{equation}
+        where the LHS represents the product of the languages. We usually write the relation as $\alpha \to \beta$.\footnote{In math, this is usually written $\alpha R \beta$, or $\alpha \sim \beta$ if it is an equivalence relation.}
+
+      \item \textit{Start Symbol}. $S \in V$ is the initial variable from which derivation begins. 
+    \end{enumerate}
+  \end{definition}
+
+  We can think of the production rule as a set of transformations---formally called \textit{derivations}---that you can apply to a word. 
+
+  \begin{definition}[Derivation]
+    Let $G = (V, \Sigma, R, S)$ be a formal grammar. We define a binary relation $\implies$ on the set of all strings $(V \cup \Sigma)^\ast$ as follows: A string $u$ \textbf{directly derives} $v$, written $u \implies v$, if there exists strings $\phi, \psi \in (V \cup \Sigma)^\ast$ and a production rule $(\alpha \to \beta) \in R$ such that 
+    \begin{equation}
+      u = \phi \alpha \psi, \qquad v = \phi \beta \psi
+    \end{equation}
+ 
+    We say a word $w$ is \textbf{derived} from $v$, written $v \implies w$, if $w$ can be obtained by replacing a part of $v$ according to a rule in $R$. Given grammar $G$, the language derived from $G$, denoted $L(G)$, is 
+    \begin{equation}
+      L(G) \coloneqq \{ w \in \Sigma^\ast \mid S \implies^\ast w \}
+    \end{equation}
+    where $\implies^\ast$ is the transitive closure (meaning derived in 0 or more steps). In other words, this is the set of all terminal strings that can be derived from $S$ using the rules in $R$. 
+  \end{definition}
+
+  \begin{example}
+    Let $V = \{E\}$ be the non-terminals, and $\{+, -, \texttt{num}\}$ be our terminals, which come from our lexer. Then, our production rules can look something like. 
+    \begin{enumerate}
+      \item $E \to E + E$. 
+      \item $E \to E - E$. 
+      \item $E \to \texttt{num}$. 
+    \end{enumerate}
+    So basically, if we have some word, then we can replace any $E$ in the word by any of the three choices on the right hand side. For example, we can do the following sequence of derivations. 
+    \begin{align}
+      E & \implies E + E \\ 
+        & \implies E - E + E \\
+        & \implies E - \texttt{num} + E\\
+        & \implies E + E - \texttt{num} + E 
+    \end{align}
+    You can keep doing this until there is no more production rules you can apply. For context free grammars, you basically do this until there are only terminals left, e.g. $\texttt{num} + \texttt{num} - \texttt{num} + \texttt{num}$. 
+  \end{example}
+
+  \begin{definition}[Transitive Closure]
+    The relation $\implies^\ast$, called the \textbf{reflexive transitive closure} of $\implies$, is defined as follows. $u \implies^\ast v$ if 
+    \begin{enumerate}
+      \item $u = v$, or 
+      \item There exists a finite sequence of strings $u = w_0, w_1, \ldots, w_n = v$ such that $w_i \implies w_{i+1}$ for all $0 \leq i < n$. 
+    \end{enumerate}
+  \end{definition}
+
+  \begin{definition}[Language Generated by Grammar]
+    Given grammar $G = (V, \Sigma, R, S)$, the language $L(G)$ is the set of all terminal strings that can be derived from the start symbol $S$. 
+    \begin{equation}
+      L(G) \coloneqq \{ w \in \Sigma^\ast \mid S \implies^\ast w \}
+    \end{equation}
+  \end{definition}
+
+  Therefore, you can basically think of the ``complexity'' or size of a language $L$ as being determined by the ``complexity'' of the generating grammar $G$. Usually, the alphabet is kept fixed, and the main contributor to the complexity are the production rules $R$. Depending on how much we restrict $R$, we get different levels of languages in the \textit{Chomsky Hierarchy}. 
+
+  \begin{definition}[Unrestricted]
+    An \textbf{unrestricted language} $L$ is a language that can be generated by some grammar $G$. 
+  \end{definition}
+
+  \begin{definition}[Context Sensitive]
+    A grammar is \textbf{context sensitive} if 
+    \begin{equation}
+      R \subset \{(\alpha, \beta) \mid \alpha, \beta \in (V \cup \Sigma)^+, |\alpha| \leq |\beta|\} \cup \{(S, \epsilon) \text{ if S does not appear on any RHS} \}
+    \end{equation}
+    That is, the length of the string on the right must be greater than or equal to the length of the string on the left. You cannot ``delete'' symbols are you derive. A language $L$ is \textbf{context-sensitive} if $L = L(G)$ for some context-sensitive grammar $G$. 
+  \end{definition}
+
+  For theorists, context sensitive grammars are important, but for engineers, context free grammars matter much more.  
+
+  \begin{definition}[Context Free]
+    A grammar is \textbf{context free} if 
+    \begin{equation}
+      R \subset V \times (V \cup \Sigma)^\ast
+    \end{equation}
+    That is, it asserts that the left-hand side can only contain a single non-terminal. A language $L$ is \textbf{context-free} if $L = L(G)$ for some context-free grammar $G$. 
+  \end{definition}
+
+  This allows for a parse-tree structure because each variable ``branches'' into a new string independently of its neighbors. 
+
+  \begin{example}[Context Free Grammar]
+    Let $V = \{E\}$ be the non-terminals, and $\{+, -, \texttt{num}\}$ be our terminals, which come from our lexer. Then, our production rules can look something like. 
+    \begin{enumerate}
+      \item $E \to E + E$. 
+      \item $E \to E - E$. 
+      \item $E \to \texttt{num}$. 
+    \end{enumerate}
+    So basically, if we have some word, then we can replace any $E$ in the word by any of the three choices on the right hand side. For example, we can do the following sequence of derivations. 
+    \begin{align}
+      E & \implies E + E \\ 
+        & \implies E - E + E \\
+        & \implies E - \texttt{num} + E\\
+        & \implies E + E - \texttt{num} + E 
+    \end{align}
+    You can keep doing this until there is no more production rules you can apply. For context free grammars, you basically do this until there are only terminals left, e.g. $\texttt{num} + \texttt{num} - \texttt{num} + \texttt{num}$. 
+  \end{example}
+
+  But note that this is ambiguous since there are multiple ways to derive. For example, if we wanted to get something like \texttt{num} - \texttt{num} - \texttt{num}, we can do it in either of the following ways. 
+  \begin{align}
+    E & \implies E - E \\ 
+      & \implies E - (E - E) \\ 
+      & \implies \texttt{num} - (\texttt{num} - \texttt{num}) \\
+    E & \implies E - E \\ 
+      & \implies (E - E) - E \\ 
+      & \implies (\texttt{num} - \texttt{num}) - \texttt{num} 
+  \end{align}
+
+  This is not good, so we want to modify our grammar so that it is safe from these ambiguities. 
+
+  \begin{example}
+    If we have a grammar with the following production rules. 
+    \begin{enumerate}
+      \item $E \to E + \texttt{num}$
+      \item $E \to E - \texttt{num}$ 
+      \item $E \to \texttt{num}$
+    \end{enumerate}
+    Then, we have no ambiguities since there is only one possible way 
+    \begin{align}
+      E & \implies E - \texttt{num} \\ 
+        & \implies (E - \texttt{num}) - \texttt{num} \\
+        & \implies (\texttt{num} - \texttt{num}) - \texttt{num} 
+    \end{align}
+  \end{example}
+
+  Note that figuring out whether a grammar is ambiguous or unambiguous is a bit tricky. 
+
+  \begin{definition}[Regular]
+    A grammar $G$ is \textbf{regular} if it is either of the following: 
+    \begin{enumerate}
+      \item \textit{Right Linear}. 
+        \begin{equation}
+          R \subset V \times (\Sigma \cup \Sigma V \cup \{e\}) 
+        \end{equation}
+        Meaning that every rule must look like $A \to a$ or $A \to a B$. 
+
+      \item \textit{Left Linear}. 
+        \begin{equation}
+          R \subset V \times (\Sigma \cup V \Sigma \cup \{\epsilon\}) 
+        \end{equation}
+        Meaning that every rule must look like $A \to a$ or $A \to Ba$. 
+    \end{enumerate}
+    A language $L$ is \textbf{regular} if $L = L(G)$ for some regular grammar $G$. 
+  \end{definition}
+
+  \begin{theorem}[Kleene's Theorem]
+    A language $L$ is regular if and only if there exists a DFA $M$ such that $L(M) = L$. T
+  \end{theorem}
+
+  Why is this useful? 
+
+  \begin{definition}[Categories of Words]
+    In a language, 
+    \begin{enumerate}
+      \item a \textbf{literal} is a word in $L$ that represents a fixed value directly in the source code. 
+      \item an \textbf{identifier} is a word in $L$ used to name entities such as variables, functions, and types. 
+      \item a \textbf{reserved word}, or \textbf{keyword}, is an identifier that has a fixed meaning in the language's grammar. 
+    \end{enumerate}
+  \end{definition}
+
+  \begin{definition}[Expression]
+    Let $G = (V, \Sigma, R, S)$ be a grammar and let $E \in V$ be the non-terminal symbol representing expressions. 
+  \end{definition}
+
+  \begin{definition}[Statement]
+    
+  \end{definition}
+
+
+  We want to convert a series of characters (our program) into tokens. What are some types of tokens? 
+
+
+  Note that a whitespace is not a token. 
+
+  The whole process of lexing is to convert a giant string (your code) into a sequence of tokens. But this requires us to classify what the next substring is, i.e. whether it's an identifier, a keyword, a literal, etc. So basically, we need to match these incoming words to their respective token type, and we can do this by pattern matching. By doing this pattern matching, we can determine whether a given string is of a certain token type. The most intuitive way to do this is to use regular expressions, but this turns out to be hard to compute. Therefore, we must convert it to NFAs, then DFAs, and at this point, it becomes easy for the computer to compute. 
+
+\subsection{Regular Expressions} 
+
+  \begin{definition}[Regular Expression]
+    Given an alphabet $\Sigma$, a \textbf{regular expression (regex)} is defined with the following axioms. 
+    \begin{enumerate}
+      \item \textit{Symbol}. Any character $a \in \Sigma$ is a regex. 
+      \item \textit{Epsilon}. $\epsilon$, which stands for the empty string, is a regex. 
+      \item \textit{Or}. Given regexes $R_1, R_2$, $R_1 \mid R_2$, defined to be either $R_1$ or $R_2$, is a regex. 
+      \item \textit{Concatenation}. Given regexes $R_1, R_2$, $R_1 R_2$, defined to be the concatenation of them, is a regex. 
+      \item \textit{Kleene Star}. Given regex $R$, $R^\ast$ represents a concatenation of 0 or more $R$.\footnote{Note that this is essential since the number of concatenations is unbounded. It is \textit{not} syntactic sugar.}
+    \end{enumerate}
+  \end{definition}
+
+  To make things more convenient to write, we use the following common \textit{syntactic sugar}. This doesn't add functionality.  
+  \begin{enumerate}
+    \item \textit{1 or More}. $R^+ = R R^\ast$ 
+    \item \textit{Optional}. $R? = R \mid \epsilon$\footnote{This is pretty much the only use case for $\epsilon$, so you really never write down $\epsilon$ directly in a regex. }
+    \item \textit{Any Character}. $.$ stands for any character. 
+    \item \textit{Brackets}. This just means a big ``or'' of all the characters. We can write $[abc] = (a | b | c)$, and can do $[0-9]$, $[a-z]$. 
+    \item \textit{Negation}. \texttt{[\^ R]} means any character that is not $R$. 
+  \end{enumerate}
+  We can have more syntactic sugar, but these are the most common. 
+
+  \begin{definition}[Recognized Language of a RegEx]
+    Let $w = a_1 a_2 \ldots a_n$ be a string over an alphabet $\Sigma$. The regex $R$ \textbf{accepts} the string $w$ if it matches the string. The set of all words that are accepted by a regex $R$ is called the \textbf{language generated by $R$}. 
+  \end{definition}
+
+  \begin{definition}[Computability of RegEx]
+    The process of matching a given regex to an arbitrary string is called \textbf{computing the regex}. 
+  \end{definition}
+
+  \begin{example}
+    Let us have a string \texttt{abcdef} and regex 
+    \begin{lstlisting}
+      a (b | g) e? cd (ef)^\ast 
+    \end{lstlisting}
+    Does this string match the regex? Yes. 
+  \end{example}
+
+  One of the nice things about regexs is that they aren't as powerful as arbitrary programming, which is nice since it limits the complexity. We can write a simple declarative specification, but we can't do things like the following. In fact, it is proven with math. 
+  \begin{enumerate}
+    \item write balanced parentheses, i.e. write regexes that outputs all parentheses that are properly nested
+    \item type checking
+  \end{enumerate}
+  So, with this in mind, we can write regex's for things that we might care about in programming. For keywords, it's trivial. 
+
+  \begin{example}[Counterexamples to Writing Balanced Parentheses]
+    
+  \end{example}
+
+
+  \begin{example}[C Identifiers]
+    The syntax for all numbers might look something like 
+    \begin{lstlisting}
+      0 | (-? [1-9][0-9])
+    \end{lstlisting}
+  \end{example}
+
+  \begin{example}[Numeric Identifiers] 
+    \begin{enumerate}
+      \item We may write \texttt{[1-9][0-9]*}, but this does not account for negative numbers. 
+      \item We may write \texttt{-?[1-9][0-9]*}, but this does not account for $0$. 
+      \item We may write \texttt{0 | (-?[1-9][0-9]*)}. But should we include \texttt{-0}? This then becomes more of a design choice. 
+    \end{enumerate}
+  \end{example}
+
+\subsection{Finite Automata}
+
+  In general, computing regular expressions (i.e. matching a string with a regular expression) is hard. To see if we can make this easier, we can look at \textit{DFAs}, which are generally seen as easy to compute. 
+
+  \begin{definition}[Deterministic Finite Automaton]
+    A \textbf{deterministic finite automaton (DFA)} is a 5-tuple $M = (Q, \Sigma, \delta, q_0, F)$ consisting of 
+    \begin{enumerate}
+      \item a finite set of states $Q$
+      \item a finite set of input symbols called the alphabet $\Sigma$
+      \item a transition function $\delta: Q \times \Sigma \to Q$
+      \item an initial state $q_0 \in Q$ 
+      \item a set of accepting states $F \subset Q$
+    \end{enumerate}
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[automata]
+        % Define the states
+        % State 0 is the initial state
+        \node[state, initial] (q0) at (0, 0) {0};
+        % State 1 is the accepting state, positioned to the top right
+        \node[state, accepting] (q1) at (3, 0) {1};
+        % State 2 is positioned to the bottom right
+        \node[state] (q2) at (3, -2) {2};
+
+        % Define the transitions
+        \path[->]
+          % Transitions from q0
+          (q0) edge [left] node [above] {a} (q1)
+               edge [bend left] node [below] {b} (q2)
+          % Transitions from q1
+          (q1) edge [loop right] node {a} ()
+               edge node [right] {b} (q2)
+          % Transitions from q2
+          (q2) edge [bend left] node [above] {b} (q0)
+               edge [loop right] node {a} ();
+      \end{tikzpicture}
+      \caption{Note that by definition of the transition function, every single state must have exactly one outgoing transition for every symbol in $\Sigma$.} 
+      \label{fig:dfa}
+    \end{figure}
+  \end{definition}
+
+  \begin{definition}[Recognized Language of a DFA]
+    Let $w = a_1 a_2 \ldots a_n$ be a string over alphabet $\Sigma$. The DFA $M$ \textbf{accepts} (or computes, or matches) the string $w$ if a sequence of states $r_0, r_1, \ldots, r_n$ exists in $Q$ with the following conditions. 
+    \begin{enumerate}
+      \item $r_0 = q_0$. 
+      \item $r_{i+1} = \delta(r_i, a_{i+1})$ for $i = 0, \ldots, n-1$ 
+      \item $r_n \in F$. 
+    \end{enumerate}
+    The set of all words that are accepted by a DFA $L(M)$ is called the \textbf{language generated by $M$}. 
+  \end{definition}
+
+  \begin{definition}[Nondeterministic Finite Automaton]
+    A \textbf{nondeterministic finite automaton (NFA)} is a 5-tuple $M = (Q, \Sigma, \delta, q_0, F)$ consisting of 
+    \begin{enumerate}
+      \item a finite set of states $Q$
+      \item a finite set of input symbols called the alphabet $\Sigma$
+      \item a transition function $\delta: Q \times (\Sigma \cup \{\epsilon\}) \to 2^Q$\footnote{$2^Q$ denotes the power set of $Q$.}
+      \item an initial state $q_0 \in Q$ 
+      \item a set of accepting states $F \subset Q$
+    \end{enumerate}
+    where $\epsilon$ denotes an empty string. There are edges labeled with $\epsilon$, which allows you to traverse to another node at no cost. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}[automata, node distance=2.5cm]
+        
+        % --- States ---
+        % Using \texttt for labels as requested
+        \node[state, initial, initial text=] (q0) {\texttt{q0}};
+        \node[state] (q1) [right=of q0] {\texttt{q1}};
+        \node[state] (q2) [right=of q1] {\texttt{q2}};
+        \node[state, accepting] (q3) [right=of q2] {\texttt{q3}};
+
+        % --- Transitions ---
+        \path
+          % Nondeterminism occurs here: on '0', it can loop or go right.
+          (q0) edge [loop above] node {\texttt{0,1}} (q0)
+          (q0) edge node {\texttt{0}} (q1)
+          (q1) edge node {\texttt{1}} (q2)
+          (q2) edge node {\texttt{1}} (q3);
+          
+      \end{tikzpicture}
+      \caption{An NFA accepting strings that end in \texttt{011}. Nondeterminism is evident at state \texttt{q0} upon reading a \texttt{0}.}
+      \label{fig:nfa_endswith011}
+    \end{figure}
+
+    The \textbf{epsilon closure} of a set of nodes is the set plus any other nodes that you can traverse through $\epsilon$-edges. 
+  \end{definition} 
+
+  \begin{definition}[Recognized Language of an NFA]
+    Let $w = a_1 a_2 \ldots a_n$ be a string over alphabet $\Sigma$. The DFA $M$ \textbf{accepts} (or computes, or matches) the string $w$ if a sequence of states $r_0, r_1, \ldots, r_n$ exists in $Q$ with the following conditions. 
+    \begin{enumerate}
+      \item $r_0 = q_0$. 
+      \item $r_{i+1} \in \delta(r_i, a_{i+1})$ for $i = 0, \ldots, n-1$ 
+      \item $r_n \in F$. 
+    \end{enumerate}
+    The set of all words that are accepted by a DFA $L(M)$ is called the \textbf{language generated by $M$}. 
+  \end{definition}
+
+  \begin{algo}[Converting DFA into NFA]
+    This may seem obvious, but we need to be slightly careful. 
+  \end{algo}
+
+  \begin{definition}[Operations on Finite Automata]
+    Let $M_1, M_2$ be two finite automata over the same alphabet $\Sigma$. Then, 
+    \begin{enumerate}
+      \item \textit{Union}. The union $M_1 \cup M_2$ is defined to be the FA $M$ satisfying $L(M) = L(M_1) \cup L(M_2)$. 
+      \item \textit{Complement}. The complement $M_1^c$ is defined to be the FA $M$ satisfying $L(M) = L(M_1)^c \subset \Sigma^\ast$. 
+      \item \textit{Intersection}. The intersection $M_1 \cap M_2$ is defined to be the DFA $M$ satisfying $L(M) = L(M_1) \cap L(M_2)$. 
+    \end{enumerate}
+  \end{definition}
+
+  \begin{lemma}[Union of NFA]
+    The union of two NFAs $M_1, M_2$ is simple since you can make a new start node and connect it to the start nodes of the two NFAs with an $\epsilon$-edge. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}[automata]
+        % --- NEW BLACK START NODE ---
+        \node[state, initial, initial text=] (start) at (-4, 1.5) {};
+
+        % --- RED NFA (Top) ---
+        \begin{scope}[every state/.append style={draw=red, fill=red!5}, 
+                      every edge/.append style={draw=red}]
+          \node[state] (r0) at (0, 3) {0};
+          \node[state] (r1) [right=of r0] {};
+          \node[state, accepting] (r2) [right=of r1] {};
+
+          \path
+            (r0) edge (r1)
+            (r1) edge [loop below] (r1)
+            (r1) edge (r2);
+        \end{scope}
+
+        % --- BLUE NFA (Bottom) ---
+        \begin{scope}[every state/.append style={draw=blue, fill=blue!5}, 
+                      every edge/.append style={draw=blue}]
+          \node[state] (b0) at (0, 0) {0};
+          \node[state, accepting] (b1) [right=of b0] {};
+          \node[state, accepting] (b2) [right=of b1] {};
+
+          \path
+            (b0) edge (b1)
+            (b1) edge [loop above] (b1)
+            (b1) edge (b2);
+        \end{scope}
+
+        % --- CONNECTING EDGES (Black with epsilon labels) ---
+        \path
+          (start) edge [draw=black, bend left=15] node {$\epsilon$} (r0)
+          (start) edge [draw=black, bend right=15] node [below] {$\epsilon$} (b0);
+      \end{tikzpicture}
+      \caption{Combined NFA with epsilon transitions and a shared start node.}
+      \label{fig:nfa_union}
+    \end{figure}
+  \end{lemma}
+
+  \begin{lemma}[Union of DFA]
+    You should convert them to NFAs (which is trivial), then take the union, and then convert them back. 
+  \end{lemma}
+
+  \begin{lemma}[Complement of DFA]
+    We just flip all the accept and not accept states. 
+  \end{lemma}
+
+  However, this doesn't work for an NFA. 
+
+  \begin{example}[Cannot Flip Accept States in NFA]
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[automata, node distance=2.5cm, every state/.style={thick}]
+          % Left NFA
+          \node[state, initial, initial text=] (q0) {};
+          \node[state] (q1) [above right=of q0] {};
+          \node[state, accepting] (q2) [below right=of q0] {};
+
+          \path[->]
+            (q0) edge node {\texttt{a}} (q1)
+            (q0) edge (q2);
+        \end{tikzpicture}
+        \caption{Accepts \texttt{a}.}
+        \label{fig:nfa_left}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[automata, node distance=2.5cm, every state/.style={thick}]
+          % Right NFA
+          \node[state, initial, accepting, initial text=] (q3) {};
+          \node[state, accepting] (q4) [above right=of q3] {};
+          \node[state] (q5) [below right=of q3] {};
+
+          \path[->]
+            (q3) edge node {\texttt{a}} (q4)
+            (q3) edge (q5);
+        \end{tikzpicture}
+        \caption{Also accepts \texttt{a}, as well as the empty string.}
+        \label{fig:nfa_right}
+      \end{subfigure}
+      \caption{}
+      \label{fig:nfa_comparison}
+    \end{figure}
+  \end{example}
+
+  \begin{lemma}[Complement of NFA]
+    Therefore, you must turn an NFA into a DFA and do the complement, and then turn it back. 
+  \end{lemma}
+
+  \begin{theorem}[Accepting Nothing]
+    We can check if a DFA or NFA accepts nothing by doing BFS and seeing if we can get to an accepting state. 
+  \end{theorem}
+
+  \begin{theorem}[Equivalence of NFA/DFAs]
+    We can check if two DFAs or two NFAs are equivalent using the rule 
+    \begin{equation}
+      A = B \iff \overline{A} \cap B \emptyset, A \cap \overline{B} = \emptyset
+    \end{equation}
+    Therefore, we can check if two regex's are equivalent by converting them into DFAs first. 
+  \end{theorem}
+
+  Note that checking equivalence is a very nontrivial thing for algorithms, and in fact is provably impossible to check for arbitrary algorithms (called undecidability). 
+
+  In general, DFAs are known to be the easiest to compute. You can implement this basically as a giant hash table, with the accepting states stored in a list or something. 
+
+  \begin{example}[Computing a DFA]
+    Consider the DFA above, and the string \texttt{ababba}. 
+  \end{example}
+
+  In general, DFAs are preferred by computers, while humans prefer regular expressions. We want to bridge them somehow so that we can convert regexes to DFAs, and we do this with nondeterministic finite automata. This allows us to write a nice declarative. 
+
+  The problem with NFAs is that it may take an exponential time to compute due to possible branching factors at every node. It turns out that we can turn an NFA into a DFA, which may theoretically have exponentially more nodes, but in general does not. 
+
+  \begin{algo}[Converting NFA to DFA]
+    This is basically a fancy BFS algorithm. A DFA state is going to be a set of NFA states. Finally, the accepting state of the NFA is any state that contains the accepting state of the DFA. 
+  \end{algo}
+
+  \begin{example}[Converting NFA to DFA]
+    \begin{figure}[H]
+      \centering
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[automata]
+          % Define the states
+          \node[state, initial, initial text=] (q0) {0};
+          \node[state, accepting] (q1) [right=of q0] {1};
+
+          % Define the transition
+          \path[->]
+            (q0) edge node {a} (q1);
+        \end{tikzpicture}
+        \caption{}
+      \end{subfigure}
+      \hfill 
+      \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \begin{tikzpicture}[automata]
+          % Define the states
+          \node[state, initial] (q0) {$\{0\}$};
+          \node[state, accepting] (q1) [right=of q0] {$\{1\}$};
+          \node[state] (q2) [below=of q1] {$\{\}$}; % Dead state
+
+          % Define the transitions
+          \path[->]
+            % From state 0
+            (q0) edge node {a} (q1)
+                 edge node [left] {b} (q2)
+            % From state 1 (already accepted 'a', so any further input is a fail)
+            (q1) edge node [right] {a, b} (q2)
+            % From the dead state (stay here forever)
+            (q2) edge [loop right] node [right] {a, b} (q2);
+        \end{tikzpicture}
+        \caption{}
+      \end{subfigure}
+      \caption{}
+    \end{figure}
+  \end{example}
+
+  \begin{example}[Converting NFA to DFA]
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[automata]
+        % Define the states
+        \node[state, initial, initial text=] (q0) at (0, 0) {0};
+        \node[state] (q1) at (3.5, 0) {1};
+        \node[state, accepting] (q2) at (3.5, 3) {2};
+        \node[state] (q3) at (7, 0) {3};
+
+        % Define the transitions
+        \path[->]
+          % Transitions from state 0
+          (q0) edge node {$\epsilon$} (q1)
+               edge [bend left=35] node {a} (q2)
+          % Transitions from state 1
+          (q1) edge [loop above] node {a} ()
+               edge [bend left=15] node {b} (q2)
+               edge node {b} (q3)
+          % Transitions from state 2
+          (q2) edge [loop above] node {b} ()
+               edge [bend left=35] node {b} (q3)
+          % Transitions from state 3
+          (q3) edge [loop right] node {a} ()
+               edge [bend left=25] node {a} (q0);
+      \end{tikzpicture}
+      \caption{NFA.} 
+      \label{fig:nfa_to_dfa}
+    \end{figure}
+
+    \begin{figure}[H]
+      \centering 
+      \begin{tikzpicture}[automata]
+        % Define the states
+        \node[state, initial, initial text=] (s01)   at (0, 4)  {$\{0,1\}$};
+        \node[state, accepting] (s12)   at (4, 4)  {$\{1,2\}$};
+        \node[state] (s1)    at (8, 4)  {$\{1\}$};
+        \node[state, accepting] (s23)   at (0, 1)  {$\{2,3\}$};
+        \node[state, accepting] (s0123) at (4, -1) {$\{0,1,$\\$2,3\}$}; 
+        \node[state] (s013)  at (0, -2) {$\{0,1,3\}$};
+
+        % Define the transitions
+        \path[->]
+          (s01) edge node {a} (s12)
+                edge node [left] {b} (s23)
+          (s12) edge node {a} (s1)
+                edge node [below left] {b} (s23)
+          (s1)  edge [loop below] node {a} (s1)
+                edge [bend left=15] node {b} (s23)
+          (s23) edge [loop left] node {b} (s23)
+                edge [bend left=30] node {a} (s013)
+          (s013) edge [bend left=30] node {b} (s23)
+                 edge node {a} (s0123)
+          (s0123) edge [loop right] node {a} (s0123)
+                  edge node [above right] {b} (s23);
+      \end{tikzpicture}
+      \caption{DFA.} 
+      \label{fig:nfa_to_dfa2}
+    \end{figure}
+  \end{example}
+
+  \begin{algo}[Converting RegEx to NFA]
+    This is a recursive algorithm. 
+    \begin{enumerate}
+      \item \textit{Symbol}. A symbol $a \in A$ is converted to a simple one edge graph. This is one of the base cases. 
+
+        \begin{figure}[H]
+          \centering 
+          \begin{tikzpicture}[shorten >=1pt, node distance=2.5cm, on grid, auto, thick]
+            % Define the states
+            \node[state, initial, initial text=] (q0) {};
+            \node[state, accepting] (q1) [right=of q0] {};
+
+            % Define the transition
+            \path[->]
+              (q0) edge node {a} (q1);
+          \end{tikzpicture}
+          \caption{} 
+        \end{figure}
+
+      \item \textit{Epsilon}. The $\epsilon$ is converted to just an accepting state. Note that it can't take in an input. This is another base case. 
+
+        \begin{figure}[H]
+          \centering 
+          \begin{tikzpicture}[shorten >=1pt, node distance=2.5cm, on grid, auto, thick]
+            % Define the states
+            \node[state, accepting, initial text=] (q1) {};
+          \end{tikzpicture}
+          \caption{} 
+        \end{figure}
+
+      \item \textit{Or}. Given two NFAs representing $R_1$ and $R_2$, we take the start node and connect it to the start nodes of the two NFAs with an $\epsilon$-edge.\footnote{Note that the presence of $\epsilon$-edges makes things a lot easier for us.}
+
+        \begin{figure}[H]
+          \centering
+          \begin{tikzpicture}[automata]
+            % --- NEW BLACK START NODE ---
+            \node[state, initial, initial text=] (start) at (-4, 1.5) {};
+
+            % --- RED NFA (Top) ---
+            \begin{scope}[every state/.append style={draw=red, fill=red!5}, 
+                          every edge/.append style={draw=red}]
+              \node[state] (r0) at (0, 3) {0};
+              \node[state] (r1) [right=of r0] {};
+              \node[state, accepting] (r2) [right=of r1] {};
+
+              \path
+                (r0) edge (r1)
+                (r1) edge [loop below] (r1)
+                (r1) edge (r2);
+            \end{scope}
+
+            % --- BLUE NFA (Bottom) ---
+            \begin{scope}[every state/.append style={draw=blue, fill=blue!5}, 
+                          every edge/.append style={draw=blue}]
+              \node[state] (b0) at (0, 0) {0};
+              \node[state, accepting] (b1) [right=of b0] {};
+              \node[state, accepting] (b2) [right=of b1] {};
+
+              \path
+                (b0) edge (b1)
+                (b1) edge [loop above] (b1)
+                (b1) edge (b2);
+            \end{scope}
+
+            % --- CONNECTING EDGES (Black with epsilon labels) ---
+            \path
+              (start) edge [draw=black, bend left=15] node {$\epsilon$} (r0)
+              (start) edge [draw=black, bend right=15] node [below] {$\epsilon$} (b0);
+          \end{tikzpicture}
+          \caption{Combined NFA with epsilon transitions and a shared start node.}
+          \label{fig:combined_nfa_epsilon}
+        \end{figure}
+
+      \item \textit{Concatenation}. For $R_1 R_2$, we combine the two NFAs by taking all accepting states in $R_1$ and connect them to the start of $R_2$ with an $\epsilon$-edge. Then, we change the accepting states of $R_1$ to regular states. 
+
+        \begin{figure}[H]
+          \centering
+          \begin{tikzpicture}[automata, node distance=2.5cm]
+            % --- RED NFA (Left) ---
+            \begin{scope}[every state/.append style={draw=red, fill=red!5}, 
+                          every edge/.append style={draw=red}]
+              \node[state, initial, initial text=] (r0) at (0, 0) {0};
+              \node[state, accepting] (r1) [above right=of r0] {};
+              \node[state, accepting] (r2) [below right=of r1] {};
+
+              \path
+                (r0) edge [bend left=15] (r1)
+                (r1) edge [loop above] (r1)
+                (r1) edge [bend left=15] (r2);
+            \end{scope}
+
+            % --- BLUE NFA (Right) ---
+            \begin{scope}[every state/.append style={draw=blue, fill=blue!5}, 
+                          every edge/.append style={draw=blue}]
+              % Shifted right relative to the red graph
+              \node[state] (b0) at (6, 0) {0}; 
+              \node[state] (b1) [above right=of b0] {};
+              \node[state, accepting] (b2) [below right=of b1] {};
+
+              \path
+                (b0) edge [bend left=15] (b1)
+                (b1) edge [loop above] (b1)
+                (b1) edge [bend left=15] (b2)
+                (b2) edge [bend left=15] (b1)
+                (b2) edge [] (b0);
+            \end{scope}
+
+            % --- CONNECTING EDGE ---
+            % Connecting red accepting states to blue start state
+            \path
+              (r2) edge [draw=black] node [above] {$\epsilon$} (b0)
+              (r1) edge [draw=black, bend left=15] node [above] {$\epsilon$} (b0);
+          \end{tikzpicture}
+          \caption{Sequential composition of two NFAs via epsilon transition.}
+          \label{fig:sequential_nfa}
+        \end{figure}
+
+      \item \textit{Kleene Start}. Given the NFA of a regex $R$ with start node $0$, to find the NFA of $R^\ast$, we do the following. First, make a new start accepting node $s$ and draw an edge $s \xrightarrow{\epsilon} 0$. This makes $0$ not a start node anymore. Finally, for each accepting node $a$ in the NFA of $R$, draw edges $a \xrightarrow{\epsilon} s$. 
+
+        \begin{figure}[H]
+          \centering
+          \begin{tikzpicture}[automata, node distance=2.5cm]
+            % --- ORIGINAL NFA OF R (Blue) ---
+            \begin{scope}[every state/.append style={draw=blue, fill=blue!5}, 
+                          every edge/.append style={draw=blue}]
+              % The original start node '0' is no longer the entry point
+              \node[state] (q0) at (0, 0) {0};
+              \node[state] (q1) [above right=of q0] {};
+              % Original accepting node 'a'
+              \node[state, accepting] (qa) [below right=of q1] {a};
+
+              \path
+                (q0) edge [bend left=15] (q1)
+                (q1) edge [loop above] (q1)
+                (q1) edge [bend left=15] (qa);
+            \end{scope}
+
+            % --- NEW KLEENE STAR COMPONENTS (Black) ---
+            % 1. New start accepting node 's'
+            \node[state, initial, accepting, initial text=] (s) at (-3, 0) {s};
+
+            \path
+              % 2. Edge s -> 0
+              (s)  edge [draw=black, bend left=15] node [above] {$\epsilon$} (q0)
+              % 3. Edge a -> s
+              (qa) edge [draw=black, bend left=45] node [below] {$\epsilon$} (s);
+          \end{tikzpicture}
+          \caption{ The new start node is necessary to avoid the possibility of going around in the NFA and ending at the old start node. }
+
+          \label{fig:kleene_star}
+        \end{figure}
+        
+    \end{enumerate}
+  \end{algo}
+
+  So given a regular expression, we convert this to an NFA and then a DFA, which may be (but generally not) exponential complexity with respect to the regex alphabet. But it is independent of the length of the string that we are matching. The matching itself is linear, so we can run millions of bytes-long strings through this DFA. 
+
+  So far, establishing these algorithms to compute DFAs doesn't have an obvious connection to NFAs. It turns out that lexers end up having a bunch of DFAs in them, with different accepting states for different tokens. 
+
+  \begin{example}[NFAs are More Verifiable to Humans]
+    Consider the language $L$ of all comments that have delimiters of the form \texttt{/\# ... \#/}. How would we write this as a regular expression? 
+    \begin{enumerate}
+      \item Our first intuition would be something like \texttt{/\#(.*)\#/}, but this includes strings of form \texttt{/\#\#//\#\#/}, which is two comments. 
+      \item We may try to write \texttt{/\#([\^{}\#]|\#[\^{}/])*\#/}, but this includes strings of form \texttt{/\#\#\#/...\#/}, which again isn't viable. 
+    \end{enumerate}
+    Generally, when you have to keep thinking of edge cases and you`re hacking things, you're on the losing side. However, if we think of this in terms of an NFA, this becomes much better. 
+
+    \begin{figure}[H]
+      \centering
+      \begin{tikzpicture}[automata, node distance=2.5cm]
+        
+        % --- States ---
+        % Node labels wrapped in \texttt{}
+        \node[state, initial, initial text=] (q0) at (0, 0) {1};
+        \node[state] (q1) [right=of q0] {2};
+        \node[state] (q2) [right=of q1] {3};
+        \node[state] (q3) [right=of q2] {4};
+        \node[state, accepting] (qa) [right=of q3] {5};
+
+        % --- Edges ---
+        % Edge labels wrapped in \texttt{}
+        % Note: # still needs escaping as \# inside \texttt{}
+        \path
+          (q0) edge node {\texttt{/}} (q1)
+          (q1) edge node {\texttt{\#}} (q2)
+          (q2) edge [loop above] node {\texttt{[\^{}\#]}} (q2)
+          (q2) edge node {\texttt{\#}} (q3)
+          (q3) edge [loop above] node {\texttt{\#}} (q3)
+          (q3) edge node {\texttt{/}} (qa)
+          (q3) edge [bend left=50] node [below] {\texttt{[\^{}\#]}} (q2);
+          
+      \end{tikzpicture}
+      \caption{An NFA is much more intuitive to verify.}
+      \label{fig:nfa_original_texttt}
+    \end{figure}
+  \end{example}
+
+  \begin{algo}[NFA to RegEx]
+    There are three rules to converting an NFA $M$ with start state $s$ and accepting states $F$ to RegEx's. To do this, we actually put this into an intermediate form called a \textit{generalized NFA}, which has regex's in edge labels, not just symbols. First, add a new start $S$ and connect $S \xrightarrow{\epsilon} s$. Also add a new ``end state'' $E$ and for every $f \in F$, connect $f \xrightarrow{\epsilon} E$. We do this is so that we avoid messy problems where there are multiple edges or loops. 
+
+    \begin{enumerate}
+      \item \textit{Eliminate State without Loop}. To delete a node that doesn't have an outgoing edge that loops back to itself, look at all incoming edges and outgoing edges, and directly connect all edges. 
+
+        \begin{figure}[H]
+          \centering
+          % --- Left Subfigure: Central Node Construction ---
+          \begin{subfigure}[b]{0.48\textwidth}
+            \centering
+            \begin{tikzpicture}[automata, node distance=2.5cm, every state/.style={thick}]
+              % Define corners
+              \node[state] (q0) at (0, 2) {};
+              \node[state] (q1) at (4, 2) {};
+              \node[state] (q2) at (0, 0) {};
+              \node[state] (q3) at (4, 0) {};
+              % Define center
+              \node[state] (qc) at (2, 1) {};
+
+              \path[->]
+                (q0) edge node [above, pos=0.5] {\texttt{a}} (qc)
+                (q2) edge node [above, pos=0.5] {\texttt{b}} (qc)
+                (qc) edge node [above, pos=0.5] {\texttt{c}} (q1)
+                (qc) edge node [above, pos=0.5] {\texttt{d}} (q3);
+            \end{tikzpicture}
+            \caption{NFA with intermediate state.}
+            \label{fig:nfa_with_center}
+          \end{subfigure}
+          \hfill 
+          % --- Right Subfigure: Direct Connections ---
+          \begin{subfigure}[b]{0.48\textwidth}
+            \centering
+            \begin{tikzpicture}[automata, node distance=2.5cm, every state/.style={thick}]
+              % Define corners
+              \node[state] (q0) at (0, 2) {};
+              \node[state] (q1) at (4, 2) {};
+              \node[state] (q2) at (0, 0) {};
+              \node[state] (q3) at (4, 0) {};
+
+              \path[->]
+                (q0) edge node [above] {\texttt{ac}} (q1)
+                (q0) edge node [pos=0.3, above] {\texttt{ad}} (q3)
+                (q2) edge node [pos=0.3, below] {\texttt{bc}} (q1)
+                (q2) edge node [below] {\texttt{bd}} (q3);
+            \end{tikzpicture}
+            \caption{Direct connections after state removal.}
+            \label{fig:nfa_direct}
+          \end{subfigure}
+          \caption{Comparison of an NFA before and after removing a central state via state elimination.}
+          \label{fig:state_elimination_example}
+        \end{figure}
+
+      \item \textit{Eliminate State with Loop}. To delete a node that does have an outgoing edge that loops back to itself, 
+
+        \begin{figure}[H]
+          \centering
+          % --- Left Subfigure: Node with Loop ---
+          \begin{subfigure}[b]{0.48\textwidth}
+            \centering
+            \begin{tikzpicture}[automata, every state/.style={thick}]
+              % Defining nodes at specific coordinates
+              \node[state] (q0) at (-2, 0) {};
+              \node[state] (q1) at (0, 0) {};
+              \node[state] (q2) at (2, 0) {};
+
+              \path[->]
+                (q0) edge node [above] {\texttt{a}} (q1)
+                (q1) edge [loop above] node {\texttt{b}} (q1)
+                (q1) edge node [above] {\texttt{c}} (q2);
+            \end{tikzpicture}
+            \caption{NFA with a self-looping intermediate state.}
+            \label{fig:loop_left}
+          \end{subfigure}
+          \hfill 
+          % --- Right Subfigure: Elimination Result ---
+          \begin{subfigure}[b]{0.48\textwidth}
+            \centering
+            \begin{tikzpicture}[automata, every state/.style={thick}]
+              % Middle node removed; outer nodes kept at original coordinates
+              \node[state] (q0) at (-2, 0) {};
+              \node[state] (q2) at (2, 0) {};
+
+              \path[->]
+                (q0) edge node [above] {\texttt{a(b*)c}} (q2);
+            \end{tikzpicture}
+            \caption{Resulting NFA after eliminating the middle state.}
+            \label{fig:loop_right}
+          \end{subfigure}
+          \caption{Demonstration of the state elimination rule for self-loops.}
+          \label{fig:loop_elimination}
+        \end{figure}
+
+      \item \textit{Collapse Multiple Edges Between 2 States}. If there are two nodes $n, m$ with multiple edges pointing from $n$ to $m$, then we can just replace it with a single edge that represents an or. 
+
+        \begin{figure}[H]
+          \centering
+          % --- Left Subfigure: Parallel Edges ---
+          \begin{subfigure}[b]{0.48\textwidth}
+            \centering
+            \begin{tikzpicture}[automata]
+              \node[state] (q0) at (-1.5, 0) {};
+              \node[state] (q1) at (1.5, 0) {};
+
+              \path
+                (q0) edge [bend left=25] node [above] {\texttt{a}} (q1)
+                (q0) edge [bend right=25] node [below] {\texttt{b}} (q1);
+            \end{tikzpicture}
+            \caption{Two nodes connected by parallel edges.}
+            \label{fig:parallel_left}
+          \end{subfigure}
+          \hfill 
+          % --- Right Subfigure: Combined Edge ---
+          \begin{subfigure}[b]{0.48\textwidth}
+            \centering
+            \begin{tikzpicture}[automata]
+              \node[state] (q0) at (-1.5, 0) {};
+              \node[state] (q1) at (1.5, 0) {};
+
+              \path
+                (q0) edge node [above] {\texttt{a|b}} (q1);
+            \end{tikzpicture}
+            \caption{Parallel edges combined using the union operator.}
+            \label{fig:parallel_right}
+          \end{subfigure}
+          \caption{State elimination rule for combining parallel edges into a single regular expression.}
+          \label{fig:elimination_parallel}
+        \end{figure}
+    \end{enumerate}
+
+    At the end, we will have one edge from $s$ 
+  \end{algo}
+
+  \begin{example}[Deriving RegEx for Comments from NFA]
+    Let's do the conversion on the NFA above. 
+    \begin{enumerate}
+      \item \textit{Start}. We add the new start and end states. 
+
+        \begin{figure}[H]
+          \centering
+          \begin{tikzpicture}[automata, node distance=2cm]
+            
+            % --- States ---
+            \node[state, initial, initial text=] (s) at (-1.5, 0) {\texttt{S}};
+            \node[state] (q0) [right=of s] {\texttt{1}};
+            \node[state] (q1) [right=of q0] {\texttt{2}};
+            \node[state] (q2) [right=of q1] {\texttt{3}};
+            \node[state] (q3) [right=of q2] {\texttt{4}};
+            \node[state] (q4) [right=of q3] {\texttt{5}};
+            \node[state, accepting] (e) [right=of q4] {\texttt{E}};
+
+            % --- Edges ---
+            \path
+              (s)  edge node {$\epsilon$} (q0)
+              (q4) edge node {$\epsilon$} (e)
+              (q0) edge node {\texttt{/}} (q1)
+              (q1) edge node {\texttt{\#}} (q2)
+              (q2) edge [loop above] node {\texttt{[\^{}\#]}} (q2)
+              (q2) edge node {\texttt{\#}} (q3)
+              (q3) edge [loop above] node {\texttt{\#}} (q3)
+              (q3) edge node {\texttt{/}} (q4)
+              (q3) edge [bend left=50] node [below] {\texttt{[\^{}\#/]}} (q2);
+              
+          \end{tikzpicture}
+          \caption{Condensed NFA with \texttt{node distance=2cm}.}
+        \end{figure}
+
+      \item \textit{State 2}. 
+
+        \begin{figure}[H]
+          \centering
+          \begin{tikzpicture}[automata, node distance=2cm]
+            
+            % --- States ---
+            \node[state, initial, initial text=] (s) at (-1.5, 0) {\texttt{S}};
+            \node[state] (q0) [right=of s] {\texttt{1}};
+            \node[state] (q2) [right=of q0] {\texttt{3}};
+            \node[state] (q3) [right=of q2] {\texttt{4}};
+            \node[state] (q4) [right=of q3] {\texttt{5}};
+            \node[state, accepting] (e) [right=of q4] {\texttt{E}};
+
+            % --- Edges ---
+            \path
+              (s)  edge node {$\epsilon$} (q0)
+              (q4) edge node {$\epsilon$} (e)
+              (q0) edge node {\texttt{/\#}} (q2)
+              (q2) edge [loop above] node {\texttt{[\^{}\#]}} (q2)
+              (q2) edge node {\texttt{\#}} (q3)
+              (q3) edge [loop above] node {\texttt{\#}} (q3)
+              (q3) edge node {\texttt{/}} (q4)
+              (q3) edge [bend left=50] node [below] {\texttt{[\^{}\#/]}} (q2);
+              
+          \end{tikzpicture}
+          \caption{Reduced NFA with \texttt{node distance=2cm} and corrected \texttt{\^{}} notation.}
+        \end{figure}
+
+      \item \textit{State 1}. 
+
+        \begin{figure}[H]
+          \centering
+          \begin{tikzpicture}[automata, node distance=2cm]
+            
+            % --- States ---
+            \node[state, initial, initial text=] (s) at (-1.5, 0) {\texttt{S}};
+            % State 1 has been removed; S now connects directly to State 3
+            \node[state] (q2) [right=of s] {\texttt{3}};
+            \node[state] (q3) [right=of q2] {\texttt{4}};
+            \node[state] (q4) [right=of q3] {\texttt{5}};
+            \node[state, accepting] (e) [right=of q4] {\texttt{E}};
+
+            % --- Edges ---
+            \path
+              % S now goes directly to 3 with the combined label
+              (s)  edge node {\texttt{/\#}} (q2)
+              (q4) edge node {$\epsilon$} (e)
+              % Remaining original transitions
+              (q2) edge [loop above] node {\texttt{[\^{}\#]}} (q2)
+              (q2) edge node {\texttt{\#}} (q3)
+              (q3) edge [loop above] node {\texttt{\#}} (q3)
+              (q3) edge node {\texttt{/}} (q4)
+              (q3) edge [bend left=50] node [below] {\texttt{[\^{}\#/]}} (q2);
+              
+          \end{tikzpicture}
+          \caption{The NFA after eliminating state \texttt{1}. The transition label \texttt{/\#} is moved to the edge starting from \texttt{S}.}
+        \end{figure}
+
+      \item \textit{State 5}. 
+
+        \begin{figure}[H]
+          \centering
+          \begin{tikzpicture}[automata, node distance=2cm]
+            
+            % --- States ---
+            \node[state, initial, initial text=] (s) at (-1.5, 0) {\texttt{S}};
+            \node[state] (q2) [right=of s] {\texttt{3}};
+            \node[state] (q3) [right=of q2] {\texttt{4}};
+            % State 5 removed; State 4 now connects directly to E
+            \node[state, accepting] (e) [right=of q3] {\texttt{E}};
+
+            % --- Edges ---
+            \path
+              (s)  edge node {\texttt{/\#}} (q2)
+              % q3 (state 4) now goes directly to E with the label '/'
+              (q3) edge node {\texttt{/}} (e)
+              % Remaining original transitions
+              (q2) edge [loop above] node {\texttt{[\^{}\#]}} (q2)
+              (q2) edge node {\texttt{\#}} (q3)
+              (q3) edge [loop above] node {\texttt{\#}} (q3)
+              (q3) edge [bend left=50] node [below] {\texttt{[\^{}\#/]}} (q2);
+              
+          \end{tikzpicture}
+          \caption{The NFA after eliminating state \texttt{5}. The transition to the end state \texttt{E} is now the single character \texttt{/}.}
+        \end{figure}
+
+      \item \textit{State 4}. Since state 4 has a loop, we use the second rule. It has an incoming edge from 3 with a \texttt{\#}, a loop edge with a \texttt{\#}, and an outgoing edge to state E with a \texttt{/} and another outgoing edge to state 3 with a \texttt{[\^{}\#]}. Therefore, 
+        \begin{align}
+          (3 \xrightarrow{\texttt{\#}} 4 \xrightarrow{\texttt{/}} E) & \implies (3 \xrightarrow{\texttt{\#(\#*)/}} E) = (3 \xrightarrow{\texttt{(\#+)/}} E) \\ 
+          (3 \xrightarrow{\texttt{\#}} 4 \xrightarrow{\texttt{[\^{}\#]}} 3) & \implies (3 \xrightarrow{\texttt{\#(\#*)[\^{}\#]}} 3) = (3 \xrightarrow{\texttt{(\#+)[\^{}\#]}} 3)
+        \end{align}
+
+        \begin{figure}[H]
+          \centering
+          \begin{tikzpicture}[automata, node distance=3cm]
+            
+            % --- States ---
+            \node[state, initial, initial text=] (s) at (-1.5, 0) {\texttt{S}};
+            \node[state] (q2) [right=of s] {\texttt{3}};
+            \node[state, accepting] (e) [right=of q2] {\texttt{E}};
+
+            % --- Edges ---
+            \path
+              % Transition from S to 3 remains the same
+              (s)  edge node {\texttt{/\#}} (q2)
+              
+              % Path 3 -> 4 -> E becomes 3 -> #(#*)/ -> E
+              (q2) edge node [above] {\texttt{(\#+)/}} (e)
+              
+              % Path 3 -> 4 -> 3 becomes a new loop on 3: #(#)*[^#]
+              % We combine this with the existing loop [^#] using the union operator '|'
+              (q2) edge [loop above] node [align=center] {\texttt{[\^{}\#]}} (q2)
+              (q2) edge [loop below] node [align=center] {\texttt{(\#+)[\^{}\#/]}} (q2);
+              
+          \end{tikzpicture}
+          \caption{The NFA after eliminating state \texttt{4}. The paths through state 4 are converted into a direct edge to \texttt{E} and an additional loop component on state \texttt{3}.}
+        \end{figure}
+
+      \item \textit{State 3}. Since there are two edges that have the same source and destination nodes (both state 3), we should collapse them using rule 3. 
+
+        \begin{figure}[H]
+          \centering
+          \begin{tikzpicture}[automata, node distance=3cm]
+            
+            % --- States ---
+            \node[state, initial, initial text=] (s) at (-1.5, 0) {\texttt{S}};
+            \node[state] (q2) [right=of s] {\texttt{3}};
+            \node[state, accepting] (e) [right=of q2] {\texttt{E}};
+
+            % --- Edges ---
+            \path
+              % Transition from S to 3 remains the same
+              (s)  edge node {\texttt{/\#}} (q2)
+              
+              % Path 3 -> 4 -> E becomes 3 -> #(#*)/ -> E
+              (q2) edge node [above] {\texttt{(\#+)/}} (e)
+              
+              % Path 3 -> 4 -> 3 becomes a new loop on 3: #(#)*[^#]
+              % We combine this with the existing loop [^#] using the union operator '|'
+              (q2) edge [loop above] node [align=center] {\texttt{[\^{}\#]|(\#+)[\^{}\#/]}} (q2);
+          \end{tikzpicture}
+          \caption{The NFA after eliminating state \texttt{4}. The paths through state 4 are converted into a direct edge to \texttt{E} and an additional loop component on state \texttt{3}.}
+        \end{figure}
+
+      \item \textit{State 3}. Now we can get rid of state 3. 
+
+        \begin{figure}[H]
+          \centering
+          \begin{tikzpicture}[automata, node distance=6cm]
+            
+            % --- States ---
+            % Only the unique start and end states remain
+            \node[state, initial, initial text=] (s) at (0, 0) {\texttt{S}};
+            \node[state, accepting] (e) [right=of s] {\texttt{E}};
+
+            % --- Edges ---
+            % The final regular expression is the concatenation of all eliminated paths
+            \path
+              (s) edge node [above] {\texttt{/\#([\^{}\#]|(\#+)[\^{}\#/])*(\#+)/}} (e);
+              
+          \end{tikzpicture}
+          \caption{The final NFA after eliminating all intermediate states. The label on the edge represents the final regular expression.}
+          \label{fig:final_regex}
+        \end{figure}
+    \end{enumerate}
+
+    Now we are done. Our regex is 
+    \begin{lstlisting}
+      /\#([\^{}\#]|(\#+)[\^{}\#/])*(\#+)/ 
+    \end{lstlisting}
+  \end{example}
+
+\subsection{Tokenizing} 
+
+  Now that we have the tools for lexing, we can finally do it. Really, lexing is just the same thing as tokenizing. 
