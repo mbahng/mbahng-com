@@ -785,7 +785,107 @@
 
 \subsubsection{QR Decomposition} 
 
+  The QR decomposition is often used to simplify these linear least squares problems into a more manageable equation. 
+
+  \begin{definition}[QR Decomposition]
+    Any $m \times n$ matrix $A$ over $\mathbb{F}$ (where $m \geq n$) may be decomposed into the product
+    \begin{equation}
+      A = QR
+    \end{equation}
+    where $Q$ is an $m \times n$ matrix with pairwise orthonormal column vectors (meaning $Q^\dagger Q = I_n$), and $R$ is an $n \times n$ upper triangular matrix. If $A$ has full column rank ($\text{rk}(A) = n$), the decomposition is unique provided that we require the diagonal entries of $R$ to be strictly positive. 
+  \end{definition}
+  \begin{proof}
+    We use the Gram-Schmidt orthogonalization process on the column vectors of $A$. Let $a_1, a_2, \dots, a_n$ be the columns of $A$. We can recursively construct the orthonormal columns $q_1, \dots, q_n$ of $Q$. 
+    
+    For the first step, let $v_1 = a_1$. Then $q_1 = v_1 / \|v_1\|$. We set $r_{11} = \|v_1\|$, giving $a_1 = r_{11} q_1$. 
+
+    For step $j$ (where $1 < j \leq n$), we subtract the projections of $a_j$ onto the previously computed orthogonal vectors $q_1, \dots, q_{j-1}$:
+    \begin{equation}
+      v_j = a_j - \sum_{i=1}^{j-1} (a_j, q_i) q_i
+    \end{equation}
+    If $A$ has full column rank, then $a_j$ is not in the span of the previous vectors, so $v_j \neq 0$. We define $q_j = v_j / \|v_j\|$. 
+
+    Let $r_{ij} = (a_j, q_i)$ for $i < j$ and $r_{jj} = \|v_j\|$. This allows us to write $a_j$ as:
+    \begin{equation}
+      a_j = \sum_{i=1}^j r_{ij} q_i
+    \end{equation}
+    This is precisely the matrix multiplication $A = QR$, where $R$ is upper triangular and $Q$ has orthonormal columns $q_i$. The condition $r_{jj} = \|v_j\| > 0$ makes the decomposition unique for full-rank matrices.
+  \end{proof}
+
+  Because $Q^\dagger Q = I$, the QR decomposition can greatly simplify normal equations in linear least squares problems:
+  \begin{align}
+    A^T A x = A^T b & \implies (Q R)^T (Q R) x = R^T Q^T Q R x = R^T R x = R^T Q^T b \\
+    & \implies R x = Q^T b \\
+    & \implies x = R^{-1} Q^T b
+  \end{align}
+
+  The classical Gram-Schmidt process is often numerically unstable. 
+
+  \begin{algo}[Modified Gram-Schmidt for QR Decomposition]
+    The Modified Gram-Schmidt algorithm provides better numerical stability by orthogonalizing the remaining column vectors against the newly computed orthonormal vector immediately at each step. 
+    \begin{algorithmic}[1]
+      \FOR{$j = 1, \dots, n$}
+        \STATE $v_j = a_j$
+      \ENDFOR
+      \FOR{$i = 1, \dots, n$}
+        \STATE $r_{ii} = \|v_i\|$
+        \STATE $q_i = v_i / r_{ii}$
+        \FOR{$j = i+1, \dots, n$}
+          \STATE $r_{ij} = (v_j, q_i)$
+          \STATE $v_j = v_j - r_{ij} q_i$
+        \ENDFOR
+      \ENDFOR
+    \end{algorithmic}
+  \end{algo}
+
 \subsubsection{Cholesky Decomposition}
+
+  \begin{definition}[Cholesky Decomposition]
+    Every Hermitian (or real symmetric), positive-definite matrix $A$ can be decomposed into the product
+    \begin{equation}
+      A = L L^\dagger
+    \end{equation}
+    where $L$ is a lower triangular matrix with strictly positive real diagonal entries. This decomposition is unique.
+  \end{definition}
+
+  \begin{proof}
+    We proceed by induction on the dimension $n$ of the matrix $A$. 
+    
+    \textbf{Base case:} For $n=1$, $A = (a_{11})$. Since $A$ is positive-definite, $a_{11} > 0$. We simply choose $L = (\sqrt{a_{11}})$, which is unique and positive. 
+    
+    \textbf{Inductive step:} Assume the theorem holds for $(n-1) \times (n-1)$ matrices. We partition the $n \times n$ matrix $A$ as:
+    \begin{equation}
+      A = \begin{pmatrix} a_{11} & w^\dagger \\ w & A_{22} \end{pmatrix}
+    \end{equation}
+    where $a_{11}$ is a positive scalar (since $A$ is positive-definite, its diagonal entries are positive), $w$ is an $(n-1) \times 1$ column vector, and $A_{22}$ is an $(n-1) \times (n-1)$ Hermitian matrix. 
+    
+    We seek a lower triangular matrix $L$ of the form:
+    \begin{equation}
+      L = \begin{pmatrix} l_{11} & 0 \\ l_{21} & L_{22} \end{pmatrix}
+    \end{equation}
+    such that $A = L L^\dagger$. Multiplying out $L L^\dagger$, we get:
+    \begin{equation}
+      \begin{pmatrix} l_{11}^2 & l_{11} l_{21}^\dagger \\ l_{11} l_{21} & l_{21} l_{21}^\dagger + L_{22} L_{22}^\dagger \end{pmatrix} = \begin{pmatrix} a_{11} & w^\dagger \\ w & A_{22} \end{pmatrix}
+    \end{equation}
+    Matching the blocks, we uniquely determine $l_{11} = \sqrt{a_{11}}$ (since $l_{11} > 0$). Then we can uniquely determine the column vector $l_{21} = w / l_{11}$. 
+    
+    Finally, we must satisfy $L_{22} L_{22}^\dagger = A_{22} - l_{21} l_{21}^\dagger$. The matrix $S = A_{22} - l_{21} l_{21}^\dagger$ is the Schur complement of $a_{11}$ in $A$. Because $A$ is positive-definite, its Schur complement $S$ is also positive-definite. By our inductive hypothesis, the $(n-1) \times (n-1)$ positive-definite matrix $S$ has a unique Cholesky decomposition $S = L_{22} L_{22}^\dagger$. Thus, $L_{22}$ exists and is unique, completing the proof.
+  \end{proof}
+
+  \begin{algo}[Cholesky-Banachiewicz Algorithm]
+    Intuitively, this algorithm computes the lower triangular matrix $L$ starting from the upper left corner and proceeding row by row. It requires about half the operations of the LU decomposition.
+    \begin{algorithmic}[1]
+      \FOR{$i = 1, \dots, n$}
+        \FOR{$j = 1, \dots, i$}
+          \IF{$j = i$}
+            \STATE $l_{jj} = \sqrt{ a_{jj} - \sum_{k=1}^{j-1} |l_{jk}|^2 }$
+          \ELSE
+            \STATE $l_{ij} = \frac{1}{l_{jj}} \left( a_{ij} - \sum_{k=1}^{j-1} l_{ik} \bar{l}_{jk} \right)$
+          \ENDIF
+        \ENDFOR
+      \ENDFOR
+    \end{algorithmic}
+  \end{algo}
 
 \subsection{Matrices in Block Form}
 
