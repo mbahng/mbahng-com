@@ -12,18 +12,127 @@
 
   It has its applications in the most elementary operations, in sorting and multiplication. To prove correctness, we use induction by proving the correctness of the base case and then the inductive step to show that there is an invariant. 
 
-\subsection{Recursive Algorithms and Recurrence Relation}
+\subsection{Recursion and Recurrence}
 
-  I assume that the reader is familiar with recursive algorithms. Now to evaluate the runtime of a recursive algorithm, one must implicitly solve for the runtime of its recursive calls, and we can visualize it. 
+  In introductory classes, you would learn about recursive functions. 
+
+  \begin{definition}[Recursive Function]
+    A \textbf{recursive function} is a function that calls itself one or more times to evaluate. 
+  \end{definition}
+
+  What you probably may not have learned is that there are two types of recursion---head and tail recursion. Most beginners learn head recursion first. 
+
+  \begin{definition}[Head Recursion]
+    \textbf{Head recursion} refers to recursive functions that call itself \textit{before} any calculations are done. 
+  \end{definition}
+
+  The most common example is the factorial and Fibonacci numbers. 
+
+  \begin{example}[Factorials with Head Recursion]
+    In order to calculate $n!$, we know of the formula $n! = n \cdot (n-1) \cdot \ldots \cdot 2 \cdot 1$. We can define this recursively with the definition: 
+    \begin{equation}
+      f(n) = n \cdot f(n-1), \quad f(1) = 1
+    \end{equation}
+    For example, 
+    \begin{align}
+      f(5) & = 5 \cdot f(4) \\ 
+           & = 5 \cdot (4 \cdot f(3)) \\ 
+           & = 5 \cdot (4 \cdot (3 \cdot f(2))) \\ 
+           & = 5 \cdot (4 \cdot (3 \cdot (2 \cdot f(1)))) \\ 
+           & = 5 \cdot (4 \cdot (3 \cdot (2 \cdot 1))) \\  
+           & = 5 \cdot (4 \cdot (3 \cdot 2)) \\  
+           & = 5 \cdot (4 \cdot 6) \\  
+           & = 5 \cdot 24 \\  
+           & = 120
+    \end{align}
+    Notice how in head recurison, we must call $f(n-1)$ before multiplying to evaluate $f(n)$. Therefore, head recursion uses lots of memory to build a large intermediate expression (in this case, $5 \cdot (4 \cdot (3 \cdot (2 \cdot 1)))$). This may not be ideal because in simple cases where we need to compute such numbers, the memory complexity becomes $O(n)$. 
+  \end{example}
+
+  \begin{example}[Fibonacci Numbers with Head Recursion]
+    In order to calculate the $n$th Fibonacci numbers, we are familiar with the recursive definition 
+    \begin{equation}
+      f(n) = f(n-1) + f(n-2), \qquad f(0) = 0, \quad f(1) = 1
+    \end{equation}
+    For example, 
+    \begin{align}
+      f(4) & = f(3) + f(2) \\ 
+           & = \big( f(2) + f(1) \big) + f(2) \\ 
+           & = \big( [f(1) + f(0)] + f(1) \big) + f(2) \\ 
+           & = \big( [1 + f(0)] + f(1) \big) + f(2) \\ 
+           & = \big( [1 + 0] + f(1) \big) + f(2) \\ 
+           & = \big( 1 + f(1) \big) + f(2) \\ 
+           & = \big( 1 + 1 \big) + f(2) \\ 
+           & = 2 + f(2) \\  
+           & = 2 + (f(1) + f(0)) \\ 
+           & = 2 + (1 + f(0)) \\ 
+           & = 2 + (1 + 0) \\ 
+           & = 2 + 1 \\ 
+           & = 3
+    \end{align}
+    Again, notice this ``triangular shape'' of these expression calls. 
+  \end{example}
+
+  Tail recursion solves this problem of having large intermediate representations by doing the computations first to evaluate the expression as it is being expanded. 
+
+  \begin{definition}[Tail Recursion]
+    \textbf{Tail recursion} refers to recursive functions that call itself \textit{after} computations. Most likely, the recursive call must somehow use the computation in its own call, so we would expect the intermediate evaluations to be parameters to the recursive calls. 
+  \end{definition} 
+
+  \begin{example}[Factorials with Tail Recursion]
+    A tail recursive definition of $f(n) = n!$ would be as follows: 
+    \begin{equation}
+      f(n) = g(n, 1), \quad g(n, a) = g(n - 1, a \cdot n), \quad g(1, a) = a
+    \end{equation}
+    where $a$ is an accumulator. For example, 
+    \begin{align}
+      f(5) = g(5, 1) & = g(5 - 1, 1 \cdot 5) \\ 
+                     & = g(4, 5) \\ 
+                     & = g(4 - 1, 5 \cdot 4) \\ 
+                     & = g(3, 20) \\ 
+                     & = g(3 - 1, 20 \cdot 3) \\ 
+                     & = g(2, 60) \\ 
+                     & = g(2 - 1, 60 \cdot 2) \\ 
+                     & = g(1, 120) \\ 
+                     & = 120
+    \end{align}
+    Notice how this has the same number of lines (9 lines, with 5 recursive calls and 5 evaluations) as computing $f(5)$ with head recursion, but this time, we don't have the triangular shape anymore. 
+  \end{example}
+
+  \begin{example}[Fibonacci Numbers with Tail Recursion]
+    A tail recursive definition of $f(n)$ as the $n$th Fibonacci number (index starting from $0$) would be as follows: 
+    \begin{equation}
+      f(n) = g(n, 0, 1), \quad g(n, a, b) = g(n-1, b, a + b), \quad g(0, a, b) = a
+    \end{equation} 
+    For example, 
+    \begin{align}
+      f(4) = g(4, 0, 1) & = g(4 - 1, 1, 0 + 1) \\ 
+                        & = g(3, 1, 1) \\ 
+                        & = g(3 - 1, 1, 1 + 1) \\ 
+                        & = g(2, 1, 2) \\ 
+                        & = g(2 - 1, 2, 1 + 2) \\ 
+                        & = g(1, 2, 3) \\ 
+                        & = g(1 - 1, 3, 2 + 3) \\ 
+                        & = g(0, 3, 5) \\ 
+                        & = 3
+    \end{align}
+  \end{example}
+
+  It seems that the tail recursion behaves like a loop, and indeed, we can prove that the two representations are equivalent. 
+
+  \begin{theorem}[Equivalence of Tail Recursion and Loops]
+    Any tail recursive function can be expressed as a loop. 
+  \end{theorem}
+
+  Now to evaluate the runtime of a recursive algorithm, one must implicitly solve for the runtime of its recursive calls, and we can visualize it. 
 
   \begin{figure}[H]
     \centering 
     \includegraphics[scale=0.4]{img/branching.png}
     \caption{} 
     \label{fig:branching}
-  \end{figure}
+  \end{figure} 
 
-  An important theorem for divide-and-conquer algorithms is 
+  This idea formalizes to the following theorem. 
 
   \begin{theorem}[Master Theorem]
     Given a recurrence relation of form 
@@ -46,7 +155,7 @@
     \end{align}
     So, if $a < b^c$, then even as $N \rightarrow \infty$, the sum is finite, so it is of order $O(N^c)$. If $a = b^c$, then the series is just $1 + \ldots + 1$, which scales on the order of $O(\log_2 {N})$. If $> 1$, then we have to calculate the last term, which contributes to our runtime and overpowers $c$.  
     
-    Therefore, if $a$ is large, our algorithm will have an exponential number of subproblems and will be bottlenecked by the. 
+    Therefore, if $a$ is large, our algorithm will have an exponential number of subproblems and will be bottlenecked. 
   \end{proof}
 
 \subsection{Merge Sort and Counting Inversions}
