@@ -1,4 +1,8 @@
-\section{Lexers} 
+\section{Lexers}
+
+\subsection{Formal Languages}
+
+  If we look at our source code---whether it'd be in Python, Java, or C---they are all just a giant string. Every program is just a string composed of characters in our alphabet.\footnote{Technically, not just English letters, but other ASCII characters plus other UTF-8.} This motivates the following definitions. 
 
   \begin{definition}[Alphabet]
     An \textbf{alphabet} $\Sigma$ is a set. 
@@ -18,7 +22,7 @@
     Given two words $u, v \in \Sigma^\ast$, the \textbf{concatenation} $uv = u \cdot v$ is the word formed by appending the sequence of symbols in $v$ to the sequence of symbols in $u$. 
   \end{definition}
 
-  Note that $(\Sigma^\ast, \cdot, \epsilon)$ is a monoid, where $\epsilon$ represents the empty word. 
+  Note that $(\Sigma^\ast, \cdot, \epsilon)$ is a monoid, where $\epsilon$ represents the empty word. Some strings (programs) are legal while others are not. Therefore, we can define the set of all valid programs as simply as a subset of $\Sigma^\ast$. 
 
   \begin{definition}[Formal Language]
     A \textbf{formal language} over alphabet $\Sigma$ is a subset $L \subset \Sigma^\ast$. 
@@ -39,199 +43,113 @@
     \end{equation}
   \end{definition}
 
-  Generally, a subset of $\Sigma^\ast$ doesn't give us much structure, so we would like to define some way to pick the subset $L$ out. We can do this with \textit{grammars}. 
+\subsection{Token Types}
 
-  \begin{definition}[Formal Grammar]
-    A \textbf{formal grammar} is a 4-tuple $G = (V, \Sigma, R, S)$ consisting of the following. 
+  The immediate problem with this representation of our code is that our alphabet is too \textit{fine}.\footnote{In English, sentences are indeed made up of letters, but it would be better to represent them as a list of words.} We need a slightly more restrictive alphabet, which give us a better building blocks of our language. In fact, choosing the set of token types is one of the first things you might want to think about when making a new language. Since we want to convert a series of characters (our program) into tokens, what tokens should we have in our language? Think about all the characters you have seen so far in programs, plus how they are used within and across different languages. 
+
+  We start off with the single character tokens. 
+
+  \begin{example}[Parentheses]
+    Parentheses are used universally in almost all languages. We will label them \texttt{<LEFT\_PAREN>} and \texttt{<RIGHT\_PAREN>}.
     \begin{enumerate}
-      \item \textit{Non-terminal Symbols}. $V$ is a finite set consisting of \textbf{non-terminal symbols}, also known as \textbf{variables}. 
-      \item \textit{Terminal Symbols}. $\Sigma$ is a finite set---disjoint from $V$---consisting of \textbf{terminals}. 
-      \item \textit{Production Rule}. $R$ is a relation, i.e. is a finite subset of 
-        \begin{equation}
-          (V \cup \Sigma)^\ast V (V \cup \Sigma)^\ast \times (V \cup \Sigma)^\ast
-        \end{equation}
-        where the LHS represents the product of the languages. We usually write the relation as $\alpha \to \beta$.\footnote{In math, this is usually written $\alpha R \beta$, or $\alpha \sim \beta$ if it is an equivalence relation.}
-
-      \item \textit{Start Symbol}. $S \in V$ is the initial variable from which derivation begins. 
+      \item \textit{Precedence}. In C, Python, and Java, parentheses indicate some precedence in the order of operations, e.g. \texttt{(3 + 4) * 5}.
+      \item \textit{Function Calls}. They also represent function calls, e.g. \texttt{int x = myFunc()}. 
+      \item \textit{Function Declaration}. They are used in function declarations, e.g. \texttt{public void myFunc(int x, int y) \{...\}}. 
     \end{enumerate}
-  \end{definition}
-
-  We can think of the production rule as a set of transformations---formally called \textit{derivations}---that you can apply to a word. 
-
-  \begin{definition}[Derivation]
-    Let $G = (V, \Sigma, R, S)$ be a formal grammar. We define a binary relation $\derives$ on the set of all strings $(V \cup \Sigma)^\ast$ as follows: 
-    \begin{enumerate}
-      \item A string $u$ \textbf{directly derives} $v$, written $u \derives v$, if there exists strings $\phi, \psi \in (V \cup \Sigma)^\ast$ and a production rule $(\alpha \to \beta) \in R$ such that 
-        \begin{equation}
-          u = \phi \alpha \psi, \qquad v = \phi \beta \psi
-        \end{equation}
-        In other words, we say a word $w$ is derived from $v$, written $v \derives w$, if $w$ can be obtained by replacing a part of $v$ according to a rule in $R$. 
-
-      \item We say $u$ \textbf{derives} $v$\footnote{We also say that $v$ is in the transitive closure of $u$.}, written $u \tderives v$, if $u$ can be directly derived into $v$ in $0$ or more steps. The relation $\tderives$, called the \textbf{reflexive transitive closure} of $\derives$, is defined as follows. $u \tderives v$ if 
-        \begin{enumerate}
-          \item $u = v$, or 
-          \item There exists a finite sequence of strings $u = w_0, w_1, \ldots, w_n = v$ such that $w_i \derives w_{i+1}$ for all $0 \leq i < n$. 
-        \end{enumerate}
-
-    \end{enumerate}
-  \end{definition}
-
-  \begin{definition}[Language Derived From Grammar]
-    The \textbf{language derived from $G$}, denoted $L(G)$, is the set of all terminal strings that can be derived from $S$ using the rules in $R$. It is defined: 
-    \begin{equation}
-      L(G) \coloneqq \{ w \in \Sigma^\ast \mid S \derives^\ast w \}
-    \end{equation}
-  \end{definition}
-
-  \begin{example}
-    Let $V = \{E\}$ be the non-terminals, and $\{+, -, \texttt{num}\}$ be our terminals, which come from our lexer. Then, our production rules can look something like. 
-    \begin{enumerate}
-      \item $E \to E + E$. 
-      \item $E \to E - E$. 
-      \item $E \to \texttt{num}$. 
-    \end{enumerate}
-    So basically, if we have some word, then we can replace any $E$ in the word by any of the three choices on the right hand side. For example, we can do the following sequence of derivations. 
-    \begin{align}
-      E & \derives E + E \\ 
-        & \derives E - E + E \\
-        & \derives E - \texttt{num} + E\\
-        & \derives E + E - \texttt{num} + E 
-    \end{align}
-    You can keep doing this until there is no more production rules you can apply. For context free grammars, you basically do this until there are only terminals left, e.g. $\texttt{num} + \texttt{num} - \texttt{num} + \texttt{num}$. 
   \end{example}
 
-  \begin{definition}[Transitive Closure]
-  \end{definition}
-
-  \begin{definition}[Language Generated by Grammar]
-    Given grammar $G = (V, \Sigma, R, S)$, the language $L(G)$ is the set of all terminal strings that can be derived from the start symbol $S$. 
-    \begin{equation}
-      L(G) \coloneqq \{ w \in \Sigma^\ast \mid S \derives^\ast w \}
-    \end{equation}
-  \end{definition}
-
-  Therefore, you can basically think of the ``complexity'' or size of a language $L$ as being determined by the ``complexity'' of the generating grammar $G$. Usually, the alphabet is kept fixed, and the main contributor to the complexity are the production rules $R$. Depending on how much we restrict $R$, we get different levels of languages in the \textit{Chomsky Hierarchy}. 
-
-  \begin{definition}[Unrestricted]
-    An \textbf{unrestricted language} $L$ is a language that can be generated by some grammar $G$. 
-  \end{definition}
-
-  \begin{definition}[Context Sensitive]
-    A grammar is \textbf{context sensitive} if 
-    \begin{equation}
-      R \subset \{(\alpha, \beta) \mid \alpha, \beta \in (V \cup \Sigma)^+, |\alpha| \leq |\beta|\} \cup \{(S, \epsilon) \text{ if S does not appear on any RHS} \}
-    \end{equation}
-    That is, the length of the string on the right must be greater than or equal to the length of the string on the left. You cannot ``delete'' symbols are you derive. A language $L$ is \textbf{context-sensitive} if $L = L(G)$ for some context-sensitive grammar $G$. 
-  \end{definition}
-
-  For theorists, context sensitive grammars are important, but for engineers, context free grammars matter much more.  
-
-  \begin{definition}[Context Free]
-    A grammar is \textbf{context free} if 
-    \begin{equation}
-      R \subset V \times (V \cup \Sigma)^\ast
-    \end{equation}
-    That is, it asserts that the left-hand side can only contain a single non-terminal. A language $L$ is \textbf{context-free} if $L = L(G)$ for some context-free grammar $G$. 
-  \end{definition}
-
-  This allows for a parse-tree structure because each variable ``branches'' into a new string independently of its neighbors. 
-
-  \begin{definition}[Ambiguous]
-    A context-free grammar is \textbf{ambiguous} if there is a string that can have more than one valid derivation tree. 
-  \end{definition}
-
-  \begin{example}[Ambiguous Context Free Grammar]
-    Let $V = \{E\}$ be the non-terminals, and $\{+, -, \texttt{num}\}$ be our terminals, which come from our lexer. Then, our production rules can look something like. 
+  \begin{example}[Braces]
+    Braces are also pretty universal. We will denote them \texttt{<LEFT\_BRACE>} and \texttt{<RIGHT\_BRACE>}.
     \begin{enumerate}
-      \item $E \to E + E$. 
-      \item $E \to E - E$. 
-      \item $E \to \texttt{num}$. 
+      \item \textit{Block Delimiters}. In C, C++, and Java, braces represent the start and end of a block, whether it'd be in a function declaration, an if/else statement, or a loop. 
+      \item \textit{F-Strings}. In Python, braces can be used in f-strings, e.g. \texttt{name = "Bob"; print(f"Hello \{name\}")}.
     \end{enumerate}
-    So basically, if we have some word, then we can replace any $E$ in the word by any of the three choices on the right hand side. For example, we can do the following sequence of derivations. 
-    \begin{align}
-      E & \derives E + E \\ 
-        & \derives E - E + E \\
-        & \derives E - \texttt{num} + E\\
-        & \derives E + E - \texttt{num} + E 
-    \end{align}
-    You can keep doing this until there is no more production rules you can apply. For context free grammars, you basically do this until there are only terminals left, e.g. $\texttt{num} + \texttt{num} - \texttt{num} + \texttt{num}$. But note that this is ambiguous since there are multiple ways to derive. For example, if we wanted to get something like \texttt{num} - \texttt{num} - \texttt{num}, we can do it in either of the following ways. 
-    \begin{align}
-      E & \derives E - E \\ 
-        & \derives E - (E - E) \\ 
-        & \derives \texttt{num} - (\texttt{num} - \texttt{num}) \\
-      E & \derives E - E \\ 
-        & \derives (E - E) - E \\ 
-        & \derives (\texttt{num} - \texttt{num}) - \texttt{num} 
-    \end{align}
+  \end{example} 
+
+  \begin{example}[Brackets]
+    For brackets, we will denote them \texttt{<LEFT\_BRACKET>} and \texttt{<RIGHT\_BRACKET>}.
+    \begin{enumerate}
+      \item \textit{Indexing}. They are used to retrieve a value stored in the $i$th position of an array (in C, Java) or a list (Python). 
+      \item \textit{List Creation}. In Python, they are used to initialize a list, e.g. \texttt{x = [1, 2, 3]}.
+    \end{enumerate}
   \end{example}
 
-  This is not good, so we want to modify our grammar so that it is safe from these ambiguities. 
-
-  \begin{example}[Non-Ambiguous Context-Free Grammar]
-    If we have a grammar with the following production rules. 
+  \begin{example}[Comma]
+    The comma token is denoted \texttt{<COMMA>}. 
     \begin{enumerate}
-      \item $E \to E + \texttt{num}$
-      \item $E \to E - \texttt{num}$ 
-      \item $E \to \texttt{num}$
+      \item \textit{Function Parameters}. You use commas to separate parameters in function declarations, e.g. \texttt{def myPythonFunction(x, y, z): ...}.
+      \item \textit{Function Arguments}. You use commas to separate arguments in function calls, e.g. \texttt{int y = myFunc(4, 3);}.
+      \item \textit{Unpacking}. When returning an iterable in Python, you can unpack them with commas, e.g. \texttt{x, *, y = someList}.
     \end{enumerate}
-    Then, we have no ambiguities since there is only one possible way 
-    \begin{align}
-      E & \derives E - \texttt{num} \\ 
-        & \derives (E - \texttt{num}) - \texttt{num} \\
-        & \derives (\texttt{num} - \texttt{num}) - \texttt{num} 
-    \end{align}
-  \end{example}
-
-  Note that figuring out whether a grammar is ambiguous or unambiguous is a bit tricky. It is in fact undecidable. 
-
-  \begin{definition}[Regular]
-    A grammar $G$ is \textbf{regular} if it is either of the following: 
-    \begin{enumerate}
-      \item \textit{Right Linear}. 
-        \begin{equation}
-          R \subset V \times (\Sigma \cup \Sigma V \cup \{e\}) 
-        \end{equation}
-        Meaning that every rule must look like $A \to a$ or $A \to a B$. 
-
-      \item \textit{Left Linear}. 
-        \begin{equation}
-          R \subset V \times (\Sigma \cup V \Sigma \cup \{\epsilon\}) 
-        \end{equation}
-        Meaning that every rule must look like $A \to a$ or $A \to Ba$. 
-    \end{enumerate}
-    A language $L$ is \textbf{regular} if $L = L(G)$ for some regular grammar $G$. 
-  \end{definition}
-
-  \begin{theorem}[Kleene's Theorem]
-    A language $L$ is regular if and only if there exists a DFA $M$ such that $L(M) = L$. 
-  \end{theorem}
-
-  Why is this useful? 
-
-  \begin{definition}[Categories of Words]
-    In a language, 
-    \begin{enumerate}
-      \item a \textbf{literal} is a word in $L$ that represents a fixed value directly in the source code. 
-      \item an \textbf{identifier} is a word in $L$ used to name entities such as variables, functions, and types. 
-      \item a \textbf{reserved word}, or \textbf{keyword}, is an identifier that has a fixed meaning in the language's grammar. 
-    \end{enumerate}
-  \end{definition}
-
-  \begin{definition}[Expression]
-    Let $G = (V, \Sigma, R, S)$ be a grammar and let $E \in V$ be the non-terminal symbol representing expressions. 
-  \end{definition}
-
-  \begin{definition}[Statement]
     
-  \end{definition}
+  \end{example}
+  
+  \begin{example}[Dot]
+    The dot token is denoted \texttt{<DOT>}. 
+    \begin{enumerate}
+      \item \textit{Attribute Retrieval}. In OOP, you can use it to retrieve an attribute from an object, e.g. \texttt{student.name}.
+      \item \textit{Method Call}. In OOP, you can use it to call an instance or static method, e.g. \texttt{MyClass.Stuff()}.
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Minus]
+    
+  \end{example}
+  
+  \begin{example}[Plus]
+    
+  \end{example}
+  
+  \begin{example}[Semicolon]
+    
+  \end{example}
+  
+  \begin{example}[Slash]
+    
+  \end{example}
+  
+  \begin{example}[Star]
+    Now 
+  \end{example}
+
+  Next, we continue onto tokens that are one-character or two characters long. 
+
+  \begin{example}[Bang]
+    The \texttt{!} character represents the \texttt{<BANG>} token. 
+    \begin{enumerate}
+      \item \textit{Negation}. In C, C++, and Java, we can take a boolean value and negate it, e.g. \texttt{!true}.
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Equal]
+    The \texttt{<EQUAL>} token represents assignment. 
+  \end{example} 
+
+  \begin{example}[Greater, Less]
+    The \texttt{<LESS>} and \texttt{<GREATER>} tokens can represent the following. 
+    \begin{enumerate}
+      \item \textit{Comparison}. In almost all languages, these are used as comparison operators, e.g. \texttt{4 < 5}. 
+      \item \textit{Template Parameters}. In C++, you can use them as template parameters, e.g. \texttt{template <typename T>}. 
+      \item \textit{Element Type}. In Java, the types of the elements in the standard library data structures are specified within these angle brackets, e.g. \texttt{HashMap<String, Integer>}.
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Equal Equal, Not Equal, Less Equal, Greater Equal]
+    The following four mean the same thing across all languages that I have seen so far. 
+    \begin{enumerate}
+      \item \textit{Equal Equal}. The \texttt{<EQUAL\_EQUAL>} token is used to determine whether two values are equal. 
+      \item \textit{Not Equal}. The \texttt{<BANG\_EQUAL>} token is used to determine whether two values are not equal.\footnote{Note that this is completely separate from the concatenation of tokens \texttt{<NOT><EQUAL\_EQUAL>}.} 
+      \item \textit{Less Equal}. The \texttt{<LESS\_EQUAL>} token is used to determine whether the previous token is less than the token after. 
+      \item \textit{Greater Equal}. The \texttt{<GREATER\_EQUAL>} token is used to determine whether the previous token is greater than the token after. 
+    \end{enumerate}
+  \end{example}
 
 
-  We want to convert a series of characters (our program) into tokens. What are some types of tokens? 
+  \begin{example}[Whitespace]
+    In most languages, whitespace are not tokens. The exception is Python, which treat tabs as significant for identfying scope. We can label them as \texttt{<TAB>}.
+  \end{example}
 
-
-  Note that a whitespace is not a token. 
-
-  The whole process of lexing is to convert a giant string (your code) into a sequence of tokens. But this requires us to classify what the next substring is, i.e. whether it's an identifier, a keyword, a literal, etc. So basically, we need to match these incoming words to their respective token type, and we can do this by pattern matching. By doing this pattern matching, we can determine whether a given string is of a certain token type. The most intuitive way to do this is to use regular expressions, but this turns out to be hard to compute. Therefore, we must convert it to NFAs, then DFAs, and at this point, it becomes easy for the computer to compute. 
+  The whole process of lexing is to convert a giant string (your code) into a sequence of tokens. But this requires us to classify token the next substring is, i.e. whether it's an identifier, a keyword, a literal, etc. So basically, we need to match these incoming words to their respective token type, and we can do this by pattern matching. If you have thought of regular expressions to do this, you are exactly on the right track. 
 
 \subsection{Regular Expressions} 
 
@@ -298,6 +216,24 @@
       \item We may write \texttt{0 | (-?[1-9][0-9]*)}. But should we include \texttt{-0}? This then becomes more of a design choice. 
     \end{enumerate}
   \end{example}
+
+\subsection{Handwritten Lexer}
+
+  Now that we have regex's, we can just pattern match for each substring. We employ this using a classic two pointer strategy.\footnote{I initially tried it using a stack, but I found out later than a two pointer was much easier and faster.}
+
+  \begin{example}[Ambiguities]
+    If you are trying to lex the string: 
+    \begin{lstlisting}
+      !=
+    \end{lstlisting}
+    You can either tokenize it as \texttt{<BANG\_EQUAL>} or \texttt{<BANG><EQUAL>}. This creates an ambiguity in our tokenizer. 
+  \end{example}
+
+  \begin{definition}[Maximal Munch]
+    The principle of tokenizing the maximum length substring at a given time is called \textbf{maximal munch}. 
+  \end{definition}
+
+  To see keyword vs identifier, you usually use a hashmap to check for keywords (e.g. \texttt{if} $\to$ \texttt{<IF>}), and if there are no matches, then you catch it with a regex. 
 
 \subsection{Finite Automata}
 
@@ -1177,9 +1113,11 @@
     \end{lstlisting}
   \end{example}
 
-\subsection{Tokenizing} 
+\subsection{Generated Lexers}
 
-  Now that we have the tools for lexing, we can finally do it. Really, lexing is just the same thing as tokenizing. In principle, a lexer has a bunch of different regex's that you are trying to match. But what happens if you have multiple matches? Consider the example below. 
+  It turns out that using handwritten lexers is not the most powerful nor practical way to do this. In modern days, we have software that can take in whatever set of regular expression you give it, and it will convert it to a corresponding equivalent DFA. Therefore, to detect tokens, we run it through a DFA and see the accepting state it lands on. 
+
+  Again, with multiple matches, the problem is manifested with multiple dead states. If it is in a dead state, then output the most recent\footnote{due to principle of maximal munch} accepting state. 
 
   \begin{example}[Ambiguities in Tokenizing]
     Say that we have a language with the following tokens. 
@@ -1210,7 +1148,7 @@
               (qtrap) edge node[swap] {\texttt{y}} (qnxy);
       \end{tikzpicture}
       \caption{} 
-      \label{fig:}
+      \label{fig:dfa3choice}
     \end{figure}
 
     Then, to parse ``\texttt{xxxzxxxy},'' we have 3 choices, which leads to ambiguity. 
@@ -1219,16 +1157,7 @@
       \item \texttt{<x> <x> <x> <z> <x> <nxy1>}
       \item \texttt{<x> <x> <x> <z> <x> <x> <nxy1>}
     \end{enumerate}
+    Again, we can use maximal munch.  
   \end{example}
 
-  Therefore, we run it through the principle:
-  \begin{enumerate}
-    \item Take the longest match. 
-    \item Rules have an ordering. 
-  \end{enumerate}
-
-  Therefore, to detect tokens, we run it through a DFA and see the accepting state it lands on. If it is in a dead state, then output the most recent accepting state. 
-
-  Lexers can have multiple DFAs, and depending on context (through start state), you traverse different DFAs (e.g. code vs comments). To see keyword vs identifier, you usually use a hashmap to check for keywords (e.g. \texttt{if} $\to$ \texttt{<IF>}), and if there are no matches, then you catch it with a regex. 
-
-  
+  Lexers can have multiple DFAs, and depending on context (through start state), you traverse different DFAs (e.g. code vs comments). 
