@@ -1,0 +1,438 @@
+\section{Scanning}
+
+  If we look at our source code---whether it'd be in Python, Java, or C---they are all just a giant string. Every program is just a string composed of characters in our alphabet.\footnote{Technically, not just English letters, but other ASCII characters plus other UTF-8.} This motivates the following definitions. 
+
+  \begin{example}[C Identifiers]
+    The set $\Sigma = \{\_, a, \ldots, z, A, \ldots, Z, 0, \ldots, 9\}$ can be the alphabet of the formal language $L$ representing all variable identifiers in the C programming language. 
+  \end{example}
+
+	\begin{example}[Implementations in Languages]
+		While the concept of ``importing'' other files into the current file is similar, the process is very different across languages.\footnote{\href{https://chatgpt.com/share/6a155f53-3404-83a7-8349-03818c8b23de}{https://chatgpt.com/share/6a155f53-3404-83a7-8349-03818c8b23de}}
+
+		\begin{enumerate}
+			\item In C, preprocessing directives are a part of lexing. For example, \texttt{\#include} literally copies and pastes the contents of the target module into the current file. With \texttt{\#IFDEF}, \texttt{\#IFNDEF}, \texttt{\#ENDIF}, we can delete tokens from our file to do \textit{conditional compilation}. 
+
+			\item In Python, the \texttt{import} keyword is a runtime behavior done during execution of the statement. That is, doing something like 
+				\begin{lstlisting}
+					import math 
+					math.sqrt(9) 
+				\end{lstlisting}
+
+				can be thought of as doing something like 
+
+				\begin{lstlisting}
+					math = load_module("math") 
+					math.sqrt(9)
+				\end{lstlisting}
+
+				It is basically like executing a function or instantiating a class.
+
+			\item In Java, the \texttt{import} keyword is closer to a name shortcut, done during resolution. These import statements allow us to write 
+				\begin{lstlisting}
+					import java.util.ArrayList; 
+
+					public static void main(String arg) {
+						ArrayList<Integer> x = new ArrayList<>();
+					}
+				\end{lstlisting}
+				
+				rather than having to do 
+
+				\begin{lstlisting}
+					public static void main(String arg) {
+						java.util.ArrayList<Integer> x = new java.util.ArrayList<>();
+					}
+				\end{lstlisting}
+
+				Basically, it just tells Java that when I write \texttt{ArrayList}, I mean \texttt{java.util.ArrayList}. Now, it is clear that this is more of a name resolution process, where we are binding the \texttt{ArrayList} name to \texttt{java.util.ArrayList}. 
+		\end{enumerate}
+	\end{example}
+
+\subsection{Token Types}
+
+  The immediate problem with this representation of our code is that our alphabet is too \textit{fine}.\footnote{In English, sentences are indeed made up of letters, but it would be better to represent them as a list of words.} We need a slightly more restrictive alphabet, which give us a better building blocks of our language. In fact, choosing the set of token types is one of the first things you might want to think about when making a new language. Since we want to convert a series of characters (our program) into tokens, what tokens should we have in our language? Think about all the characters you have seen so far in programs, plus how they are used within and across different languages. 
+
+  We start off with the single character tokens. 
+
+  \begin{example}[Parentheses]
+    Parentheses are used universally in almost all languages. We will label them \texttt{<LEFT\_PAREN>} and \texttt{<RIGHT\_PAREN>}.
+    \begin{enumerate}
+      \item \textit{Precedence}. In C, Python, and Java, parentheses indicate some precedence in the order of operations, e.g. \texttt{(3 + 4) * 5}.
+      \item \textit{Function Calls}. They also represent function calls, e.g. \texttt{int x = myFunc()}. 
+      \item \textit{Function Declaration}. They are used in function declarations, e.g. \texttt{public void myFunc(int x, int y) \{...\}}. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Braces]
+    Braces are also pretty universal. We will denote them \texttt{<LEFT\_BRACE>} and \texttt{<RIGHT\_BRACE>}.
+    \begin{enumerate}
+      \item \textit{Block Delimiters}. In C, C++, and Java, braces represent the start and end of a block, whether it'd be in a function declaration, an if/else statement, or a loop. 
+      \item \textit{F-Strings}. In Python, braces can be used in f-strings, e.g. \texttt{name = "Bob"; print(f"Hello \{name\}")}.
+    \end{enumerate}
+  \end{example} 
+
+  \begin{example}[Brackets]
+    For brackets, we will denote them \texttt{<LEFT\_BRACKET>} and \texttt{<RIGHT\_BRACKET>}.
+    \begin{enumerate}
+      \item \textit{Indexing}. They are used to retrieve a value stored in the $i$th position of an array (in C, Java) or a list (Python). 
+      \item \textit{List Creation}. In Python, they are used to initialize a list, e.g. \texttt{x = [1, 2, 3]}.
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Comma]
+    The comma token is denoted \texttt{<COMMA>}. 
+    \begin{enumerate}
+      \item \textit{Function Parameters}. You use commas to separate parameters in function declarations, e.g. \texttt{def myPythonFunction(x, y, z): ...}.
+      \item \textit{Function Arguments}. You use commas to separate arguments in function calls, e.g. \texttt{int y = myFunc(4, 3);}.
+      \item \textit{Unpacking}. When returning an iterable in Python, you can unpack them with commas, e.g. \texttt{x, *, y = someList}.
+    \end{enumerate}
+  \end{example}
+  
+  \begin{example}[Dot]
+    The dot token is denoted \texttt{<DOT>}. 
+    \begin{enumerate}
+      \item \textit{Attribute Retrieval}. In OOP, you can use it to retrieve an attribute from an object, e.g. \texttt{student.name}.
+      \item \textit{Method Call}. In OOP, you can use it to call an instance or static method, e.g. \texttt{MyClass.Stuff()}.
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Plus]
+    The plus token is denoted \texttt{<PLUS>}. 
+    \begin{enumerate}
+      \item \textit{Addition}. In almost all languages, you use this to add two numbers (int, double) together, e.g. \texttt{int x = y + z;}. 
+      \item \textit{Concatenation}. In Python, you use this to concatenate two strings into a longer string. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Minus]
+    The minus token is denoted \texttt{<MINUS>}. 
+    \begin{enumerate}
+      \item \textit{Subtraction}. 
+    \end{enumerate}
+  \end{example}
+ 
+  \begin{example}[Star]
+    The star is denoted \texttt{<STAR>}. 
+    \begin{enumerate}
+      \item \textit{Multiplication}. 
+      \item \textit{Repeat}. In Python, you can multiply a string by an int to concatenate the string with itself multiple times, e.g. \texttt{"hello" * 4}. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Star Star]
+    The double star token is denoted \texttt{<STAR\_STAR>}. 
+    \begin{enumerate}
+      \item \textit{Exponent}. In Python, it indicates an exponent, e.g. \texttt{3 ** 2}. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Slash]
+    The slash is denoted \texttt{<SLASH>}. 
+    \begin{enumerate}
+      \item \textit{Division}. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[In-Place Arithmetic]
+    The following tokens are used commonly for in-place arithmetic. 
+    \begin{enumerate}
+      \item \textit{Increment}. We use the \texttt{<PLUS\_PLUS>} token to represent increments, e.g. \texttt{i++}. 
+      \item \textit{Decrement}. We use the \texttt{<MINUS\_MINUS>} token to represent decrements, e.g. \texttt{i--}. 
+      \item \textit{In-Place Addition}. We use the \texttt{<PLUS\_EQUAL>} token to represent in-place addition, e.g. \texttt{i += 2}. 
+      \item \textit{In-Place Subtraction}. We use the \texttt{<PLUS\_EQUAL>} token to represent in-place subtraction, e.g. \texttt{i -= 2}. 
+      \item \textit{In-Place Multiplication}. We use the \texttt{<PLUS\_EQUAL>} token to represent in-place multiplication, e.g. \texttt{i *= 2}. 
+      \item \textit{In-Place Division}. We use the \texttt{<PLUS\_EQUAL>} token to represent in-place division, e.g. \texttt{i /= 2}. 
+    \end{enumerate}
+  \end{example}
+  
+  \begin{example}[Backslash]
+    The backslash is denoted \texttt{<BACKSLASH>}. 
+    \begin{enumerate}
+      \item \textit{Escape Sequence}. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Hashtag]
+    The \texttt{<HASHTAG>} token is used to represent \texttt{\#}. 
+    \begin{enumerate}
+      \item \textit{Comment}. In Python, this is used to represent single line comments, e.g. \texttt{\# comment}. 
+      \item \textit{Directives}. In C and C++, it is used to represent preprocessing directive, e.g. \texttt{\#include <stdio.h>} or \texttt{\#IFDEF}. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[At]
+    The \texttt{<AT>} token is used to represent \texttt{\@}. 
+    \begin{enumerate}
+      \item \textit{Macros}. In Python and Java, this is used to represent macros for methods and functions, e.g. \texttt{@property} or \texttt{@Override}. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Semicolon]
+    The semicolon is denoted \texttt{<SEMICOLON>}. 
+  \end{example}
+
+  Next, we continue onto tokens that are one-character or two characters long. 
+
+  \begin{example}[Logic Operators]
+    The logic operators may be represented as these character sequences (like in C++ or Java), or as keywords (like in Python). 
+    \begin{enumerate}
+      \item \textit{Negation}. The \texttt{!} character represents the \texttt{<BANG>} token. In C, C++, and Java, we can take a boolean value and negate it, e.g. \texttt{!true}.
+      \item \textit{Or}. The \texttt{||} characters often represent the \texttt{<OR>} token. 
+      \item \textit{And}. The \texttt{\&\&} characters often represent the \texttt{<AND>} token. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Equal]
+    The \texttt{<EQUAL>} token almost universally represents assignment, e.g. \texttt{x = 4}. 
+  \end{example} 
+
+  \begin{example}[Greater, Less]
+    The \texttt{<LESS>} and \texttt{<GREATER>} tokens can represent the following. 
+    \begin{enumerate}
+      \item \textit{Comparison}. In almost all languages, these are used as comparison operators, e.g. \texttt{4 < 5}. 
+      \item \textit{Template Parameters}. In C++, you can use them as template parameters, e.g. \texttt{template <typename T>}. 
+      \item \textit{Element Type}. In Java, the types of the elements in the standard library data structures are specified within these angle brackets, e.g. \texttt{HashMap<String, Integer>}.
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Equal Equal, Not Equal, Less Equal, Greater Equal]
+    The following four mean the same thing across all languages that I have seen so far. 
+    \begin{enumerate}
+      \item \textit{Equal Equal}. The \texttt{<EQUAL\_EQUAL>} token is used to determine whether two values are equal. 
+      \item \textit{Not Equal}. The \texttt{<BANG\_EQUAL>} token is used to determine whether two values are not equal.\footnote{Note that this is completely separate from the concatenation of tokens \texttt{<NOT><EQUAL\_EQUAL>}.} 
+      \item \textit{Less Equal}. The \texttt{<LESS\_EQUAL>} token is used to determine whether the previous token is less than the token after. 
+      \item \textit{Greater Equal}. The \texttt{<GREATER\_EQUAL>} token is used to determine whether the previous token is greater than the token after. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Whitespace]
+    In most languages, whitespace are not tokens. The exception is Python, which treat tabs as significant for identfying scope. We can label them as \texttt{<TAB>}.
+  \end{example}
+
+  Next, we talk about variable-length token types. 
+
+  \begin{example}[Identifiers]
+    
+  \end{example}
+
+  \begin{example}[String]
+    
+  \end{example}
+
+  \begin{example}[Numbers]
+    We can represent multiple types of numbers. 
+    \begin{enumerate}
+      \item \textit{Number}. The \texttt{<NUMBER>} token can be used to generically represent any number in your language. In Lox, this is the only token type. 
+      \item \textit{Integer}. The \texttt{<INTEGER>} token is used to represent integers. 
+      \item \textit{Float}. The \texttt{<FLOAT>} or \texttt{<DOUBLE>} token is used to represent floating point numbers. 
+    \end{enumerate}
+  \end{example}
+
+  Next, we talk about the keywords. 
+
+  \begin{example}[Boolean]
+    We can implement token types to represent boolean values \texttt{<TRUE>} and \texttt{<FALSE>}. 
+  \end{example}
+
+  \begin{example}[Logic Keywords]
+    Just as we have logic tokens, we have 
+    \begin{enumerate}
+      \item \textit{And}. 
+      \item \textit{Or}. 
+      \item \textit{Not}. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Null Value]
+    The null value may be represented depending on the language. It may be called \texttt{<NULL>}, \texttt{<NONE>}, or \texttt{<NIL>}. 
+  \end{example}
+
+  \begin{example}[Control Flow]
+    Control flow also has a bunch of keywords. 
+    \begin{enumerate}
+      \item \textit{Conditionals}. We have token types like \texttt{<IF>}, \texttt{<THEN>}, \texttt{<ENDIF>}, \texttt{<ELSEIF>}, and \texttt{<ELSE>}. 
+      \item \textit{For Loops}. We have token types like \texttt{<FOR>}, \texttt{<DO>}, \texttt{<ENDFOR>}. 
+      \item \textit{While Loops}. We have token types like \texttt{<WHILE>}, \texttt{<DO>}, \texttt{<ENDFOR>}. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Functions]
+    We have stuff like. 
+    \begin{enumerate}
+      \item \textit{Declaration}. Python uses \texttt{<DEF>} and JavaScript uses \texttt{<FUN>}. 
+      \item \textit{Return}. We have \texttt{<RETURN>}. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Varibale Declaration]
+    We can use \texttt{<VAR>} or \texttt{<LET>}. 
+  \end{example}
+
+  \begin{example}[Classes]
+    In object oriented languages, we can't forget about 
+    \begin{enumerate}
+      \item \texttt{<CLASS>} used to declare a new class. 
+      \item \texttt{<SUPER>} used to reference the parent class. 
+      \item \texttt{<THIS>} used to reference the current instance of the class. 
+    \end{enumerate}
+  \end{example}
+
+  \begin{example}[Print]
+    The \texttt{<PRINT>} token type may be used as a keyword. Often though, it is implemented as a native function.\footnote{More on this later.}
+  \end{example}
+
+  \begin{example}[Begin, End]
+    The \texttt{<BEGIN>} and \texttt{<END>} tokens are often used as delimiters of blocks rather than \texttt{<LEFT\_BRACE>} and \texttt{<RIGHT\_BRACE>}. 
+  \end{example}
+
+  \begin{example}[Comment]
+    Most of the times, comments are thrown away, but in certain cases one may want to keep them around as tokens. Then, we will have a \texttt{<COMMENT>}. 
+  \end{example}
+
+  \begin{example}[End of File]
+    Often, languages would implement an end-of-file token, denoted \texttt{<EOF>}. 
+  \end{example}
+
+  The whole process of lexing is to convert a giant string (your code) into a sequence of tokens. But this requires us to classify which token the next substring is, i.e. whether it's an identifier, a keyword, a literal, etc. So basically, we need to match these incoming words to their respective token type, and we can do this by pattern matching. If you have thought of regular expressions to do this, you are exactly on the right track. 
+
+	\begin{figure}[H]
+		\centering 
+		\begin{lstlisting}
+			typedef enum {
+				// Single-character tokens.
+				TOKEN_LEFT_PAREN, TOKEN_RIGHT_PAREN,
+				TOKEN_LEFT_BRACE, TOKEN_RIGHT_BRACE,
+				TOKEN_COMMA, TOKEN_DOT, TOKEN_MINUS, TOKEN_PLUS,
+				TOKEN_SEMICOLON, TOKEN_SLASH, TOKEN_STAR,
+				// One or two character tokens.
+				TOKEN_BANG, TOKEN_BANG_EQUAL,
+				TOKEN_EQUAL, TOKEN_EQUAL_EQUAL,
+				TOKEN_GREATER, TOKEN_GREATER_EQUAL,
+				TOKEN_LESS, TOKEN_LESS_EQUAL,
+				// Literals.
+				TOKEN_IDENTIFIER, TOKEN_STRING, TOKEN_NUMBER,
+				// Keywords.
+				TOKEN_AND, TOKEN_CLASS, TOKEN_ELSE, TOKEN_FALSE,
+				TOKEN_FOR, TOKEN_FUN, TOKEN_IF, TOKEN_NIL, TOKEN_OR,
+				TOKEN_PRINT, TOKEN_RETURN, TOKEN_SUPER, TOKEN_THIS,
+				TOKEN_TRUE, TOKEN_VAR, TOKEN_WHILE,
+
+				TOKEN_ERROR, TOKEN_EOF
+			} TokenType;
+		\end{lstlisting}
+		\caption{} 
+		\label{fig:tokens_c}
+	\end{figure}
+
+	Then, we can define a Token. 
+
+	\begin{lstlisting}
+		typedef struct {
+		  TokenType type;
+		  const char* start;
+		  int length; 
+			int line;
+		} Token;
+	\end{lstlisting}
+
+\subsection{Handwritten Lexer}
+
+  Now that we have regex's, we can just pattern match for each substring. We employ this using a classic two pointer strategy.\footnote{I initially tried it using a stack, but I found out later than a two pointer was much easier and faster.}
+
+  \begin{example}[Ambiguities]
+    If you are trying to lex the string: 
+    \begin{lstlisting}
+      !=
+    \end{lstlisting}
+    You can either tokenize it as \texttt{<BANG\_EQUAL>} or \texttt{<BANG><EQUAL>}. This creates an ambiguity in our tokenizer. 
+  \end{example}
+
+  \begin{definition}[Maximal Munch]
+    The principle of tokenizing the maximum length substring at a given time is called \textbf{maximal munch}. 
+  \end{definition}
+
+  \begin{algo}[Scanner]
+    The general idea is to use a two pointer approach, where \texttt{i} represents the start index of the current token and \texttt{j} represents the current index of the current token. Some tips for implementation: 
+
+      \begin{algorithmic}[1]  % The [1] adds line numbers
+				\Procedure{Scan}{source}
+					\State $\texttt{tokens} \gets \texttt{[]}$
+					\State $\texttt{i} \gets 0$
+					\State $\texttt{j} \gets 0$
+					\While{\texttt{j < source.length()}}
+						\State \texttt{c} = \texttt{j}th character of \texttt{source} 
+
+						\If{$\texttt{c} \in \{\texttt{ ( }, \texttt{ ) }, \texttt{ \{} , \texttt{ \} }, \texttt{ , }, \texttt{ . }, \texttt{ - }, \texttt{ + }, \texttt{ ; }, \texttt{ * }\}$}  \Comment{1-char tokens} 
+
+							\State convert \texttt{c} to corresponding token and append it to \texttt{tokens} 
+
+							\State increment \texttt{j}
+
+						\ElsIf{\texttt{c == /}} \Comment{It could be a division, comment, or multiline comment}
+
+
+							\State $\texttt{c2} \gets$ \texttt{j}th character of \texttt{source} \Comment{We peek ahead to find out which token \texttt{/} is a part of} 
+
+							\If{\texttt{c2} = \texttt{/}} \Comment{If this is single-line comment}
+
+								\State Keep incrementing \texttt{j} until we hit a newline. 
+								\State Increment \texttt{j} once more
+
+							\ElsIf{\texttt{c2} = \texttt{*}} \Comment{If this is multiline comment} 
+
+								\State Keep incrementing \texttt{j} until we hit \texttt{*/}
+								\State Increment \texttt{j} once more
+
+							\Else \Comment{This must be a division} 
+								
+								\State Add \texttt{<SLASH>} token
+								\State Increment \texttt{j}
+
+							\EndIf
+
+						\ElsIf{$\texttt{c} = \texttt{!}$}  
+							\State Peek ahead and add either \texttt{<BANG\_EQUAL>} or \texttt{<BANG>}
+							\State Increment \texttt{j} past this token. 
+
+						\ElsIf{$\texttt{c} = \texttt{=}$} 
+							\State Peek ahead and add either \texttt{<EQUAL\_EQUAL>} or \texttt{<EQUAL>}
+							\State Increment \texttt{j} past this token. 
+
+						\ElsIf{$\texttt{c} = \texttt{>}$} 
+							\State Peek ahead and add either \texttt{<GREATER\_EQUAL>} or \texttt{<GREATER>}
+							\State Increment \texttt{j} past this token. 
+
+						\ElsIf{$\texttt{c} = \texttt{<}$} 
+							\State Peek ahead and add either \texttt{<LESS\_EQUAL>} or \texttt{<LESS>}
+							\State Increment \texttt{j} past this token. 
+
+						\ElsIf{$\texttt{c} = \texttt{"}$} 
+							\State Keep incrementing \texttt{j} until we hit \texttt{"}
+							\State Increment \texttt{j} past this token. 
+
+						\ElsIf{$\texttt{c}$ is a digit} 
+							\State Keep incrementing \texttt{j} until we hit the end of the number. 
+							\State Increment \texttt{j} past this token. 
+
+						\ElsIf{$\texttt{c}$ is a letter} 
+							\State Keep incrementing \texttt{j} as long as the character is alphanumeric or underscore. 
+							\State If substring from \texttt{i} to \texttt{j} is a keyword, add the corresponding token. 
+							\State Otherwise, this is an identifier. 
+						\EndIf 
+					\EndWhile
+
+					\State Append \texttt{<EOF>} token to \texttt{tokens}. 
+					
+					\State \Return \texttt{tokens}
+				\EndProcedure
+      \end{algorithmic}
+
+		Note that the maximal munch principle is always applied in every conditional statement except for the first branch with 1-character tokens. 
+
+		\begin{enumerate}
+		  \item For the 1-character tokens, you can just use a switch statement which is faster, and to detect the identifiers/keywords/numbers, we can use an if statement in the default. 
+			\item To see keyword vs identifier, you usually use a hashmap to check for keywords (e.g. \texttt{if} $\to$ \texttt{<IF>}), and if there are no matches, then you catch it with a regex. 
+			\item The current index \texttt{j} keeps track of the column, but it might be nice to keep a second variable \texttt{line} tracking the current line. 
+		\end{enumerate}
+  \end{algo}
+
