@@ -1,6 +1,6 @@
-\section{Scanning}
+\section{Handwritten Scanners}
 
-  If we look at our source code---whether it'd be in Python, Java, or C---they are all just a giant string. Every program is just a string composed of characters in our alphabet.\footnote{Technically, not just English letters, but other ASCII characters plus other UTF-8.} This motivates the following definitions. 
+	If we look at our source code---whether it'd be in Python, Java, or C---they are all just a giant string. Every program is just a string composed of characters in an \hyperref[th-def:alphabet]{alphabet}.\footnote{Technically, not just English letters, but other ASCII characters plus other UTF-8.} This motivates the following definitions. 
 
   \begin{example}[C Identifiers]
     The set $\Sigma = \{\_, a, \ldots, z, A, \ldots, Z, 0, \ldots, 9\}$ can be the alphabet of the formal language $L$ representing all variable identifiers in the C programming language. 
@@ -168,7 +168,7 @@
   \end{example}
 
   \begin{example}[Semicolon]
-    The semicolon is denoted \texttt{<SEMICOLON>}. 
+    The semicolon is denoted \texttt{<SEMICOLON>}. As far as I know, it is used to terminate a line. 
   \end{example}
 
   Next, we continue onto tokens that are one-character or two characters long. 
@@ -273,7 +273,7 @@
     \begin{enumerate}
       \item \texttt{<CLASS>} used to declare a new class. 
       \item \texttt{<SUPER>} used to reference the parent class. 
-      \item \texttt{<THIS>} used to reference the current instance of the class. 
+      \item \texttt{<THIS>} or \texttt{<SELF>} used to reference the current instance of the class. 
     \end{enumerate}
   \end{example}
 
@@ -320,24 +320,29 @@
 				TOKEN_ERROR, TOKEN_EOF
 			} TokenType;
 		\end{lstlisting}
-		\caption{} 
+		\caption{Token types} 
 		\label{fig:tokens_c}
 	\end{figure}
 
 	Then, we can define a Token. 
 
-	\begin{lstlisting}
-		typedef struct {
-		  TokenType type;
-		  const char* start;
-		  int length; 
-			int line;
-		} Token;
-	\end{lstlisting}
+	\begin{figure}[H]
+		\centering 
+		\begin{lstlisting}
+			typedef struct {
+				TokenType type;
+				const char* start;
+				int length; 
+				int line;
+			} Token;
+		\end{lstlisting}
+		\caption{Token struct.} 
+		\label{fig:token_struct}
+	\end{figure}
 
-\subsection{Handwritten Lexer}
+\subsection{Scanner}
 
-  Now that we have regex's, we can just pattern match for each substring. We employ this using a classic two pointer strategy.\footnote{I initially tried it using a stack, but I found out later than a two pointer was much easier and faster.}
+  Now that we have regex's, we can just pattern match for each substring. However, we have some ambiguities. 
 
   \begin{example}[Ambiguities]
     If you are trying to lex the string: 
@@ -351,88 +356,319 @@
     The principle of tokenizing the maximum length substring at a given time is called \textbf{maximal munch}. 
   \end{definition}
 
+	We employ this using a classic two pointer strategy.\footnote{I initially tried it using a stack, but I found out later than a two pointer was much easier and faster.}
+
   \begin{algo}[Scanner]
     The general idea is to use a two pointer approach, where \texttt{i} represents the start index of the current token and \texttt{j} represents the current index of the current token. Some tips for implementation: 
 
-      \begin{algorithmic}[1]  % The [1] adds line numbers
-				\Procedure{Scan}{source}
-					\State $\texttt{tokens} \gets \texttt{[]}$
-					\State $\texttt{i} \gets 0$
-					\State $\texttt{j} \gets 0$
-					\While{\texttt{j < source.length()}}
-						\State \texttt{c} = \texttt{j}th character of \texttt{source} 
+		\begin{algorithmic}[1]  % The [1] adds line numbers
+			\Procedure{Scan}{source}
+				\State $\texttt{tokens} \gets \texttt{[]}$
+				\State $\texttt{i} \gets 0$
+				\State $\texttt{j} \gets 0$
+				\While{\texttt{j < source.length()}}
+					\State \texttt{c} = \texttt{j}th character of \texttt{source} 
 
-						\If{$\texttt{c} \in \{\texttt{ ( }, \texttt{ ) }, \texttt{ \{} , \texttt{ \} }, \texttt{ , }, \texttt{ . }, \texttt{ - }, \texttt{ + }, \texttt{ ; }, \texttt{ * }\}$}  \Comment{1-char tokens} 
+					\If{$\texttt{c} \in \{\texttt{ ( }, \texttt{ ) }, \texttt{ \{} , \texttt{ \} }, \texttt{ , }, \texttt{ . }, \texttt{ - }, \texttt{ + }, \texttt{ ; }, \texttt{ * }\}$}  \Comment{1-char tokens} 
 
-							\State convert \texttt{c} to corresponding token and append it to \texttt{tokens} 
+						\State convert \texttt{c} to corresponding token and append it to \texttt{tokens} 
 
-							\State increment \texttt{j}
+						\State increment \texttt{j}
 
-						\ElsIf{\texttt{c == /}} \Comment{It could be a division, comment, or multiline comment}
+					\ElsIf{\texttt{c == /}} \Comment{It could be a division, comment, or multiline comment}
 
 
-							\State $\texttt{c2} \gets$ \texttt{j}th character of \texttt{source} \Comment{We peek ahead to find out which token \texttt{/} is a part of} 
+						\State $\texttt{c2} \gets$ \texttt{j}th character of \texttt{source} \Comment{We peek ahead to find out which token \texttt{/} is a part of} 
 
-							\If{\texttt{c2} = \texttt{/}} \Comment{If this is single-line comment}
+						\If{\texttt{c2} = \texttt{/}} \Comment{If this is single-line comment}
 
-								\State Keep incrementing \texttt{j} until we hit a newline. 
-								\State Increment \texttt{j} once more
+							\State Keep incrementing \texttt{j} until we hit a newline. 
+							\State Increment \texttt{j} once more
 
-							\ElsIf{\texttt{c2} = \texttt{*}} \Comment{If this is multiline comment} 
+						\ElsIf{\texttt{c2} = \texttt{*}} \Comment{If this is multiline comment} 
 
-								\State Keep incrementing \texttt{j} until we hit \texttt{*/}
-								\State Increment \texttt{j} once more
+							\State Keep incrementing \texttt{j} until we hit \texttt{*/}
+							\State Increment \texttt{j} once more
 
-							\Else \Comment{This must be a division} 
-								
-								\State Add \texttt{<SLASH>} token
-								\State Increment \texttt{j}
+						\Else \Comment{This must be a division} 
+							
+							\State Add \texttt{<SLASH>} token
+							\State Increment \texttt{j}
 
-							\EndIf
+						\EndIf
 
-						\ElsIf{$\texttt{c} = \texttt{!}$}  
-							\State Peek ahead and add either \texttt{<BANG\_EQUAL>} or \texttt{<BANG>}
-							\State Increment \texttt{j} past this token. 
+					\ElsIf{$\texttt{c} = \texttt{!}$}  
+						\State Peek ahead and add either \texttt{<BANG\_EQUAL>} or \texttt{<BANG>}
+						\State Increment \texttt{j} past this token. 
 
-						\ElsIf{$\texttt{c} = \texttt{=}$} 
-							\State Peek ahead and add either \texttt{<EQUAL\_EQUAL>} or \texttt{<EQUAL>}
-							\State Increment \texttt{j} past this token. 
+					\ElsIf{$\texttt{c} = \texttt{=}$} 
+						\State Peek ahead and add either \texttt{<EQUAL\_EQUAL>} or \texttt{<EQUAL>}
+						\State Increment \texttt{j} past this token. 
 
-						\ElsIf{$\texttt{c} = \texttt{>}$} 
-							\State Peek ahead and add either \texttt{<GREATER\_EQUAL>} or \texttt{<GREATER>}
-							\State Increment \texttt{j} past this token. 
+					\ElsIf{$\texttt{c} = \texttt{>}$} 
+						\State Peek ahead and add either \texttt{<GREATER\_EQUAL>} or \texttt{<GREATER>}
+						\State Increment \texttt{j} past this token. 
 
-						\ElsIf{$\texttt{c} = \texttt{<}$} 
-							\State Peek ahead and add either \texttt{<LESS\_EQUAL>} or \texttt{<LESS>}
-							\State Increment \texttt{j} past this token. 
+					\ElsIf{$\texttt{c} = \texttt{<}$} 
+						\State Peek ahead and add either \texttt{<LESS\_EQUAL>} or \texttt{<LESS>}
+						\State Increment \texttt{j} past this token. 
 
-						\ElsIf{$\texttt{c} = \texttt{"}$} 
-							\State Keep incrementing \texttt{j} until we hit \texttt{"}
-							\State Increment \texttt{j} past this token. 
+					\ElsIf{$\texttt{c} = \texttt{"}$} 
+						\State Keep incrementing \texttt{j} until we hit \texttt{"}
+						\State Increment \texttt{j} past this token. 
 
-						\ElsIf{$\texttt{c}$ is a digit} 
-							\State Keep incrementing \texttt{j} until we hit the end of the number. 
-							\State Increment \texttt{j} past this token. 
+					\ElsIf{$\texttt{c}$ is a digit} 
+						\State Keep incrementing \texttt{j} until we hit the end of the number. 
+						\State Increment \texttt{j} past this token. 
 
-						\ElsIf{$\texttt{c}$ is a letter} 
-							\State Keep incrementing \texttt{j} as long as the character is alphanumeric or underscore. 
-							\State If substring from \texttt{i} to \texttt{j} is a keyword, add the corresponding token. 
-							\State Otherwise, this is an identifier. 
-						\EndIf 
-					\EndWhile
+					\ElsIf{$\texttt{c}$ is a letter} 
+						\State Keep incrementing \texttt{j} as long as the character is alphanumeric or underscore. 
+						\State If substring from \texttt{i} to \texttt{j} is a keyword, add the corresponding token. 
+						\State Otherwise, this is an identifier. 
+					\EndIf 
+				\EndWhile
 
-					\State Append \texttt{<EOF>} token to \texttt{tokens}. 
-					
-					\State \Return \texttt{tokens}
-				\EndProcedure
-      \end{algorithmic}
+				\State Append \texttt{<EOF>} token to \texttt{tokens}. 
+				
+				\State \Return \texttt{tokens}
+			\EndProcedure
+		\end{algorithmic}
 
 		Note that the maximal munch principle is always applied in every conditional statement except for the first branch with 1-character tokens. 
 
 		\begin{enumerate}
 		  \item For the 1-character tokens, you can just use a switch statement which is faster, and to detect the identifiers/keywords/numbers, we can use an if statement in the default. 
 			\item To see keyword vs identifier, you usually use a hashmap to check for keywords (e.g. \texttt{if} $\to$ \texttt{<IF>}), and if there are no matches, then you catch it with a regex. 
-			\item The current index \texttt{j} keeps track of the column, but it might be nice to keep a second variable \texttt{line} tracking the current line. 
 		\end{enumerate}
   \end{algo}
+
+\subsection{Scanner Struct}
+
+	The current index \texttt{j} keeps track of the column, but it might be nice to keep a second variable \texttt{line} tracking the current line. With this idea, let's start implementing our scanner. 
+	
+	\begin{lstlisting}
+		typedef struct {
+			const char* start; 
+			const char* current; 
+			int line;
+		} Scanner;
+
+		void initScanner(const char* source) {
+			scanner.start = source; 
+			scanner.current = source;
+			scanner.line = 1;
+		}
+	\end{lstlisting}
+
+	We'll instantiate a \texttt{Scanner} object once and have these functions return a token with the current length. 
+
+	\begin{lstlisting}
+		static Token makeToken(TokenType type) {
+			Token token; 
+			token.type = type;
+			token.start = scanner.start;
+			token.length = (int)(scanner.current - scanner.start);
+			token.line = scanner.line;
+			return token;
+		}
+
+		static Token errorToken(const char* message) {
+			Token token;
+			token.type = TOKEN_ERROR;
+			token.start = message;
+			token.length = (int)strlen(message);
+			token.line = scanner.line;
+			return token;
+		}
+	\end{lstlisting}
+
+	Then we'll have some helper functions for our scanner. 
+
+	\begin{lstlisting}
+		static bool isAtEnd() {
+			return *scanner.current == '\0';
+		}
+
+		static char advance() {
+			scanner.current++; 
+			return scanner.current[-1];
+		} 
+
+		static char peek() {
+			return *scanner.current;
+		}
+
+		static char peekNext() {
+			if (isAtEnd()) return '\0'; 
+			return scanner.current[1];
+		}
+
+		static bool match(char expected) {
+			if (isAtEnd()) return false; 
+			if (*scanner.current != expected) return false;
+			scanner.current++;
+			return true;
+		}
+
+		static void skipWhitespace() {
+			for (;;) {
+				char c = peek(); 
+				switch (c) {
+					case ' ':
+					case '\t':
+					case '\r':
+			scanner.current++;
+			break;
+					case '\n':
+			scanner.current++;
+			scanner.line++;
+					case '/':
+						if (peekNext() == '/') {
+							// A comment goes until the end of the line.
+							while (peek() != '\n' && !isAtEnd()) advance();
+						} else {
+							return;
+						}
+						break;
+					default:
+			return;
+				}
+			}
+		}
+	\end{lstlisting}
+
+	The next is for strings, which is pretty simple and standalone. 
+
+	\begin{lstlisting}
+		static Token string() {
+			// we are currently at the start quote
+			while (peek() != '"' && !isAtEnd()) {
+				if (peek() == '\n') scanner.line++;
+				advance();
+			}
+			if (isAtEnd()) return errorToken("Unterminated string."); 
+			advance();
+			return makeToken(TOKEN_STRING);
+		}
+	\end{lstlisting}
+
+	For numbers, we use a helper method. 
+
+	\begin{lstlisting}
+		static bool isDigit(char c) {
+			return c >= '0' && c <= '9';
+		}
+
+		static Token number() {
+			while (isDigit(peek())) advance();
+			
+			// floating point number
+			if (peek() == '.' && isDigit(peekNext())) {
+				// consume the '.'
+				advance();
+				while (isDigit(peek())) advance();
+			}
+
+			return makeToken(TOKEN_NUMBER);
+		}
+	\end{lstlisting}
+
+	For identifiers, we use a lookahead to determine if it is a keyword. It is basically a double switch statement which makes things fast. 
+
+	\begin{lstlisting}
+		static bool isAlpha(char c) {
+			return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+		}
+
+		static TokenType checkKeyword(int start, int length, const char* rest, TokenType type) {
+			if (scanner.current - scanner.start == start + length && 
+					memcmp(scanner.start + start, rest, length)) {
+				return type;
+			}
+			return TOKEN_IDENTIFIER;
+		}
+
+		static TokenType identifierType() { 
+			switch (scanner.start[0]) {
+				case 'a': return checkKeyword(1, 2, "nd", TOKEN_AND);
+				case 'c': return checkKeyword(1, 4, "lass", TOKEN_CLASS);
+				case 'e': return checkKeyword(1, 3, "lse", TOKEN_ELSE);
+				case 'i': return checkKeyword(1, 1, "f", TOKEN_IF);
+				case 'f': 
+					if (scanner.current - scanner.start > 1) {
+						switch (scanner.start[1]) {
+							case 'a': return checkKeyword(2, 3, "lse", TOKEN_FALSE);
+							case 'o': return checkKeyword(2, 1, "r", TOKEN_FOR);
+							case 'u': return checkKeyword(2, 1, "n", TOKEN_FUN);
+						}
+					}
+					break;
+				case 'n': return checkKeyword(1, 2, "il", TOKEN_NIL);
+				case 'o': return checkKeyword(1, 1, "r", TOKEN_OR);
+				case 'p': return checkKeyword(1, 4, "rint", TOKEN_PRINT);
+				case 'r': return checkKeyword(1, 5, "eturn", TOKEN_RETURN);
+				case 's': return checkKeyword(1, 4, "uper", TOKEN_SUPER);
+				case 't':
+					if (scanner.current - scanner.start > 1) {
+			switch(scanner.start[1]) {
+				case 'h': return checkKeyword(1, 2, "is", TOKEN_THIS); 
+				case 'r': return checkKeyword(1, 2, "ue", TOKEN_TRUE);
+			}
+					}
+					break;
+				case 'v': return checkKeyword(1, 2, "ar", TOKEN_VAR);
+				case 'w': return checkKeyword(1, 4, "hile", TOKEN_WHILE); 
+			}
+			return TOKEN_IDENTIFIER;
+		}
+
+		static Token identifier() {
+			while (isAlpha(peek()) || isDigit(peek())) advance(); 
+			return makeToken(identifierType());
+		}
+	\end{lstlisting}
+
+	Finally, we bring it all together to our scan function. 
+
+	\begin{lstlisting}
+		Token scanToken() {
+			skipWhitespace();
+			scanner.start = scanner.current;
+			if (isAtEnd()) return makeToken(TOKEN_EOF); 
+
+			char c = advance(); 
+			
+			if (isAlpha(c)) return identifier();
+			if (isDigit(c)) return number();
+
+			switch(c) {
+				case '(': return makeToken(TOKEN_LEFT_PAREN);
+				case ')': return makeToken(TOKEN_RIGHT_PAREN);
+				case '{': return makeToken(TOKEN_LEFT_BRACE);
+				case '}': return makeToken(TOKEN_RIGHT_BRACE);
+				case ';': return makeToken(TOKEN_SEMICOLON);
+				case ',': return makeToken(TOKEN_COMMA);
+				case '.': return makeToken(TOKEN_DOT);
+				case '-': return makeToken(TOKEN_MINUS);
+				case '+': return makeToken(TOKEN_PLUS);
+				case '/': return makeToken(TOKEN_SLASH);
+				case '*': return makeToken(TOKEN_STAR);
+				case '!':
+					return makeToken(
+							match('=') ? TOKEN_BANG_EQUAL : TOKEN_BANG);
+				case '=':
+					return makeToken(
+							match('=') ? TOKEN_EQUAL_EQUAL : TOKEN_EQUAL);
+				case '<':
+					return makeToken(
+							match('=') ? TOKEN_LESS_EQUAL : TOKEN_LESS);
+				case '>':
+					return makeToken(
+							match('=') ? TOKEN_GREATER_EQUAL : TOKEN_GREATER);
+				case '"': return string();
+			}
+
+			return errorToken("Unexpected character.");
+		}
+	\end{lstlisting}
 
