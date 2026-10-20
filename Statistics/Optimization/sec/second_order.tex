@@ -1,4 +1,89 @@
-\section{Quasi-Newton Methods}
+\section{Second-Order Optimizers} 
+
+	Quasi-Newton included. 
+
+\subsection{Newton-Raphson Method} 
+
+  Before we talk more about gradient descent methods, let's take a look at one of the simplest numerical root-finders.\footnote{Optimization and root finding are very similar, since to optimize $f$ you should first find a root of $f^\prime$.}
+
+  \begin{theorem}[Convergence]
+    Given a differentiable function $f: \mathbb{R} \to \mathbb{R}$, the sequence $(x_n)$ defined 
+    \begin{equation}
+      x_n = x_{n-1} - \frac{f(x_{n-1})}{f^\prime (x_{n-1})}
+    \end{equation}
+    for any $x_0 \in \mathbb{R}$, converges to a root of $f$. 
+  \end{theorem}
+  \begin{proof}
+    Need to verify this. 
+  \end{proof}
+
+  \begin{algo}[Newton-Raphson Method]
+    \begin{algorithm}[H]
+    \label{alg:newton-raphson}
+    \begin{algorithmic}[1]  % The [1] adds line numbers
+      % Input/Output documentation
+      \Require{Function $f(x)$, initial guess $x_0$}
+      \Procedure{NewtonRaphson}{$f, f', x_0, \epsilon, N_{max}$}
+
+      \State $x \gets x_0$ 
+      \While{ not converged} 
+        \If{$f^\prime (x) = 0$} 
+          \State Retry with another $x_0$.  
+        \EndIf
+        \State $x \gets \frac{f(x)}{f^\prime (x)}$
+      \EndWhile
+          
+      \State \Return $x$ 
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
+
+\subsection{Newton's Method}
+
+  Newton's method is an iterative algorithm for finding the roots of a differentiable function $F$. An immediate consequence is that given a convex $C^2$ function $f$, we can apply Newton's method to its derivative $f^\prime$ to get the critical points of $f$ (minima, maxima, or saddle points), which is relevant in optimizing $f$. Given a $C^1$ function $f: D \subset \mathbb{R}^n \longrightarrow \mathbb{R}$ and a point $\mathbf{x}_k \in D$, we can compute its linear approximation as 
+  \begin{equation}
+    f(\mathbf{x}_k + \mathbf{h}) \approx f(\mathbf{x}_k) + D f_{\mathbf{x}_k} \, \mathbf{h} = f(\mathbf{x}_k) + \nabla f(\mathbf{x}_k) \cdot \mathbf{h}
+  \end{equation}
+  where $D f_{\mathbf{x}_k}$ is the total derivative of $f$ at $\mathbf{x}_k$ and $\mathbf{h}$ is a small $n$-vector. Discretizing this gives us our gradient descent algorithm as 
+  \begin{equation}
+    \mathbf{x}_{k+1} \gets \mathbf{x}_k - \alpha \, f^\prime(\mathbf{x}_k)
+  \end{equation}
+  This linear function is unbounded, so we must tune the step size $\alpha$ accordingly. If $\alpha$ is too small, then convergence is slow, and if $\alpha$ is too big, we may overshoot the minimum. Netwon's method automatically tunes this $\alpha$ using the curvature information, i.e. the second derivative. If we take a second degree Taylor approximation 
+  \begin{equation}
+    f(\mathbf{x}_k + \mathbf{h}) \approx f(\mathbf{x}_k) + D f_{\mathbf{x}_k} \, \mathbf{h} + \mathbf{h}^T \, H f_{\mathbf{x}_k} \, \mathbf{h}
+  \end{equation}
+  then we are guaranteed that this quadratic approximation of $f$ has a minimum (existence and uniqueness can be proved), and we can calculate it to find our "approximate" minimum of $f$. We simply take the total derivative of this polynomial w.r.t. $\mathbf{h}$ and set it equal to the $n$-dimensional covector $\mathbf{0}$. This is equivalent to setting the gradient as $\mathbf{0}$, so 
+  \begin{align*}
+    \mathbf{0} & = \nabla_\mathbf{h} \big[ f(\mathbf{x}_k) + D f_{\mathbf{x}_k} \, \mathbf{h} + \mathbf{h}^T \, H f_{\mathbf{x}_k} \, \mathbf{h} \big] (\mathbf{h}) \\
+    & = \nabla_\mathbf{h} [ D f_{x_k} \mathbf{h} ] (\mathbf{h}) + \nabla_\mathbf{h} [\mathbf{h}^T \, H f_{\mathbf{x}_k} \, \mathbf{h}] (\mathbf{h}) \\
+    & = \nabla_\mathbf{x} f(\mathbf{x}_k) + H f_{\mathbf{x}_k} \, \mathbf{h} \\
+    & \implies \mathbf{h} = - [H f_{\mathbf{x}_k}]^{-1} \nabla_\mathbf{x} f(\mathbf{x}_k) 
+  \end{align*}
+  which results in the iterative update 
+  \begin{equation}
+    \mathbf{x}_{k+1} \gets \mathbf{x}_k - [H f_{\mathbf{x}_k}]^{-1} \nabla_\mathbf{x} f (\mathbf{x}_k)
+  \end{equation}
+  Note that we require $\mathbf{f}$ to be convex, so that $H f$ is positive definite. Since $f$ is $C^2$, this implies $H f$ is also symmetric, implying invertibility by the spectral theorem. Note that Newton's method is very expensive, since we require the computation of the gradient, the Hessian, \textit{and} the inverse of the Hessian, making the computational complexity of this algorithm to be $O(n^3)$. We can also add a smaller stepsize $h$ to control stability. 
+
+  \begin{algorithm}
+    \caption{Newton's Method}\label{alg:netwons}
+    \begin{algorithmic}
+
+    \Require Initial $\mathbf{x}_0$, Stepsize $h$ (optional)
+
+    \For{$t = 0$ to $T$ until convergence}
+        \State $g(\mathbf{x}_t) \gets \nabla f(\mathbf{x}_t)$  
+        \State $H(\mathbf{x}_t) \gets H f_{\mathbf{x}_t}$ 
+        \State $H^{-1} (\mathbf{x}_t) \gets [H(\mathbf{x}_t)]^{-1}$ 
+        \State $\mathbf{x}_{t+1} \gets \mathbf{x}_t - h \, H^{-1} (\mathbf{x}_t) \, g(\mathbf{x}_t)$
+    \EndFor
+
+    \end{algorithmic}
+  \end{algorithm}
+
+\subsection{Gauss Newton Method}
+
 
 \subsection{Secant Method}
 
@@ -225,4 +310,5 @@
     \end{algorithmic}
     \end{algorithm}
   \end{algo}
+
 
