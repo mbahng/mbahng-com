@@ -1,4 +1,4 @@
-\section{Smooth Optimization} 
+\section{First Order Optimization} 
 
 	The first thing you learn about gradients in multivariate calculus is that \hyperref[mul-thm:gradient_increase]{they point in the step of steepest ascent}. Generally, you can think of the function you're trying to minimize as a ``landscape.'' This inspires a greedy approach to simply walk in this direction $\nabla f(x)$ to maximize a function (or walk in the opposite direction $-\nabla f(x)$). This gives the following. 
 
@@ -25,48 +25,7 @@
     \end{algorithm} 
   \end{definition}
 
-  The algorithm may not converge if $\alpha$ (the step size) is too high, since it may overshoot. This can be solved by reducing the $\alpha$ with each step, using \textit{schedulers}. 
-
-  Ideally, we would want to have a variable step size $h(t)$ so that $h \rightarrow 0$ as $t \rightarrow + \infty$. 
-
-  \begin{algo}[Decay on Plateau Learning Rate]
-    Basically, this says that if the loss doesn't decrease for the past $p$ epochs, then decrease the learning rate $\eta \gets \gamma \cdot \eta$. 
-    \begin{algorithm}[H]
-    \label{alg:lr_decay_plateau}
-    \begin{algorithmic}[1]  % The [1] adds line numbers
-      \Require{Patience $p$, decay rate $0 < \gamma < 1$, initial $\theta_0$, loss $L$}
-
-      \Procedure{LRDecayOnPlateau}{$p, \gamma, \theta, \eta$}
-        \State $\text{best\_loss} \gets L(\theta)$ 
-        \State $\text{bad\_epochs} \gets 0$
-        \While{not converged} 
-          \State $\theta \gets \theta - \eta \nabla L(\theta)$ 
-          \If{$L(\theta) < \text{best\_loss}$}  
-            \State $\text{best\_loss} \gets L(\theta)$ 
-            \State $\text{bad\_epochs} \gets 0$
-          \Else 
-            \State $\text{bad\_epochs} \gets \text{bad\_epochs} + 1$
-          \EndIf 
-          \If{$\text{bad\_epochs} \geq p$} 
-            \State $\eta \gets \eta \cdot \gamma$ 
-            \State $\text{bad\_epochs} \gets 0$
-          \EndIf 
-        \EndWhile
-        \State \Return $\theta, \eta$
-      \EndProcedure
-    \end{algorithmic}
-    \end{algorithm}
-  \end{algo}
-
-
-	This is a pretty simple approach, but this raises so many questions. For example, can we ensure convergence? Will it actually land in the minimum? 
-
-	\begin{definition}[$\epsilon$-Critical Point]
-		For differentiable function $f: \mathbb{R}^d \to \mathbb{R}$, $x \in \mathbb{R}^d$ is an \textbf{$\epsilon$-critical point} if 
-		\begin{equation}
-		  \|\nabla f(x)\| \leq \epsilon
-		\end{equation}
-	\end{definition}
+  The algorithm may not converge if $\eta$ (the step size) is too high, since it may overshoot. This can be solved by reducing the $\eta$ with each step, using \textit{schedulers}. Ideally, we would want to have a variable step size $h(t)$ so that $h \rightarrow 0$ as $t \rightarrow + \infty$. 
 
 	A function being \hyperref[mul-def:ck_functions]{$C^k$} is great, but often we wish to bound the derivatives as well. 
 
@@ -76,6 +35,17 @@
 		  \| \nabla f(x) - \nabla f(y) \| \leq L \|x - y\|
 		\end{equation}
 	\end{definition}
+	
+	This is a pretty simple approach, but this raises so many questions. For example, can we ensure convergence? Will it actually land in the minimum? 
+
+	\begin{definition}[$\epsilon$-Critical Point]
+		For differentiable function $f: \mathbb{R}^d \to \mathbb{R}$, $x \in \mathbb{R}^d$ is an \textbf{$\epsilon$-critical point} if 
+		\begin{equation}
+		  \|\nabla f(x)\| \leq \epsilon
+		\end{equation}
+	\end{definition}
+
+\subsection{Convergence of Gradient Descent}
 
 	\begin{theorem}[Taylor's 1st Order Bound]
 		If $f: \mathbb{R}^d \to \mathbb{R}$ is $C^1$ and $L$-smooth, then 
@@ -95,47 +65,11 @@
 		\end{align}
 	\end{proof}
 
-	\begin{corollary}[Taylor's 2nd Order Bound]
-		If $f: \mathbb{R}^d \to \mathbb{R}$ is $C^2$ and has a $Q$-Lipschitz Hessian $\nabla^2 f$, then 
-	\end{corollary}
-	\begin{proof}
-		We can use FOTC twice since $f$ is $C^2$. So, 
-		\begin{align}
-			\theta(1) & = \theta(0) + \int_0^1 \theta^\prime (t) \,dt \\ 
-								& = \theta(0) + \int_0^1 \bigg( \theta^\prime(0) + \int_0^t \theta^{\prime\prime}(\alpha) \,d\alpha \bigg) \, dt \\ 
-								& = \theta(0) + \theta^\prime (0) + \int_0^1 \int_0^t \theta^{\prime\prime} (\alpha) \,d\alpha \,dt 
-		\end{align}
-		Note that 
-		\begin{equation}
-			\int_0^1 \int_0^t \theta^{\prime\prime} (0) \,d\alpha \,dt = \theta^{\prime\prime} (0) \int_0^1 \int_0^t \,d\alpha \,dt = \frac{1}{2} \theta^{\prime\prime} (0)
-		\end{equation}
-		Therefore, 
-		\begin{align}
-			\bigg| f(x + s) & - f(x) - \nabla f(x)^T s - \frac{1}{2} s^T \nabla^2 f(x) s \bigg| \\ 
-											& = \bigg| \theta(0) + \theta^{\prime} (0) + \int_0^1 \int_0^t \theta^{\prime\prime}(\alpha) \,d\alpha \,dt - \theta(0) - \theta^\prime (0) - \frac{1}{2} \theta^{\prime\prime} (0) \bigg| \\ 
-											& = \bigg| \int_0^1 \int_0^t \theta^{\prime\prime} (\alpha) \,d\alpha \,dt - \int_0^1 \int_0^t \frac{1}{2} \theta^{\prime\prime}(0) \,d\alpha \,dt \bigg| \\ 
-											& = \bigg| \int_0^1 \int_0^t s^T \big( \nabla^2 f(x + \alpha s) - \nabla^2 f(x) \big) s \,d\alpha \,dt \bigg| \\ 
-											& \leq \int_0^1 \int_0^t \big| s^T \big( \nabla^2 f(x + \alpha s) - \nabla^2 f(x) \big) s \big| \,d\alpha \,dt \\
-											& \leq \int_0^1 \int_0^t \big\| \nabla^2 f(x + \alpha s) - \nabla^2 f(x) \big\|_{op} \|s\|^2 \,d\alpha \,dt \\
-											& \leq \int_0^1 \int_0^t Q \|\alpha s\| \|s\|^2 \,d\alpha \,dt \\
-											& = Q \|s\|^3 \int_0^1 \int_0^t \alpha \,d\alpha \,dt \\
-											& = \frac{1}{6} Q \|s\|^3
-		\end{align}
-	\end{proof}
-
 	With this result, we can see that 
 	\begin{equation}
 		f(x) \leq f(w) + \langle \nabla f(w), x - w \rangle + \frac{L}{2} \|x - w\|^2
 	\end{equation}
 	This is useful since it upper-bounds a potentially complicated nonlinear function by a simple quadratic function. 
-
-	\begin{definition}[$\mu$-Strongly Convex]
-		A function $f: \mathbb{R}^d \to \mathbb{R}$ is \textbf{$\mu$-strongly convex} if for all $w, y \in \mathbb{R}^d$, 
-		\begin{equation}
-			f(y) \geq f(w) + \langle \nabla f(w), y - w \rangle + \frac{\mu}{2} \|y - w\|^2
-		\end{equation}
-		Note that $f$ is convex when $\mu = 0$. 
-	\end{definition}
 
 	An algorithmic design principle that we will follow is that instead of minimizing $f$ directly, we iteratively minimize an approximation of $f$ centered at the previous iterate. We will use this principle over and over again. Therefore, let's start with this iterative procedure. 
 	\begin{equation}
@@ -162,8 +96,8 @@
 		\end{align}
 	\end{proof}
 
-	\begin{theorem}[Spiral]
-		\label{thm:spiral}
+	\begin{theorem}[Convergence to Criticality of Gradient Descent]
+		\label{thm:convergence_to_criticality_gd}
 		Suppose that $f$ is $L$-smooth and $\inf{f} > -\infty$. Consider the iterates 
 		\begin{equation}
 			w_{k+1} \gets w_k - \frac{1}{L} \nabla f(w_k)
@@ -177,14 +111,7 @@
 	  
 	\end{proof}
 
-	\begin{theorem}[Quadratic Growth]
-		Suppose that $f$ is $\mu$-strongly convex. Then, $f$ has a unique minimizer $w^\ast$, and for all $w \in \mathbb{R}^d$, 
-		\begin{equation}
-			\frac{\mu}{2} \|w - w^\ast\|^2 \leq f(w) - f(w^\ast)
-		\end{equation}
-	\end{theorem}
-
-	\begin{theorem}[Lightning]
+	\begin{theorem}[Linear Convergence of Gradient Descent Under Strong Convexity]
 	  Suppose that $f$ is $L$-smooth and $\mu$-strongly convex. Then, the iterates of GD satisfy 
 		\begin{equation}
 			f(w_k) - f(w^\ast) \leq \bigg( 1 - \frac{\mu}{L} \bigg)^k \big( f(w_0) - f(w^\ast) \big) 
@@ -204,7 +131,7 @@
 		\|w_T - w^\ast\| \leq \frac{2 \epsilon}{\mu}
 	\end{equation}
 
-	Note that for \hyperref[thm:spiral]{theorem spiral}, we needed $T \geq \frac{2L}{\epsilon^2} \big( f(w_0) - f(w^\ast) \big)$ for $f(w_T) - f(w^\ast) \leq \epsilon$. If $\epsilon = 10^{-6}$, then this means that $e^{-2} = 10^12$ while $\ln(\frac{1}{\epsilon}) \approx 14$. 
+	Note that for \hyperref[thm:convergence_to_criticality_gd]{this theorem}, we needed $T \geq \frac{2L}{\epsilon^2} \big( f(w_0) - f(w^\ast) \big)$ for $f(w_T) - f(w^\ast) \leq \epsilon$. If $\epsilon = 10^{-6}$, then this means that $e^{-2} = 10^12$ while $\ln(\frac{1}{\epsilon}) \approx 14$. 
 
 	Thus, how fast GD converges is dictated by the ratio 
 	\begin{equation}
@@ -232,7 +159,7 @@
 	  
 	\end{proof}
 
-	\begin{theorem}[Double Lightning]
+	\begin{theorem}[Linear Convergence of Gradient Descent Under PL Inequality]
 		Suppose that $f$ is $L$-smooth and satisfies $\mu$-PL. Then, the iterates of GD with $\eta_k = \frac{1}{L}$ satisfy 
 		\begin{equation}
 			f(w_k) - \inf(f) \leq \bigg( 1 - \frac{\mu}{L} \bigg)^k \big( f(w_0) - f(w^\ast) \big) 
