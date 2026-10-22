@@ -1,0 +1,173 @@
+\section{Stochastic Optimization}
+
+  Now let's go back to gradient descent. Usually, in machine learning, we are trying to optimize a parameteric model $\mathcal{P} = \{ \mathbb{P}_\theta \mid \theta \in \Theta\}$ over a dataset $\mathcal{D} = \{x_i\}_{i=1}^n$., For example, our estimator in the maximum-likelihood approach will be 
+  \begin{equation}
+    \delta(\mathcal{D}) = \argmax_{\theta} L(\theta \mid \mathcal{D}) = \log p(\mathcal{D} \mid \theta)
+  \end{equation}
+  for some loss function $L$. 
+
+  If we assume that the samples are iid, then we can decompose the gradient as 
+  \begin{equation}
+    \nabla_\theta \log{p(\mathcal{D} \mid \theta)} = \sum_i \nabla_\theta \log{p(d_i \mid \theta)}
+  \end{equation}
+  which scales linearly with the size of a dataset. This is not scalable with extremely large datasets, and so we must remove this $O(n)$ term. Intuitively, we can think of approximating this gradient by taking a minibatch $b$ of $\mathcal{D}$ and computing the gradient only across that minibatch. 
+
+  \begin{theorem}[Minibatch Gradient is an Unbiased Estimator]
+    Let us take a minibatch of $b$ samples $\mathcal{B} \subset \mathcal{D}$ without replacement, where $b << D$. Then, our approximation of the gradient of the log likelihood
+    \begin{equation}
+       \nabla_\theta \log{p (\mathcal{B} \mid \theta)} \coloneqq \frac{1}{b} \sum_{x \in \mathcal{B}} \nabla_\theta \log{p(x \mid \theta)}
+    \end{equation}
+    is an unbiased estimator of the true gradient $\nabla_\theta \log{p(\mathcal{D} \mid \theta)}$. That is, setting $\mathcal{M}$ as a random variable of samples over $\mathcal{D}$, we have 
+    \begin{equation}
+      \mathbb{E}_{\mathcal{M}} [\nabla \mathcal{L}_{\mathcal{M}} (\mathbf{w})] = \nabla \mathcal{L} (\mathbf{w})
+    \end{equation}
+  \end{theorem}
+  \begin{proof}
+    We use linearity of expectation for all $\mathcal{M} \subset \mathcal{D}$ of size $M$. 
+  \end{proof} 
+
+  This also has the additional advantage of saving memory. You don't have to load in the gradients for the whole dataset (which may be a few TB), and can allocate just enough memory for each batch (perhaps a few GB). 
+
+  \begin{algo}[Stochastic Gradient Descent]
+    \begin{algorithm}[H]
+    \label{alg:stochacistic-gradient-descent}
+    \begin{algorithmic}[1]  % The [1] adds line numbers
+      % Input/Output documentation
+      \Require{Function $L(\theta)$, initialization $\theta_0$, learning rate, batch size $b$, dataset $\mathcal{D}$}
+      \Procedure{StochasticGradientDescent}{$f, \theta_0, b$}
+        \State $\theta \gets \theta_0$ 
+        \While{not converged} 
+          \State Sample minibatch $\mathcal{B} \subset \mathcal{D}$. 
+          \State $\theta \gets \theta - \eta \nabla_\theta \log p(\mathcal{B} \mid \theta)$ 
+        \EndWhile
+        \State \Return $\theta$
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm} 
+  \end{algo} 
+
+  \begin{example}[Linear Regression]
+    We have assumed knowledge of gradient descent in the back propagation step in the previous section, but let's revisit this by looking at linear regression. Given our dataset $\mathcal{D} = \{\mathbf{x}^(n), y^{(n)}\}$, we are fitting a linear model of the form 
+    \begin{equation}
+      f(\mathbf{x}; \mathbf{w}, b) = \mathbf{w}^T \mathbf{x} + b
+    \end{equation} 
+    The squared loss function is 
+    \begin{equation}
+      \mathcal{L}(\mathbf{w}, b) = \frac{1}{2} \sum_{n=1}^N \big( y - f(\mathbf{x}; \mathbf{w}, b) \big)^2 = \frac{1}{2} \sum_{n=1}^N \big( y - (\mathbf{w}^T \mathbf{x} + b) \big)^2  
+    \end{equation}
+    If we want to minimize this function, we can visualize it as a $d$-dimensional surface that we have to traverse. Recall from multivariate calculus that the gradient of an arbitrary function $\mathcal{L}$ points in the steepest direction in which $\mathcal{L}$ increases. Therefore, if we can compute the gradient of $\mathcal{L}$ and step in the \textit{opposite direction}, then we would make the more efficient progress towards minimizing this function (at least locally). The gradient can be solved using chain rule. Let us solve it with respect to $\mathbf{w}$ and $b$ separately first. Beginners might find it simpler to compute the gradient element-wise. 
+    \begin{align}
+      \frac{\partial}{\partial w_j} \mathcal{L}(\mathbf{w}, b) 
+      & = \frac{\partial}{\partial w_j} \bigg(\frac{1}{2} \sum_{n=1}^N \Big( f (\mathbf{x}^{(n)}; \mathbf{w}, b) - y^{(n)} \Big)^2 \bigg) \\
+      & = \frac{1}{2} \sum_{n=1}^N \frac{\partial}{\partial w_j} \Big( f(\mathbf{x}^{(n)}; \mathbf{w}, b) - y^{(n)}\Big)^2 \\
+      & = \frac{1}{2} \sum_{n=1}^N 2 \Big( f(\mathbf{x}^{(n)}) - y^{(n)}\Big) \cdot \frac{\partial}{\partial w_j} \big( f(\mathbf{x}^{(n)}; \mathbf{w}, b) - y^{(n)} \big) \\
+      & = \frac{1}{2} \sum_{n=1}^N 2 \Big( f(\mathbf{x}^{(n)}) - y^{(n)}\Big) \cdot \frac{\partial}{\partial w_j} \big( \mathbf{w}^T \mathbf{x}^{(n)} + b - y^{(n)} \big) \\
+      & = \sum_{n=1}^N \big( f(\mathbf{x}^{(n)}; \mathbf{w}, b) - y^{(n)}\big) \cdot x_j^{(n)} \;\;\;\;\;(\text{for } j = 0, 1, \ldots, d)
+    \end{align}
+    As for getting the derivative w.r.t. $b$, we can redo the computation and get 
+    \begin{equation}
+      \frac{\partial}{\partial w_j}\mathcal{L}(\mathbf{w}, b) = \sum_{n=1}^N \big( f (\mathbf{x}^{(n)}; \mathbf{w}, b) - y^{(n)}\big) 
+    \end{equation}
+    and in the vector form, setting $\boldsymbol{\theta} = (\mathbf{w}, b)$, we can set 
+    \begin{align}
+      \nabla \mathcal{L} (\mathbf{w}) & = \mathbf{X}^T (\hat{\mathbf{y}} - \mathbf{y}) \\
+      \nabla \mathcal{L} (b) & = (\hat{\mathbf{y}} - \mathbf{y}) \cdot \mathbf{1}
+    \end{align}
+    where $\hat{\mathbf{y}}_n = f(\mathbf{x}^{(n)}; \mathbf{w}, b)$ are the predictions under our current linear model and $\mathbf{X} \in \mathbb{R}^{n \times d}$ is our design matrix. This can easily be done on a computer using a package like \texttt{numpy}. 
+    
+    Rather than updating the vector $\boldsymbol{\theta}$ in batches, we can apply \textbf{stochastic gradient descent} that works incrementally by updating $\boldsymbol{\theta}$ with each term in the summation. That is, rather than updating as a batch by performing the entire matrix computation by multiplying over $N$ dimensions,
+    \begin{equation}
+      \nabla \mathcal{L} (\mathbf{w}) = \underbrace{\mathbf{X}^T}_{D \times N} \underbrace{(\hat{\mathbf{y}} - \mathbf{y})}_{N \times 1}
+    \end{equation}
+    we can reduce this load by choosing a smaller subset $\mathcal{M} \subset \mathcal{D}$ of $M < N$ elements, which gives 
+    \begin{equation}
+      \nabla \mathcal{L}_{\mathcal{M}} (\mathbf{w}) = \underbrace{\mathbf{X}_{\mathcal{M}}^T}_{D \times M} \underbrace{(\hat{\mathbf{y}_{\mathcal{M}}} - \mathbf{y}}_{\mathcal{M}})_{M \times 1}
+    \end{equation}
+  \end{example} 
+
+  Even though these estimators are noisy, we get to do much more iterations and therefore have a faster net rate of convergence. But now we have an additional choice to make. What should our minibatch size be? 
+
+  \begin{heuristic}[Choosing Batch Size] 
+    It really depends on your hardware, but generally, 
+    \begin{enumerate}
+      \item A smaller batch size might mean more noisy estimates, and therefore may not converge. However, it tends to escape local minima better. 
+      \item A high batch size means more exact estimates, but it tends to get stuck in local minima.  
+    \end{enumerate}
+    You want to make sure that the batches fit into memory. 
+  \end{heuristic}
+
+\subsection{Convergence}
+
+
+
+\subsection{Momentum and Adaptive Methods}
+
+  \begin{algo}[Stochastic Gradient Descent with Momentum]
+    This modifies vanilla SGD by keeping a running velocity term that accumulates past gradients, which smooths updates and helps escape sharp local minima. 
+    \begin{algorithm}[H]
+    \label{alg:sgd_momentum}
+    \begin{algorithmic}[1]  % The [1] adds line numbers
+      \Require{Learning rate $\eta$, momentum $0 \leq \mu < 1$, initial parameters $\theta_0$, loss $L$}
+
+      \Procedure{SGDMomentum}{$\eta, \mu, \theta$}
+        \State $v \gets 0$ \Comment{Initialize velocity}
+        \While{not converged}
+          \State $v \gets \mu v + \nabla L(\theta)$        \Comment{Decay prev. velocity and add in gradient (acceleration)}
+          \State $\theta \gets \theta - \eta v$
+        \EndWhile
+        \State \Return $\theta$
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
+
+  \begin{algo}[Stochastic Gradient Descent with Nesterov Momentum]
+    Nesterov momentum modifies standard momentum by computing the gradient at the \emph{lookahead} position $\theta - \eta \mu v$, leading to faster convergence in practice. 
+    \begin{algorithm}[H]
+    \label{alg:sgd_nesterov}
+    \begin{algorithmic}[1]  % The [1] adds line numbers
+      \Require{Learning rate $\eta$, momentum $0 \leq \mu < 1$, initial parameters $\theta_0$, loss $L$}
+
+      \Procedure{SGDNesterov}{$\eta, \mu, \theta$}
+        \State $v \gets 0$ \Comment{Initialize velocity}
+        \While{not converged}
+          \State $g \gets \nabla L(\theta - \eta \mu v)$ \Comment{Lookahead gradient}
+          \State $v \gets \mu v + g$
+          \State $\theta \gets \theta - \eta v$
+        \EndWhile
+        \State \Return $\theta$
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
+
+	Adagrad. RMSProp, Adadelta, Adam. 
+
+\subsection{Variance Reduction} 
+
+\subsection{Proximal Methods}
+
+	Proximal SGD, Stochastic subgradient descent, projected SGD. 
+
+\subsection{Block Coordinate Descent} 
+
+  \begin{algo}[Block Gradient Descent]
+    Block Gradient Descent partitions the parameter vector $\theta$ into $m$ disjoint blocks. At each iteration, it selects one block (cyclically or randomly) and updates only that block's parameters using the gradient, while keeping the other blocks fixed. 
+    \begin{algorithm}[H]
+    \label{alg:block_gd}
+    \begin{algorithmic}[1]  % The [1] adds line numbers
+      \Require{Learning rate $\eta$, number of blocks $m$, partition $\theta = (\theta^{(1)}, \dots, \theta^{(m)})$, loss $L$}
+
+      \Procedure{BlockGradientDescent}{$\eta, \{\theta^{(j)}\}_{j=1}^m$}
+        \State $t \gets 0$
+        \While{not converged}
+          \State $j \gets \text{SelectBlock}(t, m)$ \Comment{e.g., cyclic: $j = (t \bmod m) + 1$}
+          \State $\theta^{(j)} \gets \theta^{(j)} - \eta \nabla_{\theta^{(j)}} L(\theta^{(1)}, \dots, \theta^{(m)})$
+          \State $t \gets t + 1$
+        \EndWhile
+        \State \Return $\theta$
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
+

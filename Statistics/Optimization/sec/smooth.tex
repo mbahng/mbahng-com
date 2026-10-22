@@ -1,0 +1,472 @@
+\section{Smooth Optimization}
+
+	In optimization, we are given a function $f: S \subset \mathbb{R}^d \to \mathbb{R}$, and we want to find 
+	\begin{equation}
+		\inf_{w \in S} f
+	\end{equation}
+	Ideally, $S$ and $f$ would have some nice properties such that the minimizer actually exists, and we can actually find 
+	\begin{equation}
+		w^\ast = \argmin_{w \in S} f
+	\end{equation}
+
+	One notion of such a property is that $f$ is convex. Another helpful, moderately-restrictive property is $L$-smoothness. 
+
+	Once we know that $f$ is continuously differentiable, we can use the fact that \hyperref[mul-thm:gradient_increase]{gradients point in the step of steepest ascent}. This inspires a greedy approach to simply walk in this direction $-\nabla f(x)$ to minimize a function. This gives the following. 
+
+  \begin{definition}[Gradient Descent]
+    \label{def:gradient-descent}
+		Given a differentiable $f: \mathbb{R}^d \to \mathbb{R}$, and $x_0 \in \mathbb{R}^d$, \textbf{gradient descent} defines the sequence 
+		\begin{equation}
+			x_{k} = x_{k - 1} - \eta \nabla f(x_{k-1})
+		\end{equation}
+		where $\eta$ is known as the \textbf{learning rate}. 
+
+    \begin{algorithm}[H]
+			\begin{algorithmic}[1]  % The [1] adds line numbers
+				% Input/Output documentation
+				\Require{Function $f(x)$, initialization $x_0$, learning rate}
+				\Procedure{GradientDescent}{$f, x_0$}
+					\State $x \gets x_0$ 
+					\While{not converged} 
+						\State $x \gets x - \eta \nabla f(x)$
+					\EndWhile
+					\State \Return $x$ 
+				\EndProcedure
+			\end{algorithmic}
+    \end{algorithm} 
+  \end{definition}
+
+  The algorithm may not converge if $\eta$ (the step size) is too high, since it may overshoot. This can be solved by reducing the $\eta$ with each step, using \textit{schedulers}. Ideally, we would want to have a variable step size $h(t)$ so that $h \rightarrow 0$ as $t \rightarrow + \infty$. This is a pretty simple approach, but this raises so many questions, and there are many metrics that we can use to measure optimality, in increasing importance. 
+
+	\begin{enumerate}
+	  \item \textit{Small Gradient Norm}. How small is $\| \nabla f(w)\|$? By first-order optimality conditions, a local minimum must have vanishing gradient, so perhaps bounding the norm gradient gives us a few clues. 
+
+		\item \textit{Small Objective Gap}. Maybe we wish to bound 
+			\begin{equation}
+			  f(w) - f(w^\ast) 
+			\end{equation}
+
+		\item \textit{Small Distance to Solution}. Maybe we wish to bound 
+			\begin{equation}
+			  \|w - w^\ast\|
+			\end{equation}
+	\end{enumerate}
+
+	This motivates the following definition. 
+
+	\begin{definition}[$\epsilon$-Critical Point]
+		For differentiable function $f: \mathbb{R}^d \to \mathbb{R}$, $x \in \mathbb{R}^d$ is an \textbf{$\epsilon$-critical point} if 
+		\begin{equation}
+		  \|\nabla f(x)\| \leq \epsilon
+		\end{equation}
+	\end{definition}
+
+	What we hope to do is to find all three bounds for gradient descent. 
+
+	\begin{theorem}[Taylor's 1st Order Bound]
+		If $f: \mathbb{R}^d \to \mathbb{R}$ is $C^1$ and $L$-smooth, then 
+		\begin{equation}
+			|f(x) - f(w) - \langle \nabla f(w), x - w \rangle | \leq \frac{L}{2} \|x - w\|^2
+		\end{equation}
+		and therefore 
+		\begin{equation}
+			f(x) \leq f(w) + \langle \nabla f(w), x - w \rangle + \frac{L}{2} \|x - w\|^2
+		\end{equation}
+	\end{theorem}
+	\begin{proof}
+		Let $x = w + s$ and define $\theta: [0, 1] \to \mathbb{R}, \theta(t) = f(w + ts)$. Since $f \in C^1$, $f^\prime$ is continuous and hence Riemann integrable. By the \hyperref[real-thm:ftc2]{2nd fundamental theorem of calculus}, we can write 
+		\begin{align}
+			|f(x + s) - f(x) - \nabla f(x)^T s| & = \bigg| \theta(0) + \int_0^1 \theta^\prime (t) \,dt - \theta(0) - \nabla f(x)^T s \bigg|  \\ 
+																					& = \bigg| \int_0^1 \langle \nabla f(x + ts) - \nabla f(x), s \rangle \,dt \bigg| \\ 
+																					& \leq \int_0^1 | \langle \nabla f(x + ts) - \nabla f(x), s \rangle | \,dt \\ 
+																					& \leq \int_0^1 \| \nabla f(x + ts) - \nabla f(x) \| \|s\| \,dt \\ 
+																					& \leq \int_0^1 L \|ts\| \|s\|\,dt \\ 
+																					& = \frac{1}{2} L \|s\|^2
+		\end{align}
+	\end{proof}
+
+	This is useful since it upper-bounds a potentially complicated nonlinear function by a simple quadratic function. We can go further. 
+
+	\begin{theorem}[Taylor's 2nd Order Bound]
+		If $f: \mathbb{R}^d \to \mathbb{R}$ is $C^2$ and has a $Q$-Lipschitz Hessian $\nabla^2 f$, then 
+	\end{theorem}
+	\begin{proof}
+		We can use FOTC twice since $f$ is $C^2$. So, 
+		\begin{align}
+			\theta(1) & = \theta(0) + \int_0^1 \theta^\prime (t) \,dt \\ 
+								& = \theta(0) + \int_0^1 \bigg( \theta^\prime(0) + \int_0^t \theta^{\prime\prime}(\alpha) \,d\alpha \bigg) \, dt \\ 
+								& = \theta(0) + \theta^\prime (0) + \int_0^1 \int_0^t \theta^{\prime\prime} (\alpha) \,d\alpha \,dt 
+		\end{align}
+		Note that 
+		\begin{equation}
+			\int_0^1 \int_0^t \theta^{\prime\prime} (0) \,d\alpha \,dt = \theta^{\prime\prime} (0) \int_0^1 \int_0^t \,d\alpha \,dt = \frac{1}{2} \theta^{\prime\prime} (0)
+		\end{equation}
+		Therefore, 
+		\begin{align}
+			\bigg| f(x + s) & - f(x) - \nabla f(x)^T s - \frac{1}{2} s^T \nabla^2 f(x) s \bigg| \\ 
+											& = \bigg| \theta(0) + \theta^{\prime} (0) + \int_0^1 \int_0^t \theta^{\prime\prime}(\alpha) \,d\alpha \,dt - \theta(0) - \theta^\prime (0) - \frac{1}{2} \theta^{\prime\prime} (0) \bigg| \\ 
+											& = \bigg| \int_0^1 \int_0^t \theta^{\prime\prime} (\alpha) \,d\alpha \,dt - \int_0^1 \int_0^t \frac{1}{2} \theta^{\prime\prime}(0) \,d\alpha \,dt \bigg| \\ 
+											& = \bigg| \int_0^1 \int_0^t s^T \big( \nabla^2 f(x + \alpha s) - \nabla^2 f(x) \big) s \,d\alpha \,dt \bigg| \\ 
+											& \leq \int_0^1 \int_0^t \big| s^T \big( \nabla^2 f(x + \alpha s) - \nabla^2 f(x) \big) s \big| \,d\alpha \,dt \\
+											& \leq \int_0^1 \int_0^t \big\| \nabla^2 f(x + \alpha s) - \nabla^2 f(x) \big\|_{op} \|s\|^2 \,d\alpha \,dt \\
+											& \leq \int_0^1 \int_0^t Q \|\alpha s\| \|s\|^2 \,d\alpha \,dt \\
+											& = Q \|s\|^3 \int_0^1 \int_0^t \alpha \,d\alpha \,dt \\
+											& = \frac{1}{6} Q \|s\|^3
+		\end{align}
+	\end{proof}
+
+	An algorithmic design principle that we will follow is that instead of minimizing $f$ directly, we iteratively minimize an approximation of $f$ centered at the previous iterate. 
+
+	\begin{lemma}[Gradient Descent]
+		Let $f: \mathbb{R}^d \to \mathbb{R}$ be differentiable and $w_0 \in \mathbb{R}^d$. Then, the following sequences are identical. 
+		\begin{enumerate}
+		  \item \textit{Iterative Optimization of 2nd Order Approximation}. 
+				\begin{equation}
+					w_{k+1} = \argmin_w \Phi_k (w) = \argmin_w \bigg\{ \underbrace{\langle \nabla f(w_k), w - w_k \rangle}_{\text{linear approximation}} + \underbrace{\frac{1}{\eta_k} \|w - w_k\|^2}_{\text{anchor}} \bigg\}
+				\end{equation}
+				Note that the quadratic term is a regularizer that prevents us from moving too far from the current point $w_k$. 
+
+			\item \textit{Gradient Descent}. 
+				\begin{equation}
+					w_{k+1} = w_k - \eta_k \nabla f(w_k)
+				\end{equation}
+		\end{enumerate}
+	\end{lemma}
+	\begin{proof}
+		Recall that at a local minimum of a differentiable function, the gradient must vanish. So, 
+		\begin{equation}
+			0 = \nabla \Phi_k (w_{k+1}) = \nabla f(w_k) + \frac{1}{\eta_k}(w_{k+1} - w_k) \implies w_{k+1} = w_k - \eta_k \nabla f(w_k)
+		\end{equation}
+		So $\eta$ is sort of like the step size. 
+	\end{proof}
+
+	Okay, so we have an equivalent formulation of GD. This formulation will allow us to establish our desired bounds. 
+
+	\begin{lemma}[Descent Lemma]
+		Let $f: \mathbb{R}^d \to \mathbb{R}$ be $L$-smooth. Then, 
+		\begin{equation}
+			f(w - \eta \nabla f(w)) \leq f(w) - \eta \big(1 - \frac{L \eta}{2} \big) \|\nabla f(w)\|^2
+		\end{equation}
+		Furthermore, if $\eta \in (0, \frac{2}{L})$, then the iterates are guaranteed to decrease, i.e. 
+		\begin{equation}
+			f(w - \eta \nabla f(w)) \leq f(w) 
+		\end{equation}
+	\end{lemma}
+	\begin{proof}
+	  This follows from Taylor's with $x = w - \eta \nabla f(w)$, since 
+		\begin{align}
+			f(w - \eta \nabla f(w)) & \leq f(w) + \langle \nabla f(w), - \eta \nabla f(w) \rangle + \frac{L}{2} \| \eta \nabla f(w)\|^2 \\ 
+															& = f(w) - \eta \|\nabla f(w)\|^2 + \frac{L \eta^2}{2} \| \nabla f(w)\|^2 \\ 
+															& = f(w) - \eta \big( 1 - \frac{L\eta}{2} \big) \|\nabla f(w)\|^2
+		\end{align}
+		Now if $0 < \eta < 2/L$, then $\eta < \frac{2}{L} \implies 0 < \frac{L\eta}{2}$, and with the fact that $0 < \eta$, 
+		\begin{equation}
+			\eta \big( 1 - \frac{L\eta}{2} \big) > 0 \implies f(w) - \eta \big( 1 - \frac{L\eta}{2} \big) \|\nabla f(w)\|^2 < f(w)
+		\end{equation} 
+	\end{proof}
+
+	\begin{theorem}[Convergence to Criticality of Gradient Descent]
+		\label{thm:convergence_to_criticality_gd}
+		Suppose that $f$ is $L$-smooth and $\inf{f} > -\infty$. Consider the iterates 
+		\begin{equation}
+			w_{k+1} \gets w_k - \frac{1}{L} \nabla f(w_k)
+		\end{equation}
+		Then, 
+		\begin{equation}
+			\min_{k \in [T - 1]} \|\nabla f(w_k) \| \leq \sqrt{ \frac{2L \big( f(w_0) - \inf{f} \big)}{T}}
+		\end{equation}
+	\end{theorem}
+	\begin{proof}
+		We apply the descent lemma to each iterate and get 
+		\begin{equation}
+			f(w_{k+1}) \leq f(w_k) - \frac{1}{2L} \|\nabla f(w)\|^2 \implies \|\nabla f(w_k)\|^2 \leq 2L \big( f(w_k) - f(w_{k+1}) \big)
+		\end{equation}
+		Now the minimum has to be less than the average, so 
+		\begin{align}
+			\min_{k \in [T - 1]} \|\nabla f(w_k)\|^2 & \leq \frac{1}{T} \sum_{k=0}^{T-1} \|\nabla f(w_k) \|^2 \\ 
+																							 & \leq \frac{2L}{T} \sum_{k=0}^{T-1} \big( f(w_k) - f(w_{k+1}) \big) \\ 
+																							 & = \frac{2L}{T} \big( f(w_0) - f(w_T) \big) \\ 
+																							 & \leq \frac{2L}{T} \big( f(w_0) - \inf(f) \big)  
+		\end{align}
+		Therefore, 
+		\begin{equation}
+			\min_{k \in [T-1]} \|\nabla f(w_k) \| = \sqrt{\min_{k \in [T-1]} \|\nabla f(w_k) \|^2} \leq \sqrt{\frac{2L \big( f(w_0) - \inf(f) \big)}{T}}
+		\end{equation}
+	\end{proof}
+
+	This is not good enough, so we would like some extra regularity assumptions. 
+
+	\begin{definition}[Polyak-Lojasiewicz Inequality]
+		A differentiable function $f: \mathbb{R}^d \to \mathbb{R}$ satisfies the \textbf{PL-inequality}\footnote{This was published in 1963 and was ignored until 2016.} if there exists a $\mu > 0$ s.t. 
+		\begin{equation}
+			\mu \big( f(x) - \inf{f} \big) \leq \frac{1}{2} \| \nabla f(x) \|^2 \text{ for all } x \in \mathbb{R}^d
+		\end{equation}
+	\end{definition}
+
+	This is a relatively strong aassumption, and in particular it yields that 
+	\begin{equation}
+		\nabla f(x) = 0 \implies f(x) = \inf{f}
+	\end{equation}
+
+	\begin{theorem}[Linear Convergence of Gradient Descent Under PL Inequality]
+		Suppose that $f$ is $L$-smooth and satisfies $\mu$-PL. Then, the iterates of GD with $\eta_k = \frac{1}{L}$ satisfy 
+		\begin{equation}
+			f(w_k) - \inf(f) \leq \bigg( 1 - \frac{\mu}{L} \bigg)^k \big( f(w_0) - f(w^\ast) \big) 
+		\end{equation}
+	\end{theorem}
+
+	\begin{theorem}
+		Suppsoe that $f$ is differentiable, $A \in \mathbb{R}^{m \times d}$ and $b \in \mathbb{R}^m$. Define 
+		\begin{equation}
+		  \varphi(x) = f(Ax + b)
+		\end{equation}
+		Then, the following hold. 
+		\begin{enumerate}
+			\item If $f$ is $L$-smooth, then $\varphi$ is $(L\|A\|^2_{\mathrm{op}})$-smooth. 
+			\item If $f$ satisfies $\mu$-PL and $A$ is onto, $\varphi$ satisfies $(\mu \lambda_{\mathrm{min}} (AA^T))$-PL, where $\lambda_{\mathrm{min}}  = \inf_{\|v\| = 1} v^T A A^T v$. 
+		\end{enumerate}
+	\end{theorem}
+	\begin{proof}
+	  
+	\end{proof}
+
+\subsection{Convexity} 
+
+	Recall what a \hyperref[real-def:convex_functions]{convex function} is. 
+
+	\begin{definition}[$L$-Smooth]
+	  A function $f: \mathbb{R}^d \to \mathbb{R}$ is \textbf{$L$-smooth} if the gradient is $L$-Lipschtiz (and hence $C^1$). 
+		\begin{equation}
+		  \| \nabla f(x) - \nabla f(y) \| \leq L \|x - y\|
+		\end{equation}
+	\end{definition}
+
+	\begin{definition}[Coercive Function]
+	  A function $f: \mathbb{R}^d \to \mathbb{R}$ is \textbf{coercive} if 
+		\begin{equation}
+			\lim_{\|x\| \to +\infty} f(x) = +\infty
+		\end{equation}
+	\end{definition}
+
+	\begin{definition}[Co-Coercive Function]
+		A function $F: \mathbb{R}^d \to \mathbb{R}^d$ is \textbf{$\beta$-co-coercive} if for some $\beta > 0$, 
+		\begin{equation}
+			\langle F(x) - F(w), x - w \rangle \geq \beta \|F(x) - F(w)\|^2
+		\end{equation}
+		holds for all $x, w \in \mathbb{R}^d$. 
+	\end{definition}
+
+	\begin{lemma}[Co-Coercivity of Gradients]
+		If $f: \mathbb{R}^d \to \mathbb{R}$ is convex and $L$-smooth, then $\nabla f$ is $\frac{1}{L}$-co-coercive, i.e. for all $x, w \in \mathbb{R}^d$, 
+		\begin{equation}
+			\langle \nabla f(x) - \nabla f(w), x - w \rangle \geq \frac{1}{L} \|\nabla f(x) - \nabla f(w)\|^2
+		\end{equation}
+	\end{lemma}
+	\begin{proof}
+		Fix $w$ and define $\varphi(z) = f(z) - \langle \nabla f(w), z \rangle$. Then $\varphi$ is convex and $L$-smooth, since $\nabla \varphi(z) = \nabla f(z) - \nabla f(w)$. Since $\nabla \varphi(w) = 0$ and $\varphi$ is convex, $w$ is a global minimizer of $\varphi$. Applying the descent lemma with step size $\eta = 1/L$, 
+		\begin{equation}
+			\varphi(w) \leq \varphi\big( x - \tfrac{1}{L} \nabla \varphi(x) \big) \leq \varphi(x) - \frac{1}{2L} \|\nabla \varphi(x)\|^2
+		\end{equation}
+		Substituting back the definition of $\varphi$ and rearranging, 
+		\begin{equation}
+			f(x) \geq f(w) + \langle \nabla f(w), x - w \rangle + \frac{1}{2L} \|\nabla f(x) - \nabla f(w)\|^2
+		\end{equation}
+		Swapping the roles of $x$ and $w$ and adding the two inequalities gives the claim. 
+	\end{proof}
+
+	\begin{definition}[Strongly Monotone Function]
+		A function $F: \mathbb{R}^d \to \mathbb{R}^d$ is \textbf{$c$-strongly monotone} if for some $c > 0$, 
+		\begin{equation}
+			\langle F(x) - F(y), x - y \rangle \geq c \|x - y\|^2
+		\end{equation}
+		holds for all $x, y \in \mathbb{R}^d$. 
+	\end{definition}
+
+	\begin{definition}[$\mu$-Strongly Convex]
+		A function $f: \mathbb{R}^d \to \mathbb{R}$ is \textbf{$\mu$-strongly convex} if it satisfies the equivalent conditions below. 
+		\begin{enumerate}
+		  \item \textit{Strong Convexity}. For all $w, x \in \mathbb{R}^d$, 
+				\begin{equation}
+					f(x) \geq f(w) + \langle \nabla f(w), x - w \rangle + \frac{\mu}{2} \|x - w\|^2
+				\end{equation}
+				Note that $f$ is convex when $\mu = 0$. 
+
+			\item \textit{Strongly Monotone Gradient}. The gradient $\nabla f$ is strongly monotone, i.e. for all $x, w \in \mathbb{R}^d$, 
+				\begin{equation}
+				  \langle \nabla f(x) - \nabla f(w), x - w \rangle \geq \mu \|x - w\|^2
+				\end{equation}
+		\end{enumerate}
+	\end{definition} 
+	\begin{proof}
+	  We prove bidirectionally. 
+		\begin{enumerate}
+		  \item $(\rightarrow)$. From strong convexity, we can see that 
+				\begin{align}
+					\langle \nabla f(w), x - w \rangle & \leq f(x) - f(w) - \frac{\mu}{2} \|x - w\|^2 \\ 
+					\langle \nabla f(x), w - x \rangle & \leq f(w) - f(x) - \frac{\mu}{2} \|x - w\|^2
+				\end{align}
+				Therefore, 
+				\begin{align}
+					\langle \nabla f(x) - \nabla f(w), x - w \rangle 
+						& = \langle \nabla f(x), x - w \rangle - \langle \nabla f(w), x - w \rangle \\ 
+						& \geq \big\{ -f(w) + f(x) + \frac{\mu}{2} \|x - w\|^2 \big\} + \big\{ - f(x) + f(w) + \frac{\mu}{2} \| x - w\|^2 \big\} \\ 
+						& = \mu \|x - w\|^2
+				\end{align}
+
+			\item $(\leftarrow)$. We define the straight line path 
+				\begin{equation}
+					\varphi: [0, 1] \to \mathbb{R}, \quad \varphi(t) = f\big( w + t(x - w) \big)
+				\end{equation}
+				Then, by FTC
+				\begin{align}
+					f(x) = \varphi(1) & = \varphi(0) + \int_0^1 \varphi^\prime (t) \,dt \\ 
+														& = \varphi(0) + \int_0^1 \langle \nabla f(w + t(x - w)), x - w \rangle \,dt  \\ 
+														& \geq  f(w) + \int_0^1 \mu t \|x - w\|^2 + \langle \nabla f(w), x - w \rangle \,dt \\
+														& = f(w) + \langle \nabla f(w), x - w \rangle + \frac{\mu}{2} \|x - w\|^2
+				\end{align}
+				where for the inequality, we invoke strong monotonicity and have 
+				\begin{equation}
+				  \langle \nabla f(w + t(x - w)) - \nabla f(w), t (x - w) \rangle \geq \mu t^2 \|x - w\|^2
+				\end{equation}
+				After dividing by $t$ and rearranging, we have 
+				\begin{equation}
+				  \langle \nabla f(w + t(x - w)), x - w \rangle \geq \mu t \|x - w\|^2 + \langle \nabla f(w), x - w \rangle
+				\end{equation}
+		\end{enumerate}
+	\end{proof}
+
+	This is a first order description of $\mu$-strongly convex functions. Here is a second order one. 
+
+	\begin{lemma}[2nd Order Definition of Strongly Convex Functions]
+	  A $C^2$ function $f: \mathbb{R}^d \to \mathbb{R}$ is $\mu$-strongly convex iff $Hf(x) \succeq \mu I$.\footnote{For symmetric matrices $A, B$, $A \succeq$ if $A - B$ is positive semidefinite.}
+	\end{lemma}
+	\begin{proof}
+		We prove bidirectionally. Given $x, w \in \mathbb{R}^d$, let $g(t) = f(w + t(x - w))$, which is $C^2$. 
+		\begin{enumerate}
+		  \item $(\rightarrow)$. Take the second order Taylor expansion and invoke strong convexity to get the inequality 
+				\begin{align}
+					g(t) & = f(w) + t \langle \nabla f(w), x - w \rangle + \frac{1}{2} t^2 \langle \nabla^2 f(w) (x - w), x - w \rangle + o(\|t(x - w)\|^2) \\ 
+							 & \geq f(w) + \langle \nabla f(w), t (x - w) \rangle + \frac{\mu t^2}{2} \|x - w\|^2
+				\end{align}
+				Cleaning this up gives 
+				\begin{equation}
+					\langle \nabla^2 f(w) (x - w), x - w \rangle + \frac{o(t^2 \|x - w\|^2)}{t^2} \geq \mu \|x - w\|^2
+				\end{equation}
+				This holds for all $t \in [0, 1]$, so by letting $t \to 0$, we have 
+				\begin{equation}
+				  \langle \nabla^2 f(w) (x - w), x - w \rangle \geq \mu \|x - w\|^2 \implies Hf(w) \succeq \mu I
+				\end{equation}
+
+		  \item $(\leftarrow)$. We can see that 
+				\begin{align}
+					g^\prime (t) & = \langle f(w + t(x - w)), x - w \rangle \\ 
+					g^{\prime\prime} (t) & = (x - w)^T H f(w + t(x - w)) (x - w) \\ 
+															 & \geq \mu (x - w)^T (x - w) = \mu \|x - w\|^2
+				\end{align}
+				So, using \hyperref[real-thm:integral_form_remainder]{Taylor's expansion with the integral form of the remainder}, we have 
+				\begin{align}
+					f(x) = g(1) & = g(0) + g^\prime (0) (1 - 0) + \frac{1}{2} \int_0^1 g^{\prime\prime} (t) (1 - t) \,dt \\ 
+											& \geq g(0) + g^\prime (0) + \frac{1}{2} \mu \|x - w\|^2 \int_0^1 (1 - t) \,dt \\ 
+											& = f(w) + \langle \nabla f(w), x - w \rangle + \frac{\mu}{2} \|x - \mu\|^2
+				\end{align}
+		\end{enumerate}
+	\end{proof}
+
+	\begin{lemma}[Strong Convexity Implies PL-Inequality]
+		Suppose $f: \mathbb{R}^d \to \mathbb{R}$ is differentiable and $\mu$-strongly convex. Then, it satisfies $\mu$-PL. Further, there exists a nonconvex smooth function that satisfies $\mu$-PL. 
+	\end{lemma}
+	\begin{proof}
+	  
+	\end{proof}
+
+
+	One of the best properties of convex functions is that there always exists a unique minimizer. 
+
+	\begin{theorem}[Unique Minimizer of Strongly Convex Functions]
+		Suppose that $f$ is $\mu$-strongly convex. Then, $f$ has a unique minimizer $w^\ast$, and for all $w \in \mathbb{R}^d$, 
+		\begin{align}
+			\frac{\mu}{2} \|w - w^\ast\|^2 & \leq f(w) - f(w^\ast) & \text{(quadratic growth)} \\ 
+			\mu \|w - w^\ast\| & \leq \|\nabla f(w)\| & \text{(error bound)}
+		\end{align}
+	\end{theorem}
+	\begin{proof}
+	  To prove existence, we first claim that $f$ is coercive. Indeed, 
+		\begin{equation}
+			f(x) \geq f(0) + \langle \nabla f(0), x \rangle + \frac{\mu}{2} \|x\|^2
+		\end{equation}
+		and the quadratic term dominates as $\|x\| \to +\infty$. Therefore, there exists a large enough $c > 0$ s.t. the set 
+		\begin{equation}
+			A = \{ x \in \mathbb{R}^d \colon f(x) \leq c \}
+		\end{equation}
+		is nonempty. It is also closed since $f$ is continuous. By coercivity, $A$ is bounded, so by Heine-Borel, it is compact, and by the extreme value theorem, there exists a minimizer $w^\ast$. To prove uniqueness, assume that $w_1, w_2$ are minimizers with $w_1 \neq w_2$. Then, by strong convexity, 
+		\begin{equation}
+			f(w_1) \geq f(w_2) + \langle \nabla f(w_2), w_1 - w_2 \rangle + \frac{\mu}{2} \|w_1 - w_2\|^2
+		\end{equation}
+		Since $f$ is differentiable and $w_2$ is a minimizer, $\nabla f(w_2) = 0$, and so $f(w_1) \geq f(w_2) + \frac{\mu}{2} \|w_1 - w_2\|^2 > f(w_2)$, contradicting the fact that $w_1$ is a minimizer. Finally, the claimed inequality follows from strong convexity since 
+		\begin{equation}
+			f(w) - f(w^\ast) \geq \langle \nabla f(w^\ast), w - w^\ast \rangle + \frac{\mu}{2} \|w - w^\ast\|^2 = \frac{\mu}{2} \|w - w^\ast\|^2
+		\end{equation}
+		For the error bound, we apply strongly monotone gradient to $w$ and $w^\ast$ and use $\nabla f(w^\ast) = 0$ to get 
+		\begin{equation}
+			\|\nabla f(w)\| \|w - w^\ast\| \geq \langle \nabla f(w) - \nabla f(w^\ast), w - w^\ast \rangle \geq \mu \|w - w^\ast\|^2
+		\end{equation}
+		where the first inequality is Cauchy--Schwarz. Dividing by $\|w - w^\ast\|$ gives the claim (trivial if $w = w^\ast$). 
+	\end{proof}
+	
+	\begin{lemma}[$L$-Smooth and $\mu$-Strongly Convex]
+	  If $f: \mathbb{R}^d \to \mathbb{R}$ is both $L$-smooth and $\mu$-strongly convex, then 
+		\begin{equation}
+		  0 \leq \mu \leq L
+		\end{equation}
+	\end{lemma}
+	\begin{proof}
+	  $f$ is $L$-smooth, so $\|\nabla f(x) - \nabla f(w) \| \leq L \|x - w\|$. By multiplying $\|x - w\|$ on both sides and applying Cauchy-Schwarz, we get 
+		\begin{equation}
+		  \langle \nabla f(x) - \nabla f(w), x - w \rangle \leq \| \nabla f(x) - \nabla f(w)\| \|x - w\| \leq L\|x - w\|^2 
+		\end{equation}
+		Since $f$ is $\mu$-strongly convex, 
+		\begin{equation}
+		  \langle \nabla f(x) - \nabla f(w), x - w \rangle  \geq \mu \|x - w\|^2 
+		\end{equation}
+		Therefore, combining the two gives 
+		\begin{equation}
+		  \mu\|x - w\|^2 \leq L \|x - w\|^2 \implies \mu < L
+		\end{equation}
+	\end{proof}
+
+	So we are able to put some bounds on the norm of the gradient, and a natural next question is whether we can guarantee something about the distance to the function. For that, we need additional regularity assumptions, such as strong convexity. 
+
+	\begin{theorem}[Linear Convergence of Gradient Descent Under Strong Convexity]
+	  Suppose that $f$ is $L$-smooth and $\mu$-strongly convex. Then, the iterates of GD satisfy 
+		\begin{equation}
+			f(w_k) - f(w^\ast) \leq \bigg( 1 - \frac{\mu}{L} \bigg)^k \big( f(w_0) - f(w^\ast) \big) 
+		\end{equation}
+	\end{theorem}
+	\begin{proof}
+	  
+	\end{proof}
+
+	A simply computation yields that if we want to reach 
+	\begin{equation}
+	  f(w_T) - f(w^\ast) \leq \epsilon
+	\end{equation}
+	then it suffices to take 
+	\begin{equation}
+		T \geq \frac{L}{\mu} \ln\bigg( \frac{f(w_0) - f(w^\ast)}{\epsilon} \bigg)
+	\end{equation}
+	Further quadratic growth ensures 
+	\begin{equation}
+		\|w_T - w^\ast\| \leq \frac{2 \epsilon}{\mu}
+	\end{equation}
+
+	Note that for \hyperref[thm:convergence_to_criticality_gd]{this theorem}, we needed $T \geq \frac{2L}{\epsilon^2} \big( f(w_0) - f(w^\ast) \big)$ for $f(w_T) - f(w^\ast) \leq \epsilon$. If $\epsilon = 10^{-6}$, then this means that $e^{-2} = 10^12$ while $\ln(\frac{1}{\epsilon}) \approx 14$. 
+
+	Thus, how fast GD converges is dictated by the ratio 
+	\begin{equation}
+		\kappa = \frac{L}{\mu} \in [1, \infty]
+	\end{equation}
+	known as the \textbf{condition number}. Therefore, for general smooth functions, we can merely find critical points at a rather slow rate $O(\epsilon^{-2})$. If we want to guarantee fast convergence towards a minimizer, we need additional geometric structure. For a long time, most of the ``additional geometric structure'' optimizers used to prove guarantees amounted to strong convexity. In the last couple of decades, that has changed to the PL-inequality. 
+
+\subsection{Momentum and Acceleration}
+
+	

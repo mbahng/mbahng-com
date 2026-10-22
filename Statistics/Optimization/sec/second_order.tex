@@ -1,41 +1,8 @@
 \section{Second-Order Optimizers} 
 
-	Quasi-Newton included. 
+	Let's take a look at one of the simplest numerical root-finders.\footnote{Optimization and root finding are very similar, since to optimize $f$ you should first find a root of $f^\prime$.}
 
-	\begin{theorem}[Taylor's 2nd Order Bound]
-		If $f: \mathbb{R}^d \to \mathbb{R}$ is $C^2$ and has a $Q$-Lipschitz Hessian $\nabla^2 f$, then 
-	\end{theorem}
-	\begin{proof}
-		We can use FOTC twice since $f$ is $C^2$. So, 
-		\begin{align}
-			\theta(1) & = \theta(0) + \int_0^1 \theta^\prime (t) \,dt \\ 
-								& = \theta(0) + \int_0^1 \bigg( \theta^\prime(0) + \int_0^t \theta^{\prime\prime}(\alpha) \,d\alpha \bigg) \, dt \\ 
-								& = \theta(0) + \theta^\prime (0) + \int_0^1 \int_0^t \theta^{\prime\prime} (\alpha) \,d\alpha \,dt 
-		\end{align}
-		Note that 
-		\begin{equation}
-			\int_0^1 \int_0^t \theta^{\prime\prime} (0) \,d\alpha \,dt = \theta^{\prime\prime} (0) \int_0^1 \int_0^t \,d\alpha \,dt = \frac{1}{2} \theta^{\prime\prime} (0)
-		\end{equation}
-		Therefore, 
-		\begin{align}
-			\bigg| f(x + s) & - f(x) - \nabla f(x)^T s - \frac{1}{2} s^T \nabla^2 f(x) s \bigg| \\ 
-											& = \bigg| \theta(0) + \theta^{\prime} (0) + \int_0^1 \int_0^t \theta^{\prime\prime}(\alpha) \,d\alpha \,dt - \theta(0) - \theta^\prime (0) - \frac{1}{2} \theta^{\prime\prime} (0) \bigg| \\ 
-											& = \bigg| \int_0^1 \int_0^t \theta^{\prime\prime} (\alpha) \,d\alpha \,dt - \int_0^1 \int_0^t \frac{1}{2} \theta^{\prime\prime}(0) \,d\alpha \,dt \bigg| \\ 
-											& = \bigg| \int_0^1 \int_0^t s^T \big( \nabla^2 f(x + \alpha s) - \nabla^2 f(x) \big) s \,d\alpha \,dt \bigg| \\ 
-											& \leq \int_0^1 \int_0^t \big| s^T \big( \nabla^2 f(x + \alpha s) - \nabla^2 f(x) \big) s \big| \,d\alpha \,dt \\
-											& \leq \int_0^1 \int_0^t \big\| \nabla^2 f(x + \alpha s) - \nabla^2 f(x) \big\|_{op} \|s\|^2 \,d\alpha \,dt \\
-											& \leq \int_0^1 \int_0^t Q \|\alpha s\| \|s\|^2 \,d\alpha \,dt \\
-											& = Q \|s\|^3 \int_0^1 \int_0^t \alpha \,d\alpha \,dt \\
-											& = \frac{1}{6} Q \|s\|^3
-		\end{align}
-	\end{proof}
-
-
-\subsection{Newton-Raphson Method} 
-
-  Before we talk more about gradient descent methods, let's take a look at one of the simplest numerical root-finders.\footnote{Optimization and root finding are very similar, since to optimize $f$ you should first find a root of $f^\prime$.}
-
-  \begin{theorem}[Convergence]
+  \begin{theorem}[Newton-Raphson Method]
     Given a differentiable function $f: \mathbb{R} \to \mathbb{R}$, the sequence $(x_n)$ defined 
     \begin{equation}
       x_n = x_{n-1} - \frac{f(x_{n-1})}{f^\prime (x_{n-1})}
@@ -68,7 +35,31 @@
     \end{algorithm}
   \end{algo}
 
-\subsection{Newton's Method}
+  \begin{algo}[Secant Method]
+    The Secant Method approximates Newton's method by estimating the derivative using two most recent iterates instead of requiring $f'(x)$. 
+    \begin{algorithm}[H]
+    \label{alg:secant}
+    \begin{algorithmic}[1]
+      \Require{Function $f(x)$, initial guesses $x_0, x_1$, tolerance $\epsilon$, maximum iterations $N_{max}$}
+
+      \Procedure{Secant}{$f, x_0, x_1, \epsilon, N_{max}$}
+        \State $k \gets 0$
+        \While{$k < N_{max}$}
+          \If{$|f(x_1)| < \epsilon$}
+            \State \Return $x_1$
+          \EndIf
+          \State $x_{new} \gets x_1 - f(x_1)\dfrac{x_1 - x_0}{f(x_1) - f(x_0)}$
+          \State $x_0 \gets x_1$
+          \State $x_1 \gets x_{new}$
+          \State $k \gets k + 1$
+        \EndWhile
+        \State \Return Failure
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
+
+\subsection{Netwon's Method}
 
   Newton's method is an iterative algorithm for finding the roots of a differentiable function $F$. An immediate consequence is that given a convex $C^2$ function $f$, we can apply Newton's method to its derivative $f^\prime$ to get the critical points of $f$ (minima, maxima, or saddle points), which is relevant in optimizing $f$. Given a $C^1$ function $f: D \subset \mathbb{R}^n \longrightarrow \mathbb{R}$ and a point $\mathbf{x}_k \in D$, we can compute its linear approximation as 
   \begin{equation}
@@ -111,114 +102,7 @@
     \end{algorithmic}
   \end{algorithm}
 
-\subsection{Gauss Newton Method}
-
-
-\subsection{Secant Method}
-
-  \begin{algo}[Secant Method]
-    The Secant Method approximates Newton's method by estimating the derivative using two most recent iterates instead of requiring $f'(x)$. 
-    \begin{algorithm}[H]
-    \label{alg:secant}
-    \begin{algorithmic}[1]
-      \Require{Function $f(x)$, initial guesses $x_0, x_1$, tolerance $\epsilon$, maximum iterations $N_{max}$}
-
-      \Procedure{Secant}{$f, x_0, x_1, \epsilon, N_{max}$}
-        \State $k \gets 0$
-        \While{$k < N_{max}$}
-          \If{$|f(x_1)| < \epsilon$}
-            \State \Return $x_1$
-          \EndIf
-          \State $x_{new} \gets x_1 - f(x_1)\dfrac{x_1 - x_0}{f(x_1) - f(x_0)}$
-          \State $x_0 \gets x_1$
-          \State $x_1 \gets x_{new}$
-          \State $k \gets k + 1$
-        \EndWhile
-        \State \Return Failure
-      \EndProcedure
-    \end{algorithmic}
-    \end{algorithm}
-  \end{algo}
-
-\subsection{Davidon-Fletcher-Powell (DFP)}
-
-  \begin{algo}[DFP Quasi-Newton Method]
-    The DFP method is a quasi-Newton optimization algorithm that maintains an approximation $H_k$ of the inverse Hessian to update parameters efficiently. 
-    \begin{algorithm}[H]
-    \label{alg:dfp}
-    \begin{algorithmic}[1]
-      \Require{Objective $f(\theta)$, gradient $\nabla f$, initial guess $\theta_0$, tolerance $\epsilon$}
-
-      \Procedure{DFP}{$f, \nabla f, \theta_0$}
-        \State $H \gets I$ \Comment{Initialize inverse Hessian approximation}
-        \While{not converged}
-          \State $g \gets \nabla f(\theta)$
-          \State $d \gets -H g$
-          \State $\alpha \gets \text{LineSearch}(f, \theta, d)$
-          \State $\theta_{new} \gets \theta + \alpha d$
-          \State $s \gets \theta_{new} - \theta$
-          \State $y \gets \nabla f(\theta_{new}) - g$
-          \State $H \gets H + \frac{ss^T}{s^T y} - \frac{Hy y^T H}{y^T H y}$
-          \State $\theta \gets \theta_{new}$
-        \EndWhile
-        \State \Return $\theta$
-      \EndProcedure
-    \end{algorithmic}
-    \end{algorithm}
-  \end{algo}
-
-\subsection{Broyden's Method}
-
-  \begin{algo}[Broyden's Method]
-    Broyden's method is a quasi-Newton method that updates an approximation $B_k$ to the Jacobian matrix without computing derivatives directly. 
-    \begin{algorithm}[H]
-    \label{alg:broyden}
-    \begin{algorithmic}[1]
-      \Require{Function $F(\theta)$, initial guess $\theta_0$, tolerance $\epsilon$}
-
-      \Procedure{Broyden}{$F, \theta_0$}
-        \State $B \gets I$ \Comment{Initial Jacobian approximation}
-        \While{not converged}
-          \State $\Delta \theta \gets -B^{-1} F(\theta)$
-          \State $\theta_{new} \gets \theta + \Delta \theta$
-          \State $\Delta F \gets F(\theta_{new}) - F(\theta)$
-          \State $B \gets B + \frac{(\Delta F - B \Delta \theta)\Delta \theta^T}{\Delta \theta^T \Delta \theta}$
-          \State $\theta \gets \theta_{new}$
-        \EndWhile
-        \State \Return $\theta$
-      \EndProcedure
-    \end{algorithmic}
-    \end{algorithm}
-  \end{algo}
-
-\subsection{Symmetric Rank-1 Update (SR1)}
-
-  \begin{algo}[Symmetric Rank-1 Update]
-    The SR1 update is another quasi-Newton method that maintains an approximation $H_k$ of the inverse Hessian, using a symmetric rank-1 correction. 
-    \begin{algorithm}[H]
-    \label{alg:sr1}
-    \begin{algorithmic}[1]
-      \Require{Objective $f(\theta)$, gradient $\nabla f$, initial guess $\theta_0$, tolerance $\epsilon$}
-
-      \Procedure{SR1}{$f, \nabla f, \theta_0$}
-        \State $H \gets I$
-        \While{not converged}
-          \State $g \gets \nabla f(\theta)$
-          \State $d \gets -H g$
-          \State $\alpha \gets \text{LineSearch}(f, \theta, d)$
-          \State $\theta_{new} \gets \theta + \alpha d$
-          \State $s \gets \theta_{new} - \theta$
-          \State $y \gets \nabla f(\theta_{new}) - g$
-          \If{$(s - Hy)^T y \neq 0$}
-            \State $H \gets H + \dfrac{(s - Hy)(s - Hy)^T}{(s - Hy)^T y}$
-          \EndIf
-          \State $\theta \gets \theta_{new}$
-        \EndWhile
-        \State \Return $\theta$
-      \EndProcedure
-    \end{algorithmic}
-    \end{algorithm}
-  \end{algo}
+	But there is a problem that Netwon's method is prone to saddle points \cite{2014pascanu_saddle-point-nonconvex}. 
 
 \subsection{BFGS}
 
@@ -340,4 +224,83 @@
     \end{algorithm}
   \end{algo}
 
+\subsection{Davidon-Fletcher-Powell (DFP)}
+
+  \begin{algo}[DFP Quasi-Newton Method]
+    The DFP method is a quasi-Newton optimization algorithm that maintains an approximation $H_k$ of the inverse Hessian to update parameters efficiently. 
+    \begin{algorithm}[H]
+    \label{alg:dfp}
+    \begin{algorithmic}[1]
+      \Require{Objective $f(\theta)$, gradient $\nabla f$, initial guess $\theta_0$, tolerance $\epsilon$}
+
+      \Procedure{DFP}{$f, \nabla f, \theta_0$}
+        \State $H \gets I$ \Comment{Initialize inverse Hessian approximation}
+        \While{not converged}
+          \State $g \gets \nabla f(\theta)$
+          \State $d \gets -H g$
+          \State $\alpha \gets \text{LineSearch}(f, \theta, d)$
+          \State $\theta_{new} \gets \theta + \alpha d$
+          \State $s \gets \theta_{new} - \theta$
+          \State $y \gets \nabla f(\theta_{new}) - g$
+          \State $H \gets H + \frac{ss^T}{s^T y} - \frac{Hy y^T H}{y^T H y}$
+          \State $\theta \gets \theta_{new}$
+        \EndWhile
+        \State \Return $\theta$
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
+
+\subsection{Broyden's Method}
+
+  \begin{algo}[Broyden's Method]
+    Broyden's method is a quasi-Newton method that updates an approximation $B_k$ to the Jacobian matrix without computing derivatives directly. 
+    \begin{algorithm}[H]
+    \label{alg:broyden}
+    \begin{algorithmic}[1]
+      \Require{Function $F(\theta)$, initial guess $\theta_0$, tolerance $\epsilon$}
+
+      \Procedure{Broyden}{$F, \theta_0$}
+        \State $B \gets I$ \Comment{Initial Jacobian approximation}
+        \While{not converged}
+          \State $\Delta \theta \gets -B^{-1} F(\theta)$
+          \State $\theta_{new} \gets \theta + \Delta \theta$
+          \State $\Delta F \gets F(\theta_{new}) - F(\theta)$
+          \State $B \gets B + \frac{(\Delta F - B \Delta \theta)\Delta \theta^T}{\Delta \theta^T \Delta \theta}$
+          \State $\theta \gets \theta_{new}$
+        \EndWhile
+        \State \Return $\theta$
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
+
+\subsection{Symmetric Rank-1 Update (SR1)}
+
+  \begin{algo}[Symmetric Rank-1 Update]
+    The SR1 update is another quasi-Newton method that maintains an approximation $H_k$ of the inverse Hessian, using a symmetric rank-1 correction. 
+    \begin{algorithm}[H]
+    \label{alg:sr1}
+    \begin{algorithmic}[1]
+      \Require{Objective $f(\theta)$, gradient $\nabla f$, initial guess $\theta_0$, tolerance $\epsilon$}
+
+      \Procedure{SR1}{$f, \nabla f, \theta_0$}
+        \State $H \gets I$
+        \While{not converged}
+          \State $g \gets \nabla f(\theta)$
+          \State $d \gets -H g$
+          \State $\alpha \gets \text{LineSearch}(f, \theta, d)$
+          \State $\theta_{new} \gets \theta + \alpha d$
+          \State $s \gets \theta_{new} - \theta$
+          \State $y \gets \nabla f(\theta_{new}) - g$
+          \If{$(s - Hy)^T y \neq 0$}
+            \State $H \gets H + \dfrac{(s - Hy)(s - Hy)^T}{(s - Hy)^T y}$
+          \EndIf
+          \State $\theta \gets \theta_{new}$
+        \EndWhile
+        \State \Return $\theta$
+      \EndProcedure
+    \end{algorithmic}
+    \end{algorithm}
+  \end{algo}
 
