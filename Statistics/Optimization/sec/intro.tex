@@ -14,6 +14,171 @@ These algorithms try to solve the following potential problems.
   \item \textit{Efficiency}. Can we iterate efficiently? 
 \end{enumerate} 
 
+In optimization, we are given a function $f: S \subset \mathbb{R}^d \to \mathbb{R}$, and we want to find 
+\begin{equation}
+	\inf_{w \in S} f
+\end{equation}
+Ideally, $S$ and $f$ would have some nice properties such that the minimizer actually exists, and we can actually find $w^\ast = \argmin_{w \in S} f$ but this may not be required all the time. 
+
+\begin{definition}[Function Class]
+	Given some domain $S \subset \mathbb{R}$, a \textbf{function class} is some set of functions 
+	\begin{equation}
+		\mathcal{F} \subset \{ f: S \to \mathbb{R} \}
+	\end{equation}
+\end{definition}
+
+Given a function $f \in \mathcal{F}$, we would like to formalize extracting some information out of this function, such as its value, derivative, or whether it is continuous at a point. We can describe this in terms of an oracle. 
+
+\begin{definition}[Oracle]
+	Let $\mathcal{Y}$ be an arbitrary space.\footnote{It is a space where the information that we wish to query lives.} An \textbf{oracle} 
+	\begin{enumerate}
+		\item for a function $f: S \to \mathbb{R}$ is a map
+			\begin{equation}
+				\mathcal{O}_f: S \to \mathcal{Y}
+			\end{equation}
+
+		\item for a function class $\mathcal{F} = \{f : S \to \mathbb{R}\}$ is a family of oracles 
+			\begin{equation}
+				\mathcal{O} = \{\mathcal{O}_f\}_{f \in \mathcal{F}}, \quad \mathcal{O}_f: S \to \mathcal{Y}
+			\end{equation}
+	\end{enumerate}
+\end{definition}
+
+Note that an oracle can be defined for a particular function or a function class. 
+
+\begin{example}[First Order Oracle]
+	If $\mathcal{F}$ be the space of functions that are differentiable in an open neighborhood of $S$. The first-order oracle is 
+	\begin{equation}
+		\mathcal{O}_f (x) = \big( f(x), \nabla f(x) \big)
+	\end{equation}
+	Therefore, it allows us to query both the value of the function and the gradient at that point. In practice, we do this using \textit{automatic differentiation}. 
+\end{example}
+
+\begin{definition}[Algorithm]
+	Let $\mathcal{F}$ be a function class over $S \subset \mathbb{R}^d$ and fix $x_0 \in S$. A \textbf{deterministic $k$-query oracle algorithm} for $f \in \mathcal{F}$ is an ordered tuple $\mathcal{A}_k = (\Phi_1, \ldots, \Phi_{k-1}, \Psi_k)$ consisting of 
+	\begin{enumerate}
+	  \item \textit{Query Rules}. A function that decides where the algorithm should evaluate the oracle next. 
+			\begin{equation}
+				\Phi_t : (S \times \mathcal{Y})^t \to S, \quad t = 1, \ldots, k-1
+			\end{equation}
+			defined recursively as 
+			\begin{align}
+				y_t & = \mathcal{O}_f (x_t) \\ 
+				x_{t+1} & = \Phi_{t+1} (x_0, y_0, \ldots, x_t, y_t)
+			\end{align}
+
+		\item \textit{Output Rule}. A function that decides which point to return after collecting $k$ oracle responses.\footnote{We can think of $k$ as the number of iterations.} 
+			\begin{equation}
+				\Psi_k : (S \times \mathcal{Y})^k \to S
+			\end{equation}
+			and the \textbf{output} of the algorithm is defined to be 
+			\begin{equation}
+				w_{\mathcal{A}_k} (f) = \Psi_k (x_0, y_0, \ldots, x_{k-1}, y_{k-1})
+			\end{equation}
+	\end{enumerate}
+\end{definition}
+
+\begin{example}[Gradient Descent]
+	Let $\mathcal{F}$ be the class of differentiable functions $f: \mathbb{R}^d \to \mathbb{R}$. We can use the fact that \hyperref[mul-thm:gradient_increase]{gradients point in the step of steepest ascent}. This inspires a greedy approach to simply walk in this direction $-\nabla f(x)$ to minimize a function, so to formalize this, consider the first-order oracle 
+	\begin{equation}
+		\mathcal{O}_f : S \to \mathbb{R} \times \mathbb{R}^d, \quad \mathcal{O}_f (x) = \big( f(x), \nabla f(x) \big)
+	\end{equation}
+	Fix an initial point $x_0 \in S$ and a sequence of positive step sizes $(\eta_t)$. \textbf{Gradient descent} is the first-order deterministic algorithm defined by the update maps 
+	\begin{equation}
+		\Phi_t : (S \times (\mathbb{R} \times \mathbb{R}^d))^{t+1} \to S, \quad \Phi_t (x_0, y_0, \ldots, x_t, y_t) = x_t - \eta_t \pi_2 (y_t) = x_t - \eta_t \nabla f(x_t)
+	\end{equation}
+	where $\pi_2 : \mathbb{R} \times \mathbb{R}^d \to \mathbb{R}^d$ is projection onto the gradient component. Therefore, 
+	\begin{equation}
+		x_{t+1} = x_t - \eta_t \nabla f(x_t), \quad t = 0, \ldots, k-1
+	\end{equation}
+	After $k$ iterations, the algorithm output $w_{\mathcal{A}_k} (f) = x_k$. 
+\end{example}
+
+\begin{definition}[Performance Criterion]
+	Given a function class $\mathcal{F}$ defined over $S$, a \textbf{performance criterion} is a function 
+	\begin{equation}
+		\mathcal{L}: \mathcal{F} \times S \to [0, +\infty]
+	\end{equation}
+	Sometimes, we write $\mathcal{L}_f (w) = \mathcal{L}(f, w)$. For minimizations, the performance criterion should ideally satisfy $\mathcal{L}_f (w^\ast) = 0$ for some optimal value $w^\ast$. 
+\end{definition}
+
+There are many metrics that we can use to measure optimality, in increasing importance. 
+
+\begin{enumerate}
+	\item \textit{Small Gradient Norm}. How small is $\| \nabla f(w)\|$? By first-order optimality conditions, a local minimum must have vanishing gradient, so perhaps bounding the norm gradient gives us a few clues. 
+
+	\item \textit{Small Objective Gap}. Maybe we wish to bound 
+		\begin{equation}
+			f(w) - f(w^\ast) 
+		\end{equation}
+
+	\item \textit{Small Distance to Solution}. Maybe we wish to bound 
+		\begin{equation}
+			\|w - w^\ast\|
+		\end{equation}
+\end{enumerate}
+
+\begin{example}[First Order Stationarity]
+	If $\mathcal{F}$ is the class of differentiable functions, then we can define 
+	\begin{equation}
+		\mathcal{L}_f(w) = \|\nabla f(w)\|
+	\end{equation}
+\end{example}
+
+\begin{definition}[$\epsilon$-Critical Point]
+	For differentiable function $f: \mathbb{R}^d \to \mathbb{R}$, $x \in \mathbb{R}^d$ is an \textbf{$\epsilon$-critical point} if 
+	\begin{equation}
+		\|\nabla f(x)\| \leq \epsilon
+	\end{equation}
+\end{definition}
+
+\begin{example}[Function Suboptimality]
+	For a given function $f$ where $\inf f$ is finite, we can define 
+	\begin{equation}
+		\mathcal{L}_f (w) = f(w) - \inf f
+	\end{equation}
+\end{example}
+
+\begin{example}[Distance to the Minimizer]
+	Assuming a minimizer exists for $f: S \to \mathbb{R}$, let $\argmin{f}$ be the set of all minimizers. Then, we can define 
+	\begin{equation}
+		\mathcal{L}_f (w) = d(w, \argmin{f})
+	\end{equation}
+	For some metric $d$ defined on $S$.  
+\end{example}
+
+What we hope to do is find bounds for all three performance criterions for various algorithms. 
+
+To analyze an optimiztion algorithm, we want to see its broad performance over not just one function, but a \textit{class of functions}. For a fixed algorithm, the worst-case iteration complexity is the most popular. 
+
+\begin{definition}[Worst-Case Iteration Complexity]
+	Given function class $\mathcal{F}$, suppose an algorithm $\mathcal{A}$ generates a sequences of iterates $w_0 (f), w_1 (f), w_2 (f), \ldots$ for each $f \in \mathcal{F}$. Define the first iteration at which the algorithm achieves accuracy $\epsilon$ as 
+	\begin{equation}
+		T_\epsilon(A, f) \colon \inf \{ k \geq 0 \colon \mathcal{L}_f (w_k (f)) \leq \epsilon \}
+	\end{equation}
+	Then, the 
+	\begin{enumerate}
+	  \item \textbf{worst-case iteration complexity} is the maximum number of iterations required for algorithm $\mathcal{A}$ to achieve accuracy $\epsilon$ over the entire function class $\mathcal{F}$
+			\begin{equation}
+				K_\epsilon(A, \mathcal{F}, \mathcal{L}) \coloneqq \sup_{f \in \mathcal{F}} T_\epsilon (A, f)
+			\end{equation}
+
+		\item \textbf{uniform worst-case iteration complexity} is defined 
+			\begin{equation}
+				\widetilde{K}_\epsilon(A, \mathcal{F}, \mathcal{L}) \coloneqq \inf \big\{ k \geq 0 \colon \sup_{f \in \mathcal{F}} \mathcal{L}_f (w_k (f)) \leq \epsilon \big\}
+			\end{equation}
+	\end{enumerate}
+\end{definition}
+
+
+\begin{definition}[Minimax Oracle Error]
+	Let $\mathcal{F}$ be a function class, $\mathcal{L}$ a performance criterion, and $\mathcal{A}_k (\mathcal{O})$ denote a specified class of algorithms making at most $k$ calls to oracle $\mathcal{O}$. The \textbf{minimax oracle error} is the smallest worst case error achievable by any admissible algorithm after $k$ oracle queries. 
+	\begin{equation}
+		\mathcal{E}_k (\mathcal{F}, \mathcal{O}, \mathcal{L}) \coloneq \inf_{A \in \mathcal{A}_k (\mathcal{()})} \sup_{f \in \mathcal{F}} \mathcal{L}_f \big(w_{\mathcal{A}_k} (f) \big)
+	\end{equation}
+\end{definition}
+
+
 % 1. Smooth Optimization - gradient descent, L-smooth, \epsilon-critical, Taylor 1/2nd order bound, PL-inequality, linear convergence of GD with PL, Lower bounds on convergence of GD
 % 1.1 Convexity - Strong convexity, SC implies PL, convergence of GD on strongly convex functions, ridge regularization to attain strong convexity. 
 % 1.2 Momentum/Acceleration - Polyak heavy-ball, nesterov, convergence, 
