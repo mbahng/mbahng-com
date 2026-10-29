@@ -1,5 +1,99 @@
 \section{Stochastic Optimization}
 
+	Originated from "A stochastic Approximation Method."
+
+	Remember that in GD, we have an oracle. Now, our oracle will output noisy gradients. Suppose we have some distribution $D$ a set $Z$. We have access to a noisy oracle afor the gradient. 
+	\begin{equation}
+	  w \mapsto g(w, z), \quad z \sim D
+	\end{equation}
+	We assume that this is an unbiased estimator. 
+	\begin{equation}
+		\nabla f(w) = \mathbb{E}[g(w, z)]
+	\end{equation}
+
+	This suggests a natural iterative method, called SGD. 
+	\begin{enumerate}
+	  \item Draw a fresh sample $z_k \sim D$ independent from all other $z_j$. 
+		\item Update $w_{k+1} = w_k - \eta_k g(w_k, z_k)$. 
+	\end{enumerate}
+
+	\begin{example}[Coordinate Descent]
+	  Computing the full gradient is expensive, so we compute one partial derivative at a time. So, our procedure is 
+		\begin{enumerate}
+			\item Draw $i \sim \mathrm{Uniform}([d])$. 
+			\item $g(w, i) = d \partial_i f(w) e_i$. So we take the $i$th partial derivative, multiply it by $e_i$, and then multiply the whole thing by $d$. 
+		\end{enumerate}
+		Then, 
+		\begin{equation}
+			\mathbb{E}[g(w, i)] = \frac{1}{d} \sum_{i=1}^d d \partial_i (w) e_i = \sum_{i=1}^d \partial_i f(w) e_i = \nabla f(w)
+		\end{equation}
+	\end{example}
+
+	A more relevant example for data science. 
+
+	\begin{example}[Finite Sums]
+	  Suppose we can write our loss as 
+		\begin{equation}
+			f(w) = \frac{1}{n} \sum_{i=1}^n f_i (w)
+		\end{equation}
+		e.g. least squares when we try to fit one data example.\footnote{This is pretty broad and covers all ML training. This is why ML people like SGD so much.} Then, we can write 
+		\begin{equation}
+			i \sim \mathrm{Uniform}([n]), \quad (w, i) = \nabla f_i (w)
+		\end{equation}
+		We can see that 
+		\begin{equation}
+			\mathbb{E}[g(w, i)] = \frac{1}{n} \sum_{i=1}^n \nabla f_i (w) = \nabla f(w)
+		\end{equation}
+	\end{example}
+
+	\begin{example}[Stochastic Programming]
+	  In practice, we might have a continuous stream of data, so we consider the case of an infinite sum. Suppose we can write our loss as 
+		\begin{equation}
+			f(w) = \mathbb{E}_{z \sim D} [f(w, z)]
+		\end{equation}
+		Define 
+		\begin{equation}
+		  g(w, z) = \nabla_w f(w, z)
+		\end{equation}
+		Under mild assumptions,\footnote{Leibniz rule}
+		\begin{equation}
+			\mathbb{E}[g(w, z)] = \nabla f(w) 
+		\end{equation}
+	\end{example}
+
+	If we run SGD for a long time, we want to prove that the norm of the gradient will decrease in expectation. We used the descent lemma for GD, but we want to do this in expectation. We will take expectations conditioned on the past, i.e. 
+	\begin{equation}
+		\mathbb{E}[X \mid \mathcal{F}_k], \quad \mathcal{F}_k = \sigma(w_0, z_1, \ldots, z_{k-1})
+	\end{equation}
+
+	Recall that if r.v. $Y$ is determined by $\mathcal{F}_k$, then the \textit{pull-out} property implies that 
+	\begin{equation}
+		\mathbb{E}[Y X_1 \mid \mathcal{F}_k] = Y \mathbb{E}[X_1 \mid \mathcal{F}_k]
+	\end{equation}
+
+	\begin{theorem}[Expected Descent]
+		Assume that $f: \mathbb{R}^d \to \mathbb{R}$ is $L$-smooth, and $f^\ast = \inf{f} > -\infty$. Further, $g: \mathbb{R}^d \times Z \to \mathbb{R}^d$ is our noisy gradient satifies unbiasedness---$\mathbb{E}_z [g(w, z)] = \nabla f(w)$---and 
+		\begin{equation}
+			\mathbb{E}[ \|g(w, z) - \nabla f(w)\|^2 ] \leq \sigma^2 \quad \forall w \in \mathbb{R}^d
+		\end{equation}
+		Then, at each $k$, we have 
+		\begin{equation}
+			\mathbb{E}[f(w_{k+1}) \mid \mathcal{F}_k] \leq f(w_k) - \eta_k \big( 1  -\frac{L \eta_k}{2} \big) \|\nabla f(w_k)\|^2 + \frac{L \eta_k^2 \sigma^2}{2}
+		\end{equation}
+		Note that we are assuming that the $w_k$ is deterministic since we are conditioning on our past history $\mathcal{F}_k$. 
+	\end{theorem}
+	\begin{proof}
+	  Using Taylor's theorem, 
+		\begin{equation}
+			f(w_{k+1}) \leq f(w_k) - \eta_k \langle \nabla f(w_k), \underbrace{w_{k+1} - w_k}_{ = g(w_k, z_k) = g_k} \rangle + \frac{L \eta_k^2}{2} \| g_k\|^2
+		\end{equation}
+		If we just take expectations, then by linearity, we know that $\mathbb{E}[\langle \nabla f(w_k), g (w_k, z_k) \rangle]$. Just continue next class. 
+	\end{proof}
+
+
+
+
+
   Now let's go back to gradient descent. Usually, in machine learning, we are trying to optimize a parameteric model $\mathcal{P} = \{ \mathbb{P}_\theta \mid \theta \in \Theta\}$ over a dataset $\mathcal{D} = \{x_i\}_{i=1}^n$., For example, our estimator in the maximum-likelihood approach will be 
   \begin{equation}
     \delta(\mathcal{D}) = \argmax_{\theta} L(\theta \mid \mathcal{D}) = \log p(\mathcal{D} \mid \theta)
