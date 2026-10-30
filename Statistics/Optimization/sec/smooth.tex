@@ -106,20 +106,49 @@
 
 	An algorithmic design principle that we will follow is that instead of minimizing $f$ directly, we iteratively minimize an approximation of $f$ centered at the previous iterate. 
 
-	\begin{lemma}[Gradient Descent]
-		Let $f: \mathbb{R}^d \to \mathbb{R}$ be differentiable and $w_0 \in \mathbb{R}^d$. Then, the following sequences are identical. 
-		\begin{enumerate}
-		  \item \textit{Iterative Optimization of Taylor's 1st Bound}. 
-				\begin{equation}
-					w_{k+1} = \argmin_w \Phi_k (w) = \argmin_w \bigg\{ \underbrace{\langle \nabla f(w_k), w - w_k \rangle}_{\text{linear approximation}} + \underbrace{\frac{1}{\eta_k} \|w - w_k\|^2}_{\text{anchor}} \bigg\}
-				\end{equation}
-				Note that the quadratic term is a regularizer that prevents us from moving too far from the current point $w_k$. 
+	\begin{lemma}[Gradient Descent on $L$-Smooth Functions]
+		\hyperref[def:gradient_descent]{Gradient descent} on the function class $\mathcal{F}$ of $L$-smooth functions is equivalent to the following algorithm consisting of the oracle 
+		\begin{equation}
+			\mathcal{O}_f : S \to \mathbb{R} \times \mathbb{R}^d, \quad \mathcal{O}_f (x) = \big( f(x), \nabla f(x) \big)
+		\end{equation}
+		and update maps $\Phi_t : (S \times (\mathbb{R} \times \mathbb{R}^d))^{t+1} \to S$
+		\begin{align}
+			x_{t+1} = \Phi_t \big(x_0, (f(x_0), \nabla f(x_0)), \ldots, x_t, (f(x_t), \nabla f(x_t)) \big) 
+				& \coloneqq x_t - \eta_t \nabla f(x_t) \\
+				& = \argmin_w \bigg\{ \underbrace{\langle \nabla f(w_t), w - w_t \rangle}_{\text{linear approximation}} + \underbrace{\frac{1}{\eta_t} \|w - w_t\|^2}_{\text{anchor}} \bigg\} 
+		\end{align}
+		Note that the quadratic term is a regularizer that prevents us from moving too far from the current point $w_k$. After $k$ iterations, the algorithm outputs $w_{\mathcal{A}_k} (f) = x_k$. 
 
-			\item \textit{Gradient Descent}. 
-				\begin{equation}
-					w_{k+1} = w_k - \eta_k \nabla f(w_k)
-				\end{equation}
-		\end{enumerate}
+		\begin{figure}[H]
+			\centering
+			\begin{tikzpicture}[scale=0.7]
+				\begin{axis}[
+					width=0.8\textwidth, height=7cm,
+					axis lines=left, 
+					xmin=-0.5, xmax=5, ymin=0, ymax=3.2,
+					xtick=\empty, ytick=\empty, clip=false, legend style={at={(0.5,-0.12)}, anchor=north, legend columns=-1, font=\small}
+				]
+					% f, linear approximation, and anchored model
+					\addplot[domain=-0.5:5, samples=100, thick, blue] {0.2*(x-3)^2 + 0.4};
+					\addlegendentry{$f(w)$}
+					\addplot[domain=-0.5:2.15, dashed, thick, red] {1.65 - (x-0.5)};
+					\addlegendentry{linear approx.}
+					\addplot[domain=-0.5:3.5, samples=100, thick, teal] {1.65 - (x-0.5) + (1/3)*(x-0.5)^2};
+					\addlegendentry{$\Phi_k(w)$ (linear + anchor)}
+
+					% iterates
+					\addplot[only marks, mark=*, mark size=2.5pt, black] coordinates {(0.5,1.65)};
+					\addplot[only marks, mark=*, mark size=2.5pt, black] coordinates {(2,0.9)};
+					\draw[dotted] (axis cs:0.5,0) -- (axis cs:0.5,1.65);
+					\draw[dotted] (axis cs:2,0) -- (axis cs:2,0.9);
+					\node[below] at (axis cs:0.5,0) {$w_k$};
+					\node[below] at (axis cs:2,0) {$w_{k+1}$};
+
+					% step
+					\draw[<->, thick] (axis cs:0.5,0.45) -- node[below, pos=0.4] {$\eta_k \|\nabla f(w_k)\|$} (axis cs:2,0.45);			\end{axis}
+			\end{tikzpicture}
+			\caption{The linear approximation at $w_k$ (dashed) is unbounded below, so the anchor term (teal) is added to keep it bounded. Its minimizer is exactly the gradient descent step $w_{k+1} = w_k - \eta_k \nabla f(w_k)$.}
+		\end{figure}
 	\end{lemma}
 	\begin{proof}
 		Recall that at a local minimum of a differentiable function, the gradient must vanish. So, 
@@ -185,7 +214,7 @@
 		\end{equation}
 	\end{proof}
 
-	This means that up to constants, $T \sim \epsilon^{-2}$ for a gradient bound. So if $\epsilon = 10^{-6}$, then we would need $\epsilon^{-2} = 10^{12}$ iterations! This is not good enough, so we would like some extra regularity assumptions, such as convexity. 
+	This means that up to constants, $T \sim \epsilon^{-2}$ for a gradient bound. So if $\epsilon = 10^{-6}$, then we would need $\epsilon^{-2} = 10^{12}$ iterations! This is not good enough, so we would like some extra regularity assumptions, such as convexity.\footnote{In fact, most of these regularity/geometric assumptions that people used to prove guarantees amounted to strong convexity.}
 
 \subsection{Convexity} 
 
@@ -387,10 +416,40 @@
 		\begin{equation}
 			T \geq \frac{L}{\mu} \log \bigg( \frac{f(w_0) - f(w^\ast)}{\epsilon} \bigg) \implies f(w_k) - f(w^\ast) \leq \epsilon
 		\end{equation}
+
+		\begin{figure}[H]
+			\centering
+			\begin{tikzpicture}
+				\begin{axis}[
+					width=0.8\textwidth, height=7cm,
+					xlabel={iteration $t$}, ylabel={$f(w_t)/f(w_0)$},
+					ymode=log, xmin=0, xmax=30, ymin=1e-8, ymax=2,
+					grid=major, grid style={gray!25},
+					legend style={at={(0.5,-0.2)}, anchor=north, legend columns=1, font=\small}
+				]
+					% bound (1-1/kappa)^t for kappa = 2, 5
+					\addplot[domain=0:30, samples=31, thick, dashed, orange!80!black] {(1-1/2)^x};
+					\addlegendentry{$(1-\frac{1}{2})^t$ \; ($\kappa=2$)}
+					\addplot[domain=0:30, samples=31, thick, dashed, red] {(1-1/5)^x};
+					\addlegendentry{$(1-\frac{1}{5})^t$ \; ($\kappa=5$)}
+					% GD on f(w) = (1/2)(w_1^2 + 5 w_2^2), w_0=(1,1), step 1/L: ratio is 1 at t=0, (1/6)(0.8)^{2t} after
+					\addplot[thick, blue, mark=*, mark size=1.5pt] coordinates {(0,1)
+						(1,0.106667) (2,0.068267) (3,0.043691) (4,0.027962) (5,0.017896) (6,0.011453) (7,0.007330) (8,0.004691) (9,0.003002) (10,0.001922)
+						(11,0.001230) (12,0.000787) (13,0.000504) (14,0.000322) (15,0.000206) (16,0.000132) (17,0.0000846) (18,0.0000541) (19,0.0000346) (20,0.0000222)
+						(21,0.0000142) (22,0.00000909) (23,0.00000582) (24,0.00000372) (25,0.00000238) (26,0.00000152) (27,0.000000976) (28,0.000000625) (29,0.0000004) (30,0.000000256)};
+					\addlegendentry{GD, $\kappa=5$}
+					% messy example: GD on l2-regularized logistic regression (n=200, d=20, lambda=L/5), (f(w_t)-f*)/(f(w_0)-f*)
+					\addplot[thick, black, mark=square*, mark size=1.2pt] coordinates {(0,1) (1,0.1584) (2,0.082063) (3,0.04483) (4,0.025098) (5,0.014301) (6,0.0082626) (7,0.0048274) (8,0.002846) (9,0.0016903) (10,0.00101) (11,0.00060647) (12,0.00036568) (13,0.00022125) (14,0.00013426) (15,8.1671e-05) (16,4.9788e-05) (17,3.0407e-05) (18,1.8601e-05) (19,1.1396e-05) (20,6.9901e-06) (21,4.2928e-06) (22,2.6391e-06) (23,1.624e-06) (24,1.0002e-06) (25,6.1659e-07) (26,3.8038e-07) (27,2.3484e-07) (28,1.4509e-07) (29,8.9699e-08) (30,5.5491e-08)};
+					\addlegendentry{GD, $\ell_2$-regularized logistic regression}
+				\end{axis}
+			\end{tikzpicture}
+			\caption{Relative loss $f(w_t)/f(w_0)$ (assume $f^\ast = 0$) of gradient descent with step size $1/L$ on a strongly convex quadratic on a log scale. This looks linear on a log-plot, hence the name \textit{linear convergence}. In other words, to further reduce the error by a factor of $K$, we only need to iterate through at a constant number of steps. The black curve is a messier run, GD on $\ell_2$-regularized logistic regression ($n = 200$, $d = 20$, badly scaled features, $\lambda = L/5$ so that $\kappa \le L/\lambda = 5$), with $f^\ast$ computed numerically and the $y$-axis $\frac{f(w_t) - f^\ast}{f(w_0) - f^\ast}$. It is also $\lambda$-strongly convex with $L/\lambda = 5$, so the same bound $(1-\frac{1}{5})^t$ applies, and the curve stays below it, though its slope is slightly uneven rather than perfectly constant.}
+		\end{figure}
 	\end{theorem}
 	\begin{proof}
 		$f$ is $\mu$-strongly convex, and so it is $\mu$-PL. Therefore, we apply \hyperref[thm:linear_convergence_pl]{this theorem}. 
 	\end{proof}
+
 
 	Further, strong convexity implies quadratic growth, $f(w) - f(w^\ast) \geq \frac{\mu}{2}\|w - w^\ast\|^2$, which ensures 
 	\begin{equation}
@@ -399,10 +458,18 @@
 
 	Note that for $L$-smooth functions in general, GD converges to criticality at a rather slow rate of $O(\epsilon^{-2})$, compared to $T \gtrsim \log(\epsilon^{-1})$. If $\epsilon = 10^{-6}$, then $\epsilon^{-2} = 10^{12}$---which is a very high number of iterations to get a gradient under $10^{-6}$---while $\log(\frac{1}{\epsilon}) \approx 14$---much cheaper to get the same bound on function suboptimality \textit{and} distance to minimizer. 
 
-	But can we do better? 
+	\begin{definition}[Condition Number]
+		Thus, how fast GD converges is dictated by the ratio 
+		\begin{equation}
+			\kappa = \frac{L}{\mu} \in [1, \infty]
+		\end{equation}
+		known as the \textbf{condition number}. 
+	\end{definition} 
+	
+	This is pretty fast, but is there a faster algorithm than GD? For a particular function, we may be able to exploit its mathematical properties such find such a minima. For example, we can find the closed form of the minimum of a quadratic function by finding the roots of its gradient, basically making our algorithm $O(1)$. Therefore, we wish to evaluate GD over a \textit{class of functions}. For such a class, an algorithm may do really well on some $f \in \mathcal{F}$ but may do terribly on other functions. Therefore, we wish to find the minimax oracle error of GD on some defined $\mathcal{F}$. The following result gives a lower bound on the convergence of GD on strongly convex, $L$-smooth functions. 
 	
 	\begin{theorem}[Convergence Lower Bound of GD on Strongly Convex Functions]
-		Let $L, \mu, \Delta > 0$, $\kappa = \frac{L}{\mu} \geq 1$, and $T \geq 1$. Then, there exists a $\mu$-strongly convex, $L$-smooth function $f: \mathbb{R}^{2T} \to \mathbb{R}$ with $f(w^\ast)= 0$ and $f(0) = \Delta$ such that every method satisfying
+		Let $L, \mu, \Delta > 0$, $\kappa = \frac{L}{\mu} \geq 1$, and $T \geq 1$. Then, there exists a $\mu$-strongly convex, $L$-smooth function $f: \mathbb{R}^{2T} \to \mathbb{R}$ with $f(w^\ast)= 0$ and $f(0) = \Delta$ such that every method satisfying\footnote{QUESTION: Is this a generalization of GD?}
 		\begin{equation}
 			x_{k+1} \in \Span\{\nabla f(x_0), \ldots, \nabla f(x_k)\}\footnote{GD automatically satisfies this, so we can think of this as a generalization of GD.}
 		\end{equation}
@@ -506,6 +573,8 @@
 
 \subsection{Polyak-Lojasiewicz Inequality}
 
+	In recent decades, strong convexity fell out of favor for the PL-inequality, which generalizes the notion of strong convexity. 
+
 	\begin{definition}[Polyak-Lojasiewicz Inequality]
 		A differentiable function $f: \mathbb{R}^d \to \mathbb{R}$ satisfies the \textbf{PL-inequality}\footnote{This was published in 1963 and was ignored until 2016.} if there exists a $\mu > 0$ s.t. 
 		\begin{equation}
@@ -587,14 +656,6 @@
 		\end{align}
 		where on the last step, we recursed. 
 	\end{proof}
-
-	\begin{definition}[Condition Number]
-		Thus, how fast GD converges is dictated by the ratio 
-		\begin{equation}
-			\kappa = \frac{L}{\mu} \in [1, \infty]
-		\end{equation}
-		known as the \textbf{condition number}. 
-	\end{definition} 
 
 	\begin{theorem}[Linear Convergence of GD in Overparameterized Linear Regression]
 		Consider the linear regression model where we want to optimize
@@ -722,11 +783,27 @@
 
 \subsection{Momentum and Acceleration}
 
-	When we do gradient descent with momentum, we have the updates 
+	We know that for badly conditioned quadratics with a large maximum-to-minimum eigenvalue ratio $H$, the convergence of GD is pretty slow. (QUESTION: why? What's $L$ and $\mu$?) A natural idea due to Polyak is to add momentum. 
+
+	\begin{definition}[Gradient Descent with Momentum]
+		\label{def:gradient_descent_momentum}
+		Let $\mathcal{F}$ be the class of differentiable functions $f: S \subset \mathbb{R}^d \to \mathbb{R}$. Fix an initial point $x_0 \in S$ and a sequence of positive step sizes $(\eta_t)$. Then, \textbf{gradient descent with momentum $\beta > 0$} is a deterministic algorithm defined by the first-order oracle
+		\begin{equation}
+			\mathcal{O}_f : S \to \mathbb{R} \times \mathbb{R}^d, \quad \mathcal{O}_f (x) = \big( f(x), \nabla f(x) \big)
+		\end{equation}
+		and update maps $\Phi_t : (S \times (\mathbb{R} \times \mathbb{R}^d))^{t+1} \to S$ defined
+		\begin{align}
+			x_{t+1} = \Phi_t \big(x_0, (f(x_0), \nabla f(x_0)), \ldots, x_t, (f(x_t), \nabla f(x_t)) \big) 
+				& \coloneqq  x_t - \eta_t \nabla f(x_t) + \beta (x_t - x_{t-1})\footnote{where the term $\beta (w_k - w_{k-1})$ ``moves in our previous direction.''}
+		\end{align}
+		After $k$ iterations, the algorithm outputs $w_{\mathcal{A}_k} (f) = x_k$. 
+	\end{definition}
+
+	If the stepsize $\eta$ is constant, then we can unroll the updates and get 
 	\begin{equation}
-		w_{k+1} = w_k - \eta_k \nabla f(w_k) + \beta (w_k - w_{k-1})
+		w_{k+1} - w_k = - \eta \sum_{j=0}^k \beta^{k-j} \nabla f(w_j)
 	\end{equation}
-	where the term $\beta (w_k - w_{k-1})$ ``moves in our previous direction.'' 
+	Thus, we are using all previous gradient information, albeit reweighted. Another algorithmic design principle is that we should use previous first-order information when possible. 
 
 	\begin{theorem}
 	  Momentum works optimally for quadratics. (Polyak 64)
@@ -734,13 +811,16 @@
 
 	For general smooth functions, and convex functions, it is sub-optimal. (Lessard, Recht, Packard 2016) 
 
-	If we unroll the updates, we get 
-	\begin{equation}
-		w_{k+1} - w_k = - \eta \sum_{j=0}^k \beta^{k-j} \nabla f(w_j)
-	\end{equation}
-	Thus, we are using all previous gradient information, albeit reweighted. Another algorithmic design principle is that we should use previous first-order information when possible. 
 
-	We tackle the $\mu$-SC and $L$-smooth case.  
+	We tackle the $\mu$-SC and $L$-smooth case. Recall that convexity gives 
+	\begin{equation}
+	  l_y (z) \coloneqq f(y) + \langle \nabla f(y), z - y \rangle \leq f(z) \quad \forall z
+	\end{equation}
+	GD uses one gradient to build the model ait minimizes at each iteration. Just like how momentum does, let's use all of them by taking a linear combination of such linear approximations, and then adding the quadratic anchor. Define 
+	\begin{equation}
+		\Phi_k (z) = \sum_{j=1}^n a_j l_{y_{j-1}} (z) + \frac{1}{2} \|z - w_0\|^2
+	\end{equation}
+	Let $A_0 = 0$ and 
 
 \subsection{Saddle Points} 
 
