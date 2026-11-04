@@ -13,28 +13,6 @@
     Need to verify this. 
   \end{proof}
 
-  \begin{algo}[Newton-Raphson Method]
-    \begin{algorithm}[H]
-    \label{alg:newton-raphson}
-    \begin{algorithmic}[1]  % The [1] adds line numbers
-      % Input/Output documentation
-      \Require{Function $f(x)$, initial guess $x_0$}
-      \Procedure{NewtonRaphson}{$f, f', x_0, \epsilon, N_{max}$}
-
-      \State $x \gets x_0$ 
-      \While{ not converged} 
-        \If{$f^\prime (x) = 0$} 
-          \State Retry with another $x_0$.  
-        \EndIf
-        \State $x \gets \frac{f(x)}{f^\prime (x)}$
-      \EndWhile
-          
-      \State \Return $x$ 
-      \EndProcedure
-    \end{algorithmic}
-    \end{algorithm}
-  \end{algo}
-
   \begin{algo}[Secant Method]
     The Secant Method approximates Newton's method by estimating the derivative using two most recent iterates instead of requiring $f'(x)$. 
     \begin{algorithm}[H]
@@ -59,50 +37,131 @@
     \end{algorithm}
   \end{algo}
 
-\subsection{Netwon's Method}
+\subsection{Newton's Method}
 
-  Newton's method is an iterative algorithm for finding the roots of a differentiable function $F$. An immediate consequence is that given a convex $C^2$ function $f$, we can apply Newton's method to its derivative $f^\prime$ to get the critical points of $f$ (minima, maxima, or saddle points), which is relevant in optimizing $f$. Given a $C^1$ function $f: D \subset \mathbb{R}^n \longrightarrow \mathbb{R}$ and a point $\mathbf{x}_k \in D$, we can compute its linear approximation as 
-  \begin{equation}
-    f(\mathbf{x}_k + \mathbf{h}) \approx f(\mathbf{x}_k) + D f_{\mathbf{x}_k} \, \mathbf{h} = f(\mathbf{x}_k) + \nabla f(\mathbf{x}_k) \cdot \mathbf{h}
-  \end{equation}
-  where $D f_{\mathbf{x}_k}$ is the total derivative of $f$ at $\mathbf{x}_k$ and $\mathbf{h}$ is a small $n$-vector. Discretizing this gives us our gradient descent algorithm as 
-  \begin{equation}
-    \mathbf{x}_{k+1} \gets \mathbf{x}_k - \alpha \, f^\prime(\mathbf{x}_k)
-  \end{equation}
-  This linear function is unbounded, so we must tune the step size $\alpha$ accordingly. If $\alpha$ is too small, then convergence is slow, and if $\alpha$ is too big, we may overshoot the minimum. Netwon's method automatically tunes this $\alpha$ using the curvature information, i.e. the second derivative. If we take a second degree Taylor approximation 
-  \begin{equation}
-    f(\mathbf{x}_k + \mathbf{h}) \approx f(\mathbf{x}_k) + D f_{\mathbf{x}_k} \, \mathbf{h} + \mathbf{h}^T \, H f_{\mathbf{x}_k} \, \mathbf{h}
-  \end{equation}
-  then we are guaranteed that this quadratic approximation of $f$ has a minimum (existence and uniqueness can be proved), and we can calculate it to find our "approximate" minimum of $f$. We simply take the total derivative of this polynomial w.r.t. $\mathbf{h}$ and set it equal to the $n$-dimensional covector $\mathbf{0}$. This is equivalent to setting the gradient as $\mathbf{0}$, so 
-  \begin{align*}
-    \mathbf{0} & = \nabla_\mathbf{h} \big[ f(\mathbf{x}_k) + D f_{\mathbf{x}_k} \, \mathbf{h} + \mathbf{h}^T \, H f_{\mathbf{x}_k} \, \mathbf{h} \big] (\mathbf{h}) \\
-    & = \nabla_\mathbf{h} [ D f_{x_k} \mathbf{h} ] (\mathbf{h}) + \nabla_\mathbf{h} [\mathbf{h}^T \, H f_{\mathbf{x}_k} \, \mathbf{h}] (\mathbf{h}) \\
-    & = \nabla_\mathbf{x} f(\mathbf{x}_k) + H f_{\mathbf{x}_k} \, \mathbf{h} \\
-    & \implies \mathbf{h} = - [H f_{\mathbf{x}_k}]^{-1} \nabla_\mathbf{x} f(\mathbf{x}_k) 
-  \end{align*}
-  which results in the iterative update 
-  \begin{equation}
-    \mathbf{x}_{k+1} \gets \mathbf{x}_k - [H f_{\mathbf{x}_k}]^{-1} \nabla_\mathbf{x} f (\mathbf{x}_k)
-  \end{equation}
-  Note that we require $\mathbf{f}$ to be convex, so that $H f$ is positive definite. Since $f$ is $C^2$, this implies $H f$ is also symmetric, implying invertibility by the spectral theorem. Note that Newton's method is very expensive, since we require the computation of the gradient, the Hessian, \textit{and} the inverse of the Hessian, making the computational complexity of this algorithm to be $O(n^3)$. We can also add a smaller stepsize $h$ to control stability. 
+	Note that in GD, we have to tune the step size to ensure that our objective function decreases. If we set it too small, then we learn too slowly, and if we set it too high, then we may overshoot the minimum. We can develop an even better approximation by accounting for the curvature, aka the Hessian, and Newton's method automatically tunes this $\alpha$ using the second derivative. 
 
-  \begin{algorithm}
-    \caption{Newton's Method}\label{alg:netwons}
-    \begin{algorithmic}
+	\begin{theorem}[Taylor's 2nd Order Bound]
+		If $f: \mathbb{R}^d \to \mathbb{R}$ is $C^2$ and has a $Q$-Lipschitz Hessian $\nabla^2 f$, then 
+		\begin{equation}
+			\bigg| f(x + s) - f(x) - \nabla f(x)^T s - \frac{1}{2} s^T \nabla^2 f(x) s \bigg| \leq \frac{1}{6} Q \|s\|^3
+		\end{equation}
+	\end{theorem}
+	\begin{proof}
+		We can use FOTC twice since $f$ is $C^2$. So, 
+		\begin{align}
+			\theta(1) & = \theta(0) + \int_0^1 \theta^\prime (t) \,dt \\ 
+								& = \theta(0) + \int_0^1 \bigg( \theta^\prime(0) + \int_0^t \theta^{\prime\prime}(\alpha) \,d\alpha \bigg) \, dt \\ 
+								& = \theta(0) + \theta^\prime (0) + \int_0^1 \int_0^t \theta^{\prime\prime} (\alpha) \,d\alpha \,dt 
+		\end{align}
+		Note that 
+		\begin{equation}
+			\int_0^1 \int_0^t \theta^{\prime\prime} (0) \,d\alpha \,dt = \theta^{\prime\prime} (0) \int_0^1 \int_0^t \,d\alpha \,dt = \frac{1}{2} \theta^{\prime\prime} (0)
+		\end{equation}
+		Therefore, 
+		\begin{align}
+			\bigg| f(x + s) & - f(x) - \nabla f(x)^T s - \frac{1}{2} s^T \nabla^2 f(x) s \bigg| \\ 
+											& = \bigg| \theta(0) + \theta^{\prime} (0) + \int_0^1 \int_0^t \theta^{\prime\prime}(\alpha) \,d\alpha \,dt - \theta(0) - \theta^\prime (0) - \frac{1}{2} \theta^{\prime\prime} (0) \bigg| \\ 
+											& = \bigg| \int_0^1 \int_0^t \theta^{\prime\prime} (\alpha) \,d\alpha \,dt - \int_0^1 \int_0^t \frac{1}{2} \theta^{\prime\prime}(0) \,d\alpha \,dt \bigg| \\ 
+											& = \bigg| \int_0^1 \int_0^t s^T \big( \nabla^2 f(x + \alpha s) - \nabla^2 f(x) \big) s \,d\alpha \,dt \bigg| \\ 
+											& \leq \int_0^1 \int_0^t \big| s^T \big( \nabla^2 f(x + \alpha s) - \nabla^2 f(x) \big) s \big| \,d\alpha \,dt \\
+											& \leq \int_0^1 \int_0^t \big\| \nabla^2 f(x + \alpha s) - \nabla^2 f(x) \big\|_{op} \|s\|^2 \,d\alpha \,dt \\
+											& \leq \int_0^1 \int_0^t Q \|\alpha s\| \|s\|^2 \,d\alpha \,dt \\
+											& = Q \|s\|^3 \int_0^1 \int_0^t \alpha \,d\alpha \,dt \\
+											& = \frac{1}{6} Q \|s\|^3
+		\end{align}
+	\end{proof}
 
-    \Require Initial $\mathbf{x}_0$, Stepsize $h$ (optional)
+	Therefore, we might have try to optimize the following 2nd-order Taylor expansion. 
+	\begin{equation}
+		w_{k+1} \gets \argmin_w \bigg\{ f(w_k) + \langle \nabla f(w_k), w - w_k \rangle + \frac{1}{2} \langle \nabla^2 f(w_k) (w - w_k), w - w_k \rangle \bigg\}
+	\end{equation}
+	Note that this step isn't really well-defined since this approximation might not be convex when $\nabla^2 f(w_k)$ is not positive definite. Yet, we can use the first-order optimality condition to get 
+	\begin{equation}
+		0 = \nabla \Phi(w) = \nabla f(w_k) + \nabla^2 f(w_k) (w - w_k) \implies w = w_k - \nabla^2 f(w_k)^{-1} \nabla f(w_k). 
+	\end{equation}
+	This leads to the following. 
 
-    \For{$t = 0$ to $T$ until convergence}
-        \State $g(\mathbf{x}_t) \gets \nabla f(\mathbf{x}_t)$  
-        \State $H(\mathbf{x}_t) \gets H f_{\mathbf{x}_t}$ 
-        \State $H^{-1} (\mathbf{x}_t) \gets [H(\mathbf{x}_t)]^{-1}$ 
-        \State $\mathbf{x}_{t+1} \gets \mathbf{x}_t - h \, H^{-1} (\mathbf{x}_t) \, g(\mathbf{x}_t)$
-    \EndFor
+	\begin{definition}[Netwon's Method]
+		Let $f: \mathbb{R}^d \to \mathbb{R}$ be $C^2$. Initialize $w_0 \in \mathbb{R}^d$. 
+		\begin{equation}
+			w_{k+1} \gets w_k - \nabla^2 f(w_k)^{-1} \nabla f(w_k)
+		\end{equation}
+	\end{definition}
 
-    \end{algorithmic}
-  \end{algorithm}
+	But a few caveats are that this method converges to critical points, not minimizers. \cite{2014pascanu_saddle-point-nonconvex} In particular, if we take $g(w) = -f(w)$, the method doesn't change. Second is affine invariance. 
 
-	But there is a problem that Netwon's method is prone to saddle points \cite{2014pascanu_saddle-point-nonconvex}. 
+	\begin{lemma}[Affine Invariance]
+		Let $A \in \mathbb{R}^{d \times d}$ be invertible, $f: \mathbb{R}^d \to \mathbb{R}$ be differentiable, and $\varphi(z) \coloneqq f(A z)$. Initialize $w_0$ and $z_0 = A^{-1} w_0$. Then, consider the following. 
+		\begin{enumerate}
+		  \item \textit{Iterates of $w$}. Take the iterates of PGD of $f$ from $w_0$. 
+				\begin{equation}
+					w_{k+1} \gets w_k - \nabla^2 f(w_k)^{-1} \nabla f(w_k)
+				\end{equation}
+		  \item \textit{Iterates of $z$}. Take the iterates of $\varphi$ from $z_0$. 
+				\begin{equation}
+					z_k = A^{-1} w_k, \quad \forall k
+				\end{equation}
+		\end{enumerate}
+
+		\begin{equation}
+			\begin{tikzcd}[column sep=large, row sep=large]
+			z_0 \arrow[r, "A"] \arrow[d, "\text{(NM) on } \varphi"'] 
+				& w_0 \arrow[d, "\text{(NM) on } f"] \\
+			z_k 
+				& w_k \arrow[l, "A^{-1}"]
+			\end{tikzcd}
+		\end{equation}
+	\end{lemma}
+	\begin{proof}
+	  
+	\end{proof}
+
+	Therefore, Newton's method doesn't care about change of variables. This tells us that a good guarantee shouldn't depend on the condition number. 
+
+	\begin{theorem}[Quadratic Convergence]
+		Let $f: \mathbb{R}^d \to \mathbb{R}$ be twice differentiable with critical point $w_{\#}$. Suppose that there exists a $r > 0$ s.t. for all $w, u \in B_r (w_{\#}) = B$, 
+		\begin{enumerate}
+			\item $\|\nabla^2 f(w) - \nabla^2 f(u) \|_{\mathrm{op}} \leq L_H \|w - u\|$. 
+			\item $\nabla^2 f(w) \succeq \mu I$, 
+			\item $r < 2\mu/L_H$. 
+		\end{enumerate}
+		Then, for all $k \geq 0$, 
+		\begin{align}
+			\|w_{k+1} - w_{\#}\| \leq \frac{L_H}{2 \mu} \|w_k - w_{\#} \|^2
+		\end{align}
+	\end{theorem}
+	\begin{proof}
+		We use induction. Suppose $w_{\#} \in B = B_r (w_k)$, let $e_k = w_k - w_{\#}$. We ultimately wish to bound $\|e_k\|$. Define 
+		\begin{equation}
+			\varphi: [0, 1] \to \mathbb{R}^d, \quad \varphi(t) = \nabla f(w_{\#} + t(w_k - w_{\#})) 
+		\end{equation}
+		Then, by the chain rule
+		\begin{equation}
+			\frac{d \varphi}{d t} = \nabla^2 f(w_{\#} - t(w_k - w_{\#}) ) \, (w_k - w_{\#}) 
+		\end{equation}
+		By the vector valued FTC and the fact that $\nabla f(w_{\#}) = 0$, 
+		\begin{equation}
+			\nabla f(w_k) = \varphi(1) = \int_0^1 \nabla^2 f(w_{\#} + te_k) \, e_k \,dt 
+		\end{equation}
+		Then, we can see that 
+		\begin{align}
+			e_{k+1} & = w_{k+1} - w_{\#} \\ 
+							& = w_{k} - w_{\#} - \nabla^2 f(w_k)^{-1} \nabla f(w_k) \\ 
+							& = w_k - w_{\#} - \nabla^2 f(w_k)^{-1} \int_0^1 \nabla^2 f(w_{\#} + te_k) \, e_k \,dt \\ 
+							& = \int_0^1 w_k - w_{\#} - \nabla^2 f(w_k)^{-1} \nabla^2 f(w_{\#} + t e_k) e_k \,dt \\ 
+							& = \nabla^2 f(w_k)^{-1} \int_0^1 \big( \nabla^2 f(w_k) - \nabla^2 f(w_{\#} + t e_k) \big) e_k \,dt
+		\end{align}
+		Now taking norms and applying the triangle inequality, we have 
+		\begin{align}
+			\|e_{k+1}\| & \leq \|\nabla f(w_k)^{-1}\|_{\mathrm{op}} \int_0^1 \|\nabla^2 f(w_k) - \nabla^2 f(w_{\#} + t e_k)\|_{\mathrm{op}} \|e_k\| \,dt \\ 
+									& \leq \frac{1}{\mu} \int_0^1 L_H \|t e_k\| \|e_k\| \,dt \\ 
+									& = \frac{L_H}{2 \mu} \|e_k\|^2
+		\end{align}
+		This implies that $\frac{L_H}{2 \mu} \|e_{k+1}\| \leq \frac{L_H}{4 \mu^2} \|e_k\|^2$ on rolling this inequality using property 3 finishes the proof. 
+	\end{proof}	
+
+	In general, Newton might diverge or cycle without ever converging and is very expensive $O(d^3)$. It generates beautiful fractals.
 
 \subsection{BFGS}
 
