@@ -12,6 +12,7 @@
   So far, we have abstracted away most of these memory types as a single entity with nearly instantaneous access, but in practice this is not the case. The most simple way is to simply have RAM and our CPU registers, but by introducing more intermediate memory types, we can achieve greater efficiency. 
 
   \begin{definition}[Locality]
+    \label{def:locality}
     \textbf{Locality} is a principle that generally states that a program that accesses a memory location $n$ at time $t$ is likely to access memory location $n + \epsilon$ at time $t + \epsilon$. This principle motivates the design of efficient caches. 
     \begin{enumerate}
       \item \textbf{Temporal locality} is the idea that if you access a memory location, you are likely to access it again soon. 
@@ -21,6 +22,7 @@
   \end{definition}
 
   \begin{example}[Locality]
+    \label{ex:locality}
     Consider the following code. 
     \begin{lstlisting}
       int sum_array(int *array, int len) {
@@ -50,7 +52,8 @@
 
   We can see the differences in spatial locality in the following example. 
 
-  \begin{example}
+  \begin{example}[Loop Order and Cache Locality]
+    \label{ex:loop-order-and-cache-locality}
     One may find that simply changing the order of loops can cause a significant speed up in your program. Consider the following code. 
     \begin{figure}[H]
       \centering 
@@ -100,6 +103,7 @@
   In theory, a cache should know which subsets of a program's memory it should hold, when it should copy a subset of a program's data from main memory to the cache (or vice versa), and how it can determine whether a program's data is present in the cache. Let's talk about the third point first. It all starts off with a CPU requesting some memory address, and we want to determine whether it is in the cache or not. To do this, we need to look a little deeper into memory addresses. 
 
   \begin{definition}[Portions of Memory Addresses]
+    \label{def:portions-of-memory-addresses}
     A memory address is a $m$-bit number.\footnote{64 in 64-bit machines.} It is divided up into three portions. 
     \begin{enumerate}
       \item The \textbf{tag} field with $t$ bits at the beginning.
@@ -126,6 +130,7 @@
   Before we see why we do this, we should also define the portions of a CPU. 
 
   \begin{definition}[CPU Cache]
+    \label{def:cpu-cache}
     A \textbf{CPU cache} divides its storage space as follows. A cache is essentially an array of sets, where $S$ is the number of sets. Each set is divided into $E$ units called \textbf{cache lines/rows}, with each cache line independent of all others and contains two important types of information. 
     \begin{enumerate}
       \item The \textbf{cache block} stores a subset of program data from main memory, of size $2^o$.\footnote{In Intel computers, it is typically 64 bytes long and for Mac Silicon, it is 128 bytes.} Sometimes, the block is referred to as the cache line. Note that is the cache block size is $2^o$ bytes, then the block offset field has length $\log_2 2^o = o$.
@@ -194,6 +199,7 @@
   \end{definition}
 
   \begin{example}[Simple Calculations]
+    \label{ex:simple-calculations}
     Given a direct-mapped cache specified by a block size of 8 bytes and a cache capacity of 4 KB, 
     \begin{enumerate}
       \item the cache can hold 512 blocks. 
@@ -236,12 +242,14 @@
   Finally, let's compare software vs hardware caches. 
 
   \begin{definition}[Software Caches]
+    \label{def:software-caches}
     When implementing caches in software, there are large time differences (DRAM vs disk, local vs remote), and they can be tailored to specific uses cases. They also have flexible and sophisticated approaches with data structures (like trees) and can perform complex computation. 
   \end{definition}
 
   Theoretically, when implementing hash tables, you never actually have to evict something. You can have the values of the table to be a linked list where we add to the head. If there is unlimited chaining, we have a full associative cache, and if we have limited chaining (e.g. 5), it is like a 5-way set associative cache. If it goes out of bound, we can implement LRU by removing the tail of the linked list. 
 
   \begin{definition}[Hardware Caches]
+    \label{def:hardware-caches}
     In hardware caches, there are smaller time differences, needs to be as fast as possible, and parallelization is emphasized. 
   \end{definition}
 
@@ -257,6 +265,7 @@
   A direct mapped cache is a caching implementation when we assume that $E = 1$, which means that for any given memory address, there is only one possible cache line that can store this data at that memory address. That is, the cache is really just a bunch of sets with one cache line each, and each cache line is completely isolated from the others. Whether we load data from memory into cache or try to retrieve data from the cache, it's really the same process. 
 
   \begin{theorem}[Placement]
+    \label{thm:placement}
     To load data from memory into the cache, which happens when there is a \textbf{cache miss}, we do the following. 
     \begin{enumerate}
       \item The CPU requests a memory address $M = (T, I, O)$. 
@@ -268,6 +277,7 @@
   \end{theorem}
 
   \begin{theorem}[Lookup]
+    \label{thm:lookup}
     To see whether a requested memory address is in the cache, we do the following. 
     \begin{enumerate}
       \item The CPU requests a memory address $M = (T, I, O)$. 
@@ -287,6 +297,7 @@
   So far, we've talked about reading operations, but what about writing to the cache? It is generally implemented in two ways. 
 
   \begin{definition}[Write-Through, Write-Back Cache]
+    \label{def:write-through-write-back-cache}
     Note that when we write data to cache, it does not need to be immediately written to memory, but rather it can be flushed to memory at a later time. This is efficient since if we have repeated operations on a single memory address, we don't have to go back and forth between the CPU and memory. 
     \begin{enumerate}
       \item In a \textbf{write-through cache}, a memory write operation modifies the value in the cache and simultaneously writes the value to the corresponding location in memory. It is always synchronized. 
@@ -330,6 +341,7 @@
   \end{definition}
 
   \begin{theorem}[Replacement]
+    \label{thm:replacement}
     Replacement occurs exactly the same way as if we just did a placement and is trivial. We retrieve the data block from the memory and store it in the cache. Direct-mapping conveniently determines which cache line to evict when loading new data. Given new memory $M = (T, I, O)$, you \textit{must} evict the cache line at $H(I)$. 
   \end{theorem}
 
@@ -340,6 +352,7 @@
   In here, we deal with $E \neq 1$, and so there are multiple set each with multiple lines. This means that the cache is more like a 2D array, and when we want to retrieve an index, we must look through the $H(I)$th line in \textit{each} set to see if the tag matches. 
 
   \begin{theorem}[Lookup]
+    \label{thm:lookup-2}
     To see whether a requested memory address is in the cache, we do the following. 
     \begin{enumerate}
       \item The CPU requests a memory address $M = (T, I, O)$. 
@@ -360,12 +373,14 @@
   Though we have a more robust implementation with associative mapping, placement and replacement now face the problem of \textit{which} set to place the data in or evict existing data. 
 
   \begin{theorem}[Placement]
+    \label{thm:placement-2}
     To load data from memory into the cache this is trivial since we can just go through the sets, find one where the valid bit is $0$, and just place the data there.  
   \end{theorem}
 
   In replacement, this is a bit trickier, but using the principle of temporal locality, we can try and replace the least recently used cache. This tries to minimize cache misses, but not slow down the lookup too much. 
 
   \begin{theorem}[Replacement]
+    \label{thm:replacement-2}
     To replace data on the cache, we use the \textbf{least recently used (LRU)} algorithm. This matches temporal locality, but it also requires some additional state to be kept. 
   \end{theorem}
 
@@ -374,14 +389,17 @@
   There are three types of cache misses. 
 
   \begin{definition}[Cold (Compulsory) Miss]
+    \label{def:cold-compulsory-miss}
     A \textbf{cold miss} occurs when the cache is empty and the CPU requests a memory address. This is the first time the CPU is requesting this memory address, and so it must go to the memory to retrieve the data.
   \end{definition}
   
   \begin{definition}[Capacity Miss]
+    \label{def:capacity-miss}
     A \textbf{capacity miss} occurs when the cache is full and the CPU requests a memory address that is not in the cache. This is because the cache is full and so the CPU must evict some data to make space for the new data.
   \end{definition}
 
   \begin{definition}[Conflict Miss]
+    \label{def:conflict-miss}
     A \textbf{conflict miss} occurs from premature eviction of a warm block. 
   \end{definition}
 

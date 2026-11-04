@@ -1,18 +1,22 @@
 \section{Query Processing and Optimization}
 
   \begin{definition}[Disk/Memory Blocks]
+    \label{def:disk-memory-blocks}
     To set up some notation, let $B(R)$ represent the number of disk blocks that relation $R$ takes up, and say $M$ is the number of blocks available in our memory. We start off with some simple operations. 
   \end{definition}
 
   \begin{example}[Basic Block Storage]
+    \label{ex:basic-block-storage}
     Suppose we have relation $R$ with $|R| = 1000$ and each block can hold 30 tuples. Then $B(R) = \lceil 1000 / 30 \rceil = 34$, or 35 if there is overlap. 
   \end{example}
 
   \begin{definition}[Buffer Blocks]
+    \label{def:buffer-blocks}
     It turns out that whenever we output data to stdout, the blocks need to be stored in a \textbf{buffer block}. If the buffer block is full, then it is flushed to stdout. 
   \end{definition}
 
   \begin{example}[Cost of Querying Everything]
+    \label{ex:cost-of-querying-everything}
     If we do \texttt{SELECT * FROM R}, then 
     \begin{enumerate}
       \item we are at most retrieving $B(R)$ pages from disk to memory, so our IO cost is $B(R)$. 
@@ -21,11 +25,11 @@
     We can stop early if we lookup by key. Remember that this is not counting the cost of writing the result out. 
   \end{example}
 
-  It turns out that the efficiency of most operations defined on modern DBMS depends on two things: sorting and hashing. We'll divide up our analysis this way, focusing on their applications in joining, which tends to be the mostly used and expensive operation. Note that there are many ways to process the same query. We can in the most basic sense just scan the entire relation in disk. We can sort it. We can use a tree or hash index, and so on. All have different performance characteristics and make different assumptions about the data, so the choice is really problem-dependent. What a DBMS does is implements all alternatives and let the \textit{query optimizer} choose at runtime. We'll talk about the algorithms now and talk about the query optimizer later. 
+  It turns out that the efficiency of most operations defined on modern DBMS depends on two things: sorting and hashing. We'll divide up our analysis this way, focusing on their applications in joining, which tends to be the mostly used and expensive operation. Note that there are many ways to process the same query. We can in the most basic sense just scan the entire relation in disk. We can sort it. We can use a tree or \hyperref[def:hash-index]{hash index}, and so on. All have different performance characteristics and make different assumptions about the data, so the choice is really problem-dependent. What a DBMS does is implements all alternatives and let the \textit{query optimizer} choose at runtime. We'll talk about the algorithms now and talk about the query optimizer later. 
 
 \subsection{Brute-Force Algorithms}  
 
-  We start off with the most brute-force algorithms of theta joins. In here, we describe how to implement it, its IO cost, and its memory cost. In the following, when we compute $R \bowtie_p S$, $R$ is called the \textbf{outer table} and $S$ the \textbf{inner table}. Furthermore, another convention is that when we calculate IO cost, we \textit{do not} factor in the cost of writing our result back to disk.  
+  We start off with the most brute-force algorithms of \hyperref[def:theta-join-2]{theta joins}. In here, we describe how to implement it, its IO cost, and its memory cost. In the following, when we compute $R \bowtie_p S$, $R$ is called the \textbf{outer table} and $S$ the \textbf{inner table}. Furthermore, another convention is that when we calculate IO cost, we \textit{do not} factor in the cost of writing our result back to disk.  
 
   \subsubsection{Nested Loop Joins} 
 
@@ -218,6 +222,7 @@
     \end{algo}
 
     \begin{example}[Baby Merge]
+      \label{ex:baby-merge}
       Assume $M = 3$, with each block able to hold at most 1 number. Assume that we have an input (relation) 
       \begin{equation}
         1, 7, 4, 5, 2, 8, 3, 6, 9
@@ -287,6 +292,7 @@
     \end{algo}
 
     \begin{example}[Worst Case]
+      \label{ex:worst-case}
       To see the worst case when the IO cost is $B(R) \cdot B(S)$, look at the following example. By the time we got to the first $3$, we can't just increment the pointers for both relations. We must scan through all of the tuples of A with value 3 and all those in B with value 3 and do a nested loop to join them. 
       
       \begin{figure}[H]
@@ -356,7 +362,9 @@
       \end{figure}
     \end{algo}
 
-    \begin{example}[Two-Pass SMJ] 
+    \begin{example}[Two-Pass SMJ]
+      \label{ex:two-pass-smj}
+ 
       If SMJ completes in two passes, then the IOs is really cheap since we are basically getting a $2 B(R) + 2 B(S)$ cost of a level-0 pass, plus the final merge-join step which takes another $B(R) + B(S)$. 
       \begin{equation}
         \mathrm{IO} = 3 ( B(R) + B(S)) 
@@ -367,6 +375,7 @@
   \subsubsection{Zig-Zag Join} 
 
     \begin{definition}[Zig Zag Join using Ordered Indices]
+      \label{def:zig-zag-join-using-ordered-indices}
       To compute $R \bowtie_{R.A = S.B} S$, the idea is to use the ordering provided by the indices on $R(A)$ and $S(B)$ to eliminate the sorting step of merge-join. The idea is similar to sort-merge join. We start at the leftmost leaf node of both indices of $R$ and $S$, and traverse (right) through the leaves, querying both of the data at leaf $a$ in $R$ and $b$ in $S$ if the leaf values are equal. 
 
       Note that we don't even have to traverse through all leaves. If we find that a key is large, we can just start from the root node to traverse, possibly skipping many keys that don't match and not incurring all those IO costs. This can be helpful if the matching keys are distributed sparsely.
@@ -394,6 +403,7 @@
     Hash joining is useful when dealing with equality predicates: $R \bowtie_{R.A = S.B} S$. 
 
     \begin{definition}[Hash Join]
+      \label{def:hash-join}
       The main idea of \textbf{hash join} is that we want to partition $R$ and $S$ by hashing (using a hash function that maps to $M-1$ values) their join attributes and then consider corresponding partitions (that get mapped to the same hash value) of $R$ and $S$. If $r.A$ and $s.B$ get hashed to the same number, they might join, and if they don't, then they definitely won't join. The figure below nicely visualizes this. 
 
       \begin{figure}[H]
@@ -486,7 +496,8 @@
     \end{definition}
 
     \begin{theorem}[Hash vs Sort-Merge Join]
-      To compare hash join and SMU, note that their IOs are the same, but for memory requirements, hash join is lower, especially when the two relations have very different sizes. 
+      \label{thm:hash-vs-sort-merge-join}
+      To compare \hyperref[def:hash-join]{hash join} and SMU, note that their IOs are the same, but for memory requirements, hash join is lower, especially when the two relations have very different sizes. 
       \begin{equation}
         \sqrt{\min\{B(R), B(S)\}} + 1 < \sqrt{B(R) + B(S)}
       \end{equation}
@@ -501,7 +512,7 @@
 
   \subsubsection{Other Hash Based Algorithms}
 
-    The union, difference, and intersection are more or less like hash join. 
+    The union, difference, and intersection are more or less like \hyperref[def:hash-join]{hash join}. 
 
     For duplicate elimination, we can check for duplicates within each partition/bucket. 
 
@@ -528,6 +539,7 @@
   Here are some exercises for calculating IO costs of these joins. 
 
   \begin{example}[Join Operations]
+    \label{ex:join-operations}
     Consider the two tables
     \begin{enumerate}
       \item \texttt{Orders(OrderID, CustomerID, OrderDate, TotalAmount)} 
@@ -536,9 +548,9 @@
     \texttt{Orders.CustomerID} is a foreign key referring to \texttt{Customers.CustomerID}.
 
     The rows are not sorted on any particular attribute. We want to join the two tables using the attribute CustomerID:
-    \[
-    \text{Orders} \bowtie_{\text{Orders.CustomerID = Customers.CustomerID}} \text{Customers}
-    \]
+    \begin{equation}
+      \text{Orders} \bowtie_{\text{Orders.CustomerID = Customers.CustomerID}} \text{Customers}
+    \end{equation}
     The inner and outer tables can be swapped to reduce I/O costs in the following questions.
 
     Assume the following:
@@ -613,7 +625,7 @@
     \noindent\textbf{Question 2.3}
     Assume uniform distribution for the hash function(s).
     \begin{enumerate}[label=(\alph*)]
-        \item For the Orders and Customers tables, we want to perform a multi-pass hash join. How many passes do we need (including partitioning phase and join phase)?
+        \item For the Orders and Customers tables, we want to perform a multi-pass \hyperref[def:hash-join]{hash join}. How many passes do we need (including partitioning phase and join phase)?
         
         \item What is the minimum I/O cost of joining Orders and Customers using a hash join?
         
@@ -677,14 +689,16 @@
     \end{enumerate}
 
     \begin{definition}[Logical Plan]
-      To have an approximate sense of how computationally heavy a query is, we can construct a high-level \textbf{logical plan}, which shows the computation DAG of the relational operators that we will perform for a query. We can optimize the logical plan by modifying our intermediate steps, such as optimizing our relational algebra logic or our implementation of SQL. 
+      \label{def:logical-plan}
+      To have an approximate sense of how computationally heavy a query is, we can construct a high-level \textbf{logical plan}, which shows the computation DAG of the relational operators that we will perform for a query. We can optimize the logical plan by modifying our intermediate steps, such as optimizing our \hyperref[def:relational-algebra]{relational algebra} logic or our implementation of SQL. 
     \end{definition}
 
   \subsubsection{Query Rewrite}
 
-    Using what we know, we can get a bit more theoretical and use the following identities in relational algebra. However, this has already been optimized and only does so much in practice. 
+    Using what we know, we can get a bit more theoretical and use the following identities in \hyperref[def:relational-algebra]{relational algebra}. However, this has already been optimized and only does so much in practice. 
 
     \begin{theorem}[Identities]
+      \label{thm:identities}
       The following hold:
       \begin{enumerate}
         \item Selection-Join Conversion: $\sigma_p(R \times S) = R \bowtie_p S$
@@ -701,15 +715,17 @@
     \end{theorem} 
 
     \begin{definition}[SQL Query Rewrite]
+      \label{def:sql-query-rewrite}
       We can rewrite SQL queries directly, though this is more complicated and requires knowledge of the nuances of the DBMS. 
       \begin{enumerate}
         \item Subqueries and views may not be efficient, as they divide a query into nested blocks. Processing each block separately forces the DBMS to use join methods, which may not be optimal for the entire query though it may be optimal for each block. 
         \item Unnest queries convert subqueries/views to joins. 
       \end{enumerate}
-      Therefore, it is usually easier to deal with select-project-join queries, where the rules of relational algebra can be cleanly applied. 
+      Therefore, it is usually easier to deal with select-project-join queries, where the rules of \hyperref[def:relational-algebra]{relational algebra} can be cleanly applied. 
     \end{definition} 
 
     \begin{example}[Query Rewrite]
+      \label{ex:query-rewrite}
       Given the query, we wish to rewrite it. 
       \begin{lstlisting}
         SELECT name 
@@ -734,6 +750,7 @@
     \end{example}
 
     \begin{example}[Correlated Subqueries]
+      \label{ex:correlated-subqueries}
       Look at this query where we want to select all group ids with name like Springfield and having less than some number of members. 
       \begin{lstlisting}
         SELECT gid 
@@ -754,7 +771,8 @@
     Given a set of operations we have to do, the number of permutations that we can apply these operations grows super-exponentially. The problem of finding the best permutation is called a \textbf{search strategy}. 
 
     \begin{example}[Left-Deep Plans]
-      Say that we have relations $R_1, \ldots, R_n$ that we want to join. The set of all sequences in which we can join them is bijective to the set of all binary trees with leaves $R_i$. This grows super-exponentially, reading $30,240$ for $n = 6$. There are too many logical plans to choose from, so we must reduce this search space. Here are some heuristics. 
+      \label{ex:left-deep-plans}
+      Say that we have relations $R_1, \ldots, R_n$ that we want to join. The set of all sequences in which we can join them is bijective to the set of all binary trees with leaves $R_i$. This grows super-exponentially, reading $30,240$ for $n = 6$. There are too many \hyperref[def:logical-plan]{logical plans} to choose from, so we must reduce this search space. Here are some heuristics. 
       \begin{enumerate}
         \item We consider only \textbf{left-deep} plans, in which case every time we join two relations, it is the outer relation in the next join.\footnote{Note that since the right/inner relation is the one that is being scanned, we want the right one to be smaller since for each block of the left relation, we are looping over all blocks of the right relation. Therefore, left-deep plans are much more efficient since we don't have to scan the huge relation from the disk multiple times. We can just send it directly to the next join.} 
 
@@ -823,26 +841,28 @@
       \end{enumerate}
     \end{algo}
 
-    Given a certain logical plan, the DBMS tries to choose an optimal physical plan as we will see later. However, the globally optimal plan may not be achieved with a greedy approach of first choosing the optimal logical plan and then its optimal physical plan. Due to the sheer size of the search space, we tend to go for ``good'' plans rather than optimal ones. 
+    Given a certain \hyperref[def:logical-plan]{logical plan}, the DBMS tries to choose an optimal physical plan as we will see later. However, the globally optimal plan may not be achieved with a greedy approach of first choosing the optimal logical plan and then its optimal physical plan. Due to the sheer size of the search space, we tend to go for ``good'' plans rather than optimal ones. 
 
 \subsection{Physical Plan}
 
-    The logical plan gives us an abstract view of the operations that we need to perform. It is mainly defined at the relational algebra or language level. But simply sorting or joining two relations is not done 
+    The logical plan gives us an abstract view of the operations that we need to perform. It is mainly defined at the \hyperref[def:relational-algebra]{relational algebra} or language level. But simply sorting or joining two relations is not done 
     in just one way (e.g. we can scan, hash, or sort in different ways). Optimizing the logical plan may or may not help in the runtime, since operations are dependent on the size of the intermediate inputs. 
 
     \begin{definition}[Physical Plan]
-      The actual sub-decisions needed to execute these operations constitute the \textbf{physical plan}, which is the actual implementation including even more operations in between each node of the logical plan. Here are a few terms to know. 
+      \label{def:physical-plan}
+      The actual sub-decisions needed to execute these operations constitute the \textbf{physical plan}, which is the actual implementation including even more operations in between each node of the \hyperref[def:logical-plan]{logical plan}. Here are a few terms to know. 
       \begin{enumerate}
         \item \textit{On the fly}. The computations are done in memory and are not written back to disk. 
-        \item \textit{(Index) Scan}. We scan for index value using a clustered/unclustered index on a B+ tree. 
+        \item \textit{(Index) Scan}. We scan for index value using a clustered/unclustered index on a \hyperref[def:b-tree-2]{B+ tree}. 
         \item \textit{Sort}. Usually means external merge sort. 
         \item \textit{Filter}. Means the same as selection. 
       \end{enumerate}
     \end{definition}
 
-    The difference between the logical and physical plan is that the logical plan represents \textit{what} needs to be done (which we write SQL) and not \textit{how} (which the DBMS chooses). Consider the two approaches. 
+    The difference between the logical and \hyperref[def:physical-plan]{physical plan} is that the \hyperref[def:logical-plan]{logical plan} represents \textit{what} needs to be done (which we write SQL) and not \textit{how} (which the DBMS chooses). Consider the two approaches. 
 
     \begin{example}[Query Plans]
+      \label{ex:query-plans}
       Consider the following SQL query:
       \begin{lstlisting}
         SELECT Group.title
@@ -925,7 +945,7 @@
 
   \subsubsection{SQL Rewrite}
 
-    At the language level, SQL provides some APIs to force the DBMS to use a certain physical plan if desired. This requires expertise and should not be done by beginners, however. 
+    At the language level, SQL provides some APIs to force the DBMS to use a certain \hyperref[def:physical-plan]{physical plan} if desired. This requires expertise and should not be done by beginners, however. 
 
   \subsubsection{Cardinality Estimation}
 
@@ -934,6 +954,7 @@
     Usually we cannot do quick and accurate cardinality estimation without strong assumptions, the first of which is uniformity of data. 
 
     \begin{example}[Selection with Equality Predicates]
+      \label{ex:selection-with-equality-predicates}
       Suppose you have a relation $R$ with $|R| = 100,000$ tuples. Assume that it has an attribute $A$ taking integer values in $[50, 100)$ \textit{distributed uniformly}. Then, there are 50 distinct values, and when we want to do $\sigma_{A = a} (R)$, then we would expect it to return 
       \begin{equation}
         |\sigma_{A = a} (R)| = \frac{|R|}{|\pi_A(R)|} = 2000
@@ -944,6 +965,7 @@
     The second assumption is \textit{independence} of the distributions over each attribute. 
 
     \begin{example}[Selection with Conjunctive Predicates]
+      \label{ex:selection-with-conjunctive-predicates}
       If we have the same relation $R$ with integer attributes $A \in [50, 100), B \in [10, 20)$ independently and uniformly distributed. Then, 
       \begin{equation}
         |\sigma_{A = a, B = b} (R) = \frac{|R|}{|\pi_A (R)| \cdot |\pi_B(R)|} = \frac{100,000}{50 \cdot 10} = 200
@@ -953,6 +975,7 @@
     At this point, we are just using inclusion-exclusion principle and this becomes a counting problem. 
 
     \begin{example}[Negated, Disjunctive Predicates]
+      \label{ex:negated-disjunctive-predicates}
       We list these identities for brevity. The math is pretty simple. 
       \begin{equation}
         |\sigma_{A \neq a} (R)| = |R| \cdot \bigg( 1 - \frac{1}{|\pi_A (R)|} \bigg)
@@ -964,6 +987,7 @@
     \end{example}
 
     \begin{example}[Range Predicates]
+      \label{ex:range-predicates}
       Range also works similarly, but only if we know the actual bounds of the attribute values.  
       \begin{equation}
         |\sigma_{A > a} (R)| = |R| \cdot \frac{\max(R.A) - a}{\max(R.A) - \min(R.A)}
@@ -978,7 +1002,9 @@
     \end{equation}
     which again is a very strong assumption in general but holds in the case of foreign key joins. 
 
-    \begin{example}[Two Way Equi-Join] 
+    \begin{example}[Two Way Equi-Join]
+      \label{ex:two-way-equi-join}
+ 
       With the containment assumption, we have 
       \begin{equation}
         |R \bowtie_{A} S| = \frac{|R| \cdot |S|}{\max( |\pi_A (R)|, |\pi_A(S)|)}
@@ -991,13 +1017,14 @@
   Let's do a more comprehensive exercise. 
 
   \begin{example}[Cost Estimation of Physical Query Plan]
+    \label{ex:cost-estimation-of-physical-query-plan}
     Say we have three relations 
     \begin{enumerate}
       \item \texttt{Student(\underline{sid}, name, age, addr)}. $T(S) = 10,000$ tuples, $B(S) = 1,000$ pages. 
       \item \texttt{Book(\underline{bid}, title, author)}. $T(B) = 50,000$ tuples, $B(S) = 5,000$ pages. 
       \item \texttt{Checkout(\underline{sid}, \underline{bid}, date)}. $T(C) = 300,000$ tuples, $B(C) = 15,000$ pages. 
     \end{enumerate}
-    And say that the number of \texttt{author} attribute values in \texttt{Book} with $7 \leq \texttt{age} \leq 24$ is 500 tuples. There is an unclustered B+ tree index on \texttt{B.author}, a clustered B+ tree index on \texttt{C.bid}, and all index pages are in memory. Also we assume unlimited memory to simplify things. 
+    And say that the number of \texttt{author} attribute values in \texttt{Book} with $7 \leq \texttt{age} \leq 24$ is 500 tuples. There is an unclustered \hyperref[def:b-tree-2]{B+ tree} index on \texttt{B.author}, a clustered B+ tree index on \texttt{C.bid}, and all index pages are in memory. Also we assume unlimited memory to simplify things. 
     \begin{figure}[H]
       \centering 
       \includegraphics[scale=0.4]{img/book_plan.png}

@@ -2,18 +2,20 @@
 
   Remember that it was the assumption that the conditional distribution $Y \mid X = x$ being Bernoulli/multinomial, along with the power form of the surrogate likelihood, that led to the likelihood derivation of the surrogate loss of the logistic and softmax regression. But ultimately, these are just modeling assumptions, and we may look for other surrogate losses to construct our risk. 
 
-  If we want to construct such a loss function, we first want it to approximate the $0$-$1$ step function clearly. The next thing is that we want it to be convex, so we can use convex optimization (sum of convex functions are convex). Perhaps we can think of the \textit{smallest} convex function that stays above the binary loss, in some sense the best approximation. This is precisely the hinge function. 
+  If we want to construct such a loss function, we first want it to approximate the $0$-$1$ step function clearly. The next thing is that we want it to be convex, so we can use convex optimization (sum of \hyperref[mt-def:convex-function]{convex functions} are convex). Perhaps we can think of the \textit{smallest} convex function that stays above the binary loss, in some sense the best approximation. This is precisely the hinge function. 
 
   \begin{definition}[Hinge Loss]
+    \label{def:hinge-loss}
     The \textbf{hinge loss} is a convex surrogate loss function for the 0-1 loss function. It is defined as 
     \begin{equation}
       L(y, \hat{y}) = \max(0, 1 - y \cdot \hat{y})
     \end{equation}
   \end{definition} 
 
-  Note that we have directly constructed a loss without any reference to the likelihood of the data points. Now the SVM model is really simple. We just have a linear model $g(x) = \beta^T x$, and then use it to make a plug-in classifier through a threshold function with threshold $0$. 
+  Note that we have directly constructed a loss without any reference to the likelihood of the data points. Now the SVM model is really simple. We just have a linear model $g(x) = \beta^T x$, and then use it to make a \hyperref[def:plug-in-classifier]{plug-in classifier} through a threshold function with threshold $0$. 
 
   \begin{definition}[Binary Support Vector Machine]
+    \label{def:binary-support-vector-machine}
     The \textbf{binary SVM} is a linear classifier that sets 
     \begin{equation}
       f(x) = \mathrm{sign}(F(x)) = \mathrm{sign}(\beta^T x) = \begin{cases} 
@@ -26,6 +28,7 @@
   With the model and loss set up, we can define our risk.
 
   \begin{theorem}[Risk]
+    \label{thm:risk-3}
     The expected risk is 
     \begin{equation}
       R(f) = \mathbb{E}_{x, y} \left[ \max\{0, 1 - y F(x) \}\right] = \mathbb{E}_{x, y} \left[ \max\{0, 1 - y (\beta^T x) \}\right]
@@ -39,6 +42,7 @@
   Note that if we classified something correctly, then $y(\beta^T x)$ would be positive, leading to the loss term being cut off to $0$.\footnote{Unless $\beta^T x$ was a very small positive number, but speaking loosely here.} So the model will focus only on the points that are wrong or that are most difficult to tell apart, which are called the \textit{support vectors}. The other points ``far away'' from the decision boundary have little to no effect on the optimal solution, and this is a big difference between SVMs and other classifiers. 
 
   \begin{example}[SVMs vs Other Classifiers on Linearly Separable Dataset]
+    \label{ex:svms-vs-other-classifiers-on-linearly-separable}
     Assume that our dataset $\mathcal{D} = \{\mathbf{x}_i, y_i\}$ is linearly separable with $y_i \in \{-1, +1\}$. Based on previous algorithms like the perceptron, it will find some separating hyperplane. However, there's an infinite number of separating hyperplanes as shown in Figure \ref{fig:svm_intro_1}. What support vector machines want to do is to find the best one, with the ``best" defined as the hyperplane that maximizes the distance between either the closest positive or negative samples, shown in Figure $\ref{fig:svm_intro2}$.  
 
     \begin{figure}[H] 
@@ -121,29 +125,30 @@
   To do this, we will define two terms. 
 
   \begin{definition}[Geometric margin]
+    \label{def:geometric-margin}
     Given a point $\mathbf{x}_0$ and a hyperplane of equation $\mathbf{w} \cdot \mathbf{x} + b = 0$, the distance from $\mathbf{x}_0$ to the hyperplane, known as the \textbf{geometric margin}, can be computed with the formula 
 
     \begin{equation}
-      d = \frac{|\mathbf{x}_0 \cdot \mathbf{w} + b|}{||\mathbf{w}||}  
+      d = \frac{|\mathbf{x}_0 \cdot \mathbf{w} + b|}{\|\mathbf{w}\|}  
     \end{equation} 
 
     Therefore, the geometric margin of the $i$th sample with respect to the hypothesis $f$ is defined 
 
     \begin{equation}
-      \gamma_i = \frac{y_i \, (\mathbf{w} \cdot \mathbf{x}_i + b)}{||\mathbf{w}||} 
+      \gamma_i = \frac{y_i \, (\mathbf{w} \cdot \mathbf{x}_i + b)}{\|\mathbf{w}\|} 
     \end{equation} 
   \end{definition}
 
-  We wish to optimize the parameters $\mathbf{w}, b$ in order to maximize the minimum of the geometric margins (the distance between the closest point and the hyperplane). 
+  We wish to optimize the parameters $\mathbf{w}, b$ in order to maximize the minimum of the \hyperref[def:geometric-margin]{geometric margins} (the distance between the closest point and the hyperplane). 
 
   \begin{equation}
-    \argmax_{\mathbf{w}, b} \min_i \gamma_i = \argmax_{\mathbf{w}, b} \bigg\{ \frac{1}{||\mathbf{w}||} \min_i \big[y_i \, (\mathbf{w} \cdot \mathbf{x}_i + b) \big] \bigg\}
+    \argmax_{\mathbf{w}, b} \min_i \gamma_i = \argmax_{\mathbf{w}, b} \bigg\{ \frac{1}{\|\mathbf{w}\|} \min_i \big[y_i \, (\mathbf{w} \cdot \mathbf{x}_i + b) \big] \bigg\}
   \end{equation}
 
   Direct solution of this optimization problem would be very complex, and so we convert this into an equivalent problem that is much easier to solve. Note that the solution to the above term is not unique. If there was a solution $(\mathbf{w}^\ast, b^\ast)$, then 
 
   \begin{equation}
-    \frac{y_i (\mathbf{w} \cdot \mathbf{x}_i + b)}{||\mathbf{w}||} = \frac{y_i (\lambda \mathbf{w} \cdot \mathbf{x}_i + \lambda b)}{||\lambda \mathbf{w}||}  
+    \frac{y_i (\mathbf{w} \cdot \mathbf{x}_i + b)}{\|\mathbf{w}\|} = \frac{y_i (\lambda \mathbf{w} \cdot \mathbf{x}_i + \lambda b)}{\|\lambda \mathbf{w}\|}  
   \end{equation}
 
   That is, the geometric margin is not sensitive to scaling of the parameters of the hyperplane. Therefore, we can scale the numerator and the denominator by whatever we want and use this freedom to set 
@@ -161,7 +166,7 @@
   In the case of data points for which the equality holds, the constraints are said to be \textit{active}, whereas for the remainder they are \textit{inactive}. Therefore, it will always be the case that $\min_i \big[ y_i \, (\mathbf{w} \cdot \mathbf{x}_i + b)\big] = 1$, and the constraint problem reduces to 
 
   \begin{equation}
-    \argmax_{\mathbf{w}, b} \frac{1}{||\mathbf{w}||} = \argmin_{\mathbf{w}, b} \frac{1}{2} ||\mathbf{w}||^2 \text{ subject to constraints } y_i (\mathbf{w} \cdot \mathbf{x}_i + b) \geq 1 
+    \argmax_{\mathbf{w}, b} \frac{1}{\|\mathbf{w}\|} = \argmin_{\mathbf{w}, b} \frac{1}{2} \|\mathbf{w}\|^2 \text{ subject to constraints } y_i (\mathbf{w} \cdot \mathbf{x}_i + b) \geq 1 
   \end{equation}
 
   This final step is the most significant step in this derivation and may be hard to wrap around the first time. So we dedicate the next subsubsection for this. 
@@ -173,6 +178,7 @@
   \end{equation*}
 
   \begin{definition}[Functional Margin]
+    \label{def:functional-margin}
     The value of $y_i \, f(\mathbf{x}_i)$ gives us our confidence on our classification, and in a way it represents a kind of distance away from the separating hyperplane (if this value was $0$, then we would be 50 50 split on whether to label it positive or negative). Therefore, we shall define 
     \begin{equation*}
         \hat{\gamma}_i = y_i f(\mathbf{x}_i) 
@@ -184,9 +190,9 @@
   called the \textbf{function margin}. 
   \end{definition}
 
-  Note that the geometric margin and functional margin are related by a constant scaling factor. Given a sample $(\mathbf{x}_i, y_i)$, we have 
+  Note that the \hyperref[def:geometric-margin]{geometric margin} and \hyperref[def:functional-margin]{functional margin} are related by a constant scaling factor. Given a sample $(\mathbf{x}_i, y_i)$, we have 
   \begin{equation*}
-      \mathrm{Geometric Margin} = \frac{y_i \, (\mathbf{w} \cdot \mathbf{x}_i + b)}{||\mathbf{w}||_2} = \frac{\mathrm{Functional Margin}}{||\mathbf{w}||_2}
+      \mathrm{Geometric Margin} = \frac{y_i \, (\mathbf{w} \cdot \mathbf{x}_i + b)}{\|\mathbf{w}\|_2} = \frac{\mathrm{Functional Margin}}{\|\mathbf{w}\|_2}
   \end{equation*}
 
   As we can see, the perceptron works with the functional margin, and since it does not care about how large the margin is (just whether it's positive or negative), we are left with an underdetermined system in which there exists infinite $(\mathbf{w}, b)$'s. Now what we want to do is impose a certain minimum margin $\gamma > 0$ and solve for $(\mathbf{w}, b)$ again, and keep increasing this $\gamma$ until there is some unique solution. We can view this problem in two ways: 
@@ -228,8 +234,10 @@
 
 \subsection{Analytical Solution} 
 
-  To minimize the equations with the constraint equations, we can use the method of Lagrange multipliers, which leads to to Lagrangian 
-  \[\mathcal{L}(\mathbf{w}, b, \boldsymbol{\alpha}) = \frac{1}{2} ||\mathbf{w}||^2 - \sum_i \alpha_i \big[ y_i (\mathbf{w} \cdot \mathbf{x}_i + b) - 1\big]\]
+  To minimize the equations with the constraint equations, we can use the method of \hyperref[mv-thm:lagrange-multipliers-theorem]{Lagrange multipliers}, which leads to to Lagrangian 
+  \begin{equation}
+    \mathcal{L}(\mathbf{w}, b, \boldsymbol{\alpha}) = \frac{1}{2} \|\mathbf{w}\|^2 - \sum_i \alpha_i \big[ y_i (\mathbf{w} \cdot \mathbf{x}_i + b) - 1\big]
+  \end{equation}
   We can take the gradients with respect to $\mathbf{w}$ and $b$ and set them to $0$, which gives the two conditions 
   \begin{align*} 
     \mathbf{w} & = \sum_i \alpha_i y_i \mathbf{x}_i \\
@@ -242,9 +250,13 @@
         & = \sum_i \alpha_i - \frac{1}{2} \sum_{i, j} \alpha_i \alpha_j y_i y_j \, \mathbf{x}_i \cdot \mathbf{x}_j 
   \end{align*}
   The summation with the $b$ in it is $0$ since we can pull the $b$ out and the remaining sum is $0$ from before. Now the optimization only depends on the dot product $\mathbf{x}_i \cdot \mathbf{x}_j$ of all pairs of sample vectors, which is very interesting. We will see more of this when we talk about kernel methods. Now, we need to solve the dual problem 
-  \[\max_{\boldsymbol{\alpha}} \mathcal{L}(\boldsymbol{\alpha})\]
+  \begin{equation}
+    \max_{\boldsymbol{\alpha}} \mathcal{L}(\boldsymbol{\alpha})
+  \end{equation}
   which can be done using some generic quadratic programming solver or some other method to get the optimum $\boldsymbol{\alpha}^\ast$, which gives us 
-  \[\mathbf{w}^\ast = \sum_i \alpha_i^\ast y_i \mathbf{x}_i\]
+  \begin{equation}
+    \mathbf{w}^\ast = \sum_i \alpha_i^\ast y_i \mathbf{x}_i
+  \end{equation}
 
 \subsection{Significance Tests and Confidence Sets}
 

@@ -7,10 +7,12 @@
   Recall the memory hierarchy, which starts with CPU registers, followed by caches, memory, and a disk. The speed of read/write, called I/O, determines how fast you can retrieve this data. 
 
   \begin{definition}[Hard Disk]
+    \label{def:hard-disk}
     In SQL queries, the (disk) I/O dominates the execution time, so this must be analyzed first. A typical hard drive consists of a bunch of \textbf{disks/platters} that are spun by a \textbf{spindle} and read by a \textbf{disk head} on a \textbf{disk arm}. Each disk is pizza sliced into \textbf{sectors} and donut sliced into \textbf{tracks} (and a collection of tracks over all disks is a \textbf{cylinder}), and the arm will read one \textbf{block} of information, which is a logical unit of transfer consisting of one or more blocks (i.e. like a word, which is usually 4 bytes).\footnote{You cannot just write 1 byte. You must rewrite the entire block with the 1 byte updated. If we want to write 2 bytes which are on separate blocks, we must do 2 block writes.} 
   \end{definition}
 
   \begin{definition}[Access Time]
+    \label{def:access-time}
     The access time is the sum of 
     \begin{enumerate}
       \item the \textit{seek time}: time for disk heads to move to the correct cylinder 
@@ -23,6 +25,7 @@
   Note that this is heavily dependent on the data being accessed. Sequential data is extremely fast while random access is slow. Therefore, we should try to store data that should be accessed together next to each other in the disk.  
 
   \begin{definition}[Memory, Buffer Pool]
+    \label{def:memory-buffer-pool}
     As we expect, the DBMS stores a cache of blocks, called the \textbf{memory/buffer pool} containing some fixed size of $M$ maximum blocks. We read/write to this pool of blocks (which costs some time per blocks) and then these dirty (which are written/updated) are flushed back to the disk. It essentially acts as a middleman between the disk and the programmers, and every piece of data that goes between the two must go through the memory. 
 
     \begin{figure}[H]
@@ -98,6 +101,7 @@
   Now let's talk about how the actual bytes are stored in memory. 
 
   \begin{definition}[Row Major Order, NSM]
+    \label{def:row-major-order-nsm}
     We group rows together contiguously in the disk block.\footnote{This is the most standard storage policy.} If we have a relation with schema \texttt{R(INT(4), CHAR(24), INT(4), DOUBLE(8))}, we first store the rows together, with extra space in between since we might append new attributes, and have a tuple of pointers to the start of each row (orange lines). 
 
     \begin{figure}[H]
@@ -111,6 +115,7 @@
   Note that \texttt{VARCHAR} still allocates the same number of bytes, but adds padding. 
 
   \begin{definition}[Column Major, PAX]
+    \label{def:column-major-pax}
     We group columns together contiguously in the disk block, which allows for optimization since all types are the same and we can just use pointer arithmetic to get every attribute in $O(1)$ time. We split the block into chunks and have metadata of pointers that point to the start of the array for each attribute. 
 
     \begin{figure}[H]
@@ -144,12 +149,14 @@
   The DBMS will have to go to disk and scan it to find the tuples satisfying the predicate. However, it is a bit more sophisticated than a simple complete scan. 
 
   \begin{definition}[Search Key]
+    \label{def:search-key}
     The \textbf{search key} is simply the attribute on which our query is defined (e.g. \texttt{uid} and \texttt{age} in the example above). The values (e.g. \texttt{112} and \texttt{12}) are called the \textbf{search key values}. 
   \end{definition} 
 
   This is distinct from a closely-related concept called the index, which also refers to attributes. The tuples may take on some structure depending on the attribute. It may be sorted in one attribute but random in another. 
 
   \begin{definition}[Index]
+    \label{def:index}
     This set of attribute values, which really act as pointers, that we use to scan more efficiently on disk is called the \textbf{index}. 
 
     \begin{figure}[H]
@@ -161,7 +168,7 @@
 
     Sparse and dense just refers to how much an index ``covers'' a disk block. 
     \begin{enumerate}
-      \item A \textbf{dense index} means that there is one index entry for each search key value. One entry may point to multiple records
+      \item A \textbf{dense index} means that there is one index entry for each \hyperref[def:search-key]{search key} value. One entry may point to multiple records
       \item A \textbf{sparse index} means that there is one index entry for each block. Records must be clustered according to the search key as shown below, and this can optimize searching. 
     \end{enumerate}
 
@@ -175,6 +182,7 @@
   \end{definition}
 
   \begin{definition}[Primary vs Secondary Index]
+    \label{def:primary-vs-secondary-index}
     Primary and secondary refers to what the index is over. 
     \begin{enumerate}
       \item A \textbf{primary index} is created for the primary key of the relation. Records are usually clustered by the primary key, so this can be sparse. 
@@ -184,6 +192,7 @@
   \end{definition}
 
   \begin{example}[Additional Secondary Indices]
+    \label{ex:additional-secondary-indices}
     You can also create an additional secondary index on non-key attributes. For example, if you think that you will query based on popularity often, you can do 
     \begin{lstlisting}
       CREATE INDEX UserPopIndex ON User(pop); 
@@ -207,6 +216,7 @@
     If the index is still too big, we store another index on top of that, and we have pretty much a tree. This is called the Index Sequential Access Method (ISAM). 
     
     \begin{example}[Index Traversal in Tree]
+      \label{ex:index-traversal-in-tree}
       If we want to look up 192 in this tree, we traverse down. Note that we have the root node in memory already, but we would require an IO operation to traverse the pointer to the first block, and then another IO cost to go to the second. 
       \begin{figure}[H]
         \centering 
@@ -318,6 +328,7 @@
     \end{figure}
 
     \begin{definition}[B Tree]
+      \label{def:b-tree}
       Therefore, this static data structure is not good, and we must use a more flexible one, called a \textbf{B-tree}.
 
       \begin{figure}[H]
@@ -390,7 +401,8 @@
     The actual structure that modern DBMS uses is the slightly more sophisticated B+ tree. 
 
     \begin{definition}[B+ Tree]
-      While in B trees, the non-leaf nodes are also data, \textbf{B+ trees} divide the nodes into leaf nodes, which represent the data in this data structure, and the non-leaf nodes, which do not represent data but index nodes containing index entries. 
+      \label{def:b-tree-2}
+      While in \hyperref[def:b-tree]{B trees}, the non-leaf nodes are also data, \textbf{B+ trees} divide the nodes into leaf nodes, which represent the data in this data structure, and the non-leaf nodes, which do not represent data but index nodes containing index entries. 
 
       \begin{figure}[H]
         \centering 
@@ -577,7 +589,7 @@
     Now let's describe the implementation behind its supported operations. 
 
     \begin{algo}[Lookup]
-      If we query \texttt{SELECT * FROM R WHERE k = 179;}, we go through the B+ tree's indices and reach the leaf node. From here, we can use the pointer to go to the memory address holding this tuple in memory/disk. If we query \texttt{k = 32}, then we will not find it after reaching \texttt{35}. If we want to query a range \texttt{32 < k < 179}, we start at 32 and use the leaf pointers to go to the next leaf until we hit 179.  
+      If we query \texttt{SELECT * FROM R WHERE k = 179;}, we go through the \hyperref[def:b-tree-2]{B+ tree}'s indices and reach the leaf node. From here, we can use the pointer to go to the memory address holding this tuple in memory/disk. If we query \texttt{k = 32}, then we will not find it after reaching \texttt{35}. If we want to query a range \texttt{32 < k < 179}, we start at 32 and use the leaf pointers to go to the next leaf until we hit 179.  
 
       \begin{figure}[H]
         \centering
@@ -1129,6 +1141,7 @@
     \end{algo}
 
     \begin{theorem}[IO Cost of Lookup, Insertion, Deletion]
+      \label{thm:io-cost-of-lookup-insertion-deletion}
       In general, all these operations have similar runtimes: 
       \begin{enumerate}
         \item They require us to go to the bottom of the tree, so it is $h$ operations, where $h$ is the height. 
@@ -1136,16 +1149,17 @@
         \item Minus 1 if we cache the root in memory, which can be decreased even further if we cache more blocks. 
       \end{enumerate}
       
-      The actual size of $h$ is roughly $\log_{f/2} {N}$, where $N$ is the number of records. $f$ is the fanout, but the B+ tree properties guarantee that there are at least $f/2$ pointers, so it is $\log_{f/2} N$ at worst and $\log_{f} N$ at best. $f$ is very large usually so this is quite good. 
+      The actual size of $h$ is roughly $\log_{f/2} {N}$, where $N$ is the number of records. $f$ is the fanout, but the \hyperref[def:b-tree-2]{B+ tree} properties guarantee that there are at least $f/2$ pointers, so it is $\log_{f/2} N$ at worst and $\log_{f} N$ at best. $f$ is very large usually so this is quite good. 
     \end{theorem}
     
-    The reason we use B+ trees rather than B trees is that if we store data in non-leaf nodes, this decreases the fanout $f$ and increases $h$. Therefore, records in leaves require more I/Os to access. 
+    The reason we use \hyperref[def:b-tree-2]{B+ trees} rather than \hyperref[def:b-tree]{B trees} is that if we store data in non-leaf nodes, this decreases the fanout $f$ and increases $h$. Therefore, records in leaves require more I/Os to access. 
 
   \subsubsection{Clustered vs Unclustered Index} 
 
     Note that in a B+ tree, the leaf nodes always store the index in sorted order. This is so we can have fast lookup in indices. When we go into the disk, however, we may not have this assumption.  
 
     \begin{definition}[Clustered vs Unclustered Index]
+      \label{def:clustered-vs-unclustered-index}
       If the order of the data records on disk is the same as or close to the order of data entries in an index, then it is \textbf{clustered}, and otherwise \textbf{unclustered}. 
 
       \begin{figure}[H]
@@ -1237,7 +1251,8 @@
 \subsection{Hash and Composite Index}
 
   \begin{definition}[Hash Index]
-    So far, we have used tree indices. However, an alternative is to use a \textbf{hash index} which hashes the search keys for comparison. Hash indices can only handle equality queries. 
+    \label{def:hash-index}
+    So far, we have used tree indices. However, an alternative is to use a \textbf{hash index} which hashes the \hyperref[def:search-key]{search keys} for comparison. Hash indices can only handle equality queries. 
     \begin{enumerate}
       \item \texttt{SELECT * FROM R WHERE age = 5; } (requires hash index on \texttt{(age)})
       \item \texttt{SELECT * FROM R, S WHERE R.A = S.A; } (requires hash index on \texttt{R.A} or \texttt{S.A})
@@ -1247,6 +1262,7 @@
   \end{definition}
 
   \begin{definition}[Composite Index]
+    \label{def:composite-index}
     We've looked at queries in the form \texttt{SELECT \* FROM User WHERE age = 50;}, but what if there are multiple conditions. For example, if we have 
     \begin{lstlisting}
       SELECT * FROM User WHERE age >= 25 AND name = 'B'; 
@@ -1272,12 +1288,13 @@
     \end{enumerate}
   \end{definition}
 
-  \begin{example}
+  \begin{example}[Which Indices a Query Can Use]
+    \label{ex:which-indices-a-query-can-use}
     Therefore, given a query, there are certain indices that we can use or cannot use for it.
     \begin{enumerate}
       \item If we have a query \texttt{A >= 5}, 
         \begin{enumerate}
-          \item Can use hash index in general.  
+          \item Can use \hyperref[def:hash-index]{hash index} in general.  
           \item Can use tree index in general. 
         \end{enumerate}
 
@@ -1308,6 +1325,7 @@
   Okay, so we can't use too many indices, but are indices \textit{always} better than table scans? Not exactly. 
   
   \begin{example}[Table Scans Wins]
+    \label{ex:table-scans-wins}
     Consider $\sigma_{A > v} (R)$ and a secondary, non-clustered index on $R(A)$ with around 20\% of $R$ satisfying $A > v$ (could happen even for equality predicates). We need to follow pointers to get the actual result tuples. 
     \begin{enumerate}
       \item IOs for scan-based selection is simply $B(R)$ (where we can retrieve multiple tuples in this block), while 
@@ -1321,12 +1339,14 @@
 \subsection{Index Only Plans}
 
   \begin{definition}[Index-Only Plans]
+    \label{def:index-only-plans}
     There are queries that can be answered only by accessing the index pages and not the data pages, known as \textbf{index-only plans}. For index-only plans, clustering is not important since we are looking only at the leaf nodes at most. Therefore, we only need to compute the I/O cost of traversing the tree and not to access data. 
 
     For equality, we can just compute the number of tuples in the index pages where the equality condition is satisfied. For ranges, we may need to traverse the leaf nodes, which will lead to additional I/O cost to retrieve the leaf index pages. 
   \end{definition}
 
   \begin{example}[Index Only Queries]
+    \label{ex:index-only-queries}
     If we look at the following query 
     \begin{equation}
       \pi_A (\sigma_{A > v} (R))
@@ -1335,18 +1355,20 @@
   \end{example}
 
   \begin{example}[Primary Index Clustered According to Search Key]
+    \label{ex:primary-index-clustered-according-to-search-key}
     If we have a primary index, in most cases the actual records are also stored in the index pages/leaf nodes. If they are clustered according to attribute $A$, then one lookup can lead to all result tuples in their entirety. You can just hit a leaf and grab your records as you walk along the leaves. 
   \end{example}
 
   \begin{example}[Other Index-Only Queries]
-    For example, if we just wanted to look at the count of users with age 50, then we don't need the data. We can just look at the number of values in the leaf nodes of the B+ tree with this value. 
+    \label{ex:other-index-only-queries}
+    For example, if we just wanted to look at the count of users with age 50, then we don't need the data. We can just look at the number of values in the leaf nodes of the \hyperref[def:b-tree-2]{B+ tree} with this value. 
     \begin{lstlisting}
       SELECT E.do COUNT(*) 
       FROM Emp E 
       GROUP BY E.dno;
     \end{lstlisting}
 
-    If we have an index on \texttt{(E.dno, E.sal)}, then the two queries are also index-only plans. However, if we index on \texttt{(E.dno)}, then we need to retrieve \texttt{E.sal} on the data page, incurring more cost. 
+    If we have an index on \texttt{(E.dno, E.sal)}, then the two queries are also \hyperref[def:index-only-plans]{index-only plans}. However, if we index on \texttt{(E.dno)}, then we need to retrieve \texttt{E.sal} on the data page, incurring more cost. 
 
     \noindent\begin{minipage}{.5\textwidth}
     \begin{lstlisting}[]{Code}
@@ -1366,25 +1388,27 @@
   \end{example}
 
   \begin{example}[Halloween Problem]
+    \label{ex:halloween-problem}
     The Halloween problem refers to a phenomenon in databases where an update operation causes a change in the physical location of a row, potentially allowing the row to be visited again later in the same update operation. Look at the update. 
     \begin{lstlisting}
       UPDATE Payroll 
       SET salary = salary * 1.1 
       WHERE salary <= 25000;
     \end{lstlisting}
-    This caused everyone to have a salary of $25000+$. This is because when we updated someone with salary of say $1000$, it went to $1100$ and is moved further right in the B+ tree. Therefore, this is revisited again is increased again in the same update. To fix this, we could update the values in reverse, from the rightmost leaf node to the leftmost one so that increasing values are visited once. Or we can just create a to-do/done list that keeps track of which ones have been updated. 
+    This caused everyone to have a salary of $25000+$. This is because when we updated someone with salary of say $1000$, it went to $1100$ and is moved further right in the \hyperref[def:b-tree-2]{B+ tree}. Therefore, this is revisited again is increased again in the same update. To fix this, we could update the values in reverse, from the rightmost leaf node to the leftmost one so that increasing values are visited once. Or we can just create a to-do/done list that keeps track of which ones have been updated. 
   \end{example}
 
 \subsection{Exercises}
 
   Now let's go through a bunch of questions to clarify some of the IO cost computation. 
 
-  \begin{example}
+  \begin{example}[Choosing an Index for an Equality Query]
+    \label{ex:choosing-an-index-for-an-equality-query}
     Assume that we have the query \texttt{SELECT * FROM User WHERE age = 50;} with the following assumptions: 
     \begin{enumerate}
       \item Assume 12 Users with \texttt{age = 50}. 
       \item Assume one data page (block) can hold 4 User tuples (so $f = 5$). 
-      \item Suppose searching for data entry requires 3 IOs in a B+ tree, which contain pointers to the data records (so $h = 3$). 
+      \item Suppose searching for data entry requires 3 IOs in a \hyperref[def:b-tree-2]{B+ tree}, which contain pointers to the data records (so $h = 3$). 
     \end{enumerate}
 
     If the index is clustered, then we can just traverse down the B+ tree to get to the leaf node containing the value 50. 
@@ -1397,7 +1421,8 @@
   \end{example}
 
   \begin{example}[Index Problem]
-    Consider a table \texttt{Orders(OrderID, CustomerID, OrderDate, TotalAmount)} with 5,000,000 records stored in 100,000 disk blocks (=pages or units of I/O). The rows are not sorted on any particular attribute. There is a \textbf{clustered} B+ tree index on OrderID (the primary key), and an \textbf{unclustered} B+ tree index on CustomerID.
+    \label{ex:index-problem}
+    Consider a table \texttt{Orders(OrderID, CustomerID, OrderDate, TotalAmount)} with 5,000,000 records stored in 100,000 disk blocks (=pages or units of I/O). The rows are not sorted on any particular attribute. There is a \textbf{clustered} \hyperref[def:b-tree-2]{B+ tree} index on OrderID (the primary key), and an \textbf{unclustered} B+ tree index on CustomerID.
 
     Assume the following:
     \begin{itemize}

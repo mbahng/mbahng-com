@@ -3,6 +3,7 @@
 	Let's take a look at one of the simplest numerical root-finders.\footnote{Optimization and root finding are very similar, since to optimize $f$ you should first find a root of $f^\prime$.}
 
   \begin{theorem}[Newton-Raphson Method]
+    \label{thm:newton-raphson-method}
     Given a differentiable function $f: \mathbb{R} \to \mathbb{R}$, the sequence $(x_n)$ defined 
     \begin{equation}
       x_n = x_{n-1} - \frac{f(x_{n-1})}{f^\prime (x_{n-1})}
@@ -39,10 +40,11 @@
 
 \subsection{Newton's Method}
 
-	Note that in GD, we have to tune the step size to ensure that our objective function decreases. If we set it too small, then we learn too slowly, and if we set it too high, then we may overshoot the minimum. We can develop an even better approximation by accounting for the curvature, aka the Hessian, and Newton's method automatically tunes this $\alpha$ using the second derivative. 
+	Note that in GD, we have to tune the step size to ensure that our objective function decreases. If we set it too small, then we learn too slowly, and if we set it too high, then we may overshoot the minimum. We can develop an even better approximation by accounting for the curvature, aka the \hyperref[mv-def:hessian]{Hessian}, and Newton's method automatically tunes this $\alpha$ using the \hyperref[mv-def:second-derivative]{second derivative}. 
 
 	\begin{theorem}[Taylor's 2nd Order Bound]
-		If $f: \mathbb{R}^d \to \mathbb{R}$ is $C^2$ and has a $Q$-Lipschitz Hessian $\nabla^2 f$, then 
+	  \label{thm:taylors-2nd-order-bound}
+		If $f: \mathbb{R}^d \to \mathbb{R}$ is $C^2$ and has a $Q$-Lipschitz \hyperref[mv-def:hessian]{Hessian} $\nabla^2 f$, then 
 		\begin{equation}
 			\bigg| f(x + s) - f(x) - \nabla f(x)^T s - \frac{1}{2} s^T \nabla^2 f(x) s \bigg| \leq \frac{1}{6} Q \|s\|^3
 		\end{equation}
@@ -83,15 +85,17 @@
 	This leads to the following. 
 
 	\begin{definition}[Netwon's Method]
+	  \label{def:netwons-method}
 		Let $f: \mathbb{R}^d \to \mathbb{R}$ be $C^2$. Initialize $w_0 \in \mathbb{R}^d$. 
 		\begin{equation}
 			w_{k+1} \gets w_k - \nabla^2 f(w_k)^{-1} \nabla f(w_k)
 		\end{equation}
 	\end{definition}
 
-	But a few caveats are that this method converges to critical points, not minimizers. \cite{2014pascanu_saddle-point-nonconvex} In particular, if we take $g(w) = -f(w)$, the method doesn't change. Second is affine invariance. 
+	But a few caveats are that this method converges to \hyperref[real-def:critical-point]{critical points}, not minimizers. \cite{2014pascanu_saddle-point-nonconvex} In particular, if we take $g(w) = -f(w)$, the method doesn't change. Second is affine invariance. 
 
 	\begin{lemma}[Affine Invariance]
+	  \label{thm:affine-invariance}
 		Let $A \in \mathbb{R}^{d \times d}$ be invertible, $f: \mathbb{R}^d \to \mathbb{R}$ be differentiable, and $\varphi(z) \coloneqq f(A z)$. Initialize $w_0$ and $z_0 = A^{-1} w_0$. Then, consider the following. 
 		\begin{enumerate}
 		  \item \textit{Iterates of $w$}. Take the iterates of PGD of $f$ from $w_0$. 
@@ -117,10 +121,11 @@
 	  
 	\end{proof}
 
-	Therefore, Newton's method doesn't care about change of variables. This tells us that a good guarantee shouldn't depend on the condition number. 
+	Therefore, Newton's method doesn't care about \hyperref[real-thm:change-of-variable]{change of variables}. This tells us that a good guarantee shouldn't depend on the \hyperref[def:condition-number]{condition number}. 
 
 	\begin{theorem}[Quadratic Convergence]
-		Let $f: \mathbb{R}^d \to \mathbb{R}$ be twice differentiable with critical point $w_{\#}$. Suppose that there exists a $r > 0$ s.t. for all $w, u \in B_r (w_{\#}) = B$, 
+	  \label{thm:quadratic-convergence}
+		Let $f: \mathbb{R}^d \to \mathbb{R}$ be twice differentiable with \hyperref[real-def:critical-point]{critical point} $w_{\#}$. Suppose that there exists a $r > 0$ s.t. for all $w, u \in B_r (w_{\#}) = B$, 
 		\begin{enumerate}
 			\item $\|\nabla^2 f(w) - \nabla^2 f(u) \|_{\mathrm{op}} \leq L_H \|w - u\|$. 
 			\item $\nabla^2 f(w) \succeq \mu I$, 
@@ -136,7 +141,7 @@
 		\begin{equation}
 			\varphi: [0, 1] \to \mathbb{R}^d, \quad \varphi(t) = \nabla f(w_{\#} + t(w_k - w_{\#})) 
 		\end{equation}
-		Then, by the chain rule
+		Then, by the \hyperref[mv-thm:chain-rule]{chain rule}
 		\begin{equation}
 			\frac{d \varphi}{d t} = \nabla^2 f(w_{\#} - t(w_k - w_{\#}) ) \, (w_k - w_{\#}) 
 		\end{equation}
@@ -165,39 +170,65 @@
 
 \subsection{BFGS}
 
-  Netwon's method is extremely effective for finding the minimum of a convex function, but there are two disadvantages. First, it is sensitive to initial conditions, and second, it is extremely expensive, with a computational complexity of $O(n^3)$ from having to invert the Hessian. An alternative family of optimizers, called \textit{quasi-Newton} methods, try to \textit{approximate} the Hessian (or Jacobian) with $\hat{H} f$, reducing the computational cost without too much loss in convergence rates, and simply use this approximation in the Newton's update: 
-  \[\mathbf{x}_{k+1} \gets \mathbf{x}_k - [\hat{H} f_{\mathbf{x}_k}]^{-1} \nabla_\mathbf{x} f (\mathbf{x}_k)\]
+  \hyperref[def:netwons-method]{Netwon's method} is extremely effective for finding the minimum of a \hyperref[mt-def:convex-function]{convex function}, but there are two disadvantages. First, it is sensitive to initial conditions, and second, it is extremely expensive, with a computational complexity of $O(n^3)$ from having to invert the \hyperref[mv-def:hessian]{Hessian}. An alternative family of optimizers, called \textit{quasi-Newton} methods, try to \textit{approximate} the Hessian (or \hyperref[mv-def:jacobian]{Jacobian}) with $\hat{H} f$, reducing the computational cost without too much loss in convergence rates, and simply use this approximation in the Newton's update: 
+  \begin{equation}
+    \mathbf{x}_{k+1} \gets \mathbf{x}_k - [\hat{H} f_{\mathbf{x}_k}]^{-1} \nabla_\mathbf{x} f (\mathbf{x}_k)
+  \end{equation}
   The method of the Hessian approximation varies by algorithm, but the most popular is BFGS. 
 
   So how do we approximate the Hessian with only the gradient information? With secants. Starting off with $f: \mathbb{R} \longrightarrow \mathbb{R}$, let us assume that we have two points $(x_k, f(x_k))$ and $(x_{k+1}, f(x_{k+1}))$. We can approximate our derivative (gradient in dimension 1) at $x_{k+1}$ using finite differences: 
-  \[f^\prime (x_{k+1}) (x_{k+1} - x_k) \approx f(x_{k+1}) - f(x_k)\]
-  and doing the same for $f^\prime$ gives us the second derivative approximation: 
-  \[f^{\prime\prime} (x_{k+1}) (x_{k+1} - x_k) \approx f^\prime (x_{k+1}) - f^\prime (x_k)\]
+  \begin{equation}
+    f^\prime (x_{k+1}) (x_{k+1} - x_k) \approx f(x_{k+1}) - f(x_k)
+  \end{equation}
+  and doing the same for $f^\prime$ gives us the \hyperref[mv-def:second-derivative]{second derivative} approximation: 
+  \begin{equation}
+    f^{\prime\prime} (x_{k+1}) (x_{k+1} - x_k) \approx f^\prime (x_{k+1}) - f^\prime (x_k)
+  \end{equation}
   which gives us the update: 
-  \[x_{k+1} \gets x_k - \frac{x_{k} - x_{k-1}}{f^\prime (x_k) - f^\prime (x_{k-1})} \, f^\prime (x_k)\]
+  \begin{equation}
+    x_{k+1} \gets x_k - \frac{x_{k} - x_{k-1}}{f^\prime (x_k) - f^\prime (x_{k-1})} \, f^\prime (x_k)
+  \end{equation}
   This method of approximating Netwon's method in one dimension by replacing the second derivative with its finite difference approximation is called the \textit{secant method}. In multiple dimensions, given two points $\mathbf{x}_k, \mathbf{x}_{k+1}$ with their respective gradients $\nabla f (\mathbf{x}_{k}), \nabla f (\mathbf{x}_{k+1})$, we can approximate the Hessian $\hat{H} f_{\mathbf{x}_{k+1}} \approx D (\nabla f)_{\mathbf{x}_{k+1}}$ (which is the total derivative of the gradient) at $\mathbf{x}_{k+1}$ with the equation
-  \[\hat{H} f_{\mathbf{x}_{k+1}} (\mathbf{x}_{k+1} - \mathbf{x}_k) = \nabla_\mathbf{x} f (\mathbf{x}_{k+1}) - \nabla_\mathbf{x} f (\mathbf{x}_k)\]
-  This is solving the equation of form $A \mathbf{x} = \mathbf{y}$ for some linear map $A$. Since $\hat{H} f_{\mathbf{x}_{k+1}}$ is a symmetric $n \times n$ matrix with $n (n+1) / 2$ components, there are $n (n+1) / 2$ unknowns with only $n$ equations, making this an underdetermined system. Quasi-Newton methods have to impose additional constraints, with the BFGS choosing the one where we want $\hat{H} f_{\mathbf{x}_{k+1}}$ to be as close as to $\hat{H} f_{\mathbf{x}_{k}}$ at each update $k+1$. Luckily, we can formalize this notion as minimizing the distance between $f_{\mathbf{x}_{k+1}}$ and $\hat{H} f_{\mathbf{x}_{k}}$. Therefore, we wish to find 
-  \[\arg \min_{\hat{H} f_{\mathbf{x}_{k+1}}} ||\hat{H} f_{\mathbf{x}_{k+1}} - \hat{H} f_{\mathbf{x}_{k}}||_F,\]
-  where $|| \cdot ||_F$ is the Frobenius matrix norm, subject to the restrictions that $\hat{H} f_{\mathbf{x}_{k+1}}$ be positive definite and symmetric and that $\hat{H} f_{\mathbf{x}_{k+1}} (\mathbf{x}_{k+1} - \mathbf{x}_k) = \nabla_\mathbf{x} f (\mathbf{x}_{k+1}) - \nabla_\mathbf{x} f (\mathbf{x}_k)$ is satisfied. Since we have to invert it eventually, we can actually just create an optimization problem that directly computes the inverse. So, we wish to find 
-  \[\arg \min_{(\hat{H} f_{\mathbf{x}_{k+1}})^{-1}} ||(\hat{H} f_{\mathbf{x}_{k+1}})^{-1} - (\hat{H} f_{\mathbf{x}_{k}})^{-1} ||_F\]
+  \begin{equation}
+    \hat{H} f_{\mathbf{x}_{k+1}} (\mathbf{x}_{k+1} - \mathbf{x}_k) = \nabla_\mathbf{x} f (\mathbf{x}_{k+1}) - \nabla_\mathbf{x} f (\mathbf{x}_k)
+  \end{equation}
+  This is solving the equation of form $A \mathbf{x} = \mathbf{y}$ for some \hyperref[lin-def:linear_map]{linear map} $A$. Since $\hat{H} f_{\mathbf{x}_{k+1}}$ is a symmetric $n \times n$ matrix with $n (n+1) / 2$ components, there are $n (n+1) / 2$ unknowns with only $n$ equations, making this an underdetermined system. Quasi-Newton methods have to impose additional constraints, with the BFGS choosing the one where we want $\hat{H} f_{\mathbf{x}_{k+1}}$ to be as close as to $\hat{H} f_{\mathbf{x}_{k}}$ at each update $k+1$. Luckily, we can formalize this notion as minimizing the distance between $f_{\mathbf{x}_{k+1}}$ and $\hat{H} f_{\mathbf{x}_{k}}$. Therefore, we wish to find 
+  \begin{equation}
+    \arg \min_{\hat{H} f_{\mathbf{x}_{k+1}}} \|\hat{H} f_{\mathbf{x}_{k+1}} - \hat{H} f_{\mathbf{x}_{k}}\|_F,
+  \end{equation}
+  where $\| \cdot \|_F$ is the Frobenius matrix norm, subject to the restrictions that $\hat{H} f_{\mathbf{x}_{k+1}}$ be positive definite and symmetric and that $\hat{H} f_{\mathbf{x}_{k+1}} (\mathbf{x}_{k+1} - \mathbf{x}_k) = \nabla_\mathbf{x} f (\mathbf{x}_{k+1}) - \nabla_\mathbf{x} f (\mathbf{x}_k)$ is satisfied. Since we have to invert it eventually, we can actually just create an optimization problem that directly computes the inverse. So, we wish to find 
+  \begin{equation}
+    \arg \min_{(\hat{H} f_{\mathbf{x}_{k+1}})^{-1}} \|(\hat{H} f_{\mathbf{x}_{k+1}})^{-1} - (\hat{H} f_{\mathbf{x}_{k}})^{-1} \|_F
+  \end{equation}
   subject to the restrictions that 
   \begin{enumerate}
       \item $(\hat{H} f_{\mathbf{x}_{k+1}})^{-1}$ be positive definite and symmetric. It turns out that the positive definiteness restriction also restricts it to be symmetric. 
       \item $\mathbf{x}_{k+1} - \mathbf{x}_k = (\hat{H} f_{\mathbf{x}_{k+1}})^{-1} [\nabla_\mathbf{x} f (\mathbf{x}_{k+1}) - \nabla_\mathbf{x} f (\mathbf{x}_k)]$
   \end{enumerate}
-  After some complicated mathematical derivation, which we will not go over here, the problem ends up being equivalent to updating our approximate Hessian at each iteration by adding two symmetric, rank-one matrices $U$ and $V$ scaled by some constant, which can each be computed as an outer product of vectors with itself. 
-  \[\hat{H} f_{\mathbf{x}_{k+1}} = \hat{H} f_{\mathbf{x}_{k}} + a U + b V = \hat{H} f_{\mathbf{x}_{k}} + a \mathbf{u} \mathbf{u}^T + b \mathbf{v} \mathbf{v}^T\]
+  After some complicated mathematical derivation, which we will not go over here, the problem ends up being equivalent to updating our approximate Hessian at each iteration by adding two symmetric, rank-one matrices $U$ and $V$ scaled by some constant, which can each be computed as an \hyperref[lin-def:outer-product]{outer product} of vectors with itself. 
+  \begin{equation}
+    \hat{H} f_{\mathbf{x}_{k+1}} = \hat{H} f_{\mathbf{x}_{k}} + a U + b V = \hat{H} f_{\mathbf{x}_{k}} + a \mathbf{u} \mathbf{u}^T + b \mathbf{v} \mathbf{v}^T
+  \end{equation}
   where $\mathbf{u}$ and $\mathbf{v}$ are linearly independent. This addition of a rank-2 sum of matrices $a U + b V$, known as a rank-2 update, guarantees the "closeness" of $\hat{H} f_{\mathbf{x}_{k+1}}$ to $\hat{H} f_{\mathbf{x}_{k}}$ at each iteration. With this form, we now impose the quasi-Newton condition. Substituting $\Delta \mathbf{x}_k = \mathbf{x}_{k+1} - \mathbf{x}_k$ and $\mathbf{y}_k = \nabla_\mathbf{x} f (\mathbf{x}_{k+1}) - \nabla_\mathbf{x} f (\mathbf{x}_k)$, we have
-  \[\hat{H} f_{\mathbf{x}_{k+1}} \Delta \mathbf{x}_k = \hat{H} f_{\mathbf{x}_{k+1}} \Delta \mathbf{x}_k + a \mathbf{u} \mathbf{u}^T \Delta \mathbf{x}_k + b \mathbf{v} \mathbf{v}^T \Delta \mathbf{x}_k = \mathbf{y}_k\]
+  \begin{equation}
+    \hat{H} f_{\mathbf{x}_{k+1}} \Delta \mathbf{x}_k = \hat{H} f_{\mathbf{x}_{k+1}} \Delta \mathbf{x}_k + a \mathbf{u} \mathbf{u}^T \Delta \mathbf{x}_k + b \mathbf{v} \mathbf{v}^T \Delta \mathbf{x}_k = \mathbf{y}_k
+  \end{equation}
   A natural choice of vectors turn out to be $\mathbf{u} = \mathbf{y}_k$ and $\mathbf{v} = \hat{H} f_{\mathbf{x}_{k}} \Delta \mathbf{x}_k$, and substituting this and solving gives us the optimal values 
-  \[a = \frac{1}{\mathbf{y}_k^T \Delta \mathbf{x}_k}, \;\;\;\;\; b = -\frac{1}{\Delta \mathbf{x}_k^T \hat{H} f_{\mathbf{x}_{k}} \Delta \mathbf{x}_k}\]
+  \begin{equation}
+    a = \frac{1}{\mathbf{y}_k^T \Delta \mathbf{x}_k}, \;\;\;\;\; b = -\frac{1}{\Delta \mathbf{x}_k^T \hat{H} f_{\mathbf{x}_{k}} \Delta \mathbf{x}_k}
+  \end{equation}
   and substituting these values back to the Hessian approximation update gives us the BFGS update: 
-  \[\hat{H} f_{\mathbf{x}_{k+1}} = \hat{H} f_{\mathbf{x}_{k}} + \frac{\mathbf{y}_k \mathbf{y}_k^T}{\mathbf{y}_k^T \Delta \mathbf{x}_k} - \frac{\hat{H} f_{\mathbf{x}_{k}} \Delta \mathbf{x}_k \Delta \mathbf{x}_k^T \hat{H} f_{\mathbf{x}_{k}}}{\Delta \mathbf{x}_k^T \hat{H} f_{\mathbf{x}_{k}} \Delta \mathbf{x}_k}\]
+  \begin{equation}
+    \hat{H} f_{\mathbf{x}_{k+1}} = \hat{H} f_{\mathbf{x}_{k}} + \frac{\mathbf{y}_k \mathbf{y}_k^T}{\mathbf{y}_k^T \Delta \mathbf{x}_k} - \frac{\hat{H} f_{\mathbf{x}_{k}} \Delta \mathbf{x}_k \Delta \mathbf{x}_k^T \hat{H} f_{\mathbf{x}_{k}}}{\Delta \mathbf{x}_k^T \hat{H} f_{\mathbf{x}_{k}} \Delta \mathbf{x}_k}
+  \end{equation}
   We still need to invert this, and using the \textit{Woodbury formula}
-  \[(A + U C V)^{-1} = A^{-1} - A^{-1} U (C^{-1} + V A^{-1} U)^{-1} V A^{-1}\]
+  \begin{equation}
+    (A + U C V)^{-1} = A^{-1} - A^{-1} U (C^{-1} + V A^{-1} U)^{-1} V A^{-1}
+  \end{equation}
   which tells us how to invert the sum of an intertible matrix $A$ and a rank-$k$ correction, we can derive the iterative update of the inverse Hessian as 
-  \[(\hat{H} f_{\mathbf{x}_{k+1}})^{-1} = \bigg( I - \frac{\Delta \mathbf{x}_k \mathbf{y}^T}{\mathbf{y}_k^T \Delta \mathbf{x}_k}\bigg) (\hat{H} f_{\mathbf{x}_{k}})^{-1} \bigg( I - \frac{\mathbf{y}_k \Delta \mathbf{x}_k^T}{\mathbf{y}_k^T \Delta \mathbf{x}_k}\bigg) + \frac{\Delta \mathbf{x}_k \Delta \mathbf{x}_k^T}{\mathbf{y}_k^T \Delta \mathbf{x}_k}\]
+  \begin{equation}
+    (\hat{H} f_{\mathbf{x}_{k+1}})^{-1} = \bigg( I - \frac{\Delta \mathbf{x}_k \mathbf{y}^T}{\mathbf{y}_k^T \Delta \mathbf{x}_k}\bigg) (\hat{H} f_{\mathbf{x}_{k}})^{-1} \bigg( I - \frac{\mathbf{y}_k \Delta \mathbf{x}_k^T}{\mathbf{y}_k^T \Delta \mathbf{x}_k}\bigg) + \frac{\Delta \mathbf{x}_k \Delta \mathbf{x}_k^T}{\mathbf{y}_k^T \Delta \mathbf{x}_k}
+  \end{equation}
   Remember that this is the iterative step that we want to actually compute, rather than the ones computing the regular Hessian. The whole point of using the Woodbury formula to derive an inverse update step was to do away with the tedious $O(n^3)$ computations of inverting an $n \times n$ matrix. This rank-2 update also preserves positive-definiteness. 
 
   Finally, we can choose the initial inverse Hessian approximation $(\hat{H} f_{\mathbf{x}_{k+1}})^{-1}$ to be the identity $I$ or the true inverse Hessian $(H f_{\mathbf{x}_{k+1}})^{-1}$ (computed just once), which would lead to more efficient convergence. The pseudocode for BFGS is a bit too long and confusing to include here, but most of the time, we won't be implementing BFGS by hand; efficient and established BFGS optimizers are already in numerous packages. Like most optimizers, BFGS is not guaranteed to converge to the true global minimum. 
@@ -213,7 +244,7 @@
         \State $B \gets I$ \Comment{Initialize inverse Hessian approximation}
         \State $\theta \gets \theta_0$
         \State $k \gets 0$
-        \While{$k < N_{max}$ and $||\nabla f(\theta)|| > \epsilon$}
+        \While{$k < N_{max}$ and $\|\nabla f(\theta)\| > \epsilon$}
           \State $g \gets \nabla f(\theta)$
           \State $d \gets -B g$
           \State $\alpha \gets \text{LineSearch}(f, \theta, d)$ \Comment{Enforce Wolfe conditions}
@@ -246,7 +277,7 @@
         \State Initialize $\theta \gets \theta_0$
         \State Initialize empty history lists $S, Y$
         \State $k \gets 0$
-        \While{$k < N_{max}$ and $||\nabla f(\theta)|| > \epsilon$}
+        \While{$k < N_{max}$ and $\|\nabla f(\theta)\| > \epsilon$}
           \State $g \gets \nabla f(\theta)$
           \State $q \gets g$
           \State Initialize empty list $\alpha$

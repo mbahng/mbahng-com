@@ -21,9 +21,10 @@
     \label{fig:motivation_vae}
   \end{figure}
 
-  In 2013, Kigma introduced this generative model that bridges between latent variable models and deep neural nets. We can think of the relationship between the linear model PCA and its latent counterpart PPCA as the relationship between the nonlinear autoencoders and variational autoencoders. This is a good time to review linear and nonlinear latent variable models in my ML notes. Note that in a LVM, the family of functions $\{D_\beta\}$ is used to map a latent variable $z$ to the likelihood $p(x \mid z)$. This can be done by a direct transformation of the random variable $Z$ (e.g. PPCA or as we will see later, \textit{normalizing flows}), or we can have $D_\beta(z)$ be an explicit parameterization (e.g. Gaussian mixture models and variational autoencoders). Given neural networks, we can do the latter method quite easily, and we are already familiar with the architectures to do so. 
+  In 2013, Kigma introduced this generative model that bridges between latent variable models and deep neural nets. We can think of the relationship between the linear model PCA and its latent counterpart PPCA as the relationship between the nonlinear autoencoders and variational autoencoders. This is a good time to review linear and nonlinear latent variable models in my ML notes. Note that in a LVM, the family of functions $\{D_\beta\}$ is used to map a latent variable $z$ to the likelihood $p(x \mid z)$. This can be done by a direct transformation of the \hyperref[prob-def:random-variable]{random variable} $Z$ (e.g. PPCA or as we will see later, \textit{normalizing flows}), or we can have $D_\beta(z)$ be an explicit parameterization (e.g. Gaussian mixture models and variational autoencoders). Given neural networks, we can do the latter method quite easily, and we are already familiar with the architectures to do so. 
 
   \begin{example}[Classification Nets Parameterize Multinomials]
+    \label{ex:classification-nets-parameterize-multinomials}
     In a classification neural network with parameters $\beta$, it takes in an input $x$ and outputs a softmax vector $f_\beta (x) =(p_1, \ldots, p_K)^T$. This basically means that $f_\beta (x) = \theta$ parameterizes the conditional distribution (in this case, multinomial) of $y$ given $x$. 
     \begin{equation}
       Y \mid X = x \sim \mathrm{Multinomial}(\theta = f_\beta (x))
@@ -41,7 +42,9 @@
   \end{equation}
   is computationally intractable. With strong assumptions, like conditional independence of not just $p(x \mid z)$ but \textit{also} $p(z \mid x)$, in RBMs, we can construct pretty good approximations. Recall that for RBMs, the derivative of the log of $p(x)$ decomposes into a positive phase that requires you to integrate over $p(z \mid x)$, which is easy, and $p(x, h)$, which is hard to do in general. But through contrastive divergence, we can approximate the integral by sampling a $\Tilde{x}$ and constructing another integral over $p(z \mid x)$, which is then easy to compute. 
 
-  \begin{example}[Bernoulli-Bernoulli RBM] 
+  \begin{example}[Bernoulli-Bernoulli RBM]
+    \label{ex:bernoulli-bernoulli-rbm}
+ 
     We would like to approximate a $d$-dimensional Bernoulli vector $x$ with a latent variable $z \in \mathbb{R}^K$. We will assume a prior $p(z) \sim N(0, I)$, and let us have a neural net $D_{\beta}$ that parameterizes the random vector $x$, where $x_i \sim \mathrm{Bernoulli}(\theta_i)$ for $\theta_i$. Then, by conditional independence, 
     \begin{equation}
       p(x \mid z) = \prod_{i=1}^d p_\theta (x_i \mid z) = \prod_{i=1}^d \theta_i^{x_i} (1 - \theta_i)^{1 - x_i} = \prod_{i=1}^d \big[ D_\beta(z) \big]_i^{x_i} \big( 1 - [D_\beta(z)]_d \big)^{1 - x_i}
@@ -59,6 +62,7 @@
   \end{equation}
 
   \begin{example}[Encoder Neural Net Generates Parameters of Likelihood]
+    \label{ex:encoder-neural-net-generates-parameters-of}
     If $\phi = (\mu, \sigma)$, where $\sigma$ is just the vector representing variances of independent Gaussians, then we can use the neural network $E$ to get $\phi = E_{\alpha} (x)$. In the example, $\phi = (\mu, \log \sigma^2)$ since we want to allow negative values, and 
     \begin{equation}
       q_\phi (z \mid x) \sim \mathcal{N}(E_\alpha (x)) = \mathcal{N}(\phi) = \mathcal{N} (\mu, \sigma^2)
@@ -68,6 +72,7 @@
   Therefore, by modeling both the likelihood and posterior with probability distributions that can be parameterized by an output of neural networks, we have a \textit{variational autoencoder}. 
 
   \begin{definition}[Variational Autoencoders]
+    \label{def:variational-autoencoders}
     In a \textbf{variational autoencoder (VAE)}, we assume that the covariates $x^{(i)} \sim X$ are generated as the marginal of a joint distribution $p(x, z)$ with latent variable $z \sim X$. We model the sub-distributions as such: 
     \begin{enumerate}
       \item We assume that the prior $p(z)$ is of fixed simple form, e.g. a standard Gaussian. 
@@ -101,7 +106,7 @@
 
   Now we talk about more implementation details presented in the paper, which is a simplified form. 
   \begin{enumerate}
-    \item The first is that \cite{vae} fixes a prior isotropic multivariate Gaussian $p_\theta (z) = \mathcal{N}(0, I)$, which lacks parameters. 
+    \item The first is that \cite{vae} fixes a prior isotropic \hyperref[prob-def:multivariate-gaussian]{multivariate Gaussian} $p_\theta (z) = \mathcal{N}(0, I)$, which lacks parameters. 
 
     \item It also assumes that $p_\theta (x \mid z)$ be a multivariate Gaussian (for real-valued data) or Bernoulli (in binary data). This gives us a nice parameteric form that may hopefully approximate the true posterior, which may be extremely complicated. 
     \begin{align}
@@ -127,6 +132,7 @@
   Great, so we can draw a computation graph for this, but before we do, let's revisit the basics and draw a simpler example. 
 
   \begin{example}[Softmax]
+    \label{ex:softmax}
     In the graph below, note that our ``prediction'' $\hat{y}^{(i)}$ for the data point $x^{(i)}$ is not really a prediction at all. If we have three categories (cat, dog, fish) and I give you an image, the model will output a vector of probabilities, e.g. $\hat{y}^{(i)} = [0.1, 0.2, 0.7]$. While we can easily infer that the probability of a fish is highest, and therefore should be our prediction, the model didn't actually output one answer. Rather, we should interpret this output vector $\hat{y}^{(i)}$ as a \textit{parameter} $\theta$ of a multinomial distribution. From this we can \textit{sample} an actual prediction $\hat{y}^{(i)} \sim \mathrm{Multinomial}(\theta)$. 
 
     When we compute the loss of a sample, we compute the likelihood by taking the true output $y^{(i)}$ and one-hot encoding it. One-hot encoding allows us to convert the label $y^{(i)}$ into a parameter of a multinomial itself, and this process is hidden inside $\ell$. Therefore we want to maximize
@@ -245,7 +251,8 @@
 
   Let's keep this in the back of our mind, and focus on the computation for a bit. By the simplifying form that $q_\phi$ is a Gaussian, we can even get a nearly closed form of the ELBO. 
 
-  \begin{theorem}
+  \begin{theorem}[The Evidence Lower Bound]
+    \label{thm:the-evidence-lower-bound}
     Given the assumptions above, 
     \begin{align}
       \elbo(x, \phi, \theta) & \coloneqq \mathbb{E}_{q_\phi(z \mid x)} [ \log p_\theta (x \mid z)] + \mathbb{E}_{q_\phi (z \mid x)} [ \log p(z)] - \mathbb{E}_{q_\phi (z \mid x)} [ \log q_\phi (z \mid x)] \\
@@ -266,6 +273,7 @@
   \end{proof} 
 
   \begin{corollary}[Bernoulli Likelihood]
+    \label{thm:bernoulli-likelihood}
     If $p\theta (x \mid z)$ is Bernoulli, then the ELBO can be estimated by estimating the likelihood 
     \begin{equation}
       \elbo(x, \phi, \theta) = \frac{1}{L} \sum_{l=1}^L + \frac{1}{2} \sum_{d=1}^D \bigg( 1 + \log( (\sigma_d)^2 ) - (\mu_d)^2 - (\sigma_d)^2 \bigg)
@@ -345,7 +353,7 @@
 
   Note that since we have shown that the derivative of the last two expectations (i.e. the derivative of the KL divergence) is dependent on the outputs $\sigma$ and $\mu$ of the neural net, we must also backpropagate amongst them as well, which is why you see the giant arrow from $\phi$ to $\ell$. 
 
-  We can see that since we know the closed form of $p_\theta (x \mid z)$, backpropagating over $\theta^{(i)}$ is no problem. However, we must reach $\alpha$ to update the neural network weights, and to do this we must go backprop through the stochastic node $z^{(i)}$, which may stump you. In fact, how do you even backpropagate against something that's a random variable? Remember that in our softmax example, we could simply compute the log likelihood of a bunch of samples at this node to get an approximate average log likelihood. This is a start, but in this case we want to compute the \textit{gradient} of the log likelihood. Fortunately, the \hyperref[gr-thm:log-derivative-trick]{log-derivative trick} allows us to swap the gradient and expectation under a certain form, putting the expectation on the outside and therefore allowing us to sample gradients. 
+  We can see that since we know the closed form of $p_\theta (x \mid z)$, backpropagating over $\theta^{(i)}$ is no problem. However, we must reach $\alpha$ to update the neural network weights, and to do this we must go backprop through the stochastic node $z^{(i)}$, which may stump you. In fact, how do you even backpropagate against something that's a \hyperref[prob-def:random-variable]{random variable}? Remember that in our softmax example, we could simply compute the log likelihood of a bunch of samples at this node to get an approximate average log likelihood. This is a start, but in this case we want to compute the \textit{gradient} of the log likelihood. Fortunately, the \hyperref[gr-thm:log-derivative-trick]{log-derivative trick} allows us to swap the gradient and expectation under a certain form, putting the expectation on the outside and therefore allowing us to sample gradients. 
   \begin{equation}
     \nabla_\phi \mathbb{E}_{q_\phi (z)} [f(z)] = \mathbb{E}_{q_\phi (z)} [ f(z) \nabla_\phi \log q_{\phi} (z)]
   \end{equation}
@@ -357,6 +365,7 @@
   In 2013, Durk Kigma, then a PhD student in machine learning at the University of Amsterdam, introduced a solution in \cite{vae} called the \textit{reparamaterization trick}, which is just an application of a change of basis. 
 
   \begin{theorem}[Reparameterization Trick]
+    \label{thm:reparameterization-trick}
     Let $q_\phi(z|x)$ be a continuous distribution that can be sampled by first sampling $\epsilon \sim p(\epsilon)$ from a parameter-free distribution and then applying a differentiable transformation $g_\phi(\epsilon, x)$. Then:
     \begin{equation}
        \nabla_\phi \mathbb{E}_{q_\phi(z|x)} [f(z)] = \nabla_\phi \mathbb{E}_{p(\epsilon)} [f(g_\phi(\epsilon, x))] = \mathbb{E}_{p(\epsilon)} [\nabla_\phi f(g_\phi(\epsilon, x))] 
@@ -402,11 +411,12 @@
     \end{equation}
   \end{proof}
 
-  This result is fundamental to variational inference and deep learning, particularly in training Variational Autoencoders (VAEs). The key insight is that by reparameterizing the random variable $z$ in terms of a parameter-free random variable $\epsilon$, we can separate the stochastic sampling (which is not differentiable) from the deterministic transformation $g_\phi$ (which is differentiable).
+  This result is fundamental to variational inference and deep learning, particularly in training \hyperref[def:variational-autoencoders]{Variational Autoencoders} (VAEs). The key insight is that by reparameterizing the \hyperref[prob-def:random-variable]{random variable} $z$ in terms of a parameter-free random variable $\epsilon$, we can separate the stochastic sampling (which is not differentiable) from the deterministic transformation $g_\phi$ (which is differentiable).
 
   The biggest advantage to this is that we although we do not avoid sampling to approximate the log likelihood, the rate at which it converges is much faster than simple sampling or the log-derivative trick, which is demonstrated in the example below. 
 
   \begin{example}[Gradient of Expection of $f(x) = x^2$ w.r.t. Gaussian]
+    \label{ex:gradient-of-expection-of-fxx2-w-r-t-gaussian}
     Assume we have a normal distribution $q$ that is parameterized by $\phi$, specifically
     $q_\phi(x) = N(\phi, 1)$. We want to solve the below problem
     \begin{equation}
@@ -425,7 +435,7 @@
     \begin{equation}
       \nabla_\phi \mathbb{E}[x^2] = \mathbb{E}_q[x^2(x-\phi)]
     \end{equation}
-    and we can sample from $q \sim N(\phi, 1)$. Reparameterization trick is a way to rewrite the expectation so that the distribution with respect to which we take the gradient is independent of parameter $\phi$. To achieve this, we need to make the stochastic element in $q$ independent of $\phi$. Hence, we write $x$ as
+    and we can sample from $q \sim N(\phi, 1)$. \hyperref[thm:reparameterization-trick]{Reparameterization trick} is a way to rewrite the expectation so that the distribution with respect to which we take the gradient is independent of parameter $\phi$. To achieve this, we need to make the stochastic element in $q$ independent of $\phi$. Hence, we write $x$ as
     \begin{equation}
       x = \phi+ \epsilon, \quad \epsilon \sim N(0,1)
     \end{equation}
@@ -459,7 +469,7 @@
     g_\phi (x, \epsilon^{(l)}) = \mu^{(i)} + e^{\phi_\sigma/2} \odot \epsilon^{(l)} = \mu^{(i)} + \sigma^{(i)} \odot \epsilon^{(l)} \qquad \epsilon^{(l)} \sim \mathcal{N}(0, I)
   \end{equation}
 
-  where $\odot$ is element-wise multiplication, can be used to model $p(z)$.\footnote{This is called \textbf{factorized Gaussian posterior}, but it can be extended to the \textbf{full-variance Gaussian posterior} where the variance is parameterized through a lower triangular matrix $L$, from the Cholesky decomposition.} The intuition behind this is to ``push'' the stochastic node $z^{(i)}$ back so that we don't have to go through it to reach $\alpha$. Therefore, to compute the noisy gradient for $\alpha$, we can sample $\epsilon^{(l)} \sim \mathcal{N}(0, I)$ and treat it as a fixed variable when doing backpropagation, which essentially means that the mapping $g_\phi$ is a deterministic function (and so $g_\phi \circ E_\alpha$ is a deterministic neural net). Then we do this $L$ times to get $L$ gradients, and average them to get the unbiased estimate of the gradient of the single sample $x^{(i)}$. Then we must do this for all $x^{(i)}$ in a minibatch in SGD. Since this is still too computationally heavy, we usually set $L=1$. 
+  where $\odot$ is element-wise multiplication, can be used to model $p(z)$.\footnote{This is called \textbf{factorized Gaussian posterior}, but it can be extended to the \textbf{full-variance Gaussian posterior} where the variance is parameterized through a lower triangular matrix $L$, from the \hyperref[lin-def:cholesky-decomposition]{Cholesky decomposition}.} The intuition behind this is to ``push'' the stochastic node $z^{(i)}$ back so that we don't have to go through it to reach $\alpha$. Therefore, to compute the noisy gradient for $\alpha$, we can sample $\epsilon^{(l)} \sim \mathcal{N}(0, I)$ and treat it as a fixed variable when doing backpropagation, which essentially means that the mapping $g_\phi$ is a deterministic function (and so $g_\phi \circ E_\alpha$ is a deterministic neural net). Then we do this $L$ times to get $L$ gradients, and average them to get the unbiased estimate of the gradient of the single sample $x^{(i)}$. Then we must do this for all $x^{(i)}$ in a minibatch in SGD. Since this is still too computationally heavy, we usually set $L=1$. 
 
   \begin{figure}[H]
     \centering 
@@ -549,19 +559,21 @@
     \label{fig:reparam_trick}
   \end{figure}
 
-  Another advantage is that this is more general. Although we must meet the conditions that the posterior $p_\phi (z \mid x)$ should be an absolutely continuous distribution that can be modeled as the transformation of a simple random variable $\epsilon$, since any distribution that is differentiable with respect to its parameters can be reparamaterized by inverting the multivariate CDF function and applying the implicit method. 
+  Another advantage is that this is more general. Although we must meet the conditions that the posterior $p_\phi (z \mid x)$ should be an absolutely continuous distribution that can be modeled as the transformation of a \hyperref[prob-def:simple-random-variable]{simple random variable} $\epsilon$, since any distribution that is differentiable with respect to its parameters can be reparamaterized by inverting the multivariate CDF function and applying the implicit method. 
 
   In order to see how the gradients are calculated, recall the following theorem. 
 
   \begin{theorem}[Change of Basis]
+    \label{thm:change-of-basis}
     We have 
     \begin{equation}
       \log q_\phi (z \mid x) = \log p(\epsilon) - \log \bigg| \mathrm{det} \bigg( \frac{\partial z}{\partial \epsilon}\bigg)\bigg| 
     \end{equation}
-    where $\partial z / \partial \epsilon$ denotes the Jacobian matrix computed through $g_\phi(x, \epsilon)$. 
+    where $\partial z / \partial \epsilon$ denotes the \hyperref[mv-def:jacobian]{Jacobian} matrix computed through $g_\phi(x, \epsilon)$. 
   \end{theorem}
   
-  \begin{corollary}
+  \begin{corollary}[Reparameterization of the Log-Variance]
+    \label{thm:reparameterization-of-the-log-variance}
     This applied to the affine function $g_\phi$ above defined for the log-variance gives 
     \begin{equation}
       \frac{\partial z}{\partial \epsilon} = \mathrm{diag}(\sigma) \implies \log \bigg| \mathrm{det} \bigg( \frac{\partial z}{\partial \epsilon}\bigg)\bigg| = \sum_i \log \sigma_i
@@ -569,6 +581,7 @@
   \end{corollary}
 
   \begin{corollary}[Auto-Encoding VB (AEVB) Algorithm]
+    \label{thm:auto-encoding-vb-aevb-algorithm}
     Applying the reparamaterization trick to the gradient of the ELBO gives the following corollary. 
     \begin{equation}
       \nabla_\phi \elbo(x, \phi, \theta) = \mathbb{E}_{p(\epsilon)}[\nabla_\phi \log p_\theta (x \mid z) - \nabla_\phi \log q_\phi (z \mid x) + \nabla_\phi \log p(z)]

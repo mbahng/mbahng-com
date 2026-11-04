@@ -21,6 +21,7 @@
   The idea of \textbf{attention} provides a solution to this bottleneck problem. Basically, we want to establish connections from the decoder to not just the last hidden state of the encoder, but to all of its nodes. Each encoder node represents some information about each word, and by taking some weighted sum of these nodes, we can choose which one to put this attention on. 
 
   \begin{definition}[Score Function]
+    \label{def:score-function}
     Before we begin, let's define a metric, called a \textbf{score function}, to determine how similar two words (more specifically, their embeddings) are. The two simplest ways to do this are: 
     \begin{enumerate}
       \item the standard dot product. 
@@ -29,7 +30,7 @@
         \end{equation}
       \item cosine similarity. 
         \begin{equation}
-          \mathrm{score}(\mathbf{x}, \mathbf{y}) = \frac{\mathbf{x} \cdot \mathbf{y}}{||\mathbf{x}|| \, ||\mathbf{y}||}
+          \mathrm{score}(\mathbf{x}, \mathbf{y}) = \frac{\mathbf{x} \cdot \mathbf{y}}{\|\mathbf{x}\| \, \|\mathbf{y}\|}
         \end{equation}
     \end{enumerate}
   \end{definition}
@@ -47,7 +48,9 @@
     \mathbf{s}_T \mapsto \mathbf{q}_t
   \end{equation}
 
-  \begin{definition}[Seq2Seq with Vanilla Attention] 
+  \begin{definition}[Seq2Seq with Vanilla Attention]
+    \label{def:seq2seq-with-vanilla-attention}
+ 
     Eventually, we would like to learn these key, value, queries, but for now let's focus on the forward propagation. 
     \begin{enumerate}
       \item The input has been sequentially encoded and we have a special start token $\mathbf{s}_0$. 
@@ -86,14 +89,14 @@
     \includegraphics[scale=0.3]{img/attention_distribution.png}
   \end{center}
 
-  \begin{code}
+  \begin{code}[Seq2Seq with Attention in PyTorch]
     For an implementation of this in PyTorch, look \href{code/seq2seq_attention.ipynb}{here}.
   \end{code}
 
   Now let's talk about how these parameters are already learned. The parameters of the model are. 
   \begin{enumerate}
     \item The encoding matrices for the usual seq2seq model: $\mathbf{W}_e, \mathbf{U}_e$. 
-    \item Generating key, value, and query vectors for every possible embedding is not practical.\footnote{You would need three $d_{\mathrm{embedding}} \times |\mathcal{V}|$ matrices, where $\mathcal{V}$ is the set of our vocabulary, which can go easily past 500,000 elements.} A more compact way to represent them are through linear maps, so we are learning matrices $\mathbf{Q}, \mathbf{K}, \mathbf{V}$ such that 
+    \item Generating key, value, and query vectors for every possible embedding is not practical.\footnote{You would need three $d_{\mathrm{embedding}} \times |\mathcal{V}|$ matrices, where $\mathcal{V}$ is the set of our vocabulary, which can go easily past 500,000 elements.} A more compact way to represent them are through \hyperref[lin-def:linear_map]{linear maps}, so we are learning matrices $\mathbf{Q}, \mathbf{K}, \mathbf{V}$ such that 
     \begin{align*}
       \mathbf{q}_{t^\prime} & = \mathbf{Q} \mathbf{s}_{t^\prime} \\ 
       \mathbf{k}_t & = \mathbf{K} \mathbf{h}_t \\
@@ -105,17 +108,24 @@
   Therefore, this problem reduces to learning the matrices $\mathbf{W}_e, \mathbf{U}_e, \mathbf{Q}, \mathbf{K}, \mathbf{V}, \mathbf{W}_d, \mathbf{U}_d$. 
 
   \begin{example}[Score Functions]
-    Having additional flexibility with the score functions can also improve learning. We provide more examples here, which give more parameters to learn as well.  
+    \label{ex:score-functions}
+    Having additional flexibility with the \hyperref[def:score-function]{score functions} can also improve learning. We provide more examples here, which give more parameters to learn as well.  
     \begin{enumerate}
       \item The general attention model allows us to train a shared-weight matrix, allowing for $s \neq h$. 
-      \[e^{t^\prime}_t = \mathrm{score}(\mathbf{s}_{t^\prime}, \mathbf{h}_t) = \mathbf{s}_{t^\prime}^T \mathbf{W}_a \mathbf{h}_t \in \mathbb{R}\]
+      \begin{equation}
+        e^{t^\prime}_t = \mathrm{score}(\mathbf{s}_{t^\prime}, \mathbf{h}_t) = \mathbf{s}_{t^\prime}^T \mathbf{W}_a \mathbf{h}_t \in \mathbb{R}
+      \end{equation}
       However, it may seem like there are too many parameters in $\mathbf{W}_a$, having to learn $sh$ values. 
 
       \item The reduced rank multiplicative attention uses low rank matrices, allowing us to learn only $ks + kh$ parameters for matrices $\mathbf{U}_a \in \mathbb{R}^{k \times s}, \mathbf{V}_a \in \mathbb{R}^{k \times h}$ where $k << s, h$. 
-      \[e^{t^\prime}_t = \mathrm{score}(\mathbf{s}_{t^\prime}, \mathbf{h}_t) = \mathbf{s}_{t^\prime}^T (\mathbf{U}_a^T \mathbf{V}_a) \mathbf{h}_t = (\mathbf{U}_a \mathbf{s}_{t^\prime})^T (\mathbf{V}_a \mathbf{h}_t) \in \mathbb{R}\]
+      \begin{equation}
+        e^{t^\prime}_t = \mathrm{score}(\mathbf{s}_{t^\prime}, \mathbf{h}_t) = \mathbf{s}_{t^\prime}^T (\mathbf{U}_a^T \mathbf{V}_a) \mathbf{h}_t = (\mathbf{U}_a \mathbf{s}_{t^\prime})^T (\mathbf{V}_a \mathbf{h}_t) \in \mathbb{R}
+      \end{equation}
 
       \item Additive attention uses a neural net layer defined 
-      \[e^{t^\prime}_t = \mathbf{v}_a^T \mathrm{tanh}(\mathbf{W}_a \mathbf{h}_t + \mathbf{V}_a \mathbf{s}_{t^\prime}) \in \mathbb{R}\]
+      \begin{equation}
+        e^{t^\prime}_t = \mathbf{v}_a^T \mathrm{tanh}(\mathbf{W}_a \mathbf{h}_t + \mathbf{V}_a \mathbf{s}_{t^\prime}) \in \mathbb{R}
+      \end{equation}
       where $\mathbf{W}_a \in \mathbb{R}^{r \times h}, \mathbf{V}_a \in \mathbb{R}^{r \times s}$ are weight matrices, $\mathbf{v}_a \in \mathbb{R}^r$ is a weight vector, and $r$ (the attention dimensionality) is a hyperparameter. 
     \end{enumerate}
   \end{example}
@@ -123,6 +133,7 @@
   This can be naturally extended to other architectures, as we will explore later. 
 
   \begin{example}[Images]
+    \label{ex:images}
     Given an image of size $224 \times 224$, we can make patches of size $16 \times 16$, and then flatten them to get a $196 \times 768$ matrix with a 2-dimensional positional encoding scheme. We can then apply a linear transformation to get the query, key, and value vectors.
   \end{example}
 

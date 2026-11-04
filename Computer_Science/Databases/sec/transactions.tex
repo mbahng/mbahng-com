@@ -3,6 +3,7 @@
   So far, we've had one query/update on one machine, but this is not the case in reality. In modern systems, you have users interacting with a database all the time and databases may be prone to failure. These two situations requires us to develop a safer way of interacting with the database. 
 
   \begin{example}[Simultaneous Interaction]
+    \label{ex:simultaneous-interaction}
     In an airline, say that we have two parties A and B trying to book the same seat. A looks at the website, which queries the tuple representing the seat. B does the same. A and B then both book it at the same time, sending an update request to the database, causing an overbooking. 
 
     In a bank, say that we have some events that must be recorded in a database. Say that $A = 0$ and $B = 100$. 
@@ -18,6 +19,7 @@
   \end{example}
 
   \begin{example}[Database Crash]
+    \label{ex:database-crash}
     If $A \mapsto A + 100$ happened first and the bank crashed, then the system would find that $A$ just gained \$100! This is clearly not good, so we must undo what we have done so far. 
   \end{example}
 
@@ -30,6 +32,7 @@
   Great, so let's review some actions that our DBMS should support. To read/write some tuple or relation $X$, the disk block containing $X$ must first be brought into memory. $X$ is read/written in memory. If it is written, it is called a \textbf{dirty block}. Finally, this dirty block must be flushed to disk. 
 
   \begin{definition}[Actions]
+    \label{def:actions}
     Some examples of actions that can occur in a schedule is: 
     \begin{enumerate}
       \item \texttt{READ}: read in a memory block from disk
@@ -41,10 +44,12 @@
   \end{definition}
 
   \begin{definition}[Transaction]
+    \label{def:transaction}
     The solution to both serializability and atomicity is to use \textbf{transactions}, which is a collection of one or more operations, called \textbf{actions}, on the database that must be executed atomically as a whole. At the end of every transaction, the DBMS always puts either a commit (indicating successful completion) or abort signal. 
   \end{definition} 
 
   \begin{definition}[Schedule]
+    \label{def:schedule}
     Now that we've cleared up on transactions, a schedule is simply a sequence of actions gotten from interweaving the transactions on the DBMS. It must obviously be consistent, and two actions from the same transaction T must appear in the schedule in the same order that they appear in T. Some terminology to compare schedules: 
     \begin{enumerate}
       \item \textbf{Serial Schedule}. No interweaving of transactions. 
@@ -55,6 +60,7 @@
   \end{definition}
 
   \begin{example}[Bank Schedule]
+    \label{ex:bank-schedule}
     For the bank example above, we can construct a serial schedule $S_1$. 
     \begin{lstlisting}
       T1: R(A) W(A) R(B) W(B) C(T1)
@@ -78,6 +84,7 @@
   These properties are a subset of the general ones described here. In the next sections, we will go over implementing features that ensure each of these properties. 
 
   \begin{definition}[ACID]
+    \label{def:acid}
     These properties are a subset of the \textbf{ACID} properties.
     \begin{enumerate}
       \item \textit{Atomicity}. A user can think of a transaction as always executing all actions in one stop or not executing any at all. In an abort, this can be undone by storing recovery logs and going through the history to undo. 
@@ -95,6 +102,7 @@
   Okay, so we've seen in the bank schedule example that serial schedules are trivial to construct and ideally we want to construct serializable schedules. How do we detect them? Well it turns out checking for serializability is NP-complete, so we must resort to something called \textit{conflict-serializability}, which is a stronger condition but can be solved in polynomial time. Conflict-serializability assures the absence of \textit{conflicts}, which are certain properties of schedules that result in a corrupt schedule.   
 
   \begin{definition}[Conflict]
+    \label{def:conflict}
     When we interweave actions, \textbf{conflicts} cause schedules to be not equivalent to the serial schedule. There are 3 types of conflicts. 
     \begin{enumerate}
       \item Write-Read (WR): $T_1$ writes $A$ and then $T_2$ reads $A$ before $T_1$ commits. This causes reading uncommitted (dirty) data. 
@@ -108,6 +116,7 @@
   We can make a \textit{precedence graph}. 
 
   \begin{definition}[Precedence Graph]
+    \label{def:precedence-graph}
     A \textbf{precedence graph} contains 
     \begin{enumerate}
       \item a node for each transaction 
@@ -116,11 +125,12 @@
   \end{definition} 
 
   \begin{example}[Precedence Graph]
+    \label{ex:precedence-graph}
     Consider the following schedule between 2 transactions. 
     \begin{lstlisting}
       R1(A) R2(A) W1(A) C1 C2
     \end{lstlisting}
-    Then, our precedence graph $G(V, E)$ is defined $V = \{T_1, T_2\}$ and $E = \{(T_2, T1)\}$ since there is a RW conflict. Now consider the following. 
+    Then, our \hyperref[def:precedence-graph]{precedence graph} $G(V, E)$ is defined $V = \{T_1, T_2\}$ and $E = \{(T_2, T1)\}$ since there is a RW conflict. Now consider the following. 
     \begin{lstlisting}
       R1(A) R2(A) W1(A) W2(A) C1 C2
     \end{lstlisting}
@@ -128,10 +138,12 @@
   \end{example}
 
   \begin{theorem}[Conflict-Serializability]
-    A schedule is \textbf{conflict-serializable} (which implies serizability) if its precedence graph is acyclic. 
+    \label{thm:conflict-serializability}
+    A schedule is \textbf{conflict-serializable} (which implies serizability) if its \hyperref[def:precedence-graph]{precedence graph} is acyclic. 
   \end{theorem} 
 
   \begin{example}[Not Serializable]
+    \label{ex:not-serializable}
     The following schedule is not conflict serializable since $T_1 \mapsto T_2$ from the transactions on $A$ and $T_2 \mapsto T_1$ from the transactions on $B$. 
     \begin{lstlisting}
       T1: R(A) W(A)                     R(B) W(B)
@@ -142,10 +154,12 @@
   We established a method to check if a certain schedule $S_1$ is conflict-serializable. Given two serial schedules $S_1, S_2$, we can check if they are equivalent serial schedules as well. 
 
   \begin{theorem}[Equivalent Serial Schedules]
-    Given 2 serial schedules $S_1, S_2$, let $G_1, G_2$ be their precedence graphs. If $G_1$ and $G_2$ have a common existing topological ordering, then $S_1 \equiv S_2$. 
+    \label{thm:equivalent-serial-schedules}
+    Given 2 serial schedules $S_1, S_2$, let $G_1, G_2$ be their \hyperref[def:precedence-graph]{precedence graphs}. If $G_1$ and $G_2$ have a common existing topological ordering, then $S_1 \equiv S_2$. 
   \end{theorem} 
 
   \begin{theorem}[Swapping Non-Conflicting Actions Doesn't Change Precedence Graph]
+    \label{thm:swapping-non-conflicting-actions-doesnt-change}
     You can also swap adjacent non-conflicting actions to reach an equivalent serial schedule. 
 
     \begin{figure}[H]
@@ -164,13 +178,14 @@
       \item avoiding cascading rollbacks 
       \item recoverability
     \end{enumerate}
-    While looking at precedence graphs allow us to compare already existing schedules, it does not give us instructions to \textit{create} one. We can do this using locks. 
+    While looking at \hyperref[def:precedence-graph]{precedence graphs} allow us to compare already existing schedules, it does not give us instructions to \textit{create} one. We can do this using locks. 
 
   \subsubsection{Locks}
 
     Let's introduce locks in the basic sense. 
 
     \begin{definition}[Locks]
+      \label{def:locks}
       The rules for \textbf{locks} are as follows: 
       \begin{enumerate}
         \item If a transaction wants to read an object, it must request a \textbf{shared lock} (S mode) on that object. 
@@ -180,6 +195,7 @@
     \end{definition}
 
     \begin{example}[Basic Locking]
+      \label{ex:basic-locking}
       An implementation of basic locking is shown below. 
       \begin{lstlisting}
         T1: X(A) R(A) W(A) U(A)                                         X(B) R(B) W(B) U(B) 
@@ -190,10 +206,12 @@
     However, notice that basic locking does not really enforce conflict-serializability. Naive locks still allow for this non-serializable schedule to occur. Therefore, we can do two-phase locking. 
 
     \begin{definition}[Two-Phase Locking (2PL)]
+      \label{def:two-phase-locking-2pl}
       The basic rule is that \textit{for each individual transaction}, all lock requests precede all unlock requests. Therefore, every transaction is divided into a phase of obtaining locks and releasing locks.   
     \end{definition}
 
     \begin{example}[2PL]
+      \label{ex:2pl}
       Look at this previous schedule. 
       \begin{lstlisting}
         T1: R(A) W(A)                     R(B) W(B)
@@ -224,6 +242,7 @@
     2PL is great, but we still have to look at the remaining two desired properties. Let's show why it doesn't satisfy them. 
 
     \begin{example}[Cascading Rollback and Irrecoverability in 2PL]
+      \label{ex:cascading-rollback-and-irrecoverability-in-2pl}
       Consider the following problems with 2PL.  
       \begin{enumerate}
         \item Say that T1 is reading $A$ and adds 5 to it to write. Then T2 will read $A=10$ and double it for write. If T1 decides to abort before writing, it should look like T1 had never happened, so T2 should have been reading $A=5$. This is problematic, and the only way to deal with this is to abort T2 as well. If there are other transactions, this is called a \textbf{cascading rollback}. 
@@ -248,10 +267,12 @@
     By enforcing even stricter conditions, we can get this as well. 
 
     \begin{definition}[Strict 2PL]
+      \label{def:strict-2pl}
       \textbf{Strict 2PL} only releases locks at commit/abort time. A writer will block all other readers until the writer commits or aborts.
     \end{definition}
 
     \begin{example}[2PL vs Strict 2PL]
+      \label{ex:2pl-vs-strict-2pl}
       Consider the following schedule. 
       \begin{lstlisting}
         T1: X(A) W(A) U(A)                C
@@ -259,7 +280,7 @@
       \end{lstlisting}
       \begin{enumerate}
         \item 2PL allows this schedule since for each transaction, all unlocks come after all locks. 
-        \item Strict 2PL does not allow this schedule since it asserts that you must commit before unlocking (and having other transactions use the lock). 
+        \item \hyperref[def:strict-2pl]{Strict 2PL} does not allow this schedule since it asserts that you must commit before unlocking (and having other transactions use the lock). 
       \end{enumerate} 
       With strict 2PL, you must use this schedule, which requires the commits to be before the transaction. 
       \begin{lstlisting}
@@ -450,6 +471,7 @@
     \end{enumerate} 
 
     \begin{example}[No Steal and Force]
+      \label{ex:no-steal-and-force}
       A naive approach to these two risks are as such.  
       \begin{enumerate}
         \item \textit{No steal}. Writes of a transaction can only be flushed to disk at commit time. With steal, if the system crashes before $T$ commits but after some writes of $T$ have been flushed to disk, there is no way to undo these writes. 
@@ -462,6 +484,7 @@
     Just as we enforced isolation and concurrency control with locking, we can kill two birds with one stone here with \textit{logging}. 
 
     \begin{definition}[Log]
+      \label{def:log}
       A \textbf{log} is a sequence of \textbf{records} that records all changes made to the database.\footnote{This is stored in a special data structure called \textit{aries}, developed at IBM.} There are 3 types of logs.
       \begin{enumerate}
         \item \texttt{Start}: When a transaction starts, we log 
@@ -484,6 +507,7 @@
     At first glance, logging may sound like a bad idea. Since every time we do a transaction, we don't do 1 IO but 2, so this may hurt our performance. However, log writing is really sequential since we're appending to the end of a log only, so we can use dedicated disks with fast append operations to minimize this performance impact. 
 
     \begin{theorem}[No Force and Seal of Logging]
+      \label{thm:no-force-and-seal-of-logging}
       Counterintuitively, logging applies no force and steal (as opposed to no steal and force in our naive approach). 
       \begin{enumerate}
         \item \textit{Steal}. Modified memory blocks can be flushed to disk anytime. This is fine since undo information is logged due to WAL. 
@@ -492,6 +516,7 @@
     \end{theorem} 
 
     \begin{example}[Bank Transfer]
+      \label{ex:bank-transfer}
       Say that we have two elements/tuples $A = 800, B = 400$ on disk. The schedule is just one transaction that will look something like this. Let $D, L, M$ refer to our main disk, log disk, and memory. 
       \begin{enumerate}
         \item We log that $T$ has started. 
@@ -658,6 +683,7 @@
     We've seen the advantages of log files, but they can get quite long very fast. If a system crashes and we must recover our operations, it may not be ideal to start the recovery from the beginning of a schedule. Rather, we want to use \textit{checkpointing}. Let's go through a naive approach. 
 
     \begin{definition}[Naive Checkpointing]
+      \label{def:naive-checkpointing}
        To checkpoint, 
        \begin{enumerate}
          \item we stop accepting new transactions 
@@ -670,6 +696,7 @@
     We can already see a few problems with this approach, especially the performance impact on not accepting new transactions. Therefore, we use a more sophisticated approach. 
 
     \begin{definition}[Fuzzy Checkpointing]
+      \label{def:fuzzy-checkpointing}
       To place a fuzzy checkpoint, we do the following. 
       \begin{enumerate}
         \item We determine $S$, the set (ids of) currently active transactions. 
@@ -687,6 +714,7 @@
     \end{definition} 
 
     \begin{example}[Crash After T2]
+      \label{ex:crash-after-t2}
       Consider the logs below. The left log shows the full log, and the right log shows a log up until a system crash right before committing transaction T3. 
       
       \noindent\begin{minipage}{.5\textwidth}
@@ -752,6 +780,7 @@
     \end{example}
 
     \begin{example}[Crash After T2 and T3]
+      \label{ex:crash-after-t2-and-t3}
       Say that our crash happens after committing T3. 
 
       \begin{lstlisting}
@@ -773,6 +802,7 @@
     \end{example}
 
     \begin{example}[Crash After T3]
+      \label{ex:crash-after-t3}
       Consider when we commit T3 and then it crashes before committing T2. 
       \begin{lstlisting}
         <START T1>
@@ -798,6 +828,7 @@
     \end{example}
 
     \begin{example}[Crash Before T2 and T3]
+      \label{ex:crash-before-t2-and-t3}
       Now we consider when we have a crash before both commits. 
       \begin{lstlisting}
         <START T1>
