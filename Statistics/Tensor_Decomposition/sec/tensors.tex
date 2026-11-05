@@ -27,96 +27,82 @@
     For instance, $x_{111} = 1$, $x_{231} = 8$, and $x_{342} = 24$. We will use this as our running example.
   \end{example}
 
-\subsection{Rank-One Tensors and Tensor Rank}
+  We will often work with tensors that have some extra structure in their indices, so let's define them now. The first requirement is that all of the modes have the same size.
 
-  The basic building block of a tensor is the following.
-
-  \begin{definition}[Outer Product]
-    \label{def:outer-product}
-    The \textbf{\hyperref[lin-def:outer-product]{outer product}} of vectors $a^{(1)} \in \mathbb{R}^{I_1}, \ldots, a^{(N)} \in \mathbb{R}^{I_N}$ is the $N$-way tensor $a^{(1)} \circ a^{(2)} \circ \cdots \circ a^{(N)} \in \mathbb{R}^{I_1 \times \cdots \times I_N}$ with entries
-    \begin{equation}
-      \big( a^{(1)} \circ a^{(2)} \circ \cdots \circ a^{(N)} \big)_{i_1 i_2 \cdots i_N} = a^{(1)}_{i_1} a^{(2)}_{i_2} \cdots a^{(N)}_{i_N}
-    \end{equation}
-    A tensor that can be written this way is called \textbf{rank-one}.
+  \begin{definition}[Cubical Tensor]
+    \label{def:cubical-tensor}
+    A tensor $\mathcal{X} \in \mathbb{R}^{I_1 \times \cdots \times I_N}$ is \textbf{cubical} if every mode has the same size, i.e. $\mathcal{X} \in \mathbb{R}^{I \times I \times \cdots \times I}$.
   \end{definition}
 
-  For $N = 2$, $a \circ b = a b^T$ is the usual \hyperref[def:outer-product]{outer product} of vectors, which is exactly a rank-$1$ matrix. So we are just generalizing what we already know: every matrix of rank $D$ can be written as a sum of $D$ rank-one matrices, and the rank is the smallest such $D$. We take this to be the definition for tensors.
+  Now we can say what it means for the entries to be symmetric. In general we only ask for this in some of the modes, which is only possible if those modes have the same size.
 
-  \begin{definition}[Tensor Rank]
-    \label{def:tensor-rank}
-    The \textbf{rank} of a tensor $\mathcal{X}$, denoted $\mathrm{rank}(\mathcal{X})$, is the smallest $D$ such that $\mathcal{X}$ can be written as a sum of $D$ rank-one tensors,
+  \begin{definition}[Symmetric Tensor]
+    \label{def:symmetric-tensor}
+    A tensor $\mathcal{X}$ is \textbf{symmetric} in a set of modes if its entries are invariant under any permutation of the indices in those modes. For example, $\mathcal{X} \in \mathbb{R}^{I \times I \times K}$ is symmetric in modes one and two if all of its frontal slices are symmetric,
     \begin{equation}
-      \mathrm{rank}(\mathcal{X}) \coloneqq \min \bigg\{ D : \mathcal{X} = \sum_{d=1}^D a^{(1)}_d \circ a^{(2)}_d \circ \cdots \circ a^{(N)}_d \bigg\}
+      X_k = X_k^T, \quad k = 1, \ldots, K
     \end{equation}
   \end{definition}
 
-  This looks like a perfect analogue of matrix rank, but the two behave very differently. For a matrix, we can compute the rank with Gaussian elimination or the SVD in polynomial time. For tensors, \textit{there is no straightforward algorithm to determine the rank of a given tensor}; in fact, the problem is NP-hard. As a sign of how bad it is, there is a particular $9 \times 9 \times 9$ tensor whose rank is only known to lie between $18$ and $23$. In practice, the rank is determined numerically by trying to fit rank-$D$ models for various $D$. Some other differences are the following.
+  If it is symmetric in every mode, then we have the following.
 
-  \begin{enumerate}
-    \item \textit{Rank depends on the field.} The rank of a real tensor can be different over $\mathbb{R}$ and $\mathbb{C}$, whereas for matrices it cannot.
-
-    \begin{example}[Rank Over $\mathbb{R}$ vs. $\mathbb{C}$]
-      \label{ex:rank-over-r-vs-c}
-      Let $\mathcal{X} \in \mathbb{R}^{2 \times 2 \times 2}$ have frontal slices
-      \begin{equation}
-        X_1 = \begin{bmatrix} 1 & 0 \\ 0 & 1 \end{bmatrix}, \qquad X_2 = \begin{bmatrix} 0 & 1 \\ -1 & 0 \end{bmatrix}
-      \end{equation}
-      Then $\mathcal{X}$ has rank $3$ over $\mathbb{R}$ and rank $2$ over $\mathbb{C}$. Writing $\mathcal{X} = \sum_{d} a_d \circ b_d \circ c_d$ and stacking the vectors into the columns of factor matrices $A, B, C$, a rank decomposition over $\mathbb{R}$ is
-      \begin{equation}
-        A = \begin{bmatrix} 1 & 0 & 1 \\ 0 & 1 & -1 \end{bmatrix}, \quad
-        B = \begin{bmatrix} 1 & 0 & 1 \\ 0 & 1 & 1 \end{bmatrix}, \quad
-        C = \begin{bmatrix} 1 & 1 & 0 \\ -1 & 1 & 1 \end{bmatrix}
-      \end{equation}
-      whereas over $\mathbb{C}$ we can do it with only two components,
-      \begin{equation}
-        A = \frac{1}{\sqrt{2}} \begin{bmatrix} 1 & 1 \\ -i & i \end{bmatrix}, \quad
-        B = \frac{1}{\sqrt{2}} \begin{bmatrix} 1 & 1 \\ i & -i \end{bmatrix}, \quad
-        C = \begin{bmatrix} 1 & 1 \\ -i & i \end{bmatrix}
-      \end{equation}
-      The proof that the real rank is not $2$ is more involved (this example is due to Kruskal), and we omit it.
-    \end{example}
-
-    \item \textit{Maximum rank is not typical rank.} The \textbf{maximum rank} is the largest rank attainable, while a \textbf{typical rank} is any rank that occurs with positive probability (i.e. on a set of positive \hyperref[mt-def:lebesgue-measure]{Lebesgue measure}). For $I \times J$ matrices, both are equal to $\min\{I, J\}$. For tensors they can differ, and moreover over $\mathbb{R}$ there can be more than one typical rank (over $\mathbb{C}$ there is always exactly one).
-
-    \begin{example}[Typical Ranks of $2 \times 2 \times 2$ Tensors]
-      \label{ex:typical-ranks-of-2times2times2-tensors}
-      If we draw every entry of a $2 \times 2 \times 2$ tensor iid from a standard normal, then Monte Carlo experiments show that about $79\%$ of them have rank $2$ and about $21\%$ have rank $3$. So both $2$ and $3$ are typical ranks over $\mathbb{R}$. Rank-one tensors are possible, but occur with probability zero.
-    \end{example}
-
-    \item \textit{Weak upper bounds.} For a general $\mathcal{X} \in \mathbb{R}^{I \times J \times K}$, the only known bound on the maximum rank is the weak one
+  \begin{definition}[Supersymmetric Tensor]
+    \label{def:supersymmetric-tensor}
+    A cubical tensor is \textbf{supersymmetric}\footnote{Some authors prefer to just call this symmetric.} if its entries are invariant under any permutation of the indices. For example, $\mathcal{X} \in \mathbb{R}^{I \times I \times I}$ is supersymmetric if
     \begin{equation}
-      \mathrm{rank}(\mathcal{X}) \leq \min\{IJ, IK, JK\}
+      x_{ijk} = x_{ikj} = x_{jik} = x_{jki} = x_{kij} = x_{kji}, \quad \forall i, j, k
     \end{equation}
-    compared to the matrix case where it is simply $\min\{I, J\}$.
-  \end{enumerate}
+  \end{definition}
 
-  Another important difference, which concerns the uniqueness of the decomposition, will be discussed after we introduce the CP decomposition.
-
-\subsection{Structured Tensors}
-
-  \begin{definition}[Cubical, Symmetric, Supersymmetric, Diagonal Tensors]
-    \label{def:cubical-symmetric-supersymmetric-diagonal}
-    Let $\mathcal{X} \in \mathbb{R}^{I_1 \times \cdots \times I_N}$.
-    \begin{enumerate}
-      \item $\mathcal{X}$ is \textbf{cubical} if every mode has the same size, i.e. $\mathcal{X} \in \mathbb{R}^{I \times I \times \cdots \times I}$.
-
-      \item A cubical tensor is \textbf{supersymmetric}\footnote{Some authors prefer to just call this symmetric.} if its entries are invariant under any permutation of the indices. For example, $\mathcal{X} \in \mathbb{R}^{I \times I \times I}$ is supersymmetric if
-      \begin{equation}
-        x_{ijk} = x_{ikj} = x_{jik} = x_{jki} = x_{kij} = x_{kji}, \quad \forall i, j, k
-      \end{equation}
-
-      \item $\mathcal{X}$ can also be \textbf{symmetric} in just some of its modes, which requires those modes to have the same size. For example, $\mathcal{X} \in \mathbb{R}^{I \times I \times K}$ is symmetric in modes one and two if all of its frontal slices are symmetric,
-      \begin{equation}
-        X_k = X_k^T, \quad k = 1, \ldots, K
-      \end{equation}
-
-      \item $\mathcal{X}$ is \textbf{diagonal} if $x_{i_1 i_2 \cdots i_N} \neq 0$ only if $i_1 = i_2 = \cdots = i_N$.
-    \end{enumerate}
+  \begin{definition}[Diagonal Tensor]
+    \label{def:diagonal-tensor}
+    A tensor $\mathcal{X} \in \mathbb{R}^{I_1 \times \cdots \times I_N}$ is \textbf{diagonal} if $x_{i_1 i_2 \cdots i_N} \neq 0$ only if $i_1 = i_2 = \cdots = i_N$.
   \end{definition}
 
   The entries $x_{ii \cdots i}$ of a cubical tensor make up its \textbf{superdiagonal}. An example is the cubical tensor with ones along the superdiagonal, which is diagonal and supersymmetric. For $N = 2$, these are the usual symmetric and diagonal matrices. Supersymmetric tensors are in bijection with homogeneous polynomials, much like \hyperref[lin-def:symmetric-matrices]{symmetric matrices} are in bijection with quadratic forms.
 
+  Now we want to multiply tensors. There are many ways of doing this, but we will only consider multiplying a tensor by a matrix (or vector) along a single mode.
+
+  \begin{definition}[$n$-Mode Product]
+    \label{def:n-mode-product}
+    Let $\mathcal{X} \in \mathbb{R}^{I_1 \times \cdots \times I_N}$.
+    \begin{enumerate}
+      \item The \textbf{$n$-mode (matrix) product} of $\mathcal{X}$ with a matrix $U \in \mathbb{R}^{J \times I_n}$ is the tensor $\mathcal{X} \times_n U \in \mathbb{R}^{I_1 \times \cdots \times I_{n-1} \times J \times I_{n+1} \times \cdots \times I_N}$ with entries
+      \begin{equation}
+        (\mathcal{X} \times_n U)_{i_1 \cdots i_{n-1} \, j \, i_{n+1} \cdots i_N} = \sum_{i_n = 1}^{I_n} x_{i_1 i_2 \cdots i_N} \, u_{j i_n}
+      \end{equation}
+
+      \item The \textbf{$n$-mode (vector) product} of $\mathcal{X}$ with a vector $v \in \mathbb{R}^{I_n}$ is the tensor $\mathcal{X} \,\bar{\times}_n\, v \in \mathbb{R}^{I_1 \times \cdots \times I_{n-1} \times I_{n+1} \times \cdots \times I_N}$ of order $N - 1$ with entries
+      \begin{equation}
+        (\mathcal{X} \,\bar{\times}_n\, v)_{i_1 \cdots i_{n-1} \, i_{n+1} \cdots i_N} = \sum_{i_n = 1}^{I_n} x_{i_1 i_2 \cdots i_N} \, v_{i_n}
+      \end{equation}
+    \end{enumerate}
+  \end{definition}
+
+  In the matrix case, each mode-$n$ fiber of $\mathcal{X}$ gets multiplied by $U$, and in the vector case, we take the \hyperref[lin-def:inner-product]{inner product} of each mode-$n$ fiber with $v$. When $\mathcal{X}$ defines a multilinear operator, the $n$-mode product is just a change of basis in mode $n$.
+
+  Now, is this something we've already seen? Yes. Since we are not distinguishing between $\mathbb{R}^n$ and its dual, summing over a pair of shared indices is exactly a \textbf{tensor contraction}. The $n$-mode product $\mathcal{X} \times_n U$ is the contraction of $\mathcal{X}$ and $U$ along the index $i_n$ of $\mathcal{X}$ and the column index of $U$, followed by moving the leftover row index $j$ of $U$ into position $n$. Similarly, $\mathcal{X} \,\bar{\times}_n\, v$ is the contraction of $\mathcal{X}$ with $v$ along mode $n$, which is why the order drops by one.
+
+  \begin{example}[Mode Products of the Running Tensor]
+    \label{ex:mode-products-of-the-running-tensor}
+    Let $\mathcal{X}$ be as in Example \ref{ex:running}.
+    \begin{enumerate}
+      \item Let $U = \begin{bmatrix} 1 & 3 & 5 \\ 2 & 4 & 6 \end{bmatrix}$. Then $\mathcal{Y} = \mathcal{X} \times_1 U \in \mathbb{R}^{2 \times 4 \times 2}$ has frontal slices $Y_k = U X_k$,
+      \begin{equation}
+        Y_1 = \begin{bmatrix} 22 & 49 & 76 & 103 \\ 28 & 64 & 100 & 136 \end{bmatrix}, \qquad
+        Y_2 = \begin{bmatrix} 130 & 157 & 184 & 211 \\ 172 & 208 & 244 & 280 \end{bmatrix}
+      \end{equation}
+
+      \item Let $v = (1, 2, 3, 4)^T$. Then
+      \begin{equation}
+        \mathcal{X} \,\bar{\times}_2\, v = \begin{bmatrix} 70 & 190 \\ 80 & 200 \\ 90 & 210 \end{bmatrix} \in \mathbb{R}^{3 \times 2}
+      \end{equation}
+      For instance, the top-left entry is $\langle x_{1:1}, v \rangle = 1 + 8 + 21 + 40 = 70$.
+    \end{enumerate}
+  \end{example}
+
 \subsection{Matricization}
+
 
   It is often useful to turn a tensor into a matrix so that we can use the linear algebra that we already know. This process is called \textbf{matricization}, \textbf{unfolding}, or \textbf{flattening}. In general, this can be any reordering of the entries of an $N$-way array into a matrix (e.g. a $2 \times 3 \times 4$ tensor can be arranged as a $6 \times 4$ or a $3 \times 8$ matrix), but we will only need a special case.
 
@@ -145,55 +131,13 @@
 
   Different papers order the columns differently, but the specific permutation of the columns is not important as long as we are consistent. Similarly, we can \textbf{vectorize} a tensor into $\mathrm{vec}(\mathcal{X}) \in \mathbb{R}^{I_1 \cdots I_N}$, and in the example above $\mathrm{vec}(\mathcal{X}) = (1, 2, \ldots, 24)^T$.
 
-\subsection{The $n$-Mode Product}
-
-  Now we want to multiply tensors. There are many ways of doing this, but we will only consider multiplying a tensor by a matrix (or vector) along a single mode.
-
-  \begin{definition}[$n$-Mode Product]
-    \label{def:n-mode-product}
-    Let $\mathcal{X} \in \mathbb{R}^{I_1 \times \cdots \times I_N}$.
-    \begin{enumerate}
-      \item The \textbf{$n$-mode (matrix) product} of $\mathcal{X}$ with a matrix $U \in \mathbb{R}^{J \times I_n}$ is the tensor $\mathcal{X} \times_n U \in \mathbb{R}^{I_1 \times \cdots \times I_{n-1} \times J \times I_{n+1} \times \cdots \times I_N}$ with entries
-      \begin{equation}
-        (\mathcal{X} \times_n U)_{i_1 \cdots i_{n-1} \, j \, i_{n+1} \cdots i_N} = \sum_{i_n = 1}^{I_n} x_{i_1 i_2 \cdots i_N} \, u_{j i_n}
-      \end{equation}
-
-      \item The \textbf{$n$-mode (vector) product} of $\mathcal{X}$ with a vector $v \in \mathbb{R}^{I_n}$ is the tensor $\mathcal{X} \,\bar{\times}_n\, v \in \mathbb{R}^{I_1 \times \cdots \times I_{n-1} \times I_{n+1} \times \cdots \times I_N}$ of order $N - 1$ with entries
-      \begin{equation}
-        (\mathcal{X} \,\bar{\times}_n\, v)_{i_1 \cdots i_{n-1} \, i_{n+1} \cdots i_N} = \sum_{i_n = 1}^{I_n} x_{i_1 i_2 \cdots i_N} \, v_{i_n}
-      \end{equation}
-    \end{enumerate}
-  \end{definition}
-
-  In the matrix case, each mode-$n$ fiber of $\mathcal{X}$ gets multiplied by $U$, and in the vector case, we take the \hyperref[lin-def:inner-product]{inner product} of each mode-$n$ fiber with $v$. In terms of unfoldings, this means that
+  The $n$-mode product has a particularly nice description in terms of unfoldings. Each mode-$n$ fiber gets multiplied by $U$, which is exactly what left multiplication does to the columns of $X_{(n)}$, so
   \begin{equation}
     \mathcal{Y} = \mathcal{X} \times_n U \iff Y_{(n)} = U X_{(n)}
   \end{equation}
-  When $\mathcal{X}$ defines a multilinear operator, the $n$-mode product is just a change of basis in mode $n$.
+  Unfoldings are how we reduce statements about tensors to statements about matrices, and for this we need to know how several matrix products interact with them.
 
-  Now, is this something we've already seen? Yes. Since we are not distinguishing between $\mathbb{R}^n$ and its dual, summing over a pair of shared indices is exactly a \textbf{tensor contraction}. The $n$-mode product $\mathcal{X} \times_n U$ is the contraction of $\mathcal{X}$ and $U$ along the index $i_n$ of $\mathcal{X}$ and the column index of $U$, followed by moving the leftover row index $j$ of $U$ into position $n$. Similarly, $\mathcal{X} \,\bar{\times}_n\, v$ is the contraction of $\mathcal{X}$ with $v$ along mode $n$, which is why the order drops by one.
-
-  \begin{example}[Mode Products of the Running Tensor]
-    \label{ex:mode-products-of-the-running-tensor}
-    Let $\mathcal{X}$ be as in Example \ref{ex:running}.
-    \begin{enumerate}
-      \item Let $U = \begin{bmatrix} 1 & 3 & 5 \\ 2 & 4 & 6 \end{bmatrix}$. Then $\mathcal{Y} = \mathcal{X} \times_1 U \in \mathbb{R}^{2 \times 4 \times 2}$ has frontal slices $Y_k = U X_k$,
-      \begin{equation}
-        Y_1 = \begin{bmatrix} 22 & 49 & 76 & 103 \\ 28 & 64 & 100 & 136 \end{bmatrix}, \qquad
-        Y_2 = \begin{bmatrix} 130 & 157 & 184 & 211 \\ 172 & 208 & 244 & 280 \end{bmatrix}
-      \end{equation}
-
-      \item Let $v = (1, 2, 3, 4)^T$. Then
-      \begin{equation}
-        \mathcal{X} \,\bar{\times}_2\, v = \begin{bmatrix} 70 & 190 \\ 80 & 200 \\ 90 & 210 \end{bmatrix} \in \mathbb{R}^{3 \times 2}
-      \end{equation}
-      For instance, the top-left entry is $\langle x_{1:1}, v \rangle = 1 + 8 + 21 + 40 = 70$.
-    \end{enumerate}
-  \end{example}
-
-\subsection{Matrix Products}
-
-  Several matrix products show up when relating tensors to their unfoldings, so let's define them.
+  Several matrix products show up when relating tensors to their unfoldings, so let us define them.
 
   \begin{definition}[Kronecker, Khatri-Rao, Hadamard Products]
     \label{def:kronecker-khatri-rao-hadamard-products}
@@ -258,6 +202,73 @@
   \begin{proof}
     The Kronecker and Khatri-Rao identities are direct computations. For (3) and (4), note that by the unfolding relation $Y_{(n)} = U X_{(n)}$, multiplying by $A$ and then $B$ in mode $n$ gives $B (A X_{(n)}) = (BA) X_{(n)}$, which is (4). Distinct modes act on different indices, so the sums can be exchanged, which is (3). The proof of (6) can be found in Kolda's paper on multilinear operators; TBD.
   \end{proof}
+
+\subsection{Tensor Rank}
+
+  The basic building block of a tensor is the following.
+
+  \begin{definition}[Outer Product]
+    \label{def:outer-product}
+    The \textbf{\hyperref[lin-def:outer-product]{outer product}} of vectors $a^{(1)} \in \mathbb{R}^{I_1}, \ldots, a^{(N)} \in \mathbb{R}^{I_N}$ is the $N$-way tensor $a^{(1)} \circ a^{(2)} \circ \cdots \circ a^{(N)} \in \mathbb{R}^{I_1 \times \cdots \times I_N}$ with entries
+    \begin{equation}
+      \big( a^{(1)} \circ a^{(2)} \circ \cdots \circ a^{(N)} \big)_{i_1 i_2 \cdots i_N} = a^{(1)}_{i_1} a^{(2)}_{i_2} \cdots a^{(N)}_{i_N}
+    \end{equation}
+    A tensor that can be written this way is called \textbf{rank-one}.
+  \end{definition}
+
+  For $N = 2$, $a \circ b = a b^T$ is the usual \hyperref[def:outer-product]{outer product} of vectors, which is exactly a rank-$1$ matrix. So we are just generalizing what we already know: every matrix of rank $D$ can be written as a sum of $D$ rank-one matrices, and the rank is the smallest such $D$. We take this to be the definition for tensors.
+
+  \begin{definition}[Tensor Rank]
+    \label{def:tensor-rank}
+    The \textbf{rank} of a tensor $\mathcal{X}$, denoted $\mathrm{rank}(\mathcal{X})$, is the smallest $D$ such that $\mathcal{X}$ can be written as a sum of $D$ rank-one tensors,
+    \begin{equation}
+      \mathrm{rank}(\mathcal{X}) \coloneqq \min \bigg\{ D : \mathcal{X} = \sum_{d=1}^D a^{(1)}_d \circ a^{(2)}_d \circ \cdots \circ a^{(N)}_d \bigg\}
+    \end{equation}
+  \end{definition}
+
+  This looks like a perfect analogue of matrix rank, but the two behave very differently. For a matrix, we can compute the rank with Gaussian elimination or the SVD in polynomial time. For tensors, \textit{there is no straightforward algorithm to determine the rank of a given tensor}; in fact, the problem is NP-hard. As a sign of how bad it is, there is a particular $9 \times 9 \times 9$ tensor whose rank is only known to lie between $18$ and $23$. In practice, the rank is determined numerically by trying to fit rank-$D$ models for various $D$. Some other differences are the following.
+
+  \begin{enumerate}
+    \item \textit{Rank depends on the field.} The rank of a real tensor can be different over $\mathbb{R}$ and $\mathbb{C}$, whereas for matrices it cannot.
+
+    \begin{example}[Rank Over $\mathbb{R}$ vs. $\mathbb{C}$]
+      \label{ex:rank-over-r-vs-c}
+      Let $\mathcal{X} \in \mathbb{R}^{2 \times 2 \times 2}$ have frontal slices
+      \begin{equation}
+        X_1 = \begin{bmatrix} 1 & 0 \\ 0 & 1 \end{bmatrix}, \qquad X_2 = \begin{bmatrix} 0 & 1 \\ -1 & 0 \end{bmatrix}
+      \end{equation}
+      Then $\mathcal{X}$ has rank $3$ over $\mathbb{R}$ and rank $2$ over $\mathbb{C}$. Writing $\mathcal{X} = \sum_{d} a_d \circ b_d \circ c_d$ and stacking the vectors into the columns of factor matrices $A, B, C$, a rank decomposition over $\mathbb{R}$ is
+      \begin{equation}
+        A = \begin{bmatrix} 1 & 0 & 1 \\ 0 & 1 & -1 \end{bmatrix}, \quad
+        B = \begin{bmatrix} 1 & 0 & 1 \\ 0 & 1 & 1 \end{bmatrix}, \quad
+        C = \begin{bmatrix} 1 & 1 & 0 \\ -1 & 1 & 1 \end{bmatrix}
+      \end{equation}
+      whereas over $\mathbb{C}$ we can do it with only two components,
+      \begin{equation}
+        A = \frac{1}{\sqrt{2}} \begin{bmatrix} 1 & 1 \\ -i & i \end{bmatrix}, \quad
+        B = \frac{1}{\sqrt{2}} \begin{bmatrix} 1 & 1 \\ i & -i \end{bmatrix}, \quad
+        C = \begin{bmatrix} 1 & 1 \\ -i & i \end{bmatrix}
+      \end{equation}
+      The proof that the real rank is not $2$ is more involved (this example is due to Kruskal), and we omit it.
+    \end{example}
+
+    \item \textit{Maximum rank is not typical rank.} The \textbf{maximum rank} is the largest rank attainable, while a \textbf{typical rank} is any rank that occurs with positive probability (i.e. on a set of positive \hyperref[mt-def:lebesgue-measure]{Lebesgue measure}). For $I \times J$ matrices, both are equal to $\min\{I, J\}$. For tensors they can differ, and moreover over $\mathbb{R}$ there can be more than one typical rank (over $\mathbb{C}$ there is always exactly one).
+
+    \begin{example}[Typical Ranks of $2 \times 2 \times 2$ Tensors]
+      \label{ex:typical-ranks-of-2times2times2-tensors}
+      If we draw every entry of a $2 \times 2 \times 2$ tensor iid from a standard normal, then Monte Carlo experiments show that about $79\%$ of them have rank $2$ and about $21\%$ have rank $3$. So both $2$ and $3$ are typical ranks over $\mathbb{R}$. Rank-one tensors are possible, but occur with probability zero.
+    \end{example}
+
+    \item \textit{Weak upper bounds.} For a general $\mathcal{X} \in \mathbb{R}^{I \times J \times K}$, the only known bound on the maximum rank is the weak one
+    \begin{equation}
+      \mathrm{rank}(\mathcal{X}) \leq \min\{IJ, IK, JK\}
+    \end{equation}
+    compared to the matrix case where it is simply $\min\{I, J\}$.
+  \end{enumerate}
+
+  Another important difference, which concerns the uniqueness of the decomposition, will be discussed when we introduce the CP decomposition.
+
+\section{Decompositions}
 
 \subsection{CP Decomposition}
 

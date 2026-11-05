@@ -1,0 +1,483 @@
+\section{Rank of a Given Tensor}
+
+  % notation used only in this file
+  \providecommand{\llbracket}{[\![}
+  \providecommand{\rrbracket}{]\!]}
+  \providecommand{\brank}{\underline{\mathrm{rank}}}
+
+  We have seen that, unlike matrices, there is no straightforward algorithm for computing $\mathrm{rank}(\mathcal{X})$. Before talking about methods, let's see what it takes to find the rank of one small tensor by hand.
+
+  \begin{example}[Rank of the Running Tensor]
+    \label{ex:rank-running}
+    Let $\mathcal{X} \in \mathbb{R}^{3 \times 4 \times 2}$ be the tensor from Example \ref{ex:running}, with frontal slices
+    \begin{equation}
+      X_1 = \begin{bmatrix} 1 & 4 & 7 & 10 \\ 2 & 5 & 8 & 11 \\ 3 & 6 & 9 & 12 \end{bmatrix}, \qquad
+      X_2 = \begin{bmatrix} 13 & 16 & 19 & 22 \\ 14 & 17 & 20 & 23 \\ 15 & 18 & 21 & 24 \end{bmatrix}
+    \end{equation}
+    Note that $X_2 = X_1 + 12 \, \mathbf{1}_3 \mathbf{1}_4^T$. The entries of $X_1$ are $x_{ij1} = i + 3(j-1)$, so
+    \begin{equation}
+      X_1 = p \mathbf{1}_4^T + \mathbf{1}_3 q^T = \begin{bmatrix} 1 \\ 2 \\ 3 \end{bmatrix} \begin{bmatrix} 1 & 1 & 1 & 1 \end{bmatrix} + \begin{bmatrix} 1 \\ 1 \\ 1 \end{bmatrix} \begin{bmatrix} 0 & 3 & 6 & 9 \end{bmatrix} = \begin{bmatrix} 1 & 1 & 1 & 1 \\ 2 & 2 & 2 & 2 \\ 3 & 3 & 3 & 3 \end{bmatrix} + \begin{bmatrix} 0 & 3 & 6 & 9 \\ 0 & 3 & 6 & 9 \\ 0 & 3 & 6 & 9 \end{bmatrix}
+    \end{equation}
+    where $p = (1, 2, 3)^T$, $q = (0, 3, 6, 9)^T$, and $\mathbf{1}_n$ is the all-ones vector. Then we have the following bounds. 
+    \begin{enumerate}
+      \item \textit{Upper bound.} Since $X_1$ is the sum of two rank-one matrices, and $X_2 = X_1 + 12 \, \mathbf{1}_3 \mathbf{1}_4^T$ adds one more, we can write
+      \begin{equation}
+        \mathcal{X} = p \circ \mathbf{1}_4 \circ (1, 1) + \mathbf{1}_3 \circ q \circ (1, 1) + 12 \, \mathbf{1}_3 \circ \mathbf{1}_4 \circ (0, 1)
+      \end{equation}
+      so $\mathrm{rank}(\mathcal{X}) \leq 3$.
+
+      \item \textit{Lower bound.} Suppose the rank were $2$, so $\mathcal{X} = a_1 \circ b_1 \circ c_1 + a_2 \circ b_2 \circ c_2$. Then every slice is a combination of the same two rank-one matrices,
+      \begin{equation}
+        X_k = c_{k1} \, a_1 b_1^T + c_{k2} \, a_2 b_2^T, \qquad k = 1, 2
+      \end{equation}
+      Since $X_1, X_2$ are linearly independent, the span of $X_1, X_2$ would then be \textit{exactly} the span of two rank-one matrices, so it would contain at least two non-parallel rank-one matrices. But every matrix in the span of $X_1, X_2$ has the form $u X_1 + v \, \mathbf{1}_3 \mathbf{1}_4^T$, which equals $u \, p \mathbf{1}_4^T + \mathbf{1}_3 (u q + v \mathbf{1}_4)^T$. If $u \neq 0$, this has rank $2$, since $p, \mathbf{1}_3$ are independent and $\mathbf{1}_4, uq + v\mathbf{1}_4$ are independent. So the only rank-one matrices in the span are the multiples of $\mathbf{1}_3 \mathbf{1}_4^T$, a contradiction. Hence $\mathrm{rank}(\mathcal{X}) = 3$.
+    \end{enumerate}
+  \end{example}
+
+  Notice what the lower bound argument did. We never really used the third mode, except through the fact that the slices are combinations of a few rank-one matrices. The argument in the example above is the key idea behind almost every method below. It turns the rank of a $3$-tensor into a statement about a subspace of matrices.
+
+  \begin{lemma}[Slice-Span Characterization]
+    \label{lem:slice-span}
+    Let $\mathcal{X} \in \mathbb{R}^{I \times J \times K}$ with frontal slices $X_1, \ldots, X_K \in \mathbb{R}^{I \times J}$. Then $\mathrm{rank}(\mathcal{X})$ is the smallest $r$ such that there exist $r$ rank-one matrices $M_1, \ldots, M_r \in \mathbb{R}^{I \times J}$ with
+    \begin{equation}
+      \mathrm{span}\{X_1, \ldots, X_K\} \subseteq \mathrm{span}\{M_1, \ldots, M_r\}
+    \end{equation}
+  \end{lemma}
+  \begin{proof}
+    The idea is to look at what a sum of $r$ rank-one tensors does to a single slice. Suppose $\mathcal{X} = \sum_{d=1}^r a_d \circ b_d \circ c_d$, so that $x_{ijk} = \sum_d a_{id} b_{jd} c_{kd}$. Fixing $k$, the $(i,j)$ entry of the $k$th slice is
+    \begin{equation}
+      (X_k)_{ij} = \sum_{d=1}^r c_{kd} \, a_{id} b_{jd} \implies X_k = \sum_{d=1}^r c_{kd} \, a_d b_d^T
+    \end{equation}
+    That is, every slice is a linear combination of the \textit{same} $r$ rank-one matrices $M_d \coloneqq a_d b_d^T$, and the only thing that changes from slice to slice are the coefficients $c_{kd}$, i.e. the $k$th row of the third factor. In particular, all of the slices lie in $\mathrm{span}\{M_1, \ldots, M_r\}$, which shows that the smallest such $r$ is at most the rank. (In the example, the $M_d$ were $p \mathbf{1}_4^T$, $\mathbf{1}_3 q^T$, and $\mathbf{1}_3 \mathbf{1}_4^T$.)
+
+    Conversely, suppose we are given rank-one matrices $M_d = a_d b_d^T$ for $d = 1, \ldots, r$ whose span contains every slice. Then each slice can be written in terms of them, $X_k = \sum_d c_{kd} M_d$, for some coefficients $c_{kd}$. We now just collect these coefficients into vectors $c_d = (c_{1d}, \ldots, c_{Kd})^T \in \mathbb{R}^K$. By the computation above, the tensor $\sum_d a_d \circ b_d \circ c_d$ has the slices $\sum_d c_{kd} a_d b_d^T = X_k$, so it is equal to $\mathcal{X}$. This is a decomposition with $r$ terms, so the rank is at most $r$.
+  \end{proof}
+
+  In other words, the third factor $c_d$ is not something we need to search for; it is just bookkeeping for how to express the slices in terms of the $M_d$'s. So computing tensor rank is the problem of finding the fewest rank-one matrices whose span contains a given subspace of matrices. For $K = 1$ this is the matrix rank, since the span of a single matrix $X_1$ is contained in the span of $r$ rank-one matrices exactly when $\mathrm{rank}(X_1) \leq r$. For $K = 2$ it becomes tractable, as we will see.
+
+\subsection{Hardness}
+
+  The first thing to understand is why there is no algorithm.
+
+  \begin{theorem}[H{\aa}stad, 1990]
+    Determining whether a $3$-tensor over $\mathbb{Q}$ has rank at most $r$ is NP-hard. Over a finite field it is NP-complete.
+  \end{theorem}
+
+  Hillar and Lim (2013, \textit{Most Tensor Problems Are NP-Hard}) observed that H{\aa}stad's argument also works over $\mathbb{R}$ and $\mathbb{C}$, and showed that many other tensor problems are NP-hard as well, e.g. best rank-one approximation, the spectral norm, and eigenvalues of tensors.
+
+  So we should lower our expectations. We cannot hope for an efficient algorithm that works on all tensors, so the goal becomes finding good bounds and special families where the rank \textit{is} computable.
+
+\subsection{Lower Bounds}
+
+  \subsubsection{Flattening}
+
+    The simplest lower bound is the one we already have access to.
+
+    \begin{lemma}[Flattening Bound]
+      \label{lem:flattening}
+      For any $\mathcal{X}$ and any mode $n$, 
+      \begin{equation}
+        \mathrm{rank}(\mathcal{X}) \geq \mathrm{rank}\big(\hyperref[def:mode-n-matricization]{X_{(n)}}\big) = \hyperref[def:n-rank]{\mathrm{rank}_n}(\mathcal{X})
+      \end{equation}
+    \end{lemma}
+    \begin{proof}
+      If $\mathcal{X} = \sum_{d=1}^r a_d^{(1)} \circ \cdots \circ a_d^{(N)}$, then by the CP matricization formula $X_{(n)} = A^{(n)} \big( A^{(N)} \odot \cdots \odot A^{(n+1)} \odot A^{(n-1)} \odot \cdots \odot A^{(1)} \big)^T$, which is a product through an $r$-dimensional space and hence has rank at most $r$.
+    \end{proof}
+
+    This bound is sharp for matrices but very weak for tensors. Let's see why. 
+
+    \begin{example}[Sharp for Matrices, Weak for Tensors]
+      \label{ex:flattening-sharp-weak}
+      \begin{enumerate}
+        \item \textit{Matrices.} If $N = 2$, then $X_{(1)} = X$ and $X_{(2)} = X^T$, so the bound says $\mathrm{rank}(X) \geq \mathrm{rank}(X)$, which is an equality. In other words, the rank of a matrix \textit{is} the rank of its flattenings, and it can be computed by Gaussian elimination. (This is just the statement that a rank factorization $X = A B^T$ with $\mathrm{rank}(X)$ columns exists.) 
+
+        \item \textit{Tensors.} Let $\mathcal{X}$ be the running tensor of Example \ref{ex:rank-running}, which has rank $3$. The fibers of $\mathcal{X}$ lie in small subspaces. 
+        \begin{itemize}
+          \item The mode-$1$ fibers (columns of $X_1$ and $X_2$) all lie in $\mathrm{span}\{p, \mathbf{1}_3\}$, so $\mathrm{rank}_1(\mathcal{X}) = 2$. 
+          \item The mode-$2$ fibers (rows of $X_1, X_2$) all lie in $\mathrm{span}\{\mathbf{1}_4, q\}$, so $\mathrm{rank}_2(\mathcal{X}) = 2$. 
+          \item The mode-$3$ fibers are $(a, a + 12)$, which span $\mathbb{R}^2$, so $\mathrm{rank}_3(\mathcal{X}) = 2$. 
+        \end{itemize}
+        So all three flattenings have rank $2$, and the flattening bound only certifies $\mathrm{rank}(\mathcal{X}) \geq 2$, while the true rank is $3$. 
+      \end{enumerate}
+      The weakness is not a quirk of this example. Since $\mathrm{rank}_n(\mathcal{X}) \leq I_n$, the bound can never certify a rank larger than $\max\{I_1, \ldots, I_N\}$, whereas the rank of an $N \times N \times N$ tensor can be on the order of $N^2$. For example, a generic $3 \times 3 \times 3$ tensor has all three flattenings of rank at most $3$, but its rank is $5$. 
+    \end{example}
+
+    So far we only have bounds that don't meet. Let's look at the simplest families of tensors where a lower bound and an upper bound do meet, so that we can actually say what the rank is. The first is the easiest case of all. 
+
+    \begin{lemma}[Rank-One Tensors]
+      \label{lem:rank-one-flattening}
+      A nonzero tensor $\mathcal{X} \in \mathbb{R}^{I_1 \times \cdots \times I_N}$ has rank one if and only if $\mathrm{rank}_n(\mathcal{X}) = 1$ for every mode $n$, i.e. if and only if in every mode all of the fibers are multiples of a single vector. 
+    \end{lemma}
+    \begin{proof}
+      If $\mathcal{X} = a^{(1)} \circ \cdots \circ a^{(N)}$ then every mode-$n$ fiber is a multiple of $a^{(n)}$, so $\mathrm{rank}_n(\mathcal{X}) = 1$. For the converse we use induction on $N$, where the case $N = 2$ is the statement that a matrix of rank one is $a b^T$. Suppose $\mathrm{rank}_1(\mathcal{X}) = 1$. Then all mode-$1$ fibers are multiples of one vector $a \neq 0$, which says that $\mathcal{X} = a \circ \mathcal{W}$ for some $\mathcal{W} \in \mathbb{R}^{I_2 \times \cdots \times I_N}$, i.e. $x_{i_1 i_2 \cdots i_N} = a_{i_1} w_{i_2 \cdots i_N}$. For $n \geq 2$, each mode-$n$ fiber of $\mathcal{X}$ is $a_{i_1}$ times a mode-$n$ fiber of $\mathcal{W}$ and $a \neq 0$, so the fibers of $\mathcal{X}$ and $\mathcal{W}$ span the same space and $\mathrm{rank}_n(\mathcal{W}) = \mathrm{rank}_n(\mathcal{X}) = 1$. By induction $\mathcal{W}$ is rank one, so $\mathcal{X} = a \circ \mathcal{W}$ is too. 
+    \end{proof}
+
+    For example, the tensor with slices $X_1 = \begin{bmatrix} 1 & 2 \\ 2 & 4 \end{bmatrix}$ and $X_2 = \begin{bmatrix} 3 & 6 \\ 6 & 12 \end{bmatrix}$ has all fibers parallel to $(1, 2)$, $(1, 2)$, and $(1, 3)$ in modes $1, 2, 3$, respectively, and indeed $\mathcal{X} = (1, 2) \circ (1, 2) \circ (1, 3)$. 
+
+    The next simplest family is the tensors that are diagonal, and here the flattening bound is exactly right. 
+
+    \begin{lemma}[Diagonal Tensors]
+      \label{lem:diagonal-rank}
+      Let $\mathcal{X} \in \mathbb{R}^{I \times I \times \cdots \times I}$ be a \hyperref[def:diagonal-tensor]{diagonal tensor} with $r$ nonzero entries $x_{i i \cdots i} = \lambda_i$. Then $\mathrm{rank}(\mathcal{X}) = r$. 
+    \end{lemma}
+    \begin{proof}
+      Let $S$ be the set of indices $i$ with $\lambda_i \neq 0$, so $|S| = r$. For the upper bound, 
+      \begin{equation}
+        \mathcal{X} = \sum_{i \in S} \lambda_i \, e_i \circ e_i \circ \cdots \circ e_i
+      \end{equation}
+      is a sum of $r$ rank-one tensors. For the lower bound, look at the flattening $X_{(1)}$. Its entry in row $i$ and in the column indexed by $(i_2, \ldots, i_N)$ is nonzero only if $i_2 = \cdots = i_N = i$. So for each $i \in S$ the column indexed by $(i, \ldots, i)$ has a single nonzero entry $\lambda_i$, in row $i$, and all other columns are zero. These $r$ columns are linearly independent, so $\mathrm{rank}(X_{(1)}) = r$, and by the Flattening Bound, $\mathrm{rank}(\mathcal{X}) \geq r$. 
+    \end{proof}
+
+    In particular the unit tensor $\sum_{i=1}^n e_i \circ e_i \circ e_i \in \mathbb{R}^{n \times n \times n}$, which is the tensor analogue of the identity matrix, has rank $n$, which is just as large as the flattening bound allows. So the Flattening Bound is not always weak. It is sharp for matrices and for diagonal tensors, and the running tensor above is an example where it fails. 
+
+    Both of these are special cases of a simple principle, which is also easy to prove. 
+
+    \begin{lemma}[Contraction Does Not Increase Rank]
+      \label{lem:contraction}
+      For any matrix $U$ and any mode $n$, $\mathrm{rank}(\mathcal{X} \times_n U) \leq \mathrm{rank}(\mathcal{X})$, with equality if $U$ is invertible. Similarly, $\mathrm{rank}(\mathcal{X} \,\bar{\times}_n\, v) \leq \mathrm{rank}(\mathcal{X})$ for any vector $v$. 
+    \end{lemma}
+    \begin{proof}
+      If $\mathcal{X} = \sum_{d=1}^r a_d^{(1)} \circ \cdots \circ a_d^{(N)}$, then multiplying in mode $n$ just multiplies the $n$th vector of each term by $U$, 
+      \begin{equation}
+        \mathcal{X} \times_n U = \sum_{d=1}^r a_d^{(1)} \circ \cdots \circ \big( U a_d^{(n)} \big) \circ \cdots \circ a_d^{(N)}
+      \end{equation}
+      which is a sum of $r$ rank-one (or zero) tensors. For the vector case replace $U a_d^{(n)}$ by the scalar $\langle v, a_d^{(n)} \rangle$. If $U$ is invertible, apply the inequality again with $U^{-1}$. 
+    \end{proof}
+
+    So the rank is unchanged by any change of basis in each mode, and the rank of a tensor is at least the rank of any subtensor obtained by contracting or selecting entries. For example, $\mathrm{rank}(a \circ Y) = \mathrm{rank}(Y)$ for $a \neq 0$ and a matrix $Y$, since contracting $a \circ Y$ with a vector $u$ with $\langle a, u \rangle = 1$ gives back $Y$. 
+
+    Returning to flattenings, more general flattenings, where we group modes in other ways, are no better than the $\min$ of the dimensions of the groups. Since the rank of a matrix is lower semicontinuous, the same bound holds for the border rank defined below.
+
+    Strassen's idea (1983) was to use flattenings that are not the standard ones. Landsberg and Ottaviani later systematized this with \textbf{Young flattenings}, of which the most used are the \textbf{Koszul flattenings}. For $\mathcal{T} \in A \otimes B \otimes C$ with $\dim A = 2p+1$, the map $\mathcal{T}_A^{\wedge p} : \Lambda^p A \otimes B^* \to \Lambda^{p+1} A \otimes C$ obtained by applying $\mathcal{T}$ and then wedging satisfies
+    \begin{equation}
+      \brank(\mathcal{T}) \geq \frac{\mathrm{rank}\big(\mathcal{T}_A^{\wedge p}\big)}{\binom{2p}{p}}
+    \end{equation}
+    % TODO verify: exact normalization of the Koszul flattening bound (Landsberg-Ottaviani, "New lower bounds for the border rank of matrix multiplication", Theory of Computing 2015)
+    The proof idea is that the flattening map is linear in $\mathcal{T}$, and for a rank-one tensor $a \otimes b \otimes c$ its rank is at most $\binom{2p}{p}$, so subadditivity of matrix rank gives the bound for a sum of $r$ such tensors, and lower semicontinuity extends it to the border rank.
+
+  \subsubsection{The Substitution Method}
+
+    This method goes back to Pan (1966) and has been the main source of rank lower bounds in algebraic complexity (see Bürgisser--Clausen--Shokrollahi). The idea is to use one rank-one component of a decomposition to eliminate an entire slice.
+
+    \begin{lemma}[Substitution]
+      \label{lem:substitution}
+      Let $\mathcal{X} \in \mathbb{R}^{I \times J \times K}$ with horizontal slices $X^{(1)}, \ldots, X^{(I)} \in \mathbb{R}^{J \times K}$, and suppose $X^{(1)} \neq 0$. Then
+      \begin{equation}
+        \mathrm{rank}(\mathcal{X}) \geq 1 + \min_{\lambda_2, \ldots, \lambda_I \in \mathbb{R}} \; \mathrm{rank} \big( \mathcal{X}'_\lambda \big)
+      \end{equation}
+      where $\mathcal{X}'_\lambda \in \mathbb{R}^{(I-1) \times J \times K}$ has slices $X^{(i)} + \lambda_i X^{(1)}$ for $i = 2, \ldots, I$.
+    \end{lemma}
+    \begin{proof}
+      Take a decomposition $\mathcal{X} = \sum_{d=1}^r a_d \circ b_d \circ c_d$ with $r = \mathrm{rank}(\mathcal{X})$. Then $X^{(i)} = \sum_d a_{id} \, b_d c_d^T$. Since $X^{(1)} \neq 0$, there is some $d_0$ with $a_{1 d_0} \neq 0$. Setting $\lambda_i = -a_{i d_0} / a_{1 d_0}$, the slice $X^{(i)} + \lambda_i X^{(1)}$ has no contribution from component $d_0$, so $\mathcal{X}'_\lambda$ is a sum of the remaining $r - 1$ rank-one tensors.
+    \end{proof}
+
+    Note that we can choose \textit{any} nonzero slice, in any mode, as the one to eliminate, and then iterate.
+
+    \begin{example}[Rank of the $W$ Tensor]
+      Let $\mathcal{W} = e_1 \circ e_1 \circ e_2 + e_1 \circ e_2 \circ e_1 + e_2 \circ e_1 \circ e_1 \in \mathbb{R}^{2 \times 2 \times 2}$, whose horizontal slices are
+      \begin{equation}
+        W^{(1)} = \begin{bmatrix} 0 & 1 \\ 1 & 0 \end{bmatrix}, \qquad W^{(2)} = \begin{bmatrix} 1 & 0 \\ 0 & 0 \end{bmatrix}
+      \end{equation}
+      If we eliminate with $W^{(2)}$, the remaining slice is $W^{(1)} + \lambda W^{(2)} = \begin{bmatrix} \lambda & 1 \\ 1 & 0 \end{bmatrix}$, which has determinant $-1$, hence rank $2$ for every $\lambda$. By Lemma \ref{lem:substitution}, $\mathrm{rank}(\mathcal{W}) \geq 1 + 2 = 3$. (Eliminating with $W^{(1)}$ instead would only give $2$, since $\lambda = 0$ gives rank one, so the choice of slice matters.) And clearly $\mathrm{rank}(\mathcal{W}) \leq 3$, so it is exactly $3$.
+    \end{example}
+
+    The same argument gives the rank of the diagonal (unit) tensor $\sum_{d=1}^n e_d \circ e_d \circ e_d$ as $n$. Border versions of the method (Landsberg--Micha{\l}ek) combine it with Koszul flattenings and give the best known border rank lower bound for $n \times n$ matrix multiplication, $\brank(M_{\langle n,n,n \rangle}) \geq 2n^2 - \lceil \log_2 n \rceil - 1$.\footnote{\url{https://par.nsf.gov/servlets/purl/10094859}. For $n = 3$ this gives $15$, improving the lower bound of $14$ cited in the review.}
+
+\subsection{Exactly Solvable Case: Pencils}
+
+  For $K = 2$ the problem is fully solved, and the answer is in terms of familiar matrix invariants. Here $\mathcal{X} \in \mathbb{R}^{I \times J \times 2}$ is just a \textit{matrix pencil} $(X_1, X_2)$, and its rank is determined by the Kronecker canonical form of the pencil $X_1 + t X_2$ (Gri\-gor\-iev and J\'aJ\'a, 1970s--80s; Ten Berge and Kiers extended to describe typical ranks).
+  % TODO verify: precise formula for rank of a pencil in terms of Kronecker indices (Grigoriev 1978, JaJa 1979)
+  We prove the most important special case.
+
+  \begin{theorem}[Rank of a Regular Pencil]
+    \label{thm:pencil}
+    Let $\mathcal{X} \in \mathbb{F}^{I \times I \times 2}$ with $X_1$ invertible. Then $\mathrm{rank}(\mathcal{X}) \geq I$, with equality if and only if $X_1^{-1} X_2$ is diagonalizable over $\mathbb{F}$.
+  \end{theorem}
+  \begin{proof}
+    The lower bound is the flattening bound since $\mathrm{rank}(X_{(1)}) \geq \mathrm{rank}(X_1) = I$.
+
+    ($\Leftarrow$) Suppose $X_1^{-1} X_2 = P \Lambda P^{-1}$ with $\Lambda$ diagonal. Let $A = X_1 P$ and $B = P^{-T}$. Then $A B^T = X_1$ and $A \Lambda B^T = X_1 P \Lambda P^{-1} = X_2$, so each slice is $A D_k B^T$ with $D_1 = I, D_2 = \Lambda$ diagonal. That is a sum of $I$ rank-one tensors.
+
+    ($\Rightarrow$) If the rank is $I$, then by Lemma \ref{lem:slice-span}, $X_k = A D_k B^T$ for some $A, B \in \mathbb{F}^{I \times I}$ and diagonal $D_k$. Since $X_1$ is invertible, so are $A$, $B$, and $D_1$. Then $X_1^{-1} X_2 = B^{-T} D_1^{-1} D_2 B^T$ is diagonalizable over $\mathbb{F}$.
+  \end{proof}
+
+  \begin{example}[Why Kruskal's Example Has Rank $3$ Over $\mathbb{R}$]
+    In Example \ref{ex:rank-over-r-vs-c}, $X_1 = I$ and $X_2 = \begin{bmatrix} 0 & 1 \\ -1 & 0 \end{bmatrix}$, so $X_1^{-1}X_2 = X_2$ has eigenvalues $\pm i$. It is diagonalizable over $\mathbb{C}$ but not over $\mathbb{R}$, so by Theorem \ref{thm:pencil}, the rank is $2$ over $\mathbb{C}$ and strictly more than $2$ over $\mathbb{R}$. The explicit decomposition given earlier shows that it is exactly $3$.
+  \end{example}
+
+  This also explains the large literature on typical ranks of $I \times J \times 2$ tensors: whether the random matrix $X_1^{-1} X_2$ has real eigenvalues is an event of positive probability, which is why there are two typical ranks over $\mathbb{R}$.
+
+\subsection{Upper Bounds and Algorithms}
+
+  \subsubsection{Simultaneous Diagonalization}
+
+    The generalization of Theorem \ref{thm:pencil} to $K \geq 2$ is an actual algorithm, often called \textbf{Jennrich's algorithm}. 
+
+    \begin{theorem}[Simultaneous Diagonalization]
+      \label{thm:jennrich}
+      Let $\mathcal{X} = \llbracket A, B, C \rrbracket$ with $A \in \mathbb{R}^{I \times R}$ and $B \in \mathbb{R}^{J \times R}$ of full column rank $R$ and any two columns of $C \in \mathbb{R}^{K \times R}$ linearly independent (i.e. $k_C \geq 2$). Then $\mathrm{rank}(\mathcal{X}) = R$ and the decomposition is unique up to permutation and scaling, and it can be computed with two eigendecompositions.
+    \end{theorem}
+    \begin{proof}[Outline]
+      Pick random $u, v \in \mathbb{R}^K$ and contract the third mode,
+      \begin{equation}
+        M_u \coloneqq \mathcal{X} \,\bar{\times}_3\, u = A \, \mathrm{diag}(C^T u) \, B^T, \qquad M_v = A \, \mathrm{diag}(C^T v) \, B^T
+      \end{equation}
+      For random $u, v$, the diagonal entries are nonzero, and the ratios $(c_d^T u)/(c_d^T v)$ are distinct, because no two columns of $C$ are parallel. Then
+      \begin{equation}
+        M_u M_v^\dagger = A \, \mathrm{diag}(C^T u) \, \mathrm{diag}(C^T v)^{-1} A^\dagger
+      \end{equation}
+      so the columns of $A$ are the eigenvectors of $M_u M_v^\dagger$ for its $R$ distinct nonzero eigenvalues, determined up to scaling. Likewise, the columns of $B$ are the eigenvectors of $(M_v^\dagger M_u)^T$, and then $C$ is found by solving a linear system. Both $A$ and $B$ were recovered uniquely (up to scale and the common ordering by eigenvalue matching), so the decomposition is unique. Finally, $\mathrm{rank}(X_{(1)}) = R$ since $X_{(1)} = A(C \odot B)^T$ where $A$ has full column rank and $C \odot B$ has full column rank (a Khatri--Rao product has full column rank when $k_B + k_C \geq R + 1$), so the flattening bound gives $\mathrm{rank}(\mathcal{X}) \geq R$.
+    \end{proof}
+    % TODO verify: Khatri-Rao full column rank condition k_B + k_C >= R+1 (Sidiropoulos-Bro 2000)
+
+    This is the model case of how rank is determined in practice: a decomposition gives an upper bound and a flattening gives the matching lower bound. Its weakness is that it needs $R \leq \min\{I, J\}$, so it cannot handle \textit{overcomplete} tensors with rank above the dimension. De Lathauwer's later method based on simultaneous matrix diagonalization extends this to the generic case $R \leq K$ with $R(R-1) \leq I(I-1)J(J-1)/2$, and the simultaneous generalized Schur decomposition of De Lathauwer, De Moor, and Vandewalle gives a more numerically stable alternative when $R \leq \min\{I, J\}$ (both as described in the review).
+
+  \subsubsection{Numerical Fitting}
+
+    When none of these structured results applies, the standard practice is the one described in the review: fit a rank-$R$ CP model for $R = 1, 2, 3, \ldots$ with alternating least squares (ALS) and stop at the first $R$ with an exact fit. ALS fixes all factor matrices but one, which makes the problem a linear least squares problem, e.g.
+    \begin{equation}
+      \hat{A} = X_{(1)} (C \odot B) (C^T C * B^T B)^\dagger
+    \end{equation}
+    using the Khatri--Rao identity from Lemma \ref{thm:products}, and then cycles through the modes. It is not guaranteed to converge to even a stationary point, and it depends heavily on the initialization. Derivative-based alternatives (damped Gauss--Newton, PMF3) converge better but are more expensive. There is also no way to \textit{certify} the answer: failing to find an exact fit at rank $R$ does not show that the rank is above $R$, and with noisy data fit alone can't pick $R$ (Bro and Kiers proposed the CORCONDIA consistency diagnostic for this). And there is a more fundamental reason it can fail, which is the next topic.
+
+\subsection{Border Rank and Degeneracy}
+
+  The question of whether a decomposition can be \textit{found} by numerical optimization runs into a topological problem: the set of tensors of rank $\leq r$ is not closed (for $r \geq 2$ and $N \geq 3$), unlike for matrices.
+
+  \begin{definition}[Border Rank]
+    \label{def:border-rank}
+    The \textbf{border rank} of $\mathcal{X}$, denoted $\brank(\mathcal{X})$, is the smallest $r$ such that $\mathcal{X}$ is a limit of tensors of rank at most $r$,
+    \begin{equation}
+      \brank(\mathcal{X}) \coloneqq \min \big\{ r : \forall \epsilon > 0, \; \exists \mathcal{E} \text{ with } \|\mathcal{E}\| < \epsilon, \; \mathrm{rank}(\mathcal{X} + \mathcal{E}) \leq r \big\}
+    \end{equation}
+    Clearly $\brank(\mathcal{X}) \leq \mathrm{rank}(\mathcal{X})$.
+  \end{definition}
+
+  \begin{example}[The $W$ Tensor Has Border Rank $2$ but Rank $3$]
+    Let $\mathcal{W} = a_1 \circ b_1 \circ c_2 + a_1 \circ b_2 \circ c_1 + a_2 \circ b_1 \circ c_1$ with $a_1, a_2$ and $b_1, b_2$ and $c_1, c_2$ linearly independent. Expanding gives
+    \begin{equation}
+      \frac{1}{\epsilon} \Big[ (a_1 + \epsilon a_2) \circ (b_1 + \epsilon b_2) \circ (c_1 + \epsilon c_2) - a_1 \circ b_1 \circ c_1 \Big] = \mathcal{W} + \epsilon \big( a_2 \circ b_2 \circ c_1 + a_2 \circ b_1 \circ c_2 + a_1 \circ b_2 \circ c_2 \big) + \epsilon^2 \, a_2 \circ b_2 \circ c_2
+    \end{equation}
+    The left side has rank at most $2$ and converges to $\mathcal{W}$ as $\epsilon \to 0$. Since rank-one tensors form a closed set and $\mathcal{W}$ is not rank-one, $\brank(\mathcal{W}) = 2$. But by the substitution example, $\mathrm{rank}(\mathcal{W}) = 3$.
+  \end{example}
+
+  This is the example from the review (due to Bini et al. 1979, also in Knuth and Paatero) rewritten, and it exhibits the typical features of degeneracy: two factors become nearly parallel with magnitudes $\to \infty$ and opposite signs. The consequences are the following.
+  \begin{itemize}
+    \item \textit{Best low-rank approximations may not exist.} De Silva and Lim (2008) show that the set of tensors without a best rank-$r$ approximation has positive Lebesgue measure for some sizes, so this is not a rare event. Stegeman shows that for $I \times I \times 2$ tensors, any tensor of rank $I+1$ has no best rank-$I$ approximation.
+    \item \textit{Rank and border rank can differ} in the context of important problems. For $2 \times 2$ matrix multiplication, a $4 \times 4 \times 4$ tensor, both equal $7$ (this is Strassen's algorithm, and the border rank was proved to be $7$ by Landsberg, 2006). For $3 \times 3$, the review lists rank in $[19, 23]$ and border rank in $[14, 21]$.
+    \item \textit{Border rank is also easier to study with geometry}, since it is about the Zariski closure of the set of rank $\leq r$ tensors, namely the $r$th secant variety of the Segre variety. This is where the Koszul/Young flattenings above live.
+  \end{itemize}
+
+\section{Typical Ranks}
+
+  Given that the rank of an individual tensor is hard to compute, we might ask a different question: what rank does a \textit{typical} tensor have? 
+
+\subsection{Background: The Zariski Topology}
+
+  To say what "typical" and "generic" mean, we need a few facts from algebraic geometry. Everything here is over $\mathbb{F} = \mathbb{R}$ or $\mathbb{C}$, and the ambient space is $\mathbb{F}^n$, which for us is a space of tensors $\mathbb{F}^{I_1 \times \cdots \times I_N}$ with $n = I_1 \cdots I_N$. 
+
+  \begin{definition}[Algebraic Set]
+    \label{def:algebraic-set}
+    For a set $S$ of polynomials in $n$ variables with coefficients in $\mathbb{F}$, its \textbf{zero set} is $V(S) \coloneqq \{x \in \mathbb{F}^n : f(x) = 0 \text{ for all } f \in S\}$. A set of this form is called an \textbf{algebraic set} (or an \textbf{affine variety}). 
+  \end{definition}
+
+  \begin{example}
+    The set of $2 \times 2$ matrices of rank at most $1$ is $V(\{ad - bc\})$. More generally, the set of $I \times J$ matrices of rank at most $r$ is an algebraic set, since it is the zero set of all $(r+1) \times (r+1)$ minors. By contrast, the unit disk $\{x^2 + y^2 \leq 1\}$ is not algebraic, since algebraic sets are defined by equalities. 
+  \end{example}
+
+  Algebraic sets behave like the closed sets of a topology. Indeed, $V(\{1\}) = \emptyset$, $V(\{0\}) = \mathbb{F}^n$, intersections of algebraic sets are algebraic since $\bigcap_i V(S_i) = V(\bigcup_i S_i)$, and finite unions are algebraic since $V(f) \cup V(g) = V(fg)$. 
+
+  \begin{definition}[Zariski Topology]
+    The \textbf{Zariski topology} on $\mathbb{F}^n$ is the topology whose closed sets are the algebraic sets. Its open sets are their complements, the \textbf{Zariski-open} sets. The \textbf{Zariski closure} $\overline{A}$ of a set $A$ is the smallest algebraic set containing it, and $A$ is \textbf{Zariski-dense} if $\overline{A} = \mathbb{F}^n$. 
+  \end{definition}
+
+  This topology is extremely coarse. For example, on $\mathbb{C}$ the proper algebraic sets are exactly the finite sets, so the nonempty Zariski-open sets are the sets with finite complement. In particular, it is not Hausdorff. The point is that a proper algebraic set is \textit{small}, and so a nonempty Zariski-open set is \textit{large}. This is made precise by the following facts. 
+
+  \begin{lemma}[Zariski-Open Sets Are Large]
+    \label{lem:zariski-large}
+    Let $f$ be a nonzero polynomial on $\mathbb{F}^n$. 
+    \begin{enumerate}
+      \item The zero set $V(f)$ has Lebesgue measure zero. Consequently every nonempty Zariski-open set has a complement of measure zero, and so it is dense in the usual (Euclidean) topology. 
+      \item (\textit{Irreducibility of $\mathbb{F}^n$}) Any two nonempty Zariski-open sets intersect (and so their intersection is again nonempty and open). 
+      \item The real points $\mathbb{R}^n$ are Zariski-dense in $\mathbb{C}^n$, i.e. a polynomial that vanishes on all of $\mathbb{R}^n$ is the zero polynomial. 
+    \end{enumerate}
+  \end{lemma}
+  \begin{proof}
+    \textit{(1)} We induct on $n$. For $n = 1$, a nonzero polynomial has finitely many roots. For $n > 1$, write $f = \sum_k c_k(x_1, \ldots, x_{n-1}) \, x_n^k$ where some $c_k$ is a nonzero polynomial. By induction, $V(c_k) \subset \mathbb{F}^{n-1}$ has measure zero, and for every $x'$ outside it, $f(x', \cdot)$ is a nonzero polynomial in one variable, with finitely many roots. By Fubini, $V(f)$ has measure zero. (For $\mathbb{F} = \mathbb{C}$, apply this to the real or imaginary part of $f$ as a polynomial in the $2n$ real variables, one of which is nonzero.) If $U$ is a nonempty Zariski-open set, then its complement is $V(S)$ for some $S$ containing a nonzero polynomial $f$, and so $V(S) \subseteq V(f)$ has measure zero. A set whose complement has measure zero is dense in the usual topology. 
+
+    \textit{(2)} A nonempty Zariski-open set contains a set of the form $\{f \neq 0\}$ with $f$ a nonzero polynomial. Two such sets $\{f \neq 0\}$ and $\{g \neq 0\}$ intersect in $\{fg \neq 0\}$, which is nonempty since $fg$ is a nonzero polynomial and so by (1) is not identically zero. 
+
+    \textit{(3)} If $f$ vanishes on $\mathbb{R}^n$ then $f$ vanishes on a set of positive measure in $\mathbb{R}^n$. Writing $f = f_1 + i f_2$ with $f_1, f_2$ real polynomials, each vanishes on $\mathbb{R}^n$, and by (1) applied over $\mathbb{R}$ each must be zero. 
+  \end{proof}
+
+  Part (2) is what makes the word "generic" meaningful. A generic property is one that holds on a nonempty Zariski-open set, and part (2) says that any two generic properties hold simultaneously on a generic set. In particular, "the complement of a proper algebraic set" is the right notion of "almost everywhere" for polynomial problems. 
+
+  Next, we need to talk about sets that are the image of a polynomial map, since the set of tensors of rank at most $r$ is the image of the map $(a_d^{(n)}) \mapsto \sum_{d=1}^r a_d^{(1)} \circ \cdots \circ a_d^{(N)}$. Such sets need not be closed in either topology. 
+
+  \begin{definition}[Irreducible, Dimension]
+    An algebraic set $X$ is \textbf{irreducible} if it is not the union of two proper algebraic subsets. Lemma \ref{lem:zariski-large} (2) says that $\mathbb{F}^n$ is irreducible. The \textbf{dimension} of an irreducible algebraic set is the dimension of the manifold of its smooth points (equivalently, the dimension of its tangent space at a generic point). 
+  \end{definition}
+
+  The following standard facts about images of polynomial maps are the ones we use. They hold over $\mathbb{C}$. 
+
+  \begin{theorem}[Images of Polynomial Maps]
+    \label{thm:image-polynomial-map}
+    Let $\varphi : \mathbb{C}^M \to \mathbb{C}^N$ be a polynomial map. 
+    \begin{enumerate}
+      \item The Zariski closure $\overline{\varphi(\mathbb{C}^M)}$ is irreducible. 
+      \item (\textit{Chevalley}) $\varphi(\mathbb{C}^M)$ contains a nonempty Zariski-open subset of its closure. In particular, if $\varphi(\mathbb{C}^M)$ is Zariski-dense in $\mathbb{C}^N$, then it contains a nonempty Zariski-open set. 
+      \item $\dim \overline{\varphi(\mathbb{C}^M)} = \max_x \mathrm{rank}\, D\varphi(x)$, the rank of the Jacobian at a generic point; in particular, $\dim \leq M$. Therefore, $\varphi(\mathbb{C}^M)$ is Zariski-dense if and only if $D\varphi(x)$ has rank $N$ at a generic $x$. 
+      \item The Zariski closure of $\varphi(\mathbb{C}^M)$ is also its closure in the usual topology. 
+    \end{enumerate}
+  \end{theorem}
+
+  Part (1) follows since the closure of the image of an irreducible set is irreducible, and $\mathbb{C}^M$ is irreducible. Part (3) is Terracini's lemma in the form we use, and it is what makes the Jacobian method for computing generic ranks work. Part (4) says that over $\mathbb{C}$, the closure of a set of tensors, e.g. those of rank at most $r$, is the same in both topologies, so the \hyperref[def:border-rank]{border rank} is also the smallest $r$ for which a tensor lies in the Zariski closure of the tensors of rank at most $r$. 
+
+  Finally, over $\mathbb{R}$ the situation is different, since the image of a real polynomial map is not an algebraic set or even its open subset. It is only a \textbf{semialgebraic set}, i.e. a finite union of sets defined by polynomial equalities and inequalities (Tarski--Seidenberg). For these, positive Lebesgue measure is equivalent to having a nonempty interior, which is why a typical rank over $\mathbb{R}$ is a rank attained on an open set. Note the contrast with $\mathbb{C}$. A real polynomial equation cuts out a set of measure zero, but a real polynomial \textit{inequality} like $\Delta(\mathcal{X}) > 0$ in the $2 \times 2 \times 2$ case cuts out an open set, and each of these can be a typical rank. 
+
+\subsection{Generic and Typical Properties}
+
+  To make this precise, we have to say what "typical" means, and it turns out that we don't need to pick a specific probability distribution.
+
+  \begin{definition}[Generic and Typical Properties]
+    A property of tensors in $\mathbb{C}^{I \times J \times K}$ is \textbf{generic} if it holds outside the zero set of a nonzero polynomial in the entries (i.e. on a Zariski-open dense set). A property of tensors in $\mathbb{R}^{I \times J \times K}$ is \textbf{typical} if it holds on a set of positive Lebesgue measure.
+  \end{definition}
+
+  The zero set of a nonzero polynomial has Lebesgue measure zero, so a generic property holds with probability one for \textit{any} distribution on the entries that has a density with respect to Lebesgue measure, e.g. iid Gaussian entries. All such distributions have the same null sets, so which ranks occur with probability zero, and which occur with positive probability, doesn't depend on the choice. What does depend on it are the actual probabilities. For example, the $79\%$ and $21\%$ for rank $2$ and rank $3$ of $2 \times 2 \times 2$ tensors came from Gaussian entries, and a different density would give different percentages, but both ranks would still occur with positive probability.
+
+  Over $\mathbb{C}$, the set of tensors of rank at most $r$ has an irreducible closure (it is the closure of the image of a polynomial map), so there is a single rank $r$ for which the closure first becomes everything. This is the \textbf{generic rank}. Over $\mathbb{R}$ there can be several typical ranks, as we saw for $2 \times 2 \times 2$, and this is what makes the real case interesting. In this section we collect the main general theorems about typical ranks. The results for tensors of specific shapes are in the next section.
+
+\subsection{The Smallest Typical Rank}
+
+  Over $\mathbb{R}$ the first question is how the typical ranks over $\mathbb{R}$ relate to the generic rank over $\mathbb{C}$. Since real tensors are also complex tensors, and a real decomposition is also a complex one, $\mathrm{rank}_{\mathbb{R}}(\mathcal{X}) \geq \mathrm{rank}_{\mathbb{C}}(\mathcal{X})$. The following says that the smallest typical rank is exactly the complex generic rank. 
+
+  \begin{theorem}[Smallest Typical Rank]
+    \label{thm:smallest-typical}
+    Let $g$ be the generic rank of $\mathbb{C}^{I_1 \times \cdots \times I_N}$. Then $g$ is a typical rank over $\mathbb{R}$, and every typical rank over $\mathbb{R}$ is at least $g$. 
+  \end{theorem}
+  \begin{proof}
+    Let $\varphi_r : (a_d^{(n)}) \mapsto \sum_{d=1}^r a_d^{(1)} \circ \cdots \circ a_d^{(N)}$ be the parametrization of tensors of rank at most $r$, which is a polynomial map with real coefficients. 
+
+    \textit{No typical rank below $g$.} By definition of $g$, for $r < g$ the closure of the image of $\varphi_r$ over $\mathbb{C}$ is a proper subvariety of $\mathbb{C}^{I_1 \times \cdots \times I_N}$, so it is the zero set of a nonzero polynomial and has measure zero. Since the real rank is at least the complex rank, almost every real tensor has real rank at least $g$. 
+
+    \textit{$g$ is typical.} By definition of the generic rank, the image of $\varphi_g$ over $\mathbb{C}$ is dense, which (by generic smoothness, in characteristic zero) means that the differential of $\varphi_g$ is surjective at a generic point. That is, some maximal minor of the Jacobian of $\varphi_g$ is a nonzero polynomial in the parameters. This polynomial has real coefficients, and a nonzero polynomial cannot vanish on all of $\mathbb{R}^M$, so there is a \textit{real} parameter point where the differential of $\varphi_g : \mathbb{R}^M \to \mathbb{R}^{I_1 \cdots I_N}$ is surjective. By the implicit function theorem, the image of $\varphi_g$ then contains an open ball, which has positive Lebesgue measure. So a set of positive measure of real tensors has real rank at most $g$, hence exactly $g$ by the first part. 
+  \end{proof}
+
+  This is the reason the Jacobian method of Comon et al. (next section) computes the smallest typical rank over $\mathbb{R}$. Notice that the proof says nothing about \textit{other} typical ranks, which exist when the image of $\varphi_g$ over $\mathbb{R}$ is not everything. 
+
+\subsection{Expected Typical Rank and Defective Cases}
+
+  To find $g$, we count dimensions. 
+
+  \begin{lemma}[Expected Generic Rank]
+    \label{lem:expected-generic-rank}
+    The set of tensors of rank at most $r$ in $\mathbb{C}^{I \times J \times K}$ has dimension at most $r(I + J + K - 2)$. So the generic rank is at least
+    \begin{equation}
+      \bigg\lceil \frac{IJK}{I + J + K - 2} \bigg\rceil
+    \end{equation}
+    with equality for most, but not all, sizes.
+  \end{lemma}
+  \begin{proof}
+    We first count the dimension of the set of rank-one tensors. A rank-one tensor $a \circ b \circ c$ is determined by $(a, b, c) \in \mathbb{C}^I \times \mathbb{C}^J \times \mathbb{C}^K$, which has $I + J + K$ parameters. But different triples can give the same tensor, since we can move scalars between the factors, 
+    \begin{equation}
+      (\alpha a) \circ (\beta b) \circ (\gamma c) = (\alpha \beta \gamma) \, a \circ b \circ c, \qquad \alpha, \beta, \gamma \neq 0
+    \end{equation}
+    so $(\alpha a, \beta b, \gamma c)$ gives the same tensor as $(a, b, c)$ whenever $\alpha \beta \gamma = 1$. This is a $2$-parameter family, since we can pick $\alpha, \beta$ freely and then $\gamma = 1/(\alpha\beta)$. Conversely, if $a \circ b \circ c = a' \circ b' \circ c' \neq 0$, then comparing fibers shows that $a' = \alpha a$, $b' = \beta b$, $c' = \gamma c$ for some scalars with $\alpha \beta \gamma = 1$. So the fiber of the map $(a, b, c) \mapsto a \circ b \circ c$ over each nonzero rank-one tensor is exactly this $2$-dimensional family, and the set of rank-one tensors has dimension 
+    \begin{equation}
+      (I + J + K) - 2
+    \end{equation}
+    As a sanity check, projectively the rank-one tensors form the product $\mathbb{P}^{I-1} \times \mathbb{P}^{J-1} \times \mathbb{P}^{K-1}$ (the Segre variety) of dimension $(I - 1) + (J - 1) + (K - 1) = I + J + K - 3$, and the set of rank-one tensors is its cone, which has one more dimension. 
+
+    Now a tensor of rank at most $r$ is a sum of $r$ rank-one tensors, so the set of such tensors is the image of the sum map from $r$ copies of the set of rank-one tensors, which has dimension $r(I + J + K - 2)$. The image of a polynomial map cannot have larger dimension than its domain, so the set of tensors of rank at most $r$ has dimension at most $r(I + J + K - 2)$. For this set to fill up all of $\mathbb{C}^{I \times J \times K}$, which has dimension $IJK$, we need $r(I + J + K - 2) \geq IJK$, which is the claimed bound. 
+  \end{proof}
+  The format is called \textbf{defective} if $g$ is strictly larger than the expected value, and for most formats this does not happen. 
+
+  \begin{theorem}[Lickteig, 1985]
+    The generic rank (hence the smallest typical rank) of $n \times n \times n$ tensors is $\lceil n^3 / (3n - 2) \rceil$ for every $n \neq 3$, whereas for $n = 3$ it is $5$ and not $4$. 
+  \end{theorem}
+  \begin{proof}[Outline]
+    The lower bound is the dimension count above. For the upper bound, one has to show that for $r = \lceil n^3 / (3n-2) \rceil$ there is a choice of parameters where the Jacobian of $\varphi_r$ has full rank $n^3$, i.e. that the tangent spaces $T_1, \ldots, T_r$ to the set of rank-one tensors at $r$ suitable points span the whole space (this is Terracini's lemma), and Lickteig shows that this can be done for every $n \neq 3$. The case $n = 3$ is the exception because the dimension count is not attained: although $r = 4$ gives $4 \cdot 7 = 28 \geq 27$ parameters, the closure of the set of tensors of rank at most $4$ is a hypersurface (Strassen's equation) and not all of $\mathbb{C}^{3 \times 3 \times 3}$. So the generic rank is $5$. 
+  \end{proof}
+
+  Strassen showed that the formats $3 \times n \times n$ with $n$ odd are also defective, and $3 \times 3 \times 3$ is the smallest case. This is why the table of typical ranks has so many entries that don't match the naive count. 
+
+\subsection{The Set of Typical Ranks}
+
+  Over $\mathbb{R}$ there can be several typical ranks, so we may ask what the set of typical ranks looks like. 
+
+  \begin{theorem}[Bernardi, Blekherman, Ottaviani, 2018]
+    \label{thm:consecutive-typical}
+    The typical ranks over $\mathbb{R}$ of a given format form a set of consecutive integers. That is, if $g$ is the smallest typical rank and $m$ is the largest, then every integer in $[g, m]$ is a typical rank. 
+  \end{theorem}
+
+  This is consistent with all of the examples we have seen: $\{2, 3\}$ for $2 \times 2 \times 2$, $\{3, 4\}$ for $3 \times 3 \times 2$, $\{4, 5\}$ for $4 \times 4 \times 2$, and a single value for tall tensors. The result is proven for ranks with respect to any real projective variety, not only the Segre variety, and so it also applies to symmetric tensors. For instance, the typical symmetric ranks of ternary cubics are only $\{4\}$, of quaternary cubics $\{5, 6\}$, and of ternary quartics include $6$ and $7$. We omit the proof. 
+
+  The next question is how far apart the smallest and largest typical ranks can be. 
+
+  \begin{theorem}[Blekherman and Teitler, 2015]
+    \label{thm:max-twice-generic}
+    The maximum real rank, and in particular the largest typical rank, of tensors of a given format is at most $2g$, where $g$ is the smallest typical rank (the generic rank over $\mathbb{C}$). 
+  \end{theorem}
+  \begin{proof}[Outline]
+    The idea is that any tensor is the sum of two tensors of rank at most $g$. Over $\mathbb{C}$, this is easy: the set $V$ of tensors of rank at most $g$ contains a Zariski-open dense set, so for any tensor $\mathcal{T}$, both $V$ and $\mathcal{T} - V$ contain dense open sets. These must intersect, giving $\mathcal{S}$ with $\mathcal{S} \in V$ and $\mathcal{T} - \mathcal{S} \in V$, so $\mathcal{T} = \mathcal{S} + (\mathcal{T} - \mathcal{S})$ has rank at most $2g$. Over $\mathbb{R}$, the set of real tensors of real rank at most $g$ is not dense, so this argument needs more care, and that is the content of the paper. 
+  \end{proof}
+
+  So for the $2 \times 2 \times 2$ case $g = 2$ and the largest typical rank $3 \leq 4$. 
+
+\subsection{Typical Ranks of Specific Shapes}
+
+  Beyond these general facts, the typical ranks of specific formats have been worked out. The results we prove in the next section are the following. 
+  \begin{itemize}
+    \item $2 \times 2 \times 2$: typical ranks $\{2, 3\}$ (Theorem \ref{thm:222}). 
+    \item $I \times J \times 2$: $\{I, I+1\}$ if $I = J$, $I$ if $J < I < 2J$, and $2J$ if $I \geq 2J$ (Theorem \ref{thm:typical-pencil}). 
+    \item Tall tensors $I \times J \times K$ with $JK - J < I < JK$: typical rank $I$ (Theorem \ref{thm:tall}). 
+    \item Tensors with symmetric slices (Lemma \ref{prop:symmetric-slices}). 
+  \end{itemize}
+  A more recent result extends the tall case to a wider range of formats, and it also has a nice geometric proof. 
+
+  \begin{theorem}[Breiding, Eggleston, Rosana, 2024]
+    Let $\mathcal{X} \in \mathbb{R}^{m \times n \times \ell}$ with $(m-1)(n-1) + 1 \leq \ell \leq mn$. Then $\ell$ is always a typical rank, and all typical ranks lie in $\{\ell, \ell + 1\}$. 
+  \end{theorem}
+  \begin{proof}[Outline]
+    By the Slice-Span Characterization, if the $\ell$ frontal slices are linearly independent and span $L \subseteq \mathbb{R}^{m \times n}$, then $\mathrm{rank}(\mathcal{X})$ is the smallest number of rank-one matrices whose span contains $L$. The flattening bound gives $\mathrm{rank}(\mathcal{X}) \geq \ell$, and equality holds exactly when $L$ is spanned by rank-one matrices \textit{lying in $L$}. So we look at the intersection of $L$ with the cone of rank-one matrices (the cone over the Segre variety, of dimension $m + n - 1$). Since $\dim L = \ell$ in the ambient space of dimension $mn$, the expected dimension of the intersection is 
+    \begin{equation}
+      \ell + (m + n - 1) - mn \geq 1 \iff \ell \geq (m-1)(n-1) + 1
+    \end{equation}
+    which is exactly the range in the theorem, so $L$ meets the Segre variety in a positive-dimensional set. Whether $L$ is spanned by its \textit{real} rank-one points is an open condition, which holds for a set of positive measure, and this gives rank $\ell$ as typical. The rank probabilities can then be expressed in terms of the distribution of the intersection points of a random linear space with the Segre variety. We omit the proof that no other ranks than $\ell$ and $\ell+1$ occur. 
+  \end{proof}
+  For example, the typical ranks of real $3 \times 3 \times 5$ tensors are $\{5, 6\}$, in agreement with the numerical tables. 
+
+\section{Symmetric Rank}
+
+  \begin{definition}[Symmetric Rank]
+    The \textbf{symmetric rank} of a supersymmetric tensor $\mathcal{X} \in \mathbb{C}^{I \times \cdots \times I}$ is
+    \begin{equation}
+      \mathrm{rank}_S(\mathcal{X}) \coloneqq \min \bigg\{ R : \mathcal{X} = \sum_{r=1}^R a_r \circ a_r \circ \cdots \circ a_r \bigg\}
+    \end{equation}
+  \end{definition}
+
+  Via the identification of supersymmetric tensors with homogeneous polynomials, this is the \textit{Waring rank}: the smallest number of $d$th powers of linear forms that sum to a given form of degree $d$.
+
+  \begin{theorem}[Alexander--Hirschowitz, 1995]
+    A generic form of degree $d \geq 3$ in $n$ variables over $\mathbb{C}$ has symmetric rank
+    \begin{equation}
+      \bigg\lceil \frac{1}{n} \binom{n + d - 1}{d} \bigg\rceil
+    \end{equation}
+    except for $(d, n) \in \{(3,5), (4,3), (4,4), (4,5)\}$, where the rank is one more.
+  \end{theorem}
+  % TODO verify: the exact ceiling formula; the list of exceptions was confirmed in Comon-Golub-Lim-Mourrain 2008
+
+  \textit{Outline of proof.} The $r$th secant variety of the Veronese variety has expected dimension $\min\{r n, \binom{n+d-1}{d}\}$ (projectively, minus one), and the theorem says this is the actual dimension except in the listed cases. Equivalently, one needs that general $r$ points in $\mathbb{P}^{n-1}$ impose independent conditions on degree-$d$ hypersurfaces that are \textit{double} at these points (Terracini's lemma turns the tangent space of the secant variety at a sum of $r$ powers into the space of forms vanishing doubly at the $r$ points). Alexander and Hirschowitz prove this by a long induction on $n$ and $d$ by specializing points onto a hyperplane.
+
+  For a \textit{specific} form, the classical result is for $n = 2$ and is a rank-determination algorithm in the same spirit as Theorem \ref{thm:pencil}.
+
+  \begin{theorem}[Sylvester, 1851]
+    A binary form $f$ of degree $d$ can be written $f = \sum_{i=1}^r \ell_i^d$ with distinct linear forms $\ell_i$ if and only if there is a form $g$ of degree $r$ with $r$ distinct roots such that $g(\partial) f = 0$.
+  \end{theorem}
+  % TODO verify: exact statement of Sylvester's theorem (distinctness conditions)
+
+  \textit{Outline of proof.} Using apolarity, if $g = \prod_i (\beta_i x - \alpha_i y)$ and $\ell_i = \alpha_i x + \beta_i y$, then $g(\partial) \ell_i^d = 0$ for each $i$ (differentiating a power of $\ell_i$ by the form vanishing at $\ell_i$ kills it), so $g(\partial)$ annihilates any combination of the $\ell_i^d$. Conversely, the annihilator condition $g(\partial) f = 0$ is a linear system for the coefficients of $g$ whose matrix is the \textit{catalecticant} (Hankel) matrix of $f$, and the roots of a kernel vector $g$ give the $\ell_i$. So $\mathrm{rank}_S(f)$ is found by looking for the smallest $r$ with a kernel vector of the catalecticant with distinct roots. Comon and Mourrain and later Brachat, Comon, Mourrain, and Tsigaridas generalized this to several variables.
+
+\subsection{Comon's Conjecture}
+
+    A natural question is whether imposing symmetry costs anything: is $\mathrm{rank}_S(\mathcal{X}) = \mathrm{rank}(\mathcal{X})$ for a supersymmetric tensor? This is \textbf{Comon's conjecture}, and it is known in several special cases (e.g. matrices, and small ranks). Shitov (2018) announced a counterexample (an $800 \times 800 \times 800$ symmetric tensor of rank at most $903$ whose symmetric rank is larger), but an erratum has since been published saying that Shitov found a serious error in the argument, and it is not currently known whether it can be corrected. A recent preprint by Lovitz claims a $27 \times 27 \times 27$ counterexample over $\mathbb{Q}$ (rank $55$, symmetric rank $56$), though this has not yet been peer reviewed.\footnote{\url{https://arxiv.org/abs/1705.08740}, \url{https://epubs.siam.org/doi/full/10.1137/23M1623781}, \url{https://arxiv.org/abs/2609.28292v1}.}

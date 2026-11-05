@@ -1,0 +1,86 @@
+# Shared latexmk configuration for all notes. Each note has a one-line
+# .latexmkrc that loads this file:   do '<relative path>/latexmkrc.common';
+#
+# What it does:
+#   1. Uses LuaLaTeX (same on every machine).
+#   2. Before building, finds every \externaldocument{...} target in the main
+#      .tex file and builds that note first if its .aux files are missing or
+#      older than its .tex sources. The .aux files are gitignored, so after a
+#      git pull / fresh clone they are missing or stale, which makes every
+#      cross-note \hyperref show up as an undefined reference.
+#
+# Dependencies are built non-transitively (a note's own labels do not depend
+# on its external references), and LATEXMK_NO_DEPS stops the child builds from
+# recursing, which also avoids cycles between notes.
+
+no strict "vars";    # $pdf_mode etc. are latexmk's own globals
+use Cwd qw(abs_path getcwd);
+use File::Find;
+use File::Spec;
+
+$pdf_mode = 4;    # lualatex
+
+sub _newest_tex_mtime {
+    my ($dir) = @_;
+    my $newest = 0;
+    find(
+        {
+            no_chdir => 1,
+            wanted   => sub {
+                return unless /\.tex$/ && -f $_;
+                my $m = (stat($_))[9];
+                $newest = $m if $m > $newest;
+            },
+        },
+        $dir
+    );
+    return $newest;
+}
+
+sub _build_stale_dependencies {
+    return if $ENV{LATEXMK_NO_DEPS};
+
+    # main tex file: first non-option *.tex argument, else paper.tex
+    my ($main) = grep { !/^-/ && /\.tex$/ } @ARGV;
+    $main = 'paper.tex' unless defined $main;
+    return unless -f $main;
+
+    open(my $fh, '<', $main) or return;
+    my @deps;
+    while (my $line = <$fh>) {
+        next if $line =~ /^\s*%/;
+        if ($line =~ /\\externaldocument(?:\[[^\]]*\])?\{([^}]+)\}/) {
+            push @deps, $1;
+        }
+    }
+    close $fh;
+
+    my $here = abs_path(getcwd());
+    my %seen;
+    for my $dep (@deps) {
+        my $path = $dep;
+        $path =~ s/\.(?:tex|aux)$//;
+        my ($vol, $dirs, $base) = File::Spec->splitpath($path);
+        my $depdir = abs_path(File::Spec->catpath($vol, $dirs, ''));
+        next unless defined $depdir && -d $depdir;
+        next if $depdir eq $here || $seen{$depdir}++;
+
+        my $tex = "$depdir/$base.tex";
+        my $aux = "$depdir/$base.aux";
+        next unless -f $tex;    # nothing to build
+
+        my $aux_time = -f $aux ? (stat($aux))[9] : 0;
+        next if $aux_time && $aux_time >= _newest_tex_mtime($depdir);
+
+        print "latexmkrc: building stale dependency $depdir/$base.tex\n";
+        system(
+            'env', 'LATEXMK_NO_DEPS=1',
+            'latexmk', '-lualatex', '-f', '-interaction=nonstopmode',
+            '-cd', $tex
+        );
+    }
+}
+
+_build_stale_dependencies();
+
+1;
