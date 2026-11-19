@@ -109,6 +109,18 @@
     \caption{The black curve is $X$. Coarser $\sigma$-algebras give coarser approximations: $\mathbb{E}[X]$ is constant, $\mathbb{E}[X \mid \mathcal{G}]$ is constant on each half, and $\mathbb{E}[X \mid \mathcal{H}]$ is constant on each quarter.}
   \end{figure}
 
+	We should emphasize that $\mathbb{E}[X \mid Z]$ is a function of $Z$. This is formalized in the following lemma. 
+
+	\begin{lemma}[Doob-Dynkin]
+	  \label{lem:doob-dynkin}
+	  Let $Z \colon \Omega \to (E, \mathcal{E})$ be a measurable map into a measurable space, and let $Y \colon \Omega \to \mathbb{R}$. Then $Y$ is $\sigma(Z)$-measurable if and only if there exists a measurable function $g \colon (E, \mathcal{E}) \to (\mathbb{R}, \mathcal{B}(\mathbb{R}))$ such that
+		\begin{equation}
+			Y = g \circ Z = g(Z)
+		\end{equation}
+	\end{lemma}
+
+	Note that $g$ is not unique in general; it is only determined on the range of $Z$ (and, since $\mathbb{E}[X \mid Z]$ is only defined up to null sets, only $\mathbb{P}_Z$-almost everywhere). This is why the value $\mathbb{E}[X \mid Z = z]$ only makes sense for $\mathbb{P}_Z$-almost every $z$.
+
 	\begin{example}[Dice Rolls Knowing Parity]
 		Let's introduce a new way to think about expectation and \hyperref[def:cond-exp]{conditional expectation} in general. 
 		\begin{enumerate}
@@ -306,57 +318,82 @@
 
 \subsection{Conditional Densities}
 
-	\begin{example}[Conditional Expectation from a Joint Density]
-	  \label{ex:conditional-expectation-from-a-joint-density}
-		Suppose $X, Z$ are \hyperref[def:random-variable]{random variables} with a joint pdf $f_{X, Z} (x, z)$ and $\mathbb{E}[|X|] < +\infty$. Then, we define the conditional pdf as 
+  Now we can talk about how to compute conditional expectations. In essence, the conditional expectation $\mathbb{E}[X \mid Y]$ is simply a function of a random variable $Y$ that is this best approximation. 
+
+	\begin{definition}[Conditional Expectation At a Point]
+		\label{def:cond_exp_at_point}
+		Let $X$ be an integrable random variable and $Z$ a real-valued random variable with distribution $P_Z$. 
+		\begin{enumerate}
+		  \item Then there exists a Borel function $g \colon \mathbb{R} \to \mathbb{R}$ with $\mathbb{E}[X \mid Z] = g(Z)$ almost surely, and we define the $\mathbb{P}_Z$-a.s. unique function
+				\begin{equation}
+					\mathbb{E}[X \mid Z = z] \coloneqq g(z).
+				\end{equation}
+
+			\item If $h \colon \mathbb{R} \to \mathbb{R}$ is a Borel function such that $h(Z)$ is integrable and
+				\begin{equation}
+					\label{eq:characterization}
+					\mathbb{E}\big[h(Z)\,\mathbf{1}\{Z \in B\}\big] = \mathbb{E}\big[X\,\mathbf{1}\{Z \in B\}\big] \quad \text{for all Borel } B \subseteq \mathbb{R},
+				\end{equation}
+				then $\mathbb{E}[X \mid Z = z] = h(z)$ for $P_Z$-almost every $z$.
+		\end{enumerate}
+	\end{definition}
+	\begin{proof}
+		We prove well-definedness, uniqueness a.e., and the characterization. 
+		\begin{enumerate}
+		  \item \textit{Existence.} Fix a version $Y$ of $\mathbb{E}[X \mid Z]$. By definition, $Y$ is $\sigma(Z)$-measurable, so by the Doob--Dynkin lemma there is a Borel function $g \colon \mathbb{R} \to \mathbb{R}$ with $Y = g(Z)$.
+
+			\item \textit{Uniqueness up to $P_Z$-null sets.} Let $Y_1, Y_2$ be versions of $\mathbb{E}[X \mid Z]$, possibly equal, and let $g_1, g_2$ be Borel functions with $Y_1 = g_1(Z)$ and $Y_2 = g_2(Z)$ almost surely. Since conditional expectation is unique almost surely, $Y_1 = Y_2$ almost surely, and hence $g_1(Z) = g_2(Z)$ almost surely. The set $N \coloneqq \{z \in \mathbb{R} : g_1(z) \neq g_2(z)\}$ is Borel, because $g_1$ and $g_2$ are Borel, and $\{Z \in N\} = \{g_1(Z) \neq g_2(Z)\}$. Therefore
+				\begin{equation}
+					P_Z(N) = P(Z \in N) = P\big(g_1(Z) \neq g_2(Z)\big) = 0,
+				\end{equation}
+				so $g_1 = g_2$ $P_Z$-almost everywhere. 
+
+			\item \textit{Characterization.} If $h$ is as in \eqref{eq:characterization}, then $h(Z)$ is $\sigma(Z)$-measurable, and \eqref{eq:characterization} is the defining property of conditional expectation, since every event in $\sigma(Z)$ has the form $\{Z \in B\}$. Hence $h(Z)$ is a version of $\mathbb{E}[X \mid Z]$, and the uniqueness argument above, applied with $g_2 = h$, gives $g = h$ $P_Z$-almost everywhere.
+		\end{enumerate}
+	\end{proof}
+
+	Given a joint random variable $(X, Y): \Omega \rightarrow \mathbb{R}^2$, we can fix a value of $Y = y$. Therefore, we are given the information that event $Y^{-1}(\{y\})$ happened, and so we can construct our conditional distribution $X \mid Y = y$, which defines a new probability measure. Taking the expectation of that gives us a number, and this whole map that we defined gives us our function $g$. We formalize this below. 
+
+	\begin{theorem}[Conditional Expectation in the Discrete Case]
+		\label{thm:cond_exp_discrete}
+		Let $X$ be an integrable random variable and let $Z$ be a discrete random variable. Then, for every $z$ such that $\mathbb{P}(Z = z) > 0$,
 		\begin{equation}
-			f_{X\mid Z} (x \mid z) \coloneqq \begin{cases} 
-				\frac{f_{X, Z} (x, z)}{f_Z (z)} & \text{ if } f_Z (z) \neq 0 \\  
-				0 & \text{ if } f_Z (z) = 0 
-			\end{cases}
+			g(z) = \mathbb{E}[X \mid Z = z] = \frac{\mathbb{E}\big[X\,\mathbbm{1}\{Z = z\}\big]}{\mathbb{P}(Z = z)}.\footnote{In particular, $\mathbb{P}(X \in A \mid Z = z) = \frac{\mathbb{P}(X \in A, Z = z)}{\mathbb{P}(Z = z)}$. }
 		\end{equation}
-		Define $Y(z) \coloneqq \int_{\mathbb{R}} x f_{X \mid Z} (x \mid z) \,dx$. We claim that $Y(Z)$ is a version of $\mathbb{E}[X \mid \sigma(Z)]$. As a proof, for all $A \in \sigma(Z)$, we have 
-		\begin{align}
-			\int_A Y(z) f_Z (z) \,dz & = \int_A \bigg( \int_{\mathbb{R}} x f_{X \mid Z} (x \mid z) \,dx \bigg) f_Z (z) \,dz \\ 
-															 & = \int_A \int_{\mathbb{R}} x f_{X, Z} (x, z)\,dx\,dz
-		\end{align}
-		where we denote $dx, dz$ are the Lebesgue or counting measure, depending on whether it is discrete or continuous. 
-	\end{example}
+		So, this map $z \mapsto g(z)$ determines a version of $\mathbb{E}[X \mid Z]$. In particular, 
+		\begin{enumerate}
+		  \item If $X$ is discrete, then we can compute 
+				\begin{equation}
+					g(z) = \mathbb{E}[X \mid Z = z] = \sum_{x} x \mathbb{P}(X = x \mid Z = z)
+				\end{equation}
+				So, we recover the \hyperref[def:conditional-pmf]{conditional PMF formula} for the discrete case.
 
-  Now we can talk about how to compute conditional expectation. In essence, the conditional expectation $\mathbb{E}[X \mid Y]$ is simply a function of a random variable $Y$ that is this best approximation. Given a joint random variable $(X, Y): \Omega \rightarrow \mathbb{R}^2$, we can fix a value of $Y = y$. Therefore, we are given the information that event $Y^{-1}(\{y\})$ happened, and so we can construct our conditional distribution $X \mid Y = y$, which defines a new probability measure. Taking the expectation of that gives us a number. 
+			\item If $X$ is continuous, then we can compute 
+				\begin{equation}
+					g(z) = \mathbb{E}[X \mid Z = z] = \int x \frac{f_{X, Z} (x, z)\footnote{Technically, this isn't a density since $Z$ is discrete, but it is the function satisfying $\mathbb{P}(X \in A, Z = z) = \int_A f_{X, Z} (x, z)\,dx$ for all Borel $A$.}}{\mathbb{P}(Z = z)} \,dx
+				\end{equation}
+		\end{enumerate}
+	\end{theorem}
 
-  \begin{definition}[Discrete Conditional Expectation Given $Y = y$]
-    \label{def:discrete-conditional-expectation-given-yy}
-    Let $X: \Omega \to \mathcal{X}$ and $Y: \Omega \to \mathcal{Y}$ be \hyperref[def:discrete-random-variable]{discrete random variables}, and let $y \in \mathcal{Y}$ be such that $\mathbb{P}(Y = y) > 0$. Recall that the \hyperref[def:conditional-pmf]{conditional PMF} is 
-    \begin{equation}
-      \mathbb{P}(X = x \mid Y = y) \coloneqq \frac{\mathbb{P}(X = x, Y = y)}{\mathbb{P}(Y = y)}
-    \end{equation}
-    The \textbf{conditional expectation} of $X$ given $Y = y$ is 
-    \begin{equation}
-      \mathbb{E}[X \mid Y = y] = \sum_{x \in \mathcal{X}} x \, \mathbb{P}(X = x \mid Y = y)
-    \end{equation}
-  \end{definition}
+	We can do the same process for the jointly continuous case. 
 
-  \begin{definition}[Continuous Conditional Expectation Given $Y = y$]
-    \label{def:continuous-conditional-expectation-given-yy}
-    Let $X, Y$ be jointly continuous with joint PDF $f_{X, Y} (x, y)$. Recall that for $y$ such that $f_Y (y) > 0$, the conditional PDF is 
-    \begin{equation}
-      f_{X \mid Y} (x \mid y) \coloneqq \frac{f_{X, Y} (x, y)}{f_Y (y)}
-    \end{equation}
-    The \textbf{conditional expectation} of $X$ given $Y = y$ is 
-    \begin{equation}
-      \mathbb{E}[X \mid Y = y] = \int_{x \in \mathbb{R}} x \, f_{X \mid Y} (x \mid y) \, dx
-    \end{equation}
-    Again, we can set $\psi(y) \coloneqq \mathbb{E}[X \mid Y = y]$, which is a function of $y$ and therefore a \hyperref[def:random-variable]{random variable}. 
-  \end{definition}
+	\begin{theorem}[Conditional Expectation in the Continuous Case]
+		\label{thm:cond_exp_continuous}
+		Let $(X, Z)$ have a joint density $f_{X,Z}$, with $X$ integrable. Then, for $P_Z$-almost every $z$, we have $f_Z(z) > 0$ and
+		\begin{equation}
+			g(z) = \mathbb{E}[X \mid Z = z] = \frac{1}{f_Z(z)} \int_{\mathbb{R}} x\, f_{X,Z}(x, z)\,dx = \int_{\mathbb{R}} x\, f_{X \mid Z}(x \mid z)\,dx,
+		\end{equation}
+		where $f_{X \mid Z}(x \mid z) \coloneqq f_{X,Z}(x, z) / f_Z(z)$ is the conditional density, and $f_Z(z) = \int_{\mathbb{R}} f_{X,Z}(x, z)\,dx$ is the marginal density of $Z$. So, this map $z \mapsto g(z)$ determines a version of $\mathbb{E}[X \mid Z]$. 
+	\end{theorem}
 
-  As a visual, we can take a "slice" of the joint distribution of some value of $Y$, look at the distribution of $X$ on this slice, and compute its expectation. That is, for every value of $Y = y$, there exists some (conditional) distribution of $X$ with PMF of $p_{X \mid Y} (x \mid y)$ or PDF of $f_{X \mid Y} (x \mid y)$. 
-  \begin{center}
+	So therefore, in order to find such a $g$ such that $g(Z)$ is a version of $\mathbb{E}[X \mid Z]$, we can just compute the conditional expectation $\mathbb{E}[X \mid Z = z]$ from the conditional PMF or PDF (setting $g(z) \coloneqq 0$ wherever $\mathbb{P}(Z = z) = 0$ or $f_Z(z) = 0$) , and then replace the little $z$ to a random variable $Z$.\footnote{Though this only works under the hypotheses of the two theorems above: that is, when $\mathbb{E}[|X|]$ is integrable, and either $Z$ is discrete or $(X, Z)$ is jointly continuous. It may not hold in other cases.}
+
+	\begin{figure}[H]
+		\centering 
     \includegraphics[scale=0.3]{img/conditional_exp.jpg}
-  \end{center}
-  So given a value of $Y = y$, we generally know something about $X$ (e.g. if I know humidity, I know something about the temperature) and want to find the best estimate of $X$. This is precisely the \hyperref[def:cond-exp]{conditional expectation} $\mathbb{E}[X \mid Y = y]$, and we can interpret this as a regression function $\psi(y) \coloneqq \mathbb{E}[X \mid Y = y]$, which predicts the expected value of $X$ given $Y = y$. 
-
-  But since we don't know what exactly $Y$ is, this process is random itself, and it is only after this $Y$ is realized that we can provide the expected value of $X$. Thus, by replacing the little $y$'s with the big $Y$'s, we can construct a \hyperref[def:random-variable]{random variable} that will estimate $X$ for us given $Y$, denoted $\mathbb{E}[X \mid Y] = \psi(Y)$. This turns out to be a $\sigma(Y)$-measurable random variable itself. 
+		\caption{We can take a "slice" of the joint distribution of some value of $Z$, look at the distribution of $X$ on this slice, and compute its expectation. That is, for every value of $Z = z$, there exists some (conditional) distribution of $X$ with PMF of $p_{X \mid Z} (x \mid z)$ or PDF of $f_{X \mid Z} (x \mid z)$. We can then interpret $g$ as a regression function $g(z) \coloneqq \mathbb{E}[X \mid Z = z]$, which predicts the expected value of $X$ given $Z = z$. } 
+		\label{fig:}
+	\end{figure}
 
   \begin{example}[Computing $\mathbb{E}[Y \mid X]$ from a Joint Density]
     \label{ex:find-first-calculate-marginal-density}
@@ -412,6 +449,53 @@
     This makes sense intuitively, since we want to approximate this value by taking the expected value of $X$ and multiplying it by the expected number of summands. 
   \end{example}
 
+\subsection{Conditional Variance}
+
+	Remember that the conditional expectation $\mathbb{E}[X \mid Z]$ gives a coarser random variable that best approximates a finer random variable in the sense that expectations coincide on the events $E \in \sigma(Z)$. The conditional variance tells us how much the $X$ deviates around the conditional expectation. 
+
+  \begin{definition}[Conditional Variance]
+    \label{def:conditional-variance}
+		The \textbf{conditional variance} of $X$ given $Z$ tells us how much $X$ deviates around $\mathbb{E}[X \mid Z]$. 
+    \begin{equation}
+			\Var[X \mid Z] = \mathbb{E}_Z \big[ \big( X - \mathbb{E}[X \mid Z] \big)^2 \mid Z \big] = \mathbb{E}_Z [X^2 \mid Z] - \mathbb{E}_Z [X \mid Z]^2
+    \end{equation}
+  \end{definition}
+
+	\begin{example}[Dice Roll]
+		Let $X \sim \Multinomial(\frac{1}{6}, \frac{1}{6},\frac{1}{6},\frac{1}{6},\frac{1}{6},\frac{1}{6})$, with 
+		\begin{equation}
+			Z \sim \Bernoulli(\frac{1}{2}), \quad Z = \begin{cases} 0 & \text{ if } X \leq 3 \\ 1 & \text{ if } X > 3 \end{cases}
+		\end{equation}
+		Then, we can compute 
+		\begin{equation}
+			\mathbb{E}[X \mid Z] = \begin{cases} 
+				2 & \text{ if } Z = 0 \\ 
+				4 & \text{ if } Z = 1
+			\end{cases}
+		\end{equation}
+
+		So, since our mean is also changing depending on $Z$, we have 
+		\begin{equation}
+			\Var(X \mid Z) = \sum_{z = 1} \frac{(1 - 2)^2}{6} + \frac{(2 - 2)^2}{6} + \frac{(3 - 2)^2}{6} + \frac{(4 - 5)^2}{6} + \frac{(5 - 5)^2}{6} + \frac{(6 - 5)^2}{6} = \frac{2}{3}
+		\end{equation}
+
+
+		Since we conditioned on $Z$, we should have much lower variance than 
+	\end{example}
+
+	Variance, intuitively, tells us how much the random variable deviates from its mean. We can decompose this deviation into a part that tells us how much the 
+
+	\begin{theorem}[Law of Total Variance]
+		Let $X, Z$ random variables, with $\Var(X) < +\infty$. Then, 
+		\begin{equation}
+			\Var[X] = \mathbb{E}_Z [\Var(X \mid Z)] + \Var_Z [\mathbb{E}[X \mid Z]]
+		\end{equation}
+		where $\mathbb{E}_Z [\Var(X \mid Z)]$ tells us on average how much $X$ deviates from its conditional mean $\mathbb{E}[X \mid Z]$, and $\Var_Z [\mathbb{E}[X \mid Z]]$ tells us how much the actual conditional mean deviates. 
+	\end{theorem}
+	\begin{proof}
+	  
+	\end{proof}
+
 \subsection{Conditioning on Multiple Random Variables}
 
   Now, we can simply use the property to talk about what $\mathbb{P}(X \mid Y)$ means. Formally, using the fact that the probability that $X$ will realize in $A$, i.e. $\mathbb{P}(X \in A) = \mathbb{E}_X[1_A]$, we can define the conditional probability as 
@@ -455,22 +539,6 @@
       \int_A Y \, d\mathbb{P} = \int_A \mathbb{E}[Y \mid \{X_i\}_{i \in I} ] \, d\mathbb{P}
     \end{equation}
     for all $A \in \sigma(\{X_i \}_{i \in I})$. 
-  \end{definition}
-
-\subsection{Conditional Variance}
-
-  Similar to \hyperref[def:cond-exp]{conditional expectation}, we can define the conditional variance $\Var(Y \mid X = x)$ as a function $h(x)$ that outputs the variance of $Y$ given $X = x$. We have
-  \begin{align}
-    \Var(Y \mid X = x) & = \mathbb{E}\big[ ( Y - \mathbb{E}[Y \mid X = x] )^2 \mid X = x \big]
-  \end{align}
-
-  \begin{definition}[Conditional Variance]
-    \label{def:conditional-variance}
-    The \textbf{conditional variance} of $Y$ given $X$ is defined as 
-    \begin{equation}
-      \Var(Y \mid X) = \mathbb{E} \big[ \big( Y - \mathbb{E}[Y \mid X] \big)^2 \mid X \big]
-    \end{equation}
-    which tells us how much variance is left if we use $\mathbb{E}[Y \mid X]$ to predict $Y$. 
   \end{definition}
 
 \subsection{Exercises}
