@@ -1,209 +1,195 @@
 \section{Poisson Processes}
 
-  \subsection{Exponential Distribution}
+	We first describe a limiting behavior of \hyperref[prob-def:binomial-random-variable]{binomial random variables}. 
 
-    Let us do some review. The \textbf{exponential distirbution} of rate $\lambda$ is a \hyperref[prob-def:random-variable]{random variable} $T \sim \mathrm{Exponential}(\lambda)$ with CDF 
+	\begin{theorem}[Poisson Limit Theorem]
+		\label{thm:poisson-limit-theorem}
+		Let $X_n \sim \Bernoulli(n, p_n)$, where $\{p_n\}_{n \in \mathbb{N}}$ is a sequence of reals in $[0, 1]$ such that $\lim_{n \rightarrow \infty} n p_n = \lambda$. Then, 
+		\begin{equation}
+			X_n \xrightarrow{D} \Poisson(\lambda)\footnote{Note that this is different from CLT because in CLT, we just assume that the $p_n$'s are constant and take the limiting behavior of $X_n \sim \Bernoulli(n, p)$ as $n \rightarrow \infty$. }
+		\end{equation}
+	\end{theorem}
+	\begin{proof}
+		We will show that $\lim_{n \rightarrow \infty} \mathbb{P}(X_n = k) = \mathbb{P}(Y = k)$, which shows that the CDFs converge and therefore \hyperref[prob-def:convergence-in-distribution]{convergence in distribution}. 
+		\begin{align*}
+			\lim_{n \rightarrow \infty} \mathbb{P}(X_n = k) & = \lim_{n \rightarrow \infty} \binom{n}{k} p_n^k (1 - p_n)^k \\
+			& = \lim_{n \rightarrow \infty} \frac{n (n - 1) \ldots (n - k + 1)}{k!} \bigg(\frac{\lambda}{n}\bigg)^k \bigg( 1 - \frac{\lambda}{n} \bigg)^{n - k} \\
+			& = \lim_{n \rightarrow \infty} \frac{n^k + O(n^{k-1})}{k!} \frac{\lambda^k}{n^k} \bigg( 1 - \frac{\lambda}{n} \bigg)^{n - k} \\
+			& = \lim_{n \rightarrow \infty} \frac{\lambda^k}{k!} \bigg( 1 - \frac{\lambda}{n} \bigg)^{n - k} \\
+			& = \frac{\lambda^k}{k!} \lim_{n \rightarrow \infty} \bigg( 1 - \frac{\lambda}{n} \bigg)^n \; \lim_{n \rightarrow \infty} \bigg( 1 - \frac{\lambda}{n} \bigg)^{-k} \\
+			& = \frac{\lambda^k}{k!} \, e^{\lambda} \, 1 = \frac{\lambda^k e^\lambda}{k!}
+		\end{align*}
+	\end{proof}
 
-      \begin{equation}
-        F_T (t) = \mathbb{P}(T \leq t) = 1 - e^{-\lambda t}
-      \end{equation}
+	This result justifies the \textit{Poisson arrival process}, which models the occurrence of some events at rate $\lambda$ per unit time, within the time interval $[0, +\infty)$. We start with the discrete case by taking any arbitrary interval of length $s$. 
 
-    and the PDF 
+	\begin{figure}[H]
+		\centering 
+		\begin{tikzpicture}[x=1cm, y=1cm, >=latex]
+			% time axis
+			\draw[->, thick] (-0.3, 0) -- (12.8, 0) node[right] {$t$};
+			% slot boundaries
+			\foreach \i in {0,...,12} {
+				\draw (\i, -0.15) -- (\i, 0.15);
+			}
+			\node[below] at (0, -0.2) {$0$};
+			\node[below] at (12, -0.2) {$T$};
+			\foreach \i/\lab in {1/\delta, 2/2\delta, 3/3\delta, 11/(n-1)\delta} {
+				\node[below, font=\footnotesize] at (\i, -0.2) {$\lab$};
+			}
+			\node[font=\small] at (7, -0.45) {$\cdots$};
+			% shaded slots with arrivals (X_k = 1)
+			\foreach \k in {2, 5, 9, 11} {
+				\fill[blue!20] (\k-1, 0) rectangle (\k, 0.8);
+			}
+			% slot outlines
+			\foreach \k in {1,...,12} {
+				\draw[gray!60] (\k-1, 0) rectangle (\k, 0.8);
+			}
+			% X_k labels
+			\foreach \k/\v in {1/0, 2/1, 3/0, 4/0, 5/1, 6/0, 7/0, 8/0, 9/1, 10/0, 11/1, 12/0} {
+				\node at (\k-0.5, 0.4) {$\v$};
+			}
+			% arrival markers
+			\foreach \x in {1.6, 4.3, 8.5, 10.7} {
+				\fill[red] (\x, 0) circle (0.07);
+			}
+			% slot labels
+			\node[above, font=\footnotesize] at (0.5, 0.85) {$X_1$};
+			\node[above, font=\footnotesize] at (1.5, 0.85) {$X_2$};
+			\node[above, font=\footnotesize] at (2.5, 0.85) {$X_3$};
+			\node[above, font=\footnotesize] at (11.5, 0.85) {$X_n$};
+			% delta width
+			\draw[<->] (0, 1.6) -- (1, 1.6) node[midway, above, font=\footnotesize] {$\delta$};
+			\draw[dotted] (0, 0.85) -- (0, 1.6);
+			\draw[dotted] (1, 0.85) -- (1, 1.6);
+			% N(T) annotation
+			\node[red, font=\footnotesize, align=center] at (6, -1.3) {arrivals ($X_k = 1$, prob.\ $\lambda\delta$): $N_n(T) = \sum_{k=1}^n X_k$};
+		\end{tikzpicture}
+		\caption{At time $t = 0$, we have no arrivals yet, so $N(0) = 0$. Let us fix some $s$, and now divide $[0, s)$ into $n$ tiny subintervals of length $\delta$. Assume that in each time slot, we assign a $X_k \sim \Bernoulli(\lambda \delta)$ \hyperref[prob-def:random-variable]{random variable} that determines whether there was an arrival within the interval $((k-1)\delta, k\delta]$. So with probability $\lambda\delta$, there will be an arrival within it, and as the time interval gets smaller, this probability also gets smaller too. } 
+		\label{fig:poisson_discrete}
+	\end{figure}
 
-      \begin{equation}
-        f_T (t) = \begin{cases} \lambda e^{-\lambda t} & t \geq 0 \\ 0 & t < 0 \end{cases}
-      \end{equation}
+	Since every $n$ subinterval is $\Bernoulli(\lambda \delta)$, the number of arrivals in the interval $[0, s)$, defined as the random variable $N_n (T)$, is 
+	\begin{equation}
+		N_n (s) \sim \Binomial(n, \lambda \delta) = \Binomial\big(n, \frac{\lambda s}{n}\big)
+	\end{equation}
 
-    We have 
+	As we increase the $n$ (equivalently, decrease $\delta$), we divide $[0, s)$ into smaller and smaller subintervals, resulting in finer and finer $N_n(s)$ Binomial distributions. Since $n p_n = n \frac{\lambda s}{n} = \lambda s$ is finite, we can invoke the \hyperref[thm:poisson-limit-theorem]{Poisson limit theorem} and say that $N_n (s) \xrightarrow{D} \Poisson(\lambda s)$. Note that the starting point $0$ does not matter, and this works for any interval of length $s$. Therefore, we can model the arrival times on any interval of length $s$ as a $\Poisson(\lambda s)$ random variable. Amazingly, there is an equivalent construction using inter-arrival times modeled as Exponentials. 
 
-      \begin{equation}
-        \mathbb{E}[T] = \frac{1}{\lambda}, \;\; \mathrm{Var}(T) = \frac{1}{\lambda^2}
-      \end{equation}
+	\begin{definition}[Poisson Process]
+		\label{def:poisson-process}
+		A \hyperref[def:counting-process]{counting process} $\{N(t)\}_{t \geq 0}$ is called a \textbf{Poisson process} with rate $\lambda$ if it satisfies either of the following equivalent conditions.
+		\begin{enumerate}
+			\item \textit{Poisson Increments.} For all $t \geq 0$ and $s > 0$, $N(t + s) - N(t) \sim \Poisson(\lambda s)$, and for all $0 \leq t_0 < t_1 < \ldots < t_n$, the increments
+				\begin{equation}
+					N(t_1) - N(t_0), \; \ldots, \; N(t_n) - N(t_{n-1})
+				\end{equation}
+			are independent.
 
-    \begin{lemma}[Memoryless Property]
-      \label{thm:memoryless-property}
-      The Exp$(\lambda)$ distribution has the property that for all $t, s \geq 0$, 
+			\item \textit{Exponential Inter-Arrivals.} The inter-arrival times $\tau_1, \tau_2, \ldots \iidsim \Exponential(\lambda)$, with 
+				\begin{equation}
+					N(t) = \max\{k \geq 0 \mid \tau_1 + \ldots + \tau_k \leq t\}
+				\end{equation}
+		\end{enumerate}
+	\end{definition}
+	\begin{proof}
+		We prove bidirectionally. 
+		\begin{enumerate}
+		  \item $(\Leftarrow)$. Since $T_k$ is a sum of $k$ independent $\Exponential(\lambda)$ random variables, $T_k \sim \GammaDist(k, \lambda)$ with density $\lambda e^{-\lambda u} \frac{(\lambda u)^{k-1}}{(k-1)!}$ for $u > 0$. For $k \geq 1$, conditioning on $T_k$ and using that $\tau_{k+1}$ is independent of $T_k$,
+				\begin{align}
+					\mathbb{P}(N(s) = k) & = \mathbb{P}(T_k \leq s < T_k + \tau_{k+1}) \\
+					& = \int_0^s \lambda e^{-\lambda u} \frac{(\lambda u)^{k-1}}{(k-1)!} \, e^{-\lambda (s - u)} \, du
+					= e^{-\lambda s} \frac{\lambda^k}{(k-1)!} \int_0^s u^{k-1} \, du
+					= e^{-\lambda s} \frac{(\lambda s)^k}{k!},
+				\end{align}
+				and $\mathbb{P}(N(s) = 0) = \mathbb{P}(\tau_1 > s) = e^{-\lambda s}$. So $N(s) \sim \Poisson(\lambda s)$.
 
-        \begin{equation}
-          \mathbb{P}(W > t + s \; | \; W > t) = \mathbb{P}(W > s)
-        \end{equation}
+				\textit{Restarting at time $t$.} Fix $t \geq 0$ and $k \geq 0$, and on the event $\{N(t) = k\} = \{T_k \leq t < T_k + \tau_{k+1}\}$ define
+				\begin{equation}
+					\tau_1' = T_{k+1} - t, \qquad \tau_j' = \tau_{k+j}, \quad j \geq 2.
+				\end{equation}
+				For $x, x_2, \ldots, x_m \geq 0$ and any Borel set $A$, conditioning on $(T_1, \ldots, T_k)$ and using the memoryless property $\mathbb{P}(\tau_{k+1} > a + x) = e^{-\lambda x} \, \mathbb{P}(\tau_{k+1} > a)$,
+				\begin{align}
+					\mathbb{P}\big( (T_1, \ldots, T_k) \in A, \; N(t) = k, \; \tau_1' > x, \; \tau_j' > x_j \; (2 \leq j \leq m) \big)
+						& = \mathbb{P}\big( (T_1, \ldots, T_k) \in A, \; N(t) \\ 
+						& = k \big) \, e^{-\lambda x} \prod_{j=2}^m e^{-\lambda x_j}.
+				\end{align}
+				Hence, conditionally on $\{N(t) = k\}$, the $\tau_j'$ are i.i.d.\ $\Exponential(\lambda)$ and independent of $(T_1, \ldots, T_k)$. Since $\{N(r) : r \leq t\}$ is determined by $N(t)$ and $T_1, \ldots, T_{N(t)}$, the shifted process $N'(s) = N(t + s) - N(t)$, whose inter-arrival times are the $\tau_j'$, satisfies (b) and is independent of $\{N(r) : r \leq t\}$.
 
-      which is called the \textit{memoryless property}. We can interpret this in the following way. Let $W$ be the time you have to wait for the first arrival. Given that you already waited $t$ units of time, the probability that you have the wait $s$ additional units of time is just the probability that you wait at least $s$ from the beginning. That is, knowing that $t$ units of time have elapsed does not affect the distribution of the remaining waiting time. 
-    \end{lemma}
+				Applying the marginal computation to $N'$ gives $N(t + s) - N(t) \sim \Poisson(\lambda s)$. For independent increments, $N(t_n) - N(t_{n-1})$ is independent of $\{N(r) : r \leq t_{n-1}\}$, which determines all earlier increments, so the claim follows by induction on $n$.
 
-    \begin{theorem}[Characterization of the Exponential Distribution]
-      \label{thm:characterization-of-the-exponential-distribution}
-      Let $W$ be a continuously distributed \hyperref[prob-def:random-variable]{random variable}. Then $W \sim$ Exp$(\lambda)$ for some $\lambda > 0$ if and only if $W$ satisfies the \hyperref[thm:memoryless-property]{memoryless property}. 
-    \end{theorem}
+			\item $(\Rightarrow)$. Fix $n \geq 1$ and $0 < s_1 < t_1 \leq s_2 < t_2 \leq \ldots \leq s_n < t_n$, and set $t_0 = 0$. Because the paths jump by exactly $1$,
+				\begin{align}
+					\{ s_i & < T_i \leq t_i, \; 1 \leq i \leq n \} \\
+								 & = \Big\{ N(s_1) = 0, \; \bigcap_{i=1}^{n-1} \big\{ N(t_i) - N(s_i) = 1, \; N(s_{i+1}) - N(t_i) = 0 \big\}, \; N(t_n) - N(s_n) \geq 1 \Big\}.
+				\end{align}
+				By independent and Poisson increments, its probability is
+				\begin{align}
+					& e^{-\lambda s_1} \prod_{i=1}^{n-1} \Big[ \lambda (t_i - s_i) e^{-\lambda (t_i - s_i)} \, e^{-\lambda (s_{i+1} - t_i)} \Big] \big( 1 - e^{-\lambda (t_n - s_n)} \big) \\
+					& \qquad = \lambda^{n-1} \prod_{i=1}^{n-1} (t_i - s_i) \, \big( e^{-\lambda s_n} - e^{-\lambda t_n} \big)
+					= \int_{s_1}^{t_1} \!\! \cdots \int_{s_n}^{t_n} \lambda^n e^{-\lambda u_n} \, du_n \cdots du_1.
+				\end{align}
+				Such boxes form a $\pi$-system generating the Borel sets of $\{0 < u_1 < \ldots < u_n\}$, so by the $\pi$--$\lambda$ theorem, $(T_1, \ldots, T_n)$ has joint density
+				\begin{equation}
+					f(u_1, \ldots, u_n) = \lambda^n e^{-\lambda u_n}, \qquad 0 < u_1 < \ldots < u_n.
+				\end{equation}
+				The change of variables $\tau_i = u_i - u_{i-1}$ is linear with Jacobian $1$ and $u_n = \tau_1 + \ldots + \tau_n$, so $(\tau_1, \ldots, \tau_n)$ has density
+				\begin{equation}
+					\lambda^n e^{-\lambda (\tau_1 + \ldots + \tau_n)} = \prod_{i=1}^n \lambda e^{-\lambda \tau_i}, \qquad \tau_i > 0.
+				\end{equation}
+				Thus $\tau_1, \ldots, \tau_n$ are i.i.d.  $\Exponential(\lambda)$ for every $n$. 
+		\end{enumerate}
+	\end{proof}
 
-    \begin{theorem}[Minimum of Independent Exponentials]
-      \label{thm:minimum-of-independent-exponentials}
-      Let $T_i \sim \mathrm{Exponential}(\lambda_i)$ for $i = 1, \ldots n$. Then, 
+	\begin{example}[Bus Waiting]
+	  Say that buses arrive at a stop according to a \hyperref[def:poisson-process]{Poisson process} with rate $\lambda = 4$ per hour, so that on average a bus comes every $15$ minutes. You walk up to the stop at some arbitrary time $t$ without looking at a schedule. How long do you wait? 
 
-        \begin{equation}
-          \min\{T_1, \ldots, T_n\} \sim \mathrm{Exponential}(\lambda_1 + \ldots + \lambda_n)
-        \end{equation}
+	  By the restarting property in the proof above, the process $N'(s) = N(t + s) - N(t)$ is again a Poisson process with rate $\lambda$, independent of everything that happened before you arrived. Therefore, the time until the next bus is the first inter-arrival time of $N'$, so it is $\Exponential(4)$ no matter when you showed up or how long ago the last bus left. In particular, 
+	  \begin{equation}
+	    \E[\text{wait}] = \frac{1}{\lambda} = 15 \text{ minutes}, \qquad \mathbb{P}(\text{wait} > 10 \text{ min}) = e^{-4 \cdot \frac{1}{6}} = e^{-2/3} \approx 0.51
+	  \end{equation}
+	  We can also ask about counts instead of times. The number of buses in the next half hour is $N(t + \tfrac12) - N(t) \sim \Poisson(2)$, so the probability that no bus comes in that time is $e^{-2} \approx 0.14$. Note that the mean wait is the full $15$ minutes, and not $7.5$ minutes as it would be if buses ran on a fixed schedule. This is the memorylessness of the exponential at work: the bus is never ``due.'' 
+	\end{example}
 
-      and the \hyperref[prob-def:random-variable]{random variable} $I$ which takes the index of $\min\{T_1, \ldots, T_n\}$ has the PMF 
+	We can slightly modify the construction above to create a \hyperref[def:poisson-process]{Poisson process} over some finite time horizon $[0, L]$. Again, there are two equivalent ways to do this.
+	
+	\begin{definition}[Poisson Process on a Finite Horizon]
+		\begin{enumerate}
+			\item Starting with independent $\Exponential(\lambda)$ \hyperref[prob-def:random-variable]{random variables} $\tau_1, \tau_2, \ldots$, we define
 
-        \begin{equation}
-          \mathbb{P}(I = i) = \frac{\lambda_i}{\lambda_1 + \ldots + \lambda_n}
-        \end{equation}
-    \end{theorem}
+				\begin{equation}
+					T_k = \sum_{i=1}^k \tau_i
+				\end{equation}
 
-  \subsection{Defining the Poisson Process}
+			and stop once $T_k > L$.
 
-    We first describe a limiting behavior of \hyperref[prob-def:binomial-random-variable]{binomial random variables}. 
+			\item We let $N \sim \Poisson(\lambda L)$, since we are only working on the finite interval $[0, L]$. Given $N = n$, let $U_1, U_2, \ldots, U_n \sim \Uniform([0, L])$ be independent. These define the arrival times, and ordering them gives
 
-    \begin{theorem}[Poisson Limit Theorem]
-      \label{thm:poisson-limit-theorem}
-      Let $X_n \sim \mathrm{Bernoulli}(n, p_n)$, where $\{p_n\}_{n \in \mathbb{N}}$ is a sequence of reals in $[0, 1]$ such that 
+				\begin{equation}
+					T_k = U_{(k)}, \qquad k = 1, 2, \ldots, N
+				\end{equation}
 
-        \begin{equation}
-          \lim_{n \rightarrow \infty} n p_n = \lambda
-        \end{equation}
+			where $U_{(k)}$ is the $k$th order statistic, so that $T_1 = \min(U_1, \ldots, U_N)$.
+		\end{enumerate}
+	\end{definition}
 
-      Letting $Y \sim \mathrm{Poisson}(\lambda)$
+	\begin{example}[Customers in a Shop]
+	  Customers enter a shop according to a Poisson process with rate $\lambda$. Each customer stays for an independent random time $S_i \sim \Exponential(\mu)$, independent of the arrival process, and then leaves. Let $M(t)$ be the number of customers in the shop at time $t$. What is its distribution? 
 
-        \begin{equation}
-          X_n \xrightarrow{D} Y
-        \end{equation}
-
-      That is, the CDFs, and since this is a discrete distribution, the PMFs, converge. 
-    \end{theorem}
-    \begin{proof}
-      We will show that $\lim_{n \rightarrow \infty} \mathbb{P}(X_n = k) = \mathbb{P}(Y = k)$, which shows that the CDFs converge and therefore \hyperref[prob-def:convergence-in-distribution]{convergence in distribution}. 
-      \begin{align*}
-        \lim_{n \rightarrow \infty} \mathbb{P}(X_n = k) & = \lim_{n \rightarrow \infty} \binom{n}{k} p_n^k (1 - p_n)^k \\
-        & = \lim_{n \rightarrow \infty} \frac{n (n - 1) \ldots (n - k + 1)}{k!} \bigg(\frac{\lambda}{n}\bigg)^k \bigg( 1 - \frac{\lambda}{n} \bigg)^{n - k} \\
-        & = \lim_{n \rightarrow \infty} \frac{n^k + O(n^{k-1})}{k!} \frac{\lambda^k}{n^k} \bigg( 1 - \frac{\lambda}{n} \bigg)^{n - k} \\
-        & = \lim_{n \rightarrow \infty} \frac{\lambda^k}{k!} \bigg( 1 - \frac{\lambda}{n} \bigg)^{n - k} \\
-        & = \frac{\lambda^k}{k!} \lim_{n \rightarrow \infty} \bigg( 1 - \frac{\lambda}{n} \bigg)^n \; \lim_{n \rightarrow \infty} \bigg( 1 - \frac{\lambda}{n} \bigg)^{-k} \\
-        & = \frac{\lambda^k}{k!} \, e^{\lambda} \, 1 = \frac{\lambda^k e^\lambda}{k!}
-      \end{align*}
-    \end{proof}
-
-    Note that this is different from CLT because in CLT, we just assume that the $p_n$'s are constant and take the limiting behavior of $X_n \sim \mathrm{Bernoulli}(n, p)$ as $n \rightarrow \infty$. 
-
-    This result justifies the following model. A Poisson Arrival Process with rate $\lambda > 0$ on the interval $[0, \infty)$ is a model for the occurrence of some events which may have at any time. We can interpret the process as a collection of random points in $[0, \infty)$ which are the times at which the arrivals occur. Suppose that we would like to model the arrival of events that happen completely at random at a rate $\lambda$ per unit time. At time $t = 0$, we have no arrivals yet, so $N(0) = 0$. Let us fix some $T$, and now divide $[0, T)$ into $n$ tiny subintervals of length $\delta$. 
-
-    \begin{center}
-      %\includegraphics[scale=0.3]{}
-    \end{center}
-
-    Assume that in each time slot, we assign a $X_k \sim \mathrm{Bernoulli}(\lambda \delta)$ \hyperref[prob-def:random-variable]{random variable} that determines whether there was an arrival within the interval $((k-1)\delta, k\delta]$. So with probability $\lambda\delta$, there will be an arrival within it, and as the time interval gets smaller, this probability also gets smaller too. Since every $n$ subinterval is $\mathrm{Bernoulli}(\lambda \delta)$, the number of arrivals in the interval $[0, T)$, defined as the random variable $N_n (T)$, is 
-
-      \begin{equation}
-        N_n (T) \sim \mathrm{Binomial}(n, \lambda \delta) = \mathrm{Binomial}\big(n, \frac{\lambda T}{n}\big)
-      \end{equation}
-
-    As we increase the $n$ (equivalently, decrease $\delta$), we divide $[0, T)$ into smaller and smaller subintervals, resulting in finer and finer $N_n(T)$ Binomial distributions. Since $n p_n = n \frac{\lambda T}{n} = \lambda T$ is finite, we can invoke the \hyperref[thm:poisson-limit-theorem]{Poisson limit theorem} and say 
-
-      \begin{equation}
-        N_n (T) \xrightarrow{D} \mathrm{Poisson}(\lambda T)
-      \end{equation}
-
-    Note that the starting point $0$ does not matter, and this works for any interval of length $T$. Therefore, we can model the arrival times on any interval of length $T$ as a $\mathrm{Poisson}(\lambda T)$ random variable. 
-
-    \begin{definition}[Poisson Process]
-      \label{def:poisson-process}
-      Let $\lambda > 0$ be fixed, representing the rate of arrival in some unit time. The stochastic counting process $\{N(t)\}_{t \geq 0}$, where $N(t)$ represents the number of arrivals by time $t$, is called a \textbf{Poisson process} with rate $\lambda$ if 
-      \begin{enumerate}
-        \item $N(0) = 0$ 
-
-        \item The number of arrivals in any interval of length $s > 0$ is $N(t + s) - N(t) \sim \mathrm{Poisson}(\lambda s)$ 
-
-        \item $N(Tt)$ has independent increments, i.e. if $t_0 < t_1 < \ldots, < t_n$, then 
-
-          \begin{equation}
-            N(t_1) - N(t_0), \ldots, N(t_n) - N(t_{n-1})
-          \end{equation}
-
-        are independent. 
-      \end{enumerate}
-    \end{definition}
-
-  \subsection{Constructing the Poisson Process}
-
-    Now we have modeled this process using \hyperref[prob-def:random-variable]{random variables} $N(t)$ that counts the number of arrivals up to time $t$. Now, we can interpret it using random variables that represent the \textit{time} in which they arrive. 
-
-    \begin{definition}[Arrival and Inter-Arrival Times]
-      \label{def:arrival-and-inter-arrival-times}
-      Set $T_0 = 0$. The arrival times are \hyperref[prob-def:random-variable]{random variables} $0 < T_1 < T_2 < T_3 < \ldots$ such that the inter-arrival waiting times
-
-        \begin{equation}
-          \tau_k = T_k - T_{k-1}, \quad k \geq 0
-        \end{equation}
-
-      have the property that $\{\tau_k\}_{k=1}^\infty$ are independent $\mathrm{Exp}(\lambda)$ random variables. Define 
-
-        \begin{equation}
-          N(s) \coloneqq \max\{k \mid T_k \leq s \}
-        \end{equation}
-    \end{definition}
-
-    Now we prove that this process is equivalent to the \hyperref[def:poisson-process]{Poisson process} defined before. 
-
-    \begin{theorem}[Equivalent Interpretations]
-      \label{thm:equivalent-interpretations}
-      Let $\{T_n\}$ be defined as above and $N(s) \coloneqq \max\{k \mid T_k \leq s \}$. Then, 
-
-      \begin{enumerate}
-        \item $N(0) = 0$
-        \item $N(s) \sim \mathrm{Poisson}(\lambda s)$ 
-        \item $N(t + s) - N(t) \sim \mathrm{Poisson}(\lambda s)$ independent of $N(r)$ for $0 \leq r \leq s$. 
-        \item $N(t)$ has independent incremements. 
-      \end{enumerate}
-
-      $N(s) \coloneqq \max\{k \mid T_k \leq s \}$ is a Poisson distribution with mean $\lambda s$. 
-    \end{theorem}
-
-    \begin{proof}
-      From the second perspective, the statement $N(I) \sim \mathrm{Poisson}(\lambda |I|)$ for an interval $I$ means that
-
-        \begin{equation}
-          \mathbb{P}(N(I) = m) = e^{-\lambda |I|} \frac{(\lambda |I|)^m}{m!}, \qquad m = 0, 1, 2, \ldots
-        \end{equation}
-
-      where $|I|$ is the length of the interval $I$. From the first perspective, notice that
-
-        \begin{equation}
-          T_k = \tau_1 + \tau_2 + \ldots + \tau_k
-        \end{equation}
-
-      so that the $k$th arrival time $T_k$ is a sum of $k$ independent $\mathrm{Exp}(\lambda)$ \hyperref[prob-def:random-variable]{random variables}. Thus
-
-        \begin{equation}
-          T_k \sim \mathrm{Gamma}(k, \lambda)
-        \end{equation}
-
-      and therefore has density
-
-        \begin{equation}
-          \lambda e^{-\lambda t} \frac{(\lambda t)^{k-1}}{(k-1)!}, \qquad t > 0
-        \end{equation}
-
-      Note that the arrival times $T_i$ are not independent of each other, but the inter-arrival times $\tau_i$ are indeed independent.
-    \end{proof}
-
-  \subsection{The Poisson Process on a Finite Horizon}
-
-    We can slightly modify the construction above to create a \hyperref[def:poisson-process]{Poisson process} over some finite time horizon $[0, L]$. Again, there are two equivalent ways to do this.
-
-    \begin{enumerate}
-      \item Starting with independent $\mathrm{Exp}(\lambda)$ \hyperref[prob-def:random-variable]{random variables} $\tau_1, \tau_2, \ldots$, we define
-
-        \begin{equation}
-          T_k = \sum_{i=1}^k \tau_i
-        \end{equation}
-
-      and stop once $T_k > L$.
-
-      \item We let $N \sim \mathrm{Poisson}(\lambda L)$, since we are only working on the finite interval $[0, L]$. Given $N = n$, let $U_1, U_2, \ldots, U_n \sim \mathrm{Uniform}([0, L])$ be independent. These define the arrival times, and ordering them gives
-
-        \begin{equation}
-          T_k = U_{(k)}, \qquad k = 1, 2, \ldots, N
-        \end{equation}
-
-      where $U_{(k)}$ is the $k$th order statistic, so that $T_1 = \min(U_1, \ldots, U_N)$.
-    \end{enumerate}
+	  This looks hard because customers overlap in complicated ways, but the second construction of the \hyperref[def:poisson-process]{finite horizon process} makes it easy. Fix $t$ and look only at arrivals in $[0, t]$. Then the number of arrivals is $N(t) \sim \Poisson(\lambda t)$, and given $N(t) = n$, the arrival times are $n$ independent $\Uniform([0, t])$ random variables (in some order, which does not matter for counting). A customer arriving at time $U$ is still there at time $t$ exactly when $S > t - U$, so, since $t - U$ is also $\Uniform([0, t])$, 
+	  \begin{equation}
+	    p \coloneqq \mathbb{P}(\text{customer present at } t) = \frac{1}{t} \int_0^t \mathbb{P}(S > v) \, dv = \frac{1}{t} \int_0^t e^{-\mu v} \, dv = \frac{1 - e^{-\mu t}}{\mu t}. 
+	  \end{equation}
+	  Since the customers behave independently given their arrival times, we get $M(t) \mid N(t) = n \sim \Binomial(n, p)$. Summing over $n$, 
+	  \begin{align}
+	    \mathbb{P}(M(t) = m) & = \sum_{n = m}^\infty e^{-\lambda t} \frac{(\lambda t)^n}{n!} \binom{n}{m} p^m (1 - p)^{n - m} \\ 
+	    & = e^{-\lambda t} \frac{(\lambda t p)^m}{m!} \sum_{n = m}^\infty \frac{\big(\lambda t (1 - p)\big)^{n - m}}{(n - m)!} \\ 
+	    & = e^{-\lambda t} \frac{(\lambda t p)^m}{m!} e^{\lambda t (1 - p)} = e^{-\lambda t p} \frac{(\lambda t p)^m}{m!}.
+	  \end{align}
+	  Therefore, 
+	  \begin{equation}
+	    M(t) \sim \Poisson\bigg( \frac{\lambda}{\mu} \big(1 - e^{-\mu t}\big) \bigg)
+	  \end{equation}
+	  which is again Poisson! Its mean $\E[M(t)] = \frac{\lambda}{\mu}(1 - e^{-\mu t})$ starts at $0$ when the shop opens and increases to $\lambda / \mu$ (arrival rate times mean stay) as $t \to \infty$, in which case $M(t) \to \Poisson(\lambda/\mu)$ in distribution. For example, with $\lambda = 10$ customers per hour and mean stay $1/\mu = 6$ minutes, so $\mu = 10$ per hour, the long-run number in the shop is $\Poisson(1)$ and the shop is empty a fraction $e^{-1} \approx 0.37$ of the time. 
+	\end{example}
